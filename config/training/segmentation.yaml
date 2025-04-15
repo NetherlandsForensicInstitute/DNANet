@@ -1,0 +1,10 @@
+training:
+  batch_size: 16
+  num_epochs: 15
+  steps_per_epoch:
+  use_evaluation_metric: true
+  tensorboard: false
+  save_best: false
+  use_scheduler: true
+  min_delta: -99999  # set to e.g. -99999 to not use early stopping
+  learning_rate: 0.0001

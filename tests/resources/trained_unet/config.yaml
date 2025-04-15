@@ -1,0 +1,7 @@
+model:
+  name: unet
+  depth: 4
+  kernel_size:
+  - 1
+  - 3
+  num_filters: 64

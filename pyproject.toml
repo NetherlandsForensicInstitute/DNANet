@@ -1,0 +1,33 @@
+[project]
+name = "DNAnet_opensource"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "NFI", email = "NFI"},
+]
+dependencies = [
+    "numpy>=2.2.4",
+    "scipy>=1.15.1",
+    "tqdm>=4.67.1",
+    "confidence>=0.15",
+    "torch>=2.5.1",
+    "torchmetrics>=1.7.1",
+    "construct>=2.10.70",
+    "datasets>=3.5.0",
+    "matplotlib>=3.10.1",
+    "mlflow>=2.21.3",
+    "tensorboard>=2.18.0"
+
+]
+requires-python = ">=3.10,<=3.12"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false
+
+[dependency-groups]
+testing = [
+    "pytest>=8.3.5",
+]
