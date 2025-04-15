@@ -1,10 +1,8 @@
 [project]
-name = "DNAnet_opensource"
+name = "DNANet"
 version = "0.1.0"
-description = "Default template for PDM package"
-authors = [
-    {name = "NFI", email = "NFI"},
-]
+description = " An open source repository offering tools for parsing DNA profiles and integrating machine learning models."
+
 dependencies = [
     "numpy>=2.2.4",
     "scipy>=1.15.1",
@@ -21,7 +19,7 @@ dependencies = [
 ]
 requires-python = ">=3.10,<=3.12"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 
 
 [tool.pdm]

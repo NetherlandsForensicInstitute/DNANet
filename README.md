@@ -1,4 +1,8 @@
-# Welcome!
+# DNANet
+[![pdm-managed](https://img.shields.io/endpoint?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fpdm-project%2F.github%2Fbadge.json)](https://pdm-project.org)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+![Python Version](https://img.shields.io/badge/Python-%3E%3D3.10-brightgreen?logo=python)
+
 This a Python repository that can be used to analyze DNA profiles using deep learning. It contains functionality to parse .hid files and train and 
 evaluate models. The already implemented UNet can be used to call alleles in a DNA profile. 
 
