@@ -3,8 +3,23 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![Python Version](https://img.shields.io/badge/Python-%3E%3D3.10-brightgreen?logo=python)
 
+# Welcome!
 This a Python repository that can be used to analyze DNA profiles using deep learning. It contains functionality to parse .hid files and train and 
-evaluate models. The already implemented UNet can be used to call alleles in a DNA profile. 
+evaluate models. The pre-trained U-Net provided can be used to call alleles in a DNA profile.
+
+If you find this repository useful, please cite
+	@ARTICLE{Benschop2019,
+      title     = "An assessment of the performance of the probabilistic genotyping
+                   software {EuroForMix}: Trends in likelihood ratios and analysis
+                   of Type {I} \& {II} errors",
+      author    = "Benschop, Corina C G and Nijveld, Alwart and Duijs, Francisca E
+                   and Sijen, Titia",
+      journal   = "Forensic Sci. Int. Genet.",
+      volume    =  42,
+      pages     = "31--38",
+      year      =  2019,
+    }
+for the data. Our publication describing the code and model is forthcoming.
 
 ## Requirements
 Python >= 3.10, <=3.12
@@ -15,9 +30,9 @@ have pdm installed:
 ```bash
 $ pip install pdm
 ```
-Then run the following to install the dependencies:
+Then run the following command to install the dependencies:
 ```bash
-$ pdm install .
+$ pdm install
 ```
 
 Git LFS is used to track `.hid` and `.pt` files. 
@@ -89,10 +104,12 @@ hid_dataset = HIDDataset(
 
 The list of `HIDImage`'s is stored in the `._data` attribute of the class. 
 
+Note that when loading the 2p-5p R&D dataset without limit, two hid files do not pass data validation, leaving the dataset with 348 images instead of 350.
+
 # Models
 
 ## U-Net
-We have implemented a model to identify peaks in a DNA profile, using a U-Net. The architecture can be found in `models.segmentation.unet_architecture.py`.
+We have implemented a U-Net model to identify peaks in a DNA profile. The U-Net architecture can be found in `models.segmentation.unet_architecture.py`.
 To load a trainable version of this exact model and make predictions, we can use:
 ```bash
 from DNAnet.data.data_models.hid_dataset import HIDDataset
@@ -104,7 +121,7 @@ predictions = unet_model.predict_batch(hid_dataset)
 ```
 This model creates a binary segmentation, where `1` indicates the presence of a peak and `0` otherwise. 
 
-We have also implemented an `AlleleCaller` (see `DNAnet/allele_callers`) to translate the binary segmentation
+We have also implemented an `AlleleCaller` (see `DNAnet/allele_callers.py`) to translate the binary segmentation
 into called alleles. This step is part of the `predict_batch()` function of the U-Net and will be applied when
 `apply_allele_caller` is set to `True` in the `unet.yaml`. The called alleles are stored in the 
 `meta` attribute of a `Prediction` object.
@@ -183,6 +200,7 @@ scripts, run: `python <script.py> --help`.
 ## train.py
 This script can be used to train models with specified settings. The user can provide training parameters
 in the training config file, see for instance `config/training/segmentation.yaml`. 
+
 Run for example:
 
 ```bash
@@ -199,12 +217,13 @@ python train.py \
 This script can evaluate (trained) models by computing metrics. It is also possible to store the 
 predictions of the model as .json file. Metrics can be provided using an evaluation config file, 
 see for instance: `config/evaluation/segmentation.yaml`. Metrics will be written to a .txt file.
+
 Run for example: 
 
 ```bash
 python evaluate.py \
   -m unet \  # load a model
-  -c trained_unetresources/model/current_best_unet \  # load a checkpoint
+  -c resources/model/current_best_unet \  # load a checkpoint
   -d dnanet_rd \  # load a dataset
   -e segmentation \  # load evaluation metrics
   -s 0.1 \  # apply splitting
