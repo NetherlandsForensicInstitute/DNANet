@@ -76,22 +76,22 @@ def get_alleles(image, prediction):
     return allele_dict
 
 
-def create_paper_figure(
+def plot_allele_profile(
     image,
     prediction,
     show_probability: bool = True,
     show_annotations: bool = True,
     marker_selection=None,
-    add_title: str = False,
+    add_suptitle: str = False,
 ):
     allele_dict = get_alleles(image, prediction)
     if marker_selection:
         marker_name, (dye_row, marker_bin) = marker_selection
-        fig, axes = plt.subplots(nrows=1, figsize=(12, 8))
+        fig, axes = plt.subplots(nrows=1, figsize=(14, 8), dpi=400)
         axes = [axes]
     else:
-        fig, axes = plt.subplots(nrows=5, figsize=(20, 20))
-    if add_title:
+        fig, axes = plt.subplots(nrows=5, figsize=(20, 16), dpi=400)
+    if add_suptitle:
         fig.suptitle(f"HID: {image.path.stem}")
 
     x_values = np.arange(image.data.shape[1])
@@ -120,6 +120,7 @@ def create_paper_figure(
             ymin, ymax = ax.get_ylim()
             extra_space = (ymax - ymin) * 0.3
             ax.set_ylim(ymin - extra_space, ymax)
+            ax.set_yticks([tick for tick in ax.get_yticks() if tick >= 0])
 
         if show_probability:
             # Plot the model's probabilities
@@ -142,6 +143,7 @@ def create_paper_figure(
                 label="Model prediction Threshold",
             )
             rax.set_ylabel("Probability")
+            rax.set_yticks([tick for tick in rax.get_yticks() if tick >= 0])
 
             # Set the RFU plot above the probability plot
             ax.set_zorder(rax.get_zorder() + 1)
@@ -208,47 +210,62 @@ def create_paper_figure(
     return fig
 
 
-if __name__ == "__main__":
-    # Create a path to save the figures to
-    Path("./figures").mkdir(exist_ok=True)
+def get_marker_ranges(image, tail_size=5):
+    marker_ranges = {}
+    for marker in image._panel._panel:
+        marker_name = marker.name
+        marker_bin = _get_marker_bin(marker)
+        scanpoint_bin = tuple(np.argmin(np.abs(image._scaler - marker_bin), axis=1))
+        scanpoint_bin = (
+            max(0, scanpoint_bin[0] - tail_size),
+            min(4096, scanpoint_bin[1] + tail_size),
+        )
+        marker_ranges[marker_name] = (marker.dye_row, np.arange(*scanpoint_bin))
+    return marker_ranges
 
-    # Load model, data, and predictions
+
+def save_figure(fig, path: str):
+    fig.savefig(path)
+    plt.close(fig)
+
+
+def generate_figures(
+    model, dataset, selected_hids_markers: dict, output_dir="./figures"
+):
+    Path(output_dir).mkdir(exist_ok=True)
+
+    for image in dataset:
+        image_id = image.path.stem
+        if image_id not in selected_hids_markers:
+            continue
+
+        prediction = model.predict(image)
+        marker_ranges = get_marker_ranges(image)
+
+        # Full profile figure
+        full_profile_fig = plot_allele_profile(
+            image, prediction, show_probability=False, show_annotations=True
+        )
+        save_figure(full_profile_fig, f"{output_dir}/{image_id}-full_profile.png")
+
+        # Marker-specific figure
+        marker = selected_hids_markers[image_id]
+        if marker in marker_ranges:
+            marker_figure = plot_allele_profile(
+                image,
+                prediction,
+                marker_selection=(marker, marker_ranges[marker]),
+            )
+            save_figure(marker_figure, f"{output_dir}/{image_id}-{marker}.png")
+
+
+if __name__ == "__main__":
     model = load_model("resources/model/current_best_unet/")
     dataset = load_dataset("config/data/dnanet_rd.yaml")
 
-    # The specific HID and Markers used for the plots in the paper
     paper_figures = {
         "1E3_rerun_F04_16": "SE33",
         "3D2_A07_01": "D8S1179",
     }
 
-    # Loop of the images and filter for the HID's chosen.
-    for image in dataset:
-        if image.path.stem not in paper_figures.keys():
-            continue
-        prediction = model.predict(image)
-
-        # Plot the full profile
-        full_profile_fig = create_paper_figure(
-            image, prediction, show_probability=False, show_annotations=True
-        )
-        full_profile_fig.savefig(f"./figures/{image.path.stem}-full_profile.png")
-
-        # Create a mapping for the bin locations of each marker
-        marker_ranges = {}
-        tail_size = 5
-        for marker in image._panel._panel:
-            marker_name = marker.name
-            marker_bin = _get_marker_bin(marker)
-            scanpoint_bin = tuple(np.argmin(np.abs(image._scaler - marker_bin), axis=1))
-            scanpoint_bin = max(0, scanpoint_bin[0] - tail_size), min(4096, scanpoint_bin[1] + tail_size)
-            marker_ranges[marker_name] = (marker.dye_row, np.arange(*scanpoint_bin))
-
-        # Plot the specific marker shown in the paper
-        paper_marker = paper_figures[image.path.stem]
-        marker_figure = create_paper_figure(
-            image,
-            prediction,
-            marker_selection=(paper_marker, marker_ranges[paper_marker]),
-        )
-        marker_figure.savefig(f"./figures/{image.path.stem}-{paper_marker}.png")
+    generate_figures(model, dataset, paper_figures)
