@@ -165,4 +165,5 @@ cython_debug/
 scratch/
 output/
 mlruns/
+figures/
 .ruff_cache
