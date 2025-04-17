@@ -11,5 +11,5 @@ dataset:
   shuffle: false
   skip_if_invalid_ladder: false
   analysis_threshold_type: DTL  # DTH (high) or DTL (low)
-  ground_truth_as_annotations: false  # whether to store ground truth in meta['called_alleles']
+  ground_truth_as_annotations: true  # whether to store ground truth in meta['called_alleles']
   group_replicas_in_split: true
