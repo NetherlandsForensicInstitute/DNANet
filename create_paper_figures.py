@@ -241,7 +241,7 @@ if __name__ == "__main__":
             marker_name = marker.name
             marker_bin = _get_marker_bin(marker)
             scanpoint_bin = tuple(np.argmin(np.abs(image._scaler - marker_bin), axis=1))
-            scanpoint_bin = scanpoint_bin[0] - tail_size, scanpoint_bin[1] + tail_size
+            scanpoint_bin = max(0, scanpoint_bin[0] - tail_size), min(4096, scanpoint_bin[1] + tail_size)
             marker_ranges[marker_name] = (marker.dye_row, np.arange(*scanpoint_bin))
 
         # Plot the specific marker shown in the paper
