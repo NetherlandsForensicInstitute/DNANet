@@ -1,20 +1,23 @@
 import logging
 from pathlib import Path
+from typing import List, Tuple
 
-from matplotlib.lines import Line2D
 import numpy as np
-from matplotlib import pyplot as plt
-import scipy
 import scipy.interpolate
+from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 
-from DNAnet.data.data_models.hid_image import HIDImage
-from DNAnet.evaluation.visualizations import _get_marker_bin
 from config_io import load_dataset, load_model
+from DNAnet.data.data_models.dna_models import Marker, Panel
+from DNAnet.data.data_models.hid_dataset import HIDDataset
+from DNAnet.data.data_models.hid_image import HIDImage
+from DNAnet.evaluation.visualizations import DNA_CHANNELS, _get_marker_bin
+from DNAnet.models.prediction import Prediction
 
 logger = logging.getLogger("Figure Generator")
 logger.setLevel(logging.INFO)
 
-DNA_CHANNELS = ("blue", "green", "black", "red", "purple", "orange")
+
 ANNOTATION_COLORS = {
     "Ground Truth": "blue",
     "Analyst Annotation": "green",
@@ -25,7 +28,7 @@ SCAN_TO_BASE = scipy.interpolate.interp1d(
 )
 
 
-def add_bin_info(called_alleles, panel):
+def add_bin_info(called_alleles: List[Marker], panel: Panel):
     for marker in called_alleles:
         for allele in marker.alleles:
             bin_info = panel.get_allele_info(
@@ -35,7 +38,7 @@ def add_bin_info(called_alleles, panel):
     return called_alleles
 
 
-def get_alleles(image, prediction):
+def get_alleles(image: HIDImage, prediction: Prediction):
     # Get alleles and add bin info
     prediction_alleles = prediction.meta["called_alleles"]
     if manual_alleles := image.meta.get("called_alleles_manual", None):
@@ -77,11 +80,11 @@ def get_alleles(image, prediction):
 
 
 def plot_allele_profile(
-    image,
-    prediction,
+    image: HIDImage,
+    prediction: Prediction,
     show_probability: bool = True,
     show_annotations: bool = True,
-    marker_selection=None,
+    marker_selection: Tuple[str, Tuple[int, np.ndarray]] = None,
     add_suptitle: str = False,
 ):
     allele_dict = get_alleles(image, prediction)
@@ -159,7 +162,6 @@ def plot_allele_profile(
             # Create an overlay for the annotations
             overlay = ax.figure.add_axes(ax.get_position(), frameon=False)
             overlay.set_xlim(ax.get_xlim())
-            # overlay.set_xlim(0, 4096)
             overlay.axis("off")
 
             # For each (available) annotation, plot vlines on the called alleles spot
@@ -230,11 +232,15 @@ def save_figure(fig, path: str):
 
 
 def generate_figures(
-    model, dataset, selected_hids_markers: dict, output_dir="./figures"
+    model, dataset: HIDDataset, selected_hids_markers: dict, output_dir="./figures"
 ):
     Path(output_dir).mkdir(exist_ok=True)
 
-    for image in dataset:
+    figure_images = [
+        dataset.get_hid_image_by_name(hid_name)
+        for hid_name in selected_hids_markers.keys()
+    ]
+    for image in figure_images:
         image_id = image.path.stem
         if image_id not in selected_hids_markers:
             continue
