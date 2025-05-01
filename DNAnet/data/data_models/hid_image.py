@@ -120,7 +120,7 @@ class HIDImage(Image):
 
         if called_alleles and self.annotation is None:
             # Parse the called alleles into a segmentation
-            segmentation = self._get_segmentation(called_alleles, data.shape)
+            segmentation = self._get_segmentation(self.scaler, called_alleles, data.shape)
             self._annotation = Annotation(image=segmentation)
             self._meta['called_alleles'] = called_alleles
 
@@ -182,9 +182,13 @@ class HIDImage(Image):
         data = selected_profile[:, rescale_dye(interpolated_base_pairs)]
         return data[..., np.newaxis]
 
-    def _get_segmentation(self,
-                          called_alleles: Sequence[Marker],
-                          shape: Tuple[int, ...]) -> np.ndarray:
+    @classmethod
+    def _get_segmentation(
+        cls,
+        scaler, 
+        called_alleles: Sequence[Marker],
+        shape: Tuple[int, ...]
+    ) -> np.ndarray:
         """
         Creates a binary mask based on the locations of called alleles in the annotation. Use
         the scaler to determine for an allele bin (a single base pair), the pixel location in
@@ -195,7 +199,7 @@ class HIDImage(Image):
             for allele in marker.alleles:
                 image[
                     marker.dye_row,
-                    slice(*tuple(np.argmin(np.abs(self.scaler - allele.bin), axis=1))),
+                    slice(*tuple(np.argmin(np.abs(scaler - allele.bin), axis=1))),
                     0
                 ] = 1
         return image

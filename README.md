@@ -35,7 +35,10 @@ Then run the following command to install the dependencies:
 $ pdm install
 ```
 
-Git LFS is used to track `.hid` and `.pt` files. 
+Git LFS is used to track `.hid` and `.pt` files. Make sure to [install Git LFS](https://git-lfs.com/) on your system. In order to retrieve the files from the remote run the following command:
+```bash
+$ git lfs pull
+```
 
 ## Code overview
 The repository is roughly organized into three sections:
