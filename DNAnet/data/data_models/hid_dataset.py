@@ -5,10 +5,8 @@ import random
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Generator, List, Optional, Tuple, Union
 
-import numpy as np
-from scipy.signal import find_peaks
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -28,8 +26,6 @@ from DNAnet.utils import (
 
 LOGGER = logging.getLogger('dnanet')
 
-OTHER_KITS = ("ppy23", "minifiler", "hdplex")  # other than PPF6C
-
 
 class HIDDataset(InMemoryDataset):
     """
@@ -39,6 +35,8 @@ class HIDDataset(InMemoryDataset):
     :param annotations_path: location of the folder containing annotations.
     :param panel: path to read the panel from.
     :param hid_to_annotations_path: path of the file that maps hid files to annotations.
+    :param best_ladder_paths_csv: path of the file that maps the path of a hid image to the file
+        path of its best ladder (produced by scripts/select_ladder_for_images.py)
     :param limit: number of hid files to read.
     :param use_cache: whether to read data from the cache.
     :param cache_path: location of the cache to read files from (if use_cache is true), or to
@@ -91,8 +89,8 @@ class HIDDataset(InMemoryDataset):
             self._data = _load_cached_hf_data(cache_path, limit)
         # Otherwise, read data and cache (optional)
         else:
-            LOGGER.info("Loading data from file")
-            self._validate_dataset_args(annotations_path, panel)
+            LOGGER.info(f"Loading raw data from {self.root}")
+            self._validate_dataset_args(annotations_path, panel, best_ladder_paths_csv)
 
             self._panel = Panel(panel_path=panel)
             # Map the hid file names to the annotation
@@ -101,15 +99,14 @@ class HIDDataset(InMemoryDataset):
                 hid_to_annotations_path=hid_to_annotations_path,
                 annotations_path=annotations_path,
             )
+            # Map the image path to the path of the best fitting ladder
             self.best_ladder_paths = self.load_best_ladder_paths(best_ladder_paths_csv)
 
-            # Create a list of .hid files, with their ladders and annotations
+            # Create a list of .hid files, with their ladder paths and annotations
             self._files = self._collect_and_filter_file_paths()
-            if len(self._files) == 0:
-                LOGGER.warning("Zero hid files found when loading data!")
             if self.limit:
-                # Make sure to shuffle before limiting, otherwise we would always take the first
-                # `limit` when loading images.
+                # Make sure to shuffle files before limiting, otherwise we would always take the
+                # first `limit` when loading images.
                 if self.shuffle:
                     self._files = random.Random().sample(self._files, self.limit)
                 else:
@@ -118,6 +115,8 @@ class HIDDataset(InMemoryDataset):
 
             # Create all HIDImages and filter out invalid ones
             self._data = list(self.load_images_from_files())
+            if len(self._data) == 0:
+                raise ValueError("Zero hid images found when loading data!")
             LOGGER.info(f"Found {len(self._data)} HIDImages after filtering out images with "
                         f"missing data or missing called alleles.")
 
@@ -139,7 +138,8 @@ class HIDDataset(InMemoryDataset):
 
     def _validate_dataset_args(self,
                                annotations_path: Optional[PathLike],
-                               panel_path: Optional[PathLike]):
+                               panel_path: Optional[PathLike],
+                               best_ladder_paths_csv: Optional[PathLike]):
         """
         Check the presence and validity of dataset arguments.
         """
@@ -155,6 +155,9 @@ class HIDDataset(InMemoryDataset):
 
         if not annotations_path:
             raise ValueError("Annotations path missing.")
+
+        if not best_ladder_paths_csv:
+            raise ValueError("Missing path to csv file containing best ladder per image.")
 
     def _collect_and_filter_file_paths(self) -> List[Dict[str, Union[str, PathLike, List[str]]]]:
         """
@@ -215,6 +218,10 @@ class HIDDataset(InMemoryDataset):
 
     @staticmethod
     def load_best_ladder_paths(best_ladders_csv_path: PathLike) -> Dict[str, str]:
+        """
+        Loads a csv file containing for every HID image path the path of the best corresponding
+        ladder.
+        """
         with open(best_ladders_csv_path, "r") as f:
             reader = csv.reader(f, delimiter=",")
             next(reader)
@@ -292,8 +299,8 @@ class HIDDataset(InMemoryDataset):
     def load_images_from_files(self) -> Generator[HIDImage, None, None]:
         """
         From the hid file path, ladder file path(s) and annotation information, create the actual
-        HIDImage's by parsing those file attributes. Some HIDImages might be filtered out due to
-        missing either missing the called alleles or missing peak data.
+        HIDImages by parsing those file attributes. Some HIDImages might be filtered out due to
+        missing either the called alleles or peak data.
         """
         files_progress_bar = tqdm(self._files, desc=f"Loading data from {self.root}")
         with logging_redirect_tqdm():
@@ -303,6 +310,7 @@ class HIDDataset(InMemoryDataset):
                     file_attributes["ladder_path"],
                     file_attributes["annotation"]
                 )
+                # create a ladder from the ladder_path if present
                 ladder = Ladder(ladder_path, self._panel) if ladder_path else None
                 if self.skip_if_invalid_ladder and ladder is None:
                     LOGGER.warning("Skipping image: Invalid/Missing ladder (%s)", path)

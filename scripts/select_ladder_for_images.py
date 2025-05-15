@@ -5,27 +5,38 @@ from typing import List, Optional
 
 import numpy as np
 from scipy.signal import find_peaks
-import math
 
 from DNAnet.data.data_models import Panel
 from DNAnet.data.data_models.hid_image import HIDImage, Ladder
+from DNAnet.data.utils import basepair_to_pixel
 from config_io import load_dataset
 
-
-def bp_to_pix(scaler: np.ndarray, bp: float) -> float:
-    return np.argmin(np.abs(scaler - bp), axis=1)[0]
+OTHER_KITS = ("ppy23", "minifiler", "hdplex")  # other than PPF6C
 
 
 def get_ladder_paths(im: HIDImage) -> List[Optional[str]]:
+    """
+    Find all paths to ladder files in the same folder as the provided image.
+    """
     return [im.path.parent / file for file in os.listdir(im.path.parent) if
             ("ladder" in file.lower()
-             and not any([kit in file.lower() for kit in ("ppy23", "minifiler", "hdplex")]))]
+             and not any([kit in file.lower() for kit in OTHER_KITS]))]
 
 
 def get_best_ladder_path(image: HIDImage, default_panel: Panel) -> Optional[str]:
+    """
+    Return the path of the best fitting ladder for the HIDImage.
+
+    For every called allele in the image's analyst annotation, we retrieve the rfu (peak height)
+    data of that allele bin. We check from the rfu values whether there exists a peak in the allele
+    bin, and count how often a peak is found. This is done for every ladder. The (pixel) location
+    of the allele bin may differ per ladder, therefore there might not always be a peak present in
+    the bin. We return the ladder for which most peaks are found.
+    If there are no ladder paths available for the image or no paths result in a valid ladder,
+    return None.
+    """
     best_ladder_path = None
-    min_diff = math.inf
-    n_called_alleles = sum([len(m.alleles) for m in image.meta['called_alleles']])
+    max_peaks_found = 0
     # retrieve paths for all possible ladders
     for path in get_ladder_paths(image):
         ladder = Ladder(path, default_panel)
@@ -33,31 +44,35 @@ def get_best_ladder_path(image: HIDImage, default_panel: Panel) -> Optional[str]
             # proceed if the ladder has no valid adjusted panel
             continue
 
-        n_alleles_found = 0
+        n_peaks_found = 0
         for marker in image.meta['called_alleles']:
             for allele in marker.alleles:
-                # for every peak, find the allele bin in base pairs
+                # for every annotated peak, find the allele bin in terms of base pairs
                 _, bp_left, bp_right = ladder._panel.get_allele_info(marker.name, allele.name)
                 # translate base pairs to pixels using the image's scaler
-                pix_left, pix_right = bp_to_pix(image.scaler, bp_left), \
-                                      bp_to_pix(image.scaler, bp_right)
-                # retrieve the rfu data for that pixel bin
+                pix_left, pix_right = basepair_to_pixel(image.scaler, bp_left), \
+                                      basepair_to_pixel(image.scaler, bp_right)
+                # retrieve the rfu data for the bin by inspecting the image's data
                 allele_rfu_data = image.data[marker.dye_row, int(pix_left):int(pix_right), 0]
-                # check if there is a peak within the bin
+                # check if there is a peak located inside the bin
                 peak, _ = find_peaks(allele_rfu_data, height=0.8*np.max(allele_rfu_data))
                 if peak.size > 0:
-                    n_alleles_found += 1
-        if n_called_alleles - n_alleles_found < min_diff:
-            # We want to return the ladder with minimal difference in peaks, so save the ladder
-            # path if we have found a new minimum
-            min_diff = n_called_alleles - n_alleles_found
+                    n_peaks_found += 1
+        if n_peaks_found > max_peaks_found:
+            # We want to return the ladder with most peaks found, so save the ladder file
+            # path if we have found a new maximum
+            max_peaks_found = n_peaks_found
             best_ladder_path = ladder.path
     return best_ladder_path
 
 
 def run(data_config: str):
+    """
+    Write a csv file with the best ladder path for every image in the dataset. Note that this
+    is only done for images that have annotations, a non-empty .data attribute and called alleles
+    in the .meta attribute (i.e. that survived all filtering applied when loading a Dataset).
+    """
     dataset = load_dataset(data_config)
-    exit()
     panel = Panel('resources/data/SGPanel_PPF6C_SPOOR.xml')
     paths = [[image.path, get_best_ladder_path(image, panel)] for image in dataset]
     with open('resources/data/2p_5p_Dataset_NFI/best_ladder_paths.csv', 'w', newline='') as f:
