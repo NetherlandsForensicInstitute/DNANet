@@ -107,11 +107,11 @@ class SkipCondition(Mapping[str, Any]):
 
 
 SKIP_MODELS = SkipCondition(
-    condition=int(os.environ.get("FIRE_TEST_SKIP_MODELS", 0)),
-    description="FIRE_TEST_SKIP_MODELS environment variable set to non-zero value",
+    condition=int(os.environ.get("TEST_SKIP_MODELS", 0)),
+    description="TEST_SKIP_MODELS environment variable set to non-zero value",
 )
 
 SKIP_DATASETS = SkipCondition(
-    condition=int(os.environ.get("FIRE_TEST_SKIP_DATASETS", 0)),
-    description="FIRE_TEST_SKIP_DATASETS environment variable set to non-zero value",
+    condition=int(os.environ.get("TEST_SKIP_DATASETS", 0)),
+    description="TEST_SKIP_DATASETS environment variable set to non-zero value",
 )
