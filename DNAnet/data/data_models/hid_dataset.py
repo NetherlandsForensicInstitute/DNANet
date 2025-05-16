@@ -205,7 +205,7 @@ class HIDDataset(InMemoryDataset):
                 full_file_list.append(
                     {
                         "full_path": full_path,
-                        "ladder_path": self.best_ladder_paths.get(full_path),
+                        "ladder_path": self.best_ladder_paths.get(Path(full_path).stem),
                         "annotation": _annotation,
                     }
                 )

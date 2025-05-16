@@ -30,14 +30,16 @@ def hid_dataset_rd():
         hid_to_annotations_path=(pytest.RESOURCES_DIR / "profiles" /
                                  "RD" / "rd_hid_annotations_mapping.csv"),
         analysis_threshold_type="DTH",
+        best_ladder_paths_csv=(pytest.RESOURCES_DIR / "profiles" /
+                               "RD" / "test_best_ladder_paths.csv")
     )
 
 
 @pytest.fixture
 def hid_image():
-    annotation_path = os.path.join(pytest.ROOT_PATH, "profiles", "RD", "1A2_A01_01_annotation.npy")
+    annotation_path = os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "1A2_A01_01_annotation.npy")
     return HIDImage(
-        path=os.path.join(pytest.ROOT_PATH, "profiles", "RD", "1A2_A01_01.hid"),
+        path=os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "1A2_A01_01.hid"),
         annotation=Annotation(image=np.load(annotation_path))
     )
 

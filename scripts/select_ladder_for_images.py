@@ -72,10 +72,10 @@ def run(data_config: str):
     is only done for images that have annotations, a non-empty .data attribute and called alleles
     in the .meta attribute (i.e. that survived all filtering applied when loading a Dataset).
     """
-    dataset = load_dataset(data_config)
+    dataset = load_dataset('dnanet_rd_cache')
     panel = Panel('resources/data/SGPanel_PPF6C_SPOOR.xml')
-    paths = [[image.path, get_best_ladder_path(image, panel)] for image in dataset]
-    with open('resources/data/2p_5p_Dataset_NFI/best_ladder_paths.csv', 'w', newline='') as f:
+    paths = [[image.path.stem, get_best_ladder_path(image, panel)] for image in dataset]
+    with open('resources/data/2p_5p_Dataset_NFI/best_ladder_paths_stems.csv', 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['image_path', 'ladder_path'])
         writer.writerows(paths)
