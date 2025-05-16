@@ -5,7 +5,7 @@ from numpy.testing import assert_array_equal
 from DNAnet.data.parsing import get_peak_data
 from DNAnet.data.utils import (
     basepair_interpolator,
-    extract_ss_peaks,
+    basepair_to_pixel, extract_ss_peaks,
     find_peak_boundary,
     find_peak_idx_near_or_in_range,
     find_peak_near_idx,
@@ -108,3 +108,16 @@ def test_interpolate_basepairs_float():
     # Extrapolation
     interp = basepair_interpolator(indices, original_x_values, extrapolate=True)
     assert_array_equal(interp(93.47), np.array([93.29]))
+
+
+@pytest.mark.parametrize(
+    "basepair, expected",
+    [
+        (0, 0.0),
+        (180, 1149.0),
+        (456.7, 3913.0),
+        (1000, 4095.0),
+    ],
+)
+def test_basepair_to_pixel(hid_image, basepair, expected):
+    assert basepair_to_pixel(hid_image.scaler, basepair) == expected
