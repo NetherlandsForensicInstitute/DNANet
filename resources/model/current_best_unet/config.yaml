@@ -3,3 +3,4 @@ model:
   depth: 4
   kernel_size: [3, 5]   # height, width
   num_filters: 32
+  apply_allele_caller: True
