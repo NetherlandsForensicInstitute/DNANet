@@ -34,6 +34,8 @@ def get_best_ladder_path(image: HIDImage, default_panel: Panel) -> Optional[str]
     the bin. We return the ladder for which most peaks are found.
     If there are no ladder paths available for the image or no paths result in a valid ladder,
     return None.
+
+    TODO: implement an algorithm to find a ladder when an HIDImage is not annotated.
     """
     best_ladder_path = None
     max_peaks_found = 0
@@ -66,16 +68,16 @@ def get_best_ladder_path(image: HIDImage, default_panel: Panel) -> Optional[str]
     return best_ladder_path
 
 
-def run(data_config: str):
+def run(data_config: str, output_path: str):
     """
     Write a csv file with the best ladder path for every image in the dataset. Note that this
     is only done for images that have annotations, a non-empty .data attribute and called alleles
     in the .meta attribute (i.e. that survived all filtering applied when loading a Dataset).
     """
-    dataset = load_dataset('dnanet_rd_cache')
+    dataset = load_dataset(data_config)
     panel = Panel('resources/data/SGPanel_PPF6C_SPOOR.xml')
     paths = [[image.path.stem, get_best_ladder_path(image, panel)] for image in dataset]
-    with open('resources/data/2p_5p_Dataset_NFI/best_ladder_paths_stems.csv', 'w', newline='') as f:
+    with open(output_path, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['image_path', 'ladder_path'])
         writer.writerows(paths)
@@ -92,5 +94,13 @@ if __name__ == '__main__':
              "if located in `./config/data/`) containing the configuration "
              "for the dataset to evaluate the model on"
     )
+    parser.add_argument(
+        '-o',
+        '--output-path',
+        type=str,
+        required=False,
+        help="The output path to the the csv file to write the result to.",
+        default="resources/data/2p_5p_Dataset_NFI/best_ladder_paths_stems.csv"
+    )
     args = parser.parse_args()
-    run(args.data_config)
+    run(args.data_config, args.output_path)

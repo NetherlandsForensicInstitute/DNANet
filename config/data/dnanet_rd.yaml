@@ -4,7 +4,7 @@ dataset:
   annotations_path: resources/data/2p_5p_Dataset_NFI/.txt bestanden 2024 naam
   panel: resources/data/SGPanel_PPF6C_SPOOR.xml
   hid_to_annotations_path: resources/data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv
-  best_ladder_paths_csv: resources/data/2p_5p_Dataset_NFI/best_ladder_paths.csv
+  best_ladder_paths_csv: resources/data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv
   limit:
   use_cache: false  # false: write to `cache_path`, true: load from `cache_path` (if provided)
   cache_path:
