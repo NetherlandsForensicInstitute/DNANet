@@ -250,3 +250,18 @@ python evaluate.py \
   -k 5 \  # number of folds to use
   -o output/example_run_cross_val  # write results to this folder
 ```
+
+## scripts/select_ladder_for_images.py
+This script is used to select the best ladder for every `HIDImage` in a dataset. The best
+ladder is determined by counting how often an annotated peak falls within the allele bin. To do this,
+we translate the allele name (e.g. 'AMEL-X') to a base pair location via a candidate ladder. Then we 
+translate the base pair locations to pixels (using the image's scaler), so we can retrieve the peak 
+height data for that allele and detect the presence of a peak. The candidate ladder for which 
+most peaks are found, is declared to be the best ladder.
+
+The output of this script is a csv file containing a mapping between the .hid filename stem 
+(e.g. '1A2_A01_01') and the path to  the ladder file that resulted in the 'best' ladder. For
+the high threshold (`DTH`) 2p-5p NFI data, the results can be found in 
+`resources/data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv`.
+
+Note that for this algorithm, annotated images (having called alleles) are necessary. 
