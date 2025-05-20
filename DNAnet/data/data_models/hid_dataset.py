@@ -36,7 +36,7 @@ class HIDDataset(InMemoryDataset):
     :param panel: path to read the panel from.
     :param hid_to_annotations_path: path of the file that maps hid files to annotations.
     :param best_ladder_paths_csv: path of the file that maps the path of a hid image to the file
-        path of its best ladder (produced by scripts/select_ladder_for_images.py)
+        path of its best ladder (produced by scripts/select_ladder_for_images.py).
     :param limit: number of hid files to read.
     :param use_cache: whether to read data from the cache.
     :param cache_path: location of the cache to read files from (if use_cache is true), or to
@@ -44,7 +44,7 @@ class HIDDataset(InMemoryDataset):
     :param adjustment_of_annotations: the adjustment to be applied to the annotations, either
     'complete' to label the entire peak, or 'top' to only label the top of the peak.
     :param shuffle: whether the dataset should be shuffled when iterating.
-    :param skip_if_invalid_ladder: whether to skip samples that have invalid ladders.
+    :param skip_if_invalid_ladder: whether to skip images that have invalid ladders.
     :param analysis_threshold_type: the analysis threshold type to use for annotations (either
         `DTH` (high) or `DTL` (low).
     :param ground_truth_as_annotations: whether to load the ground truth donor alleles as
@@ -90,7 +90,7 @@ class HIDDataset(InMemoryDataset):
         # Otherwise, read data and cache (optional)
         else:
             LOGGER.info(f"Loading raw data from {self.root}")
-            self._validate_dataset_args(annotations_path, panel, best_ladder_paths_csv)
+            self._validate_dataset_args(annotations_path, panel)
 
             self._panel = Panel(panel_path=panel)
             # Map the hid file names to the annotation
@@ -138,8 +138,7 @@ class HIDDataset(InMemoryDataset):
 
     def _validate_dataset_args(self,
                                annotations_path: Optional[PathLike],
-                               panel_path: Optional[PathLike],
-                               best_ladder_paths_csv: Optional[PathLike]):
+                               panel_path: Optional[PathLike]):
         """
         Check the presence and validity of dataset arguments.
         """
@@ -155,9 +154,6 @@ class HIDDataset(InMemoryDataset):
 
         if not annotations_path:
             raise ValueError("Annotations path missing.")
-
-        if not best_ladder_paths_csv:
-            raise ValueError("Missing path to csv file containing best ladder per image.")
 
     def _collect_and_filter_file_paths(self) -> List[Dict[str, Union[str, PathLike, List[str]]]]:
         """
@@ -217,11 +213,17 @@ class HIDDataset(InMemoryDataset):
         return full_file_list
 
     @staticmethod
-    def load_best_ladder_paths(best_ladders_csv_path: PathLike) -> Dict[str, str]:
+    def load_best_ladder_paths(best_ladders_csv_path: Optional[PathLike]) -> Dict[str, str]:
         """
         Loads a csv file containing for every HID image path the path of the best corresponding
-        ladder.
+        ladder. If not provided, an empty dictionary is returned, meaning that no ladders will
+        be considered when loading the data.
         """
+        if not best_ladders_csv_path:
+            LOGGER.info("No csv path for best ladders is provided.")
+            return dict()
+
+        LOGGER.info(f"Loading best ladder paths from {best_ladders_csv_path}.")
         with open(best_ladders_csv_path, "r") as f:
             reader = csv.reader(f, delimiter=",")
             next(reader)
