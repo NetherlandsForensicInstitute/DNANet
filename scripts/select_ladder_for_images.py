@@ -100,7 +100,7 @@ if __name__ == '__main__':
         type=str,
         required=False,
         help="The output path to the the csv file to write the result to.",
-        default="resources/data/2p_5p_Dataset_NFI/best_ladder_paths_stems.csv"
+        default="resources/data/2p_5p_Dataset_NFI/best_ladder_paths.csv"
     )
     args = parser.parse_args()
     run(args.data_config, args.output_path)
