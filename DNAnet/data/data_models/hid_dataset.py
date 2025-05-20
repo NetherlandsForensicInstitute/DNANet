@@ -5,7 +5,7 @@ import random
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Generator, List, Optional, Tuple, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -26,8 +26,6 @@ from DNAnet.utils import (
 
 LOGGER = logging.getLogger('dnanet')
 
-OTHER_KITS = ("ppy23", "minifiler", "hdplex")  # other than PPF6C
-
 
 class HIDDataset(InMemoryDataset):
     """
@@ -37,6 +35,8 @@ class HIDDataset(InMemoryDataset):
     :param annotations_path: location of the folder containing annotations.
     :param panel: path to read the panel from.
     :param hid_to_annotations_path: path of the file that maps hid files to annotations.
+    :param best_ladder_paths_csv: path of the file that maps the path of a hid image to the file
+        path of its best ladder (produced by scripts/select_ladder_for_images.py).
     :param limit: number of hid files to read.
     :param use_cache: whether to read data from the cache.
     :param cache_path: location of the cache to read files from (if use_cache is true), or to
@@ -44,7 +44,7 @@ class HIDDataset(InMemoryDataset):
     :param adjustment_of_annotations: the adjustment to be applied to the annotations, either
     'complete' to label the entire peak, or 'top' to only label the top of the peak.
     :param shuffle: whether the dataset should be shuffled when iterating.
-    :param skip_if_invalid_ladder: whether to skip samples that have invalid ladders.
+    :param skip_if_invalid_ladder: whether to skip images that have invalid ladders.
     :param analysis_threshold_type: the analysis threshold type to use for annotations (either
         `DTH` (high) or `DTL` (low).
     :param ground_truth_as_annotations: whether to load the ground truth donor alleles as
@@ -59,6 +59,7 @@ class HIDDataset(InMemoryDataset):
                  annotations_path: Optional[PathLike] = None,
                  panel: Optional[PathLike] = None,
                  hid_to_annotations_path: Optional[PathLike] = None,
+                 best_ladder_paths_csv: Optional[PathLike] = None,
                  limit: Optional[int] = None,
                  use_cache: Optional[bool] = False,
                  cache_path: Optional[PathLike] = None,
@@ -88,7 +89,7 @@ class HIDDataset(InMemoryDataset):
             self._data = _load_cached_hf_data(cache_path, limit)
         # Otherwise, read data and cache (optional)
         else:
-            LOGGER.info("Loading data from file")
+            LOGGER.info(f"Loading raw data from {self.root}")
             self._validate_dataset_args(annotations_path, panel)
 
             self._panel = Panel(panel_path=panel)
@@ -98,14 +99,14 @@ class HIDDataset(InMemoryDataset):
                 hid_to_annotations_path=hid_to_annotations_path,
                 annotations_path=annotations_path,
             )
+            # Map the image path to the path of the best fitting ladder
+            self.best_ladder_paths = self.load_best_ladder_paths(best_ladder_paths_csv)
 
-            # Create a list of .hid files, with their ladders and annotations
+            # Create a list of .hid files, with their ladder paths and annotations
             self._files = self._collect_and_filter_file_paths()
-            if len(self._files) == 0:
-                LOGGER.warning("Zero hid files found when loading data!")
             if self.limit:
-                # Make sure to shuffle before limiting, otherwise we would always take the first
-                # `limit` when loading images.
+                # Make sure to shuffle files before limiting, otherwise we would always take the
+                # first `limit` when loading images.
                 if self.shuffle:
                     self._files = random.Random().sample(self._files, self.limit)
                 else:
@@ -114,6 +115,10 @@ class HIDDataset(InMemoryDataset):
 
             # Create all HIDImages and filter out invalid ones
             self._data = list(self.load_images_from_files())
+            if len(self._data) == 0:
+                raise ValueError("Zero hid images found when loading data!")
+            LOGGER.info(f"Found {len(self._data)} HIDImages after filtering out images with "
+                        f"missing data or missing called alleles.")
 
             if adjustment_of_annotations:
                 LOGGER.info(f"Adjusting image annotations (type {adjustment_of_annotations}).")
@@ -179,12 +184,11 @@ class HIDDataset(InMemoryDataset):
 
             # Retrieve the viable R&D HID files in the folder
             hid_files = list(filter(is_rd_hid_filename, files))
-            # Find corresponding ladder files
-            ladder_files = self.find_ladder_files_in_folder(files, folder)
 
             # Now for each file in the folder, save its corresponding ladder (if there is any)
             # and match the file with its corresponding annotation (if present).
             for file in hid_files:
+
                 # get the annotation name and actual file containing annotations
                 _annotation = self.annotation_dict.get(Path(file).stem)
 
@@ -193,38 +197,38 @@ class HIDDataset(InMemoryDataset):
                     no_annotation_counter += 1
                     continue
 
+                full_path = os.path.join(folder, file)
                 full_file_list.append(
                     {
-                        "full_path": os.path.join(folder, file),
-                        "ladders": ladder_files,
+                        "full_path": full_path,
+                        "ladder_path": self.best_ladder_paths.get(Path(full_path).stem),
                         "annotation": _annotation,
                     }
                 )
 
         # Logging some statistics of our dataset
-        hids_with_ladder = [f for f in full_file_list if len(f["ladders"]) != 0]
-        LOGGER.info(f"Found {len(full_file_list)} HIDs")
-        LOGGER.info(f"Found {len(full_file_list) - len(hids_with_ladder)} HIDs without ladder")
-        LOGGER.info(f"Removed {no_annotation_counter} HIDs without annotation")
-
-        # Filter HIDs if we chose to only keep HID files that have valid ladders
-        # here we only check if there is a ladder file present, not if the parsed Ladder is valid
-        if self.skip_if_invalid_ladder:
-            return hids_with_ladder
+        LOGGER.info(f"Found {len(full_file_list)} .hid files")
+        LOGGER.info(f"Removed {no_annotation_counter} .hid files without annotation")
 
         return full_file_list
 
     @staticmethod
-    def find_ladder_files_in_folder(files: List[str], folder: str) -> List[str]:
+    def load_best_ladder_paths(best_ladders_csv_path: Optional[PathLike]) -> Dict[str, str]:
         """
-        From the `files` in the `folder`, retrieve all the ladder hid files by checking if `ladder`
-        is in the file name. Also, the ladder should not be measured by any of the 'other' kits
-        (other than PPF6C).
+        Loads a csv file containing for every HID image path the path of the best corresponding
+        ladder. If not provided, an empty dictionary is returned, meaning that no ladders will
+        be considered when loading the data.
         """
-        ladders = [os.path.join(folder, file) for file in files
-                   if ("ladder" in file.lower()
-                       and not any([kit in file.lower() for kit in OTHER_KITS]))]
-        return ladders
+        if not best_ladders_csv_path:
+            LOGGER.info("No csv path for best ladders is provided.")
+            return dict()
+
+        LOGGER.info(f"Loading best ladder paths from {best_ladders_csv_path}.")
+        with open(best_ladders_csv_path, "r") as f:
+            reader = csv.reader(f, delimiter=",")
+            next(reader)
+            data = {k: v if v != '' else None for (k, v) in reader}
+        return data
 
     @staticmethod
     def _create_annotation_mapping_rd(
@@ -294,55 +298,35 @@ class HIDDataset(InMemoryDataset):
 
         return flattened
 
-    @staticmethod
-    def _parse_ladder(
-            ladder_paths: Sequence[PathLike], panel: Panel,
-    ) -> Optional[Ladder]:
-        """
-        From the provided ladder paths, parse the path into a Ladder object. In case of multiple
-        paths, the first ladder for which a panel exists (meaning that the ladder's peak data is
-        found and validated and) is returned. In case of no valid peak data or no panel for any
-        ladder, return None.
-        """
-        if ladder_paths:
-            for ladder_path in sorted(ladder_paths):
-                ladder = Ladder(path=ladder_path, default_panel=panel)
-                # If the ladder has a panel (and therefore the ladder has valid .data),
-                # use this ladder, otherwise continue with the next ladder path
-                if ladder._panel is not None:
-                    return ladder
-        return None
-
     def load_images_from_files(self) -> Generator[HIDImage, None, None]:
         """
         From the hid file path, ladder file path(s) and annotation information, create the actual
-        HIDImage's by parsing those file attributes. Some HIDImages might be filtered out due to
-        missing either missing the called alleles or missing peak data.
+        HIDImages by parsing those file attributes. Some HIDImages might be filtered out due to
+        missing either the called alleles or peak data.
         """
         files_progress_bar = tqdm(self._files, desc=f"Loading data from {self.root}")
         with logging_redirect_tqdm():
             for file_attributes in files_progress_bar:
-                path, ladders, (annotation_name, annotation_file) = (
+                path, ladder_path, (annotation_name, annotation_file) = (
                     file_attributes["full_path"],
-                    file_attributes["ladders"],
+                    file_attributes["ladder_path"],
                     file_attributes["annotation"]
                 )
-
-                _parsed_ladder = self._parse_ladder(ladders, self._panel)
-                if self.skip_if_invalid_ladder and _parsed_ladder is None:
+                # create a ladder from the ladder_path if present
+                ladder = Ladder(ladder_path, self._panel) if ladder_path else None
+                if self.skip_if_invalid_ladder and ladder is None:
                     LOGGER.warning("Skipping image: Invalid/Missing ladder (%s)", path)
                     continue
 
                 # take the ladder as panel if present, otherwise use the default panel
-                panel = _parsed_ladder._panel if (_parsed_ladder and _parsed_ladder._panel) \
-                    else self._panel
+                panel = ladder._panel if (ladder and ladder._panel) else self._panel
                 _image = HIDImage(
                     path=path,
                     annotations_file=annotation_file,
                     panel=panel,
                     meta={
                         "annotations_name": annotation_name,
-                        "ladder_path": _parsed_ladder.path if _parsed_ladder else None,
+                        "ladder_path": ladder_path,
                         "noc": get_noc_from_rd_file_name(Path(path).stem)
                     }
                 )

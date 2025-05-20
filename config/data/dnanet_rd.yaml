@@ -4,12 +4,13 @@ dataset:
   annotations_path: resources/data/2p_5p_Dataset_NFI/.txt bestanden 2024 naam
   panel: resources/data/SGPanel_PPF6C_SPOOR.xml
   hid_to_annotations_path: resources/data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv
+  best_ladder_paths_csv: resources/data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv
   limit:
   use_cache: false  # false: write to `cache_path`, true: load from `cache_path` (if provided)
   cache_path:
   adjustment_of_annotations: top # None (leave empty), top, or complete
   shuffle: false
   skip_if_invalid_ladder: false
-  analysis_threshold_type: DTL  # DTH (high) or DTL (low)
-  ground_truth_as_annotations: true  # whether to store ground truth in meta['called_alleles']
+  analysis_threshold_type: DTH  # DTH (high) or DTL (low)
+  ground_truth_as_annotations: false  # whether to store ground truth in meta['called_alleles']
   group_replicas_in_split: true

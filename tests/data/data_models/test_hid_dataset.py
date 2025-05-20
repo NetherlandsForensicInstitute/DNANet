@@ -16,15 +16,17 @@ def test_hid_dataset_rd(hid_dataset_rd):
 def test_cached_data():
     cache_path = os.path.join(pytest.RESOURCES_DIR, "test_cache_arrow")
     dataset = HIDDataset(
-        root=os.path.join(pytest.RESOURCES_DIR, "profiles", "RD"),
+        root=pytest.RESOURCES_DIR / "profiles" / "RD",
         panel=pytest.PANEL_PATH,
-        annotations_path=os.path.join(pytest.RESOURCES_DIR, "profiles", "RD"),
-        hid_to_annotations_path=os.path.join(pytest.RESOURCES_DIR, "profiles", "RD",
-                                             "rd_hid_annotations_mapping.csv"),
+        annotations_path=pytest.RESOURCES_DIR / "profiles" / "RD",
+        hid_to_annotations_path=(pytest.RESOURCES_DIR / "profiles" /
+                                 "RD" / "rd_hid_annotations_mapping.csv"),
         analysis_threshold_type="DTH",
         use_cache=False,
         cache_path=cache_path,
         skip_if_invalid_ladder=True,
+        best_ladder_paths_csv=(pytest.RESOURCES_DIR / "profiles" /
+                               "RD" / "test_best_ladder_paths.csv")
     )
 
     dataset_cached = HIDDataset(
@@ -46,19 +48,26 @@ def test_skip_if_invalid_ladder():
         hid_to_annotations_path=os.path.join(pytest.RESOURCES_DIR, "profile_without_ladder",
                                              "annotations_mapping.csv"),
         analysis_threshold_type="DTH",
-        skip_if_invalid_ladder=False)
+        skip_if_invalid_ladder=False,
+        best_ladder_paths_csv=(pytest.RESOURCES_DIR / "profile_without_ladder" /
+                               "test_best_ladder_paths.csv")
+    )
     assert len(dataset) == 1
 
-    dataset = HIDDataset(
-        root=os.path.join(pytest.RESOURCES_DIR, "profile_without_ladder"),
-        panel=pytest.PANEL_PATH,
-        annotations_path=os.path.join(pytest.RESOURCES_DIR, "profile_without_ladder"),
-        hid_to_annotations_path=os.path.join(pytest.RESOURCES_DIR,
-                                             "profile_without_ladder",
-                                             "annotations_mapping.csv"),
-        analysis_threshold_type="DTH",
-        skip_if_invalid_ladder=True)
-    assert len(dataset) == 0
+    with pytest.raises(ValueError) as e:
+        dataset = HIDDataset(
+            root=os.path.join(pytest.RESOURCES_DIR, "profile_without_ladder"),
+            panel=pytest.PANEL_PATH,
+            annotations_path=os.path.join(pytest.RESOURCES_DIR, "profile_without_ladder"),
+            hid_to_annotations_path=os.path.join(pytest.RESOURCES_DIR,
+                                                 "profile_without_ladder",
+                                                 "annotations_mapping.csv"),
+            analysis_threshold_type="DTH",
+            skip_if_invalid_ladder=True,
+            best_ladder_paths_csv=(pytest.RESOURCES_DIR / "profile_without_ladder" /
+                                   "test_best_ladder_paths.csv")
+        )
+        assert "Zero hid images found when loading data!" in e
 
 
 def test_split_hid_dataset():
