@@ -189,7 +189,7 @@ def plot_allele_profile(
             ymin, ymax = ax.get_ylim()
             extra_space = (ymax - ymin) * 0.3
             ax.set_ylim(ymin - extra_space, ymax)
-            ax.set_yticks([tick for tick in ax.get_yticks() if tick >= 0])
+            ax.set_yticks([tick for tick in ax.get_yticks() if 0 <= tick])
 
         if show_probability:
             # Plot the model's probabilities
@@ -213,7 +213,7 @@ def plot_allele_profile(
                 label="Model prediction Threshold",
             )
             rax.set_ylabel("Probability")
-            rax.set_yticks([tick for tick in rax.get_yticks() if tick >= 0])
+            rax.set_yticks([tick for tick in rax.get_yticks() if 0 <= tick <= 1.01])
 
             # Set the RFU plot above the probability plot
             ax.set_zorder(rax.get_zorder() + 1)

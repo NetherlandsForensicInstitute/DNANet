@@ -11,6 +11,13 @@ BASE_PAIR_START, BASE_PAIR_END = 65, 475
 RESCALE_SIZE = 4096
 
 
+def basepair_to_pixel(scaler: np.ndarray, bp: float) -> float:
+    """
+    Translate a base pair location to a pixel location using a scaler.
+    """
+    return float(np.argmin(np.abs(scaler - bp), axis=1))
+
+
 def assert_image_data_valid_format(data: np.ndarray,
                                    n_color_channels: int = 3):
     """
