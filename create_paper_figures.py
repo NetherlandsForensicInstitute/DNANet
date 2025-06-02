@@ -1,12 +1,13 @@
 import logging
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import scipy.interpolate
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 
+from DNAnet.models.base import Model
 from config_io import load_dataset, load_model
 from DNAnet.data.data_models.dna_models import Marker, Panel
 from DNAnet.data.data_models.hid_dataset import HIDDataset
@@ -14,6 +15,7 @@ from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.evaluation.visualizations import DNA_CHANNELS, _get_marker_bin
 from DNAnet.models.prediction import Prediction
 
+# Set up matplotlib parameters for the paper figures text size
 plt.rcParams.update(
     {
         "axes.titlesize": 24,  # Title size
@@ -25,21 +27,32 @@ plt.rcParams.update(
     }
 )
 
-logger = logging.getLogger("Figure Generator")
-logger.setLevel(logging.INFO)
-
-
+# Define colors for different annotations
 ANNOTATION_COLORS = {
     "Ground Truth": "blue",
     "Analyst Annotation": "green",
     "Model Prediction": "orange",
 }
+# Interpolation function to convert scan points to base pairs
 SCAN_TO_BASE = scipy.interpolate.interp1d(
     [0, 4096], [65, 475], fill_value="extrapolate"
 )
 
+# Set up logging
+logger = logging.getLogger("Figure Generator")
+logger.setLevel(logging.INFO)
 
-def add_bin_info(called_alleles: List[Marker], panel: Panel):
+
+def add_bin_info(called_alleles: List[Marker], panel: Panel) -> List[Marker]:
+    """Using a Panel object, add bin information to the called alleles.
+
+    Args:
+        called_alleles (List[Marker]): The list of Markers with missing allele bin information.
+        panel (Panel): The (scaler) Panel object containing the allele information.
+
+    Returns:
+        List[Marker]: The updated list of Markers with base pair and bin information added.
+    """
     for marker in called_alleles:
         for allele in marker.alleles:
             bin_info = panel.get_allele_info(
@@ -49,7 +62,21 @@ def add_bin_info(called_alleles: List[Marker], panel: Panel):
     return called_alleles
 
 
-def get_alleles(image: HIDImage, prediction: Prediction, only_autosomal: bool = True):
+def get_alleles(
+    image: HIDImage, prediction: Prediction, only_autosomal: bool = True
+) -> Dict[str, Tuple[List[Marker], np.ndarray]]:
+    """Get the alleles from the image and prediction, and prepare them for plotting.
+    This function retrieves the called alleles from the prediction and the image metadata, for the analyst annotations and ground truth.
+    It also prepares the binary segmentation maps for the alleles, which are used for plotting.
+
+    Args:
+        image (HIDImage): The HIDImage object containing the image data and metadata.
+        prediction (Prediction): The Prediction object containing the model's predictions.
+        only_autosomal (bool, optional): Whether to exclude non-autosomal markers (e.g. AMEL). Defaults to True.
+
+    Returns:
+        Dict[str, Tuple[List[Marker], np.ndarray]]: A dictionary containing the called alleles and their corresponding binary segmentation maps.
+    """
     # Get alleles and add bin info
     prediction_alleles = prediction.meta["called_alleles"]
     if manual_alleles := image.meta.get("called_alleles_manual", None):
@@ -99,9 +126,34 @@ def plot_allele_profile(
     show_probability: bool = True,
     show_annotations: bool = True,
     marker_selection: Tuple[str, Tuple[int, np.ndarray]] = None,
-    add_suptitle: str = False,
-):
-    allele_dict = get_alleles(image, prediction)
+    add_suptitle: bool = False,
+) -> plt.Figure:
+    """Plot the allele profile of a HIDImage with the model's predictions and annotations.
+
+    Args:
+        image (HIDImage): The HIDImage object to plot.
+        prediction (Prediction):
+            The Prediction object containing the model's predictions on the image.
+        show_probability (bool, optional):
+            Whether to plot the model's prediction as a probability-line.
+            Defaults to True.
+        show_annotations (bool, optional):
+            Whether to show all called allele annotations for the three possible annotators.
+            Defaults to True.
+        marker_selection (Tuple[str, Tuple[int, np.ndarray]], optional):
+            A specific marker to zoom-in on for the plot, takes the whole profile if left blank.
+            Expects a tuple with the marker name and a tuple of the dye row and the bin range.
+            Defaults to None.
+        add_suptitle (bool, optional):
+            Whether to add the image's name to the plot.
+            Defaults to False.
+
+    Returns:
+        plt.Figure: _description_
+    """
+    allele_dict: Dict[str, Tuple[List[Marker], np.ndarray]] = get_alleles(
+        image, prediction
+    )
     if marker_selection:
         marker_name, (dye_row, marker_bin) = marker_selection
         fig, axes = plt.subplots(nrows=1, figsize=(14, 8), dpi=400)
@@ -120,7 +172,7 @@ def plot_allele_profile(
         axes,
     ):
         if marker_selection:
-            ax.set_title(marker_selection[0])
+            ax.set_title(marker_name)
         ax.set_xlabel("Base Pair")
         # Plot the RFU values
         ax.plot(
@@ -150,6 +202,7 @@ def plot_allele_profile(
                 color="orange",
                 alpha=0.6,
             )
+            # Add a horizontal line at the prediction threshold
             rax.hlines(
                 y=0.5,
                 xmin=rax.get_xlim()[0],
@@ -226,7 +279,23 @@ def plot_allele_profile(
     return fig
 
 
-def get_marker_ranges(image, tail_size=5):
+def get_marker_ranges(
+    image: HIDImage, tail_size: int = 5
+) -> Dict[str, Tuple[int, np.ndarray]]:
+    """Using the image's panel, get the ranges of the markers in the image.
+    This function retrieves the ranges of the markers in the image,
+    which are used for zooming in on specific markers.
+
+    Args:
+        image (HIDImage): The HIDImage object containing the image data and metadata.
+        tail_size (int, optional):
+            Extra space that's added on the left and right side of a marker's bin.
+            Defaults to 5.
+
+    Returns:
+        Dict[str, Tuple[int, np.ndarray]]: A dictionary containing the marker names as keys,
+        and a tuple of the dye row and the bin range as values.
+    """
     marker_ranges = {}
     for marker in image._panel._panel:
         marker_name = marker.name
@@ -240,14 +309,33 @@ def get_marker_ranges(image, tail_size=5):
     return marker_ranges
 
 
-def save_figure(fig, path: str):
+def save_figure(fig: plt.Figure, path: str):
+    """Save the figure to the specified path.
+
+    Args:
+        fig (plt.Figure): The figure to save.
+        path (str): The path to save the figure to.
+    """
     fig.savefig(path)
     plt.close(fig)
 
 
 def generate_figures(
-    model, dataset: HIDDataset, selected_hids_markers: dict, output_dir="./figures"
+    model: Model,
+    dataset: HIDDataset,
+    selected_hids_markers: List[Tuple[str, Optional[str]]],
+    output_dir="./figures",
 ):
+    """Generate figures for the selected HID images and markers.
+
+    Args:
+        model (Model): The trained model to use for predictions.
+        dataset (HIDDataset): The dataset containing the HID images.
+        selected_hids_markers (List[Tuple[str, Optional[str]]]):
+            The selected HID images and their corresponding markers.
+            Should be a list of tuples with the HID image name and (optionally) the marker name.
+        output_dir (str, optional): The directory to save the figures to. Defaults to "./figures".
+    """
     Path(output_dir).mkdir(exist_ok=True)
 
     figure_images = [
@@ -278,11 +366,22 @@ def generate_figures(
             save_figure(marker_figure, f"{output_dir}/{image_id}-{marker}.png")
 
 
-def create_bin_type_plot(dataset: HIDDataset):
+def create_bin_type_plot(dataset: HIDDataset) -> None:
+    """Create a plot showing the different types of annotations used in the paper.
+
+    Args:
+        dataset (HIDDataset): The dataset containing the HID images.
+    """
+    # Create three columns for each annotation type
     fig, ax = plt.subplots(ncols=3, figsize=(12, 4), dpi=400)
+
+    # We used a specific image for this plot, so we load it directly
     _data = dataset.get_hid_image_by_name("1A2_E01_13")._data
     letters = ["A", "B", "C"]
+    # The highlight ranges explaining the different bin types
     highlight_ranges = [(15, 22), (19, 19), (8, 32)]
+
+    # For each axis, plot the data and highlight the ranges
     for ax, hrange, letter in zip(ax, highlight_ranges, letters):
         ax.plot(np.arange(40), _data[2, 290:330, 0], color="black")
         ax.axvspan(*hrange, color="green", alpha=0.4)
