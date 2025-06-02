@@ -14,14 +14,16 @@ from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.evaluation.visualizations import DNA_CHANNELS, _get_marker_bin
 from DNAnet.models.prediction import Prediction
 
-plt.rcParams.update({
-    "axes.titlesize": 24,      # Title size
-    "axes.labelsize": 24,      # X and Y axis label size
-    "xtick.labelsize": 24,     # X tick label size
-    "ytick.labelsize": 24,     # Y tick label size
-    "legend.fontsize": 20,     # Legend font size
-    "figure.titlesize": 24     # Figure suptitle size
-})
+plt.rcParams.update(
+    {
+        "axes.titlesize": 24,  # Title size
+        "axes.labelsize": 24,  # X and Y axis label size
+        "xtick.labelsize": 24,  # X tick label size
+        "ytick.labelsize": 24,  # Y tick label size
+        "legend.fontsize": 20,  # Legend font size
+        "figure.titlesize": 24,  # Figure suptitle size
+    }
+)
 
 logger = logging.getLogger("Figure Generator")
 logger.setLevel(logging.INFO)
@@ -60,10 +62,8 @@ def get_alleles(image: HIDImage, prediction: Prediction, only_autosomal: bool = 
     prediction_alleles: List[Marker] = add_bin_info(prediction_alleles, image._panel)
     analyst_alleles: List[Marker] = add_bin_info(analyst_alleles, image._panel)
     if only_autosomal:
-        analyst_alleles = [
-            marker for marker in analyst_alleles if marker.is_autosomal
-        ]
-    
+        analyst_alleles = [marker for marker in analyst_alleles if marker.is_autosomal]
+
     ground_truth_alleles = (
         []
         if not ground_truth_alleles
@@ -284,13 +284,23 @@ def create_bin_type_plot(dataset: HIDDataset):
     letters = ["A", "B", "C"]
     highlight_ranges = [(15, 22), (19, 19), (8, 32)]
     for ax, hrange, letter in zip(ax, highlight_ranges, letters):
-            ax.plot(np.arange(40), _data[2, 290:330, 0], color='black')
-            ax.axvspan(*hrange, color='green', alpha=.4)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.text(0.02, 0.95, letter, transform=ax.transAxes,
-                    fontsize=24, fontweight='bold', va='top', ha='left', color='red')
-    fig.savefig("figures/bin_type_plot.png", bbox_inches='tight')
+        ax.plot(np.arange(40), _data[2, 290:330, 0], color="black")
+        ax.axvspan(*hrange, color="green", alpha=0.4)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.text(
+            0.02,
+            0.95,
+            letter,
+            transform=ax.transAxes,
+            fontsize=24,
+            fontweight="bold",
+            va="top",
+            ha="left",
+            color="red",
+        )
+    fig.savefig("figures/bin_type_plot.png", bbox_inches="tight")
+
 
 if __name__ == "__main__":
     model = load_model("resources/model/current_best_unet/")
