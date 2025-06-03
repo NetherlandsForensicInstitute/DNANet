@@ -53,6 +53,13 @@ class Marker:
     name: str
     alleles: Sequence[Allele]
 
+    @property
+    def is_autosomal(self) -> bool:
+        """
+        Returns True if the marker is autosomal (i.e., not AMEL or DYS-prefixed).
+        """
+        return not (self.name == "AMEL" or self.name.startswith("DYS"))
+
 
 class Panel:
     """
