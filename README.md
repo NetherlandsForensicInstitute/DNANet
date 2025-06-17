@@ -8,7 +8,8 @@ This a Python repository that can be used to analyze DNA profiles using deep lea
 evaluate models. The pre-trained U-Net provided can be used to call alleles in a DNA profile.
 
 If you find this repository useful, please cite
-	@ARTICLE{Benschop2019,
+```bibtex
+@ARTICLE{Benschop2019,
       title     = "An assessment of the performance of the probabilistic genotyping
                    software {EuroForMix}: Trends in likelihood ratios and analysis
                    of Type {I} \& {II} errors",
@@ -19,7 +20,23 @@ If you find this repository useful, please cite
       pages     = "31--38",
       year      =  2019,
     }
-for the data. Our publication describing the code and model is forthcoming.
+```
+for the data, and 
+```bibtex
+@ARTICLE{de-Wit2025,
+  title       = "Making {AI} accessible for forensic {DNA} profile analysis",
+  author      = "de Wit, Abel Kjg and Wagenaar, Claire D and Janssen, Nathalie A
+                 C and Hoegen, Brechtje and van de Wetering, Judith and Hoofs,
+                 Huub and Ariëns, Simone and Benschop, Corina C G and Ypma, Rolf
+                 J F",
+  journal     = "Bioinformatics",
+  institution = "bioRxiv",
+  number      = "biorxiv;2025.06.02.656996v1",
+  month       =  jun,
+  year        =  2025
+}
+```
+for the code and model.
 
 ## Requirements
 Python >= 3.10, <=3.12
