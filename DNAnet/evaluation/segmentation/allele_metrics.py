@@ -24,7 +24,7 @@ def allele_precision(
     for image, prediction in zip(images, predictions):
         # convert the list of markers to list of locus_allele name strings
         predicted_alleles = flatten_marker_list_to_locusallelename_list(
-            prediction.meta["called_alleles"], locus=locus_name, min_rfu=min_rfu,
+            prediction.called_alleles, locus=locus_name, min_rfu=min_rfu,
             low_or_high=low_or_high_threshold
         )
 
@@ -59,7 +59,7 @@ def allele_recall(
     for image, prediction in zip(images, predictions):
         # convert the list of markers to list of locus_allele name strings
         predicted_alleles = flatten_marker_list_to_locusallelename_list(
-            prediction.meta["called_alleles"], locus=locus_name, min_rfu=min_rfu,
+            prediction.called_alleles, locus=locus_name, min_rfu=min_rfu,
             low_or_high=low_or_high_threshold
         )
         annotated_alleles = flatten_marker_list_to_locusallelename_list(

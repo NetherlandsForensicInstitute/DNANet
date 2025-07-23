@@ -26,8 +26,7 @@ class HumanAnalysis(Model):
         # remove DYS and AMEL as these are not in the ground truth annotations
         called_alleles = [m for m in image.meta['called_alleles_manual']
                           if m.name not in NON_AUTOSOMAL_MARKERS]
-        return Prediction(image=None, meta={'called_alleles': called_alleles,
-                                            'original_image_path': image.path})
+        return Prediction(image=None, called_alleles=called_alleles, original_image_path=image.path)
 
     def load(self, model_dir: PathLike):
         pass

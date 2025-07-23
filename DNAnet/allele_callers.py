@@ -54,10 +54,10 @@ class NearestBasePairCaller(AlleleCaller):
         if 'called_alleles_manual' in image.meta:
             # in this case we are working on ground truth annotations, remove DYS and AMEL
             # from the prediction as these markers are not present in the annotations
-            prediction.meta["called_alleles"] = \
+            prediction.called_alleles = \
                 [m for m in called_alleles if m.name not in NON_AUTOSOMAL_MARKERS]
         else:
-            prediction.meta["called_alleles"] = called_alleles
+            prediction.called_alleles = called_alleles
         return prediction
 
     def translate_pixels_to_alleles(
