@@ -39,6 +39,31 @@ class Allele:
         """
         return np.array([self.left_bin, self.right_bin])[:, np.newaxis]
 
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Returns a dictionary representation of the Allele.
+        """
+        return {
+            "name": self.name,
+            "base_pair": self.base_pair,
+            "left_bin": self.left_bin,
+            "right_bin": self.right_bin,
+            "height": self.height
+        }
+
+    @classmethod
+    def from_dict(cls, allele_dict: Dict[str, Any]):
+        """
+        Creates an Allele instance from a dictionary representation.
+        """
+        return cls(
+            name=allele_dict['name'],
+            base_pair=allele_dict.get('base_pair'),
+            left_bin=allele_dict.get('left_bin'),
+            right_bin=allele_dict.get('right_bin'),
+            height=allele_dict.get('height')
+        )
+
 
 @dataclass
 class Marker:
@@ -59,6 +84,28 @@ class Marker:
         Returns True if the marker is autosomal (i.e., not AMEL or DYS-prefixed).
         """
         return not (self.name == "AMEL" or self.name.startswith("DYS"))
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Returns a dictionary representation of the Marker.
+        """
+        return {
+            "dye_row": self.dye_row,
+            "name": self.name,
+            "alleles": [allele.to_dict() for allele in self.alleles]
+        }
+
+    @classmethod
+    def from_dict(cls, marker_dict: Dict[str, Any]):
+        """
+        Creates a Marker instance from a dictionary representation.
+        """
+        alleles = [Allele.from_dict(a) for a in marker_dict['alleles']]
+        return cls(
+            dye_row=marker_dict['dye_row'],
+            name=marker_dict['name'],
+            alleles=alleles
+        )
 
 
 class Panel:
