@@ -55,7 +55,7 @@ class Prediction:
             "classification": self.classification,
             "image": self.image.tolist() if (self.image is not None) else None,
             "original_image_path": str(self.original_image_path),
-            "called_alleles": [allele.to_dict() for allele in self.called_alleles] if self.called_alleles else None,
+            "called_alleles": [marker.to_dict() for marker in self.called_alleles] if self.called_alleles else None,
         }
 
     @classmethod
@@ -64,7 +64,7 @@ class Prediction:
             classification=data['classification'],
             image=np.array(data['image']),
             original_image_path=data['original_image_path'],
-            called_alleles=[Marker.from_dict(allele) for allele in data['called_alleles']] if data.get('called_alleles') else None,
+            called_alleles=[Marker.from_dict(marker) for marker in data['called_alleles']] if data.get('called_alleles') else None,
         )
 
     def __hash__(self):
