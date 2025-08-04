@@ -33,7 +33,7 @@ def test_allele_metrics():
     marker_2 = Marker(name="Penta E", dye_row=0, alleles=[Allele("14"), Allele("15.1")])
     markers = [marker_1, marker_2]
     image = HIDImage(path="/dummypath", meta={"called_alleles": markers})
-    prediction = Prediction(meta={"called_alleles": [marker_1]})
+    prediction = Prediction(called_alleles=[marker_1])
 
     tp, fn, fp = 2, 2, 0
 

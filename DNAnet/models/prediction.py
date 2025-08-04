@@ -1,7 +1,10 @@
 from operator import itemgetter
-from typing import Any, Mapping, MutableMapping
+from typing import Mapping, Sequence, Optional
 
 import numpy as np
+
+from DNAnet.data.data_models import Marker
+from DNAnet.typing import PathLike
 
 
 class Prediction:
@@ -12,18 +15,21 @@ class Prediction:
         confidence scores.
     :param image: A matrix representing an image. To be used e.g. in
         segmentation tasks, where predictions are made at the pixel level
-    :param meta: A mapping where additional metadata about this prediction
-        can be stored.
+    :param original_image_path: The path to the original image file
+    :param called_alleles: A list of called alleles, which are instances of
+        the Marker class.
     """
 
     def __init__(self,
                  classification: Mapping[str, float] = None,
                  image: np.ndarray = None,
-                 meta: MutableMapping[str, Any] = None):
+                 original_image_path: PathLike = None,
+                 called_alleles: Optional[Sequence[Marker]] = None):
 
         self.classification = classification
         self.image = image
-        self.meta = meta or dict()
+        self.original_image_path = original_image_path
+        self.called_alleles = called_alleles
 
     @property
     def label(self) -> str:
@@ -48,7 +54,8 @@ class Prediction:
         return {
             "classification": self.classification,
             "image": self.image.tolist() if (self.image is not None) else None,
-            "meta": self.meta
+            "original_image_path": str(self.original_image_path),
+            "called_alleles": [marker.to_dict() for marker in self.called_alleles] if self.called_alleles else None,
         }
 
     @classmethod
@@ -56,7 +63,8 @@ class Prediction:
         return cls(
             classification=data['classification'],
             image=np.array(data['image']),
-            meta=data['meta']
+            original_image_path=data['original_image_path'],
+            called_alleles=[Marker.from_dict(marker) for marker in data['called_alleles']] if data.get('called_alleles') else None,
         )
 
     def __hash__(self):
@@ -67,10 +75,11 @@ class Prediction:
 
     def __str__(self) -> str:
         return f"Prediction(" \
-               f"classification={self.classification}, " \
-               f"image={self.image}, " \
-               f"meta={self.meta}" \
-               f")"
+            f"classification={self.classification}, " \
+            f"image={self.image}, " \
+            f"original_image_path={self.original_image_path}, " \
+            f"called_alleles={self.called_alleles if self.called_alleles else None}" \
+            f")"
 
     def __repr__(self) -> str:
         return str(self)

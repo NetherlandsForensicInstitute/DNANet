@@ -379,7 +379,8 @@ class DNANet_UNet(TrainableModel):
 
         predictions = [Prediction(
             image=self.sigmoid(pred_im).movedim(0, -1).cpu().detach().numpy(),
-            meta={'original_image_path': image.path}) for image, pred_im in zip(batch, y_pred)]
+            original_image_path=image.path)
+                for image, pred_im in zip(batch, y_pred)]
 
         if self.allele_caller:
             LOGGER.info("Calling alleles from predicted segmentation...")
