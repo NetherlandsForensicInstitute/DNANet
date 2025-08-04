@@ -78,7 +78,7 @@ def get_alleles(
         Dict[str, Tuple[List[Marker], np.ndarray]]: A dictionary containing the called alleles and their corresponding binary segmentation maps.
     """
     # Get alleles and add bin info
-    prediction_alleles = prediction.meta["called_alleles"]
+    prediction_alleles = prediction.called_alleles if prediction.called_alleles else []
     if manual_alleles := image.meta.get("called_alleles_manual", None):
         analyst_alleles = manual_alleles
         ground_truth_alleles = image.meta["called_alleles"]
