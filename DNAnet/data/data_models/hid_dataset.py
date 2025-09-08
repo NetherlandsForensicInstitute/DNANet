@@ -250,9 +250,9 @@ class HIDDataset(InMemoryDataset):
         with open(hid_to_annotations_path, "r") as f:
             reader = csv.DictReader(f, delimiter=",")
             for row in reader:
-                if row['Ruwe data naam'] != "":
-                    hid_file = Path(row['Ruwe data naam']).stem
-                    annotation_name = row[f"2024 naam {analysis_threshold_type}"]
+                if row['Raw hid name'] != "":
+                    hid_file = Path(row['Raw hid name']).stem
+                    annotation_name = row[f"{analysis_threshold_type} name 2024"]
                     txt_name = f"Dataset {hid_file[0]} {analysis_threshold_type}_AlleleReport.txt"
                     hid_to_annotations_mapping[hid_file] = \
                         (annotation_name, annotations_path / Path(txt_name))

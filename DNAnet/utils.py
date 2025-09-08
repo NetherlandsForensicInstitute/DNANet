@@ -102,10 +102,9 @@ def load_donor_alleles(file_name: str, panel: Panel) -> List[Marker]:
     single .hid file, find the donors (from the file name) and return the list of Markers of those
     donors combined.
     :param file_name: .hid file to load actual donors for
-    :param rd_data_root: root folder of the RD data, containing a Referenties folder
     :param panel: the panel to retrieve the dye row of the markers from
     """
-    reference_path = "resources/data/2p_5p_Dataset_NFI/Referenties"
+    reference_path = "resources/data/2p_5p_Dataset_NFI/References"
     if not is_rd_hid_filename(file_name):
         raise ValueError("Cannot load donor alleles for non-RD sample. "
                          f"Found file name {file_name}")
