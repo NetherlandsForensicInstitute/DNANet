@@ -24,16 +24,19 @@ If you find this repository useful, please cite
 for the data, and 
 ```bibtex
 @ARTICLE{de-Wit2025,
-  title       = "Making {AI} accessible for forensic {DNA} profile analysis",
-  author      = "de Wit, Abel Kjg and Wagenaar, Claire D and Janssen, Nathalie A
-                 C and Hoegen, Brechtje and van de Wetering, Judith and Hoofs,
-                 Huub and Ariëns, Simone and Benschop, Corina C G and Ypma, Rolf
-                 J F",
-  journal     = "Bioinformatics",
-  institution = "bioRxiv",
-  number      = "biorxiv;2025.06.02.656996v1",
-  month       =  jun,
-  year        =  2025
+    title = {Making AI accessible for forensic DNA profile analysis},
+    journal = {Forensic Science International: Genetics},
+    volume = {81},
+    pages = {103345},
+    year = {2026},
+    issn = {1872-4973},
+    doi = {https://doi.org/10.1016/j.fsigen.2025.103345},
+    url = {https://www.sciencedirect.com/science/article/pii/S1872497325001255},
+    author = {
+        Abel K.J.G. de Wit and Claire D. Wagenaar and Nathalie A.C. Janssen and Brechtje Hoegen 
+        and Judith van de Wetering and Huub Hoofs and Simone Ariëns and Corina C.G. Benschop 
+        and Rolf J.F. Ypma
+        }
 }
 ```
 for the code and model.
@@ -88,10 +91,10 @@ from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.data.data_models import Panel
 
 
-panel = Panel("resources/data/SGPanel_PPF6C_SPOOR.xml")
+panel = Panel("resources/data/SGPanel_PPF6C.xml")
 image = HIDImage(
   path="resources/data/2p_5p_Dataset_NFI/Raw data .HID files/Mixture dataset 1/Inj5 2017-05-01-09-45-24-128/1A2_A01_01.hid",
-  annotations_file="resources/data/2p_5p_Dataset_NFI/.txt bestanden 2024 naam/Dataset 1 DTL_AlleleReport.txt",
+  annotations_file="resources/data/2p_5p_Dataset_NFI/txt_annotations_2024/Dataset 1 DTL_AlleleReport.txt",
   panel=panel,
   meta={'annotations_name': '1L_11148_1A2'}
 )
@@ -115,8 +118,8 @@ from DNAnet.data.data_models.hid_dataset import HIDDataset
 
 hid_dataset = HIDDataset(
   root="resources/data/2p_5p_Dataset_NFI/Raw data .HID files",
-  panel="resources/data/SGPanel_PPF6C_SPOOR.xml",
-  annotations_path="resources/data/2p_5p_Dataset_NFI/.txt bestanden 2024 naam",
+  panel="resources/data/SGPanel_PPF6C.xml",
+  annotations_path="resources/data/2p_5p_Dataset_NFI/txt_annotations_2024",
   hid_to_annotations_path="resources/data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv",
   limit=10
 )
@@ -183,8 +186,8 @@ from DNAnet.evaluation.visualizations import plot_profile
 
 hid_dataset = HIDDataset(
   root="resources/data/2p_5p_Dataset_NFI/Raw data .HID files",
-  panel="resources/data/SGPanel_PPF6C_SPOOR.xml",
-  annotations_path="resources/data/2p_5p_Dataset_NFI/.txt bestanden 2024 naam",
+  panel="resources/data/SGPanel_PPF6C.xml",
+  annotations_path="resources/data/2p_5p_Dataset_NFI/txt_annotations_2024",
   hid_to_annotations_path="resources/data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv",
   limit=10
 )
@@ -203,8 +206,8 @@ from DNAnet.evaluation.visualizations import plot_profile_markers
 
 hid_dataset = HIDDataset(
   root="resources/data/2p_5p_Dataset_NFI/Raw data .HID files",
-  panel="resources/data/SGPanel_PPF6C_SPOOR.xml",
-  annotations_path="resources/data/2p_5p_Dataset_NFI/.txt bestanden 2024 naam",
+  panel="resources/data/SGPanel_PPF6C.xml",
+  annotations_path="resources/data/2p_5p_Dataset_NFI/txt_annotations_2024",
   hid_to_annotations_path="resources/data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv",
   limit=10
 )

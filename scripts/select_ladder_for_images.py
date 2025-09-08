@@ -75,7 +75,7 @@ def run(data_config: str, output_path: str):
     in the .meta attribute (i.e. that survived all filtering applied when loading a Dataset).
     """
     dataset = load_dataset(data_config)
-    panel = Panel('resources/data/SGPanel_PPF6C_SPOOR.xml')
+    panel = Panel('resources/data/SGPanel_PPF6C.xml')
     paths = [[image.path.stem, get_best_ladder_path(image, panel)] for image in dataset]
     with open(output_path, 'w', newline='') as f:
         writer = csv.writer(f)
