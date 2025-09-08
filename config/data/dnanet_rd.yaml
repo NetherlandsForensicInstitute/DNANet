@@ -1,8 +1,8 @@
 dataset:
   name: hid
   root: resources/data/2p_5p_Dataset_NFI/Raw data .HID files
-  annotations_path: resources/data/2p_5p_Dataset_NFI/.txt bestanden 2024 naam
-  panel: resources/data/SGPanel_PPF6C_SPOOR.xml
+  annotations_path: resources/data/2p_5p_Dataset_NFI/txt_annotations_2024
+  panel: resources/data/SGPanel_PPF6C.xml
   hid_to_annotations_path: resources/data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv
   best_ladder_paths_csv: resources/data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv
   limit:

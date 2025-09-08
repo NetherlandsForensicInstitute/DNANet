@@ -293,13 +293,13 @@ class Ladder(HIDImage):
     @staticmethod
     def read_alleles_in_ladder() -> Dict[int, List[Tuple[str, str]]]:
         """
-        Read 'Ladder digitale profielenstraat.csv' (with columns 'Marker', 'Allele' and 'Dye') into
+        Read 'ladder_alleles.csv' (with columns 'Marker', 'Allele' and 'Dye') into
         a dictionary with the dye rows as keys and Marker/Allele names as values. This file
         contains allele alleles that should be present in the ladder. Note that this file, and
         therefore neither the ladder, do not contain all alleles possible alleles.
         """
         lines = defaultdict(list)
-        with open('resources/data/Ladder digitale profielenstraat.csv',
+        with open('resources/data/ladder_alleles.csv',
                   mode='r', newline='', encoding='utf-8') as file:
             csv_reader = csv.DictReader(file)
             for row in csv_reader:
@@ -340,7 +340,7 @@ class Ladder(HIDImage):
         https://softgenetics.com/PDF/CalibratingPanelautoadjust_icon.pdf
 
         :param original_panel: The original panel, loaded from
-        `resources/data/SGPanel_PPF6C_SPOOR.xml` from which we know all possible alleles.
+        `resources/data/SGPanel_PPF6C.xml` from which we know all possible alleles.
         :return: Panel with the same alleles as the original panel, but adjusted base pairs based
         on the peaks in the ladder.
         """
