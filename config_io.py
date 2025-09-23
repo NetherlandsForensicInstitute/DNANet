@@ -2,6 +2,8 @@ import glob
 import os
 from functools import partial
 from pathlib import Path
+import shutil
+import time
 from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional, Union
 
 import confidence
@@ -23,6 +25,8 @@ from DNAnet.models.segmentation.human_analysis import HumanAnalysis
 from DNAnet.models.segmentation.trainable_unet import DNANet_UNet
 from DNAnet.typing import PathLike
 from utils import get_defaults
+from huggingface_hub import snapshot_download
+from huggingface_hub.errors import HfHubHTTPError
 
 
 DATASETS = {'dataset': {'hid': HIDDataset, }}
@@ -34,6 +38,7 @@ METRICS = {'pixel_precision': pixel_precision,
            'allele_precision': allele_precision,
            'allele_recall': allele_recall,
            'allele_f1_score': allele_f1_score}
+HF_DATASET = "NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024"
 
 
 def load_config(path: PathLike, kind: Optional[str] = None) -> Configuration:
@@ -108,10 +113,53 @@ def load_dataset(source: PathLike) -> InMemoryDataset:
     """
     Load a dataset from a config file.
     """
-    data_config = load_config(source, kind='data')
+    data_config = dict(load_config(source, kind='data'))
+    data_config["dataset"] = dict(data_config["dataset"])
+    if not (
+        (root_dir := Path(data_config["dataset"]["root"])).exists()
+        and any(root_dir.glob("[!.]*"))
+    ):
+        print(f"Downloading dataset {HF_DATASET}...")
+        if data_config["dataset"].get("data_root", None) is None:
+            raise ValueError("No `data_root` provided, needed for HuggingFace download")
+        download_online_dataset(data_config)
+
+    data_config["dataset"].pop("data_root", None)
     dataset = parse_config(data_config, DATASETS)['dataset']
     return dataset
 
+
+def download_online_dataset(data_config: dict):
+    downloading, retry_count = True, 1
+    while downloading:
+        try:
+            local_path = snapshot_download(
+                repo_id=HF_DATASET,
+                repo_type="dataset",
+                local_dir_use_symlinks=False,
+                max_workers=1
+            )
+            break
+        except HfHubHTTPError as e:
+            if "429" in str(e) and retry_count < 3:
+                print(
+                    "Hit HuggingFace rate limit (HTTP 429).\n"
+                    "Retrying in 5s..."
+                )
+                retry_count += 1
+                time.sleep(5)
+            else:
+                raise e
+    
+    # Read in data root
+    data_root = data_config["dataset"].pop("data_root", "resources/data/")
+    shutil.copytree(local_path, data_root)
+    # Path(local_path).replace(data_root)
+
+    # Clean up the download folder of remaining files
+    shutil.rmtree(local_path)
+    pass
+    
 
 def load_model(source: PathLike) -> Model:
     """
