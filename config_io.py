@@ -115,21 +115,22 @@ def load_dataset(source: PathLike) -> InMemoryDataset:
     """
     data_config = dict(load_config(source, kind='data'))
     data_config["dataset"] = dict(data_config["dataset"])
-    if not (
-        (root_dir := Path(data_config["dataset"]["root"])).exists()
-        and any(root_dir.glob("[!.]*"))
-    ):
+    root_dir = Path(data_config["dataset"]["root"])
+    files_in_root: bool = any(root_dir.glob("[!.]*"))  # Check for non-hidden files (not starting with `.`)
+    
+    # If the root_dir does not exist, or it exists but there's no (hidden) files, we download from HF
+    if not (root_dir.exists() and files_in_root):
         print(f"Downloading dataset {HF_DATASET}...")
-        if data_config["dataset"].get("data_root", None) is None:
+        if (data_root := data_config["dataset"].get("data_root", None)) is None:
             raise ValueError("No `data_root` provided, needed for HuggingFace download")
-        download_online_dataset(data_config)
+        download_online_dataset(data_root)
 
     data_config["dataset"].pop("data_root", None)
     dataset = parse_config(data_config, DATASETS)['dataset']
     return dataset
 
 
-def download_online_dataset(data_config: dict):
+def download_online_dataset(data_root: PathLike):
     downloading, retry_count = True, 1
     while downloading:
         try:
@@ -152,9 +153,7 @@ def download_online_dataset(data_config: dict):
                 raise e
     
     # Read in data root
-    data_root = data_config["dataset"].pop("data_root", "resources/data/")
     shutil.copytree(local_path, data_root)
-    # Path(local_path).replace(data_root)
 
     # Clean up the download folder of remaining files
     shutil.rmtree(local_path)
