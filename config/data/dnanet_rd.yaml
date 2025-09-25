@@ -1,5 +1,6 @@
 dataset:
   name: hid
+  data_root: resources/data/
   root: resources/data/2p_5p_Dataset_NFI/Raw data .HID files
   annotations_path: resources/data/2p_5p_Dataset_NFI/txt_annotations_2024
   panel: resources/data/SGPanel_PPF6C.xml
