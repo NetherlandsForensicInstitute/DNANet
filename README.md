@@ -44,6 +44,15 @@ for the code and model.
 ## Requirements
 Python >= 3.10, <=3.12
 
+## Cloning
+Currently the repo has exceeded its git lfs quota. This is a current issue, which causes problems in the cloning process wince there are files making use of git lfs. To be able to clone the repo without issues, temporarily disable git lfs when cloning. The commands are:
+```bash
+GIT_LFS_SKIP_SMUDGE=1 git clone <REPO_URL> DNANet
+
+cd DNANet
+git lfs install --skip-smudge
+```
+
 ## Setup
 Create a virtual environment. We have used `pdm` and a `pyproject.toml` file to manage environment dependencies. Ensure you
 have pdm installed:
