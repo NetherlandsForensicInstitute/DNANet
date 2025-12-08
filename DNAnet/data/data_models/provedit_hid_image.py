@@ -7,11 +7,12 @@ from typing import Any, MutableMapping, Optional, Sequence, Tuple
 
 import numpy as np
 from DNAnet.data.dataset_compatibility.dataset_strategy import DatasetStrategy
-from scipy.signal import find_peaks
+from DNAnet.data.kit_compatibility.kit_strategy import KitStrategy, NfiKitStrategy
+from DNAnet.data.dataset_compatibility.dataset_strategy import NFI_RND_DatasetStrategy
 
 from DNAnet.data.data_models import Annotation, Marker, Panel
 from DNAnet.data.data_models.base import Image
-from DNAnet.data.kit_compatibility.lane_standards import BASE_PAIR_END, BASE_PAIR_START, RESCALE_SIZE, VAL_THRESHOLD, InternalSizeStandard, get_size_standard_bps
+from DNAnet.data.kit_compatibility.lane_standards import InternalSizeStandard
 from DNAnet.data.parsing import get_peak_data, parse_called_alleles
 from DNAnet.data.utils import (
     assert_image_data_valid_format,
@@ -34,9 +35,6 @@ class ProvedItHIDImage(Image):
     :param panel: the panel to be used
     :param annotations_file: the path of the csv/txt file that contains
         the annotations of the HID file.
-    :param size_standard: the size standard to be used for the HID file
-        (default: WEN_ILS)
-    :type size_standard: InternalSizeStandard
     :param include_size_standard: include size standard in the data attribute.
         if `true` all six dyes are included. For inspection of the HID file.
         if `false` only the first five dyes are included. For training + testing models.
@@ -48,19 +46,30 @@ class ProvedItHIDImage(Image):
 
     def __init__(self,
                  path: Path,
-                 dataset_strategy: DatasetStrategy,
+                 dataset_strategy: Optional[DatasetStrategy] = None,
+                 kit_strategy: Optional[KitStrategy] = None,
                  panel: Optional[Panel] = None,
                  annotations_file: Path = None,
-                 genotypes_path: Path = None,
-                 size_standard: str = InternalSizeStandard.WEN_ILS.value,
                  include_size_standard: bool = False,
                  annotation: Optional[Annotation] = None,
                  use_cache: bool = True,
                  meta: MutableMapping[str, Any] = None):
         
+        # Provide legacy-friendly defaults when strategies are not supplied.
+        if dataset_strategy is None:
+            if panel is None:
+                raise ValueError("Panel is required when dataset_strategy is not provided.")
+            dataset_strategy = NFI_RND_DatasetStrategy(
+                panel=panel,
+                genotypes_path="resources/data/2p_5p_Dataset_NFI/References",
+            )
+        if kit_strategy is None:
+            kit_strategy = NfiKitStrategy(
+                size_standard=InternalSizeStandard.WEN_ILS
+            )
+
         self.path = path if isinstance(path, Path) else Path(path)
         self.annotations_file = annotations_file
-        self.size_standard = size_standard
         self.include_size_standard = include_size_standard
         self.use_cache = use_cache
         self.root = self.path.parent
@@ -69,8 +78,8 @@ class ProvedItHIDImage(Image):
         self._meta = meta or dict()
         self._scaler: Optional[np.ndarray] = None
         self._panel = panel
-        self.genotypes_path = genotypes_path
         self.dataset_strategy = dataset_strategy
+        self.kit_strategy = kit_strategy
 
     @property
     def data(self) -> np.ndarray:
@@ -114,50 +123,18 @@ class ProvedItHIDImage(Image):
         
 
         size_standard_dye_lane = np.array(profile[-1])
-        size_standard_peaks_idxs = extract_ss_peaks_new_unify(size_standard_dye_lane)
-        self.bps = bps = get_size_standard_bps(self.size_standard)
-
-        diff = VAL_THRESHOLD + 1
-        shrinkages = 0
-        while shrinkages < 10:
-            self.size_standard_peaks_idxs = size_standard_peaks_idxs = size_standard_peaks_idxs[-len(bps):]
-
-            coeffs = np.polyfit(size_standard_peaks_idxs, bps, 2)
-            fitted = np.polyval(coeffs, size_standard_peaks_idxs)
-
-            diff = np.max(np.abs(fitted - bps))
-            if diff < VAL_THRESHOLD:
-                break
-            else:
-                self.bps = bps = bps[:-1]  # remove the last base pair and try again
-                shrinkages += 1
-                
-        # if shrinkages > 0:
-        #     LOGGER.info(f"Size standard for {self.path.name} was shrunk {shrinkages} times to fit the profile. "
-        #                    f"Max difference: {diff:.2f} bp.")
-        if diff >= VAL_THRESHOLD:
-                LOGGER.warning(f"Size standard for {self.path.name} differs {diff} from the expected ")
-                return None
-
-        # returns an interpolator function that maps the indices of the size standard peaks (i.e. scan points) to the base pairs
-        interpolator = basepair_interpolator(indices=size_standard_peaks_idxs,
-                                   original_x_values=bps, extrapolate=False)
-        self.interpolated_base_pairs = interpolator(np.arange(len(size_standard_dye_lane)))
-
-        rescaled_indices = rescale_dye_new_unify(
-            self.interpolated_base_pairs,
-            rescale_size=RESCALE_SIZE,
-            target_range=(BASE_PAIR_START, BASE_PAIR_END),
-        )
+        try:
+            ss = self.kit_strategy.parse_size_standard(size_standard_dye_lane)
+        except ValueError as e:
+            LOGGER.warning(f"Size standard invalid for {self.path.name}: {e}")
+            return None
 
         data = self._rescale_profile(
             profile,
-            rescaled_indices,
+            ss.rescaled_indices,
             self.include_size_standard,
         )
-
-        self._scaler = self.interpolated_base_pairs[rescaled_indices]
-
+        self._scaler = ss.scaler
         
 
         called_alleles = None
@@ -226,6 +203,27 @@ class ProvedItHIDImage(Image):
             # to avoid missing the scaler when we have not yet read the file.
             self._read()
         return self._scaler[np.newaxis, :]
+    
+
+    @staticmethod
+    def _rescale_profile(
+        profile: np.ndarray,
+        rescale_indices: np.ndarray,
+        include_standard: bool,
+    ) -> np.ndarray:
+        """Rescale profile based on precomputed rescale indices.
+
+        :param profile: array of dyes in chronological order
+        :param rescale_indices: indices of the original profile corresponding to
+            each pixel in the rescaled profile
+        :param include_standard: if the size standard should be included in the
+            final profile/data
+        :return: parsed profile as array
+        """
+        # Select profile based on include_standard flag
+        selected_profile = profile if include_standard else profile[:-1]
+        data = selected_profile[:, rescale_indices]
+        return data[..., np.newaxis]
 
 
     def _get_segmentation(self,

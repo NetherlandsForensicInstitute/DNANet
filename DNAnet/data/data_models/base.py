@@ -39,25 +39,6 @@ class Image(ABC):
         raise NotImplementedError
     
 
-    @staticmethod
-    def _rescale_profile(
-        profile: np.ndarray,
-        rescale_indices: np.ndarray,
-        include_standard: bool,
-    ) -> np.ndarray:
-        """Rescale profile based on precomputed rescale indices.
-
-        :param profile: array of dyes in chronological order
-        :param rescale_indices: indices of the original profile corresponding to
-            each pixel in the rescaled profile
-        :param include_standard: if the size standard should be included in the
-            final profile/data
-        :return: parsed profile as array
-        """
-        # Select profile based on include_standard flag
-        selected_profile = profile if include_standard else profile[:-1]
-        data = selected_profile[:, rescale_indices]
-        return data[..., np.newaxis]
     
 
 

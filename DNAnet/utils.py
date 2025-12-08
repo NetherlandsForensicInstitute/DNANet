@@ -96,6 +96,41 @@ def dict_to_marker_list(marker_dict: Union[List[Dict], str], as_json: bool = Fal
     return markers_list
 
 
+def load_donor_alleles(file_name: str, panel: Panel) -> List[Marker]:
+    """
+    For R&D files, we know the donors that contributed and the DNA profiles of the donors. For a
+    single .hid file, find the donors (from the file name) and return the list of Markers of those
+    donors combined.
+    :param file_name: .hid file to load actual donors for
+    :param panel: the panel to retrieve the dye row of the markers from
+    """
+    reference_path = "resources/data/2p_5p_Dataset_NFI/References"
+    if not is_rd_hid_filename(file_name):
+        raise ValueError("Cannot load donor alleles for non-RD sample. "
+                         f"Found file name {file_name}")
+
+    mixture_type = get_prefix_from_filename(file_name)  # to retrieve e.g. '1A2'
+    dataset_nr, nr_donors = mixture_type[0], int(mixture_type[2])
+    # one file contains alleles of one donor, so find files for all donors of the profile
+    file_stems = [f"{dataset_nr}{letter}" for letter in
+                  DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
+
+    # find the set of all alleles of the donors per marker
+    marker_allele_strings = defaultdict(set)
+    for file_stem in file_stems:
+        reference_profiles_path = os.path.join(reference_path, f'{file_stem}.csv')
+        with open(reference_profiles_path, "r") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            for row in reader:
+                marker_allele_strings[row['Marker']].update([row['Allele1'], row['Allele2']])
+
+    # transform into Marker/Allele objects
+    markers = []
+    for marker_name, alleles in marker_allele_strings.items():
+        dye_row = panel.get_dye_row(marker_name)
+        markers.append(Marker(dye_row, marker_name, [Allele(a) for a in sorted(alleles)]))
+    return markers
+
 
 def chunks(
         iterable: Iterable,

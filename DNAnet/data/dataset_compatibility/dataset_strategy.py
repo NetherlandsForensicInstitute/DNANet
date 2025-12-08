@@ -99,10 +99,10 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             for letter in DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]
         ]
 
+    # From previous implementation, but I believe this code is broken or deprecated.
     def build_marker(self, marker_name: str, allele_names: Iterable[str]) -> Marker:
         dye_row = self.panel.get_dye_row(marker_name)
-        return Marker(dye_row, marker_name, [])
-        # Allele(a) for a in sorted(allele_names)
+        return Marker(dye_row, marker_name, [Allele(a) for a in sorted(allele_names)])
 
 
 class ProvedItDatasetStrategy(DatasetStrategy):
