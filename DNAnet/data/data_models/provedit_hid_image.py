@@ -1,18 +1,20 @@
 import csv
 import logging
 from binascii import crc32
+from collections import defaultdict
 from functools import cached_property
 from pathlib import Path
-from typing import Any, MutableMapping, Optional, Sequence, Tuple
+from typing import Any, Dict, List, MutableMapping, Optional, Sequence, Tuple
 
 import numpy as np
-from DNAnet.data.dataset_compatibility.dataset_strategy import DatasetStrategy
-from DNAnet.data.kit_compatibility.kit_strategy import KitStrategy, NfiKitStrategy
-from DNAnet.data.dataset_compatibility.dataset_strategy import NFI_RND_DatasetStrategy
+from scipy.signal import find_peaks
 
-from DNAnet.data.data_models import Annotation, Marker, Panel
+from DNAnet.data.dataset_compatibility.dataset_strategy import DatasetStrategy, NFI_RND_DatasetStrategy
+from DNAnet.data.kit_compatibility.kit import POWER_PLEX_FUSION_6C_KIT, Kit
+from DNAnet.data.kit_compatibility.scaling_strategy import EPGScalingStrategy, NfiEPGScalingStrategy
+
+from DNAnet.data.data_models import Allele, Annotation, Marker, Panel
 from DNAnet.data.data_models.base import Image
-from DNAnet.data.kit_compatibility.lane_standards import InternalSizeStandard
 from DNAnet.data.parsing import get_peak_data, parse_called_alleles
 from DNAnet.data.utils import (
     assert_image_data_valid_format,
@@ -22,6 +24,7 @@ from DNAnet.data.utils import (
     extract_ss_peaks_new_unify,
     rescale_dye_new_unify
 )
+from DNAnet.typing import PathLike
 
 
 LOGGER = logging.getLogger("dnanet")
@@ -45,28 +48,30 @@ class ProvedItHIDImage(Image):
     THRESHOLD = 40  # 40 rfu is the lowest detection threshold
 
     def __init__(self,
-                 path: Path,
+                 path: PathLike,
                  dataset_strategy: Optional[DatasetStrategy] = None,
-                 kit_strategy: Optional[KitStrategy] = None,
+                 scaling_strategy: Optional[EPGScalingStrategy] = None,
+                 kit: Optional[Kit] = None,
                  panel: Optional[Panel] = None,
-                 annotations_file: Path = None,
+                 annotations_file: PathLike = None,
                  include_size_standard: bool = False,
                  annotation: Optional[Annotation] = None,
                  use_cache: bool = True,
                  meta: MutableMapping[str, Any] = None):
         
         # Provide legacy-friendly defaults when strategies are not supplied.
+        if kit is None:
+            kit = POWER_PLEX_FUSION_6C_KIT
+        elif kit is not None:
+            panel = kit.panel
+
         if dataset_strategy is None:
-            if panel is None:
-                raise ValueError("Panel is required when dataset_strategy is not provided.")
             dataset_strategy = NFI_RND_DatasetStrategy(
                 panel=panel,
                 genotypes_path="resources/data/2p_5p_Dataset_NFI/References",
             )
-        if kit_strategy is None:
-            kit_strategy = NfiKitStrategy(
-                size_standard=InternalSizeStandard.WEN_ILS
-            )
+        if scaling_strategy is None:
+            scaling_strategy = NfiEPGScalingStrategy(kit)
 
         self.path = path if isinstance(path, Path) else Path(path)
         self.annotations_file = annotations_file
@@ -79,7 +84,8 @@ class ProvedItHIDImage(Image):
         self._scaler: Optional[np.ndarray] = None
         self._panel = panel
         self.dataset_strategy = dataset_strategy
-        self.kit_strategy = kit_strategy
+        self.scaling_strategy = scaling_strategy
+        self.kit = kit
 
     @property
     def data(self) -> np.ndarray:
@@ -88,10 +94,6 @@ class ProvedItHIDImage(Image):
                 self._data = self._read()
             return self._data
         return self._read()
-    
-    @data.setter
-    def data(self, value: np.ndarray):
-        self._data = value
 
     @cached_property
     def dimensions(self) -> Tuple[int, int]:
@@ -124,7 +126,7 @@ class ProvedItHIDImage(Image):
 
         size_standard_dye_lane = np.array(profile[-1])
         try:
-            ss = self.kit_strategy.parse_size_standard(size_standard_dye_lane)
+            ss = self.scaling_strategy.parse_size_standard(size_standard_dye_lane)
         except ValueError as e:
             LOGGER.warning(f"Size standard invalid for {self.path.name}: {e}")
             return None
@@ -147,7 +149,7 @@ class ProvedItHIDImage(Image):
 
         if called_alleles and self.annotation is None:
             # Parse the called alleles into a segmentation
-            segmentation = self._get_segmentation(called_alleles, data.shape)
+            segmentation = self._get_segmentation(self.scaler, called_alleles, data.shape)
             self._annotation = Annotation(image=segmentation) # where the annotation is ASSIGNED
             self._meta['called_alleles'] = called_alleles
 
@@ -156,7 +158,7 @@ class ProvedItHIDImage(Image):
         if self.annotation is None and self._panel:
             try:
                 true_alleles = self.dataset_strategy.load_donor_alleles(self.path.stem)
-                segmentation = self._get_segmentation(true_alleles, data.shape)
+                segmentation = self._get_segmentation(self.scaler, true_alleles, data.shape)
                 self._annotation = Annotation(image=segmentation)
                 self._meta["called_alleles"] = true_alleles
             except ValueError as e:
@@ -208,7 +210,7 @@ class ProvedItHIDImage(Image):
     @staticmethod
     def _rescale_profile(
         profile: np.ndarray,
-        rescale_indices: np.ndarray,
+        rescaled_indices: np.ndarray,
         include_standard: bool,
     ) -> np.ndarray:
         """Rescale profile based on precomputed rescale indices.
@@ -222,13 +224,16 @@ class ProvedItHIDImage(Image):
         """
         # Select profile based on include_standard flag
         selected_profile = profile if include_standard else profile[:-1]
-        data = selected_profile[:, rescale_indices]
+        data = selected_profile[:, rescaled_indices]
         return data[..., np.newaxis]
 
-
-    def _get_segmentation(self,
-                          called_alleles: Sequence[Marker],
-                          shape: Tuple[int, ...]) -> np.ndarray:
+    @classmethod
+    def _get_segmentation(
+        cls,
+        scaler, 
+        called_alleles: Sequence[Marker],
+        shape: Tuple[int, ...]
+    ) -> np.ndarray:
         """
         Creates a binary mask based on the locations of called alleles in the annotation. Use
         the scaler to determine for an allele bin (a single base pair), the pixel location in
@@ -239,7 +244,7 @@ class ProvedItHIDImage(Image):
             for allele in marker.alleles:
                 image[
                     marker.dye_row,
-                    slice(*tuple(np.argmin(np.abs(self.scaler - allele.bin), axis=1))),
+                    slice(*tuple(np.argmin(np.abs(scaler - allele.bin), axis=1))),
                     0
                 ] = 1
         return image
@@ -270,12 +275,11 @@ class ProvedItHIDImage(Image):
                                                           self.THRESHOLD)
 
                 if peak_idx.size == 0:
-                    # LOGGER.warning(f"No peak found above {self.THRESHOLD}rfu. "
-                    #                f"Original annotation is removed "
-                    #                "and no adjustment is applied "
-                    #                f"({self.path}, dye {layer}, bin {ann_group}, "
-                    #                f"rfus {dye[ann_group].flatten()}).")
-                    pass
+                    LOGGER.warning(f"No peak found above {self.THRESHOLD}rfu. "
+                                   f"Original annotation is removed "
+                                   "and no adjustment is applied "
+                                   f"({self.path}, dye {layer}, bin {ann_group}, "
+                                   f"rfus {dye[ann_group].flatten()}).")
                 else:
                     if adjustment_type == 'complete':
                         # find the boundary of the peak and annotate the range

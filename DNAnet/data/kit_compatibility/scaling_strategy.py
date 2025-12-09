@@ -1,10 +1,8 @@
 """
-Kit strategies encapsulate kit-specific handling, such as which size standard is
-in use and how to parse that size standard into interpolation/rescaling data.
-
-Only size-standard parsing is implemented here so it can be plugged into the
-image loaders without duplicating the logic currently present in
-`provedit_hid_image.py`.
+EPG scaling strategies encapsulate how to parse the size standard and rescale
+electropherograms (EPGs). While the size standard comes from a kit, the choice
+of scaling strategy is dataset/EPG-characteristic dependent, so we keep the
+focus on scaling behavior rather than general kit logic.
 """
 
 from __future__ import annotations
@@ -12,9 +10,11 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
+from DNAnet.data.kit_compatibility.kit import GLOBALFILER_KIT, POWER_PLEX_FUSION_6C_KIT, Kit
 from DNAnet.data.kit_compatibility.lane_standards import (
     BASE_PAIR_END,
     BASE_PAIR_START,
@@ -49,24 +49,22 @@ class SizeStandardParseResult:
     fit_error: float
 
 
-class KitStrategy(ABC):
+class EPGScalingStrategy(ABC):
     """
-    Base contract for kit-specific processing.
+    Base contract for EPG scaling.
 
     Currently focuses on size-standard parsing; additional kit-specific
     behaviors can be added when needed.
 
-    :param size_standard: the size standard to be used for the HID file
-        (default: WEN_ILS)
-    :type size_standard: InternalSizeStandard | str
+    :param kit: Kit configuration to use (defines size standard/panel/markers).
+    :param panel_path: Optional panel path override; if provided, it replaces
+        the kit's panel_path.
     """
 
-    def __init__(self, size_standard: InternalSizeStandard | str):
-        self.size_standard = (
-            size_standard
-            if isinstance(size_standard, InternalSizeStandard)
-            else InternalSizeStandard[size_standard.upper()]
-        )
+    def __init__(self, kit: Kit):
+        self.kit = kit
+        self.size_standard: InternalSizeStandard = self.kit.size_standard
+        self.panel = self.kit.panel
 
     @abstractmethod
     def parse_size_standard(
@@ -76,7 +74,7 @@ class KitStrategy(ABC):
         """Parse the size-standard dye lane into interpolation/rescaling data."""
 
 
-class ProvedItKitStrategy(KitStrategy):
+class ProvedItEPGScalingStrategy(EPGScalingStrategy):
     """
     Kit strategy for ProvedIt-style data.
 
@@ -88,11 +86,11 @@ class ProvedItKitStrategy(KitStrategy):
 
     def __init__(
         self,
-        size_standard: InternalSizeStandard | str = InternalSizeStandard.WEN_ILS,
+        kit: Kit = POWER_PLEX_FUSION_6C_KIT,
         max_shrinkages: int = 10,
         validation_threshold: float = VAL_THRESHOLD,
     ):
-        super().__init__(size_standard)
+        super().__init__(kit)
         self.max_shrinkages = max_shrinkages
         self.validation_threshold = validation_threshold
 
@@ -173,15 +171,15 @@ class ProvedItKitStrategy(KitStrategy):
         )
 
 
-class NfiKitStrategy(KitStrategy):
+class NfiEPGScalingStrategy(EPGScalingStrategy):
     """
     Kit strategy for the original NFI/R&D pipeline (legacy HIDImage).
 
     Relies on the classic size-standard validation/interpolation and rescaling.
     """
 
-    def __init__(self, size_standard: InternalSizeStandard | str = InternalSizeStandard.GENESCAN_600_LIZ):
-        super().__init__(size_standard)
+    def __init__(self, kit: Kit = GLOBALFILER_KIT):
+        super().__init__(kit)
 
     def parse_size_standard(
         self,
