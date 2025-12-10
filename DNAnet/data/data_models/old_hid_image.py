@@ -18,7 +18,7 @@ from DNAnet.data.utils import (
     find_peak_boundary,
     find_peak_idx_near_or_in_range,
     get_interpolated_basepairs,
-    rescale_dye,
+    rescale_dye_old,
 )
 from DNAnet.typing import PathLike
 
@@ -108,7 +108,7 @@ class OldHIDImage(Image):
                                      self.include_size_standard)
         # Create a scaler, which is used to map a pixel index in the profile to a base pair
         # location, i.e. the first pixel is in fact BASE_PAIR_START, the last pixel is BASE_PAIR_END
-        self._scaler = interpolated_base_pairs[rescale_dye(interpolated_base_pairs)]
+        self._scaler = interpolated_base_pairs[rescale_dye_old(interpolated_base_pairs)]
 
         called_alleles = None
         # Determine the called alleles from the annotations file
@@ -179,7 +179,7 @@ class OldHIDImage(Image):
         """
         # Select profile based on include_standard flag
         selected_profile = profile if include_standard else profile[:-1]
-        data = selected_profile[:, rescale_dye(interpolated_base_pairs)]
+        data = selected_profile[:, rescale_dye_old(interpolated_base_pairs)]
         return data[..., np.newaxis]
 
     @classmethod

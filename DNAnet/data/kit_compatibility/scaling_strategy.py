@@ -25,9 +25,8 @@ from DNAnet.data.kit_compatibility.lane_standards import (
 )
 from DNAnet.data.utils import (
     basepair_interpolator,
-    extract_ss_peaks_new_unify,
+    extract_ss_peaks_simple,
     get_interpolated_basepairs,
-    rescale_dye_new_unify,
     rescale_dye,
 )
 
@@ -102,7 +101,7 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
         size_standard_lane = np.asarray(size_standard_lane).reshape(-1)
 
         # Detect peaks in the size-standard dye.
-        size_standard_peaks_idxs = extract_ss_peaks_new_unify(size_standard_lane)
+        size_standard_peaks_idxs = extract_ss_peaks_simple(size_standard_lane)
         expected_bps = get_size_standard_bps(self.size_standard)
 
         diff: float = self.validation_threshold + 1
@@ -154,7 +153,7 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
         # This list contains the indices into the original profile that correspond to the rescaled size standard.
         # For example: rescaled_indices[0:5] = [3807, 3812, 3817, 3822, 3827]
         # This means that the first five points in the rescaled EPG correspond to these indices in the original profile.
-        rescaled_indices = rescale_dye_new_unify(
+        rescaled_indices = rescale_dye(
             interpolated_base_pairs,
             rescale_size=RESCALE_SIZE,
             target_range=(BASE_PAIR_START, BASE_PAIR_END),
@@ -191,7 +190,7 @@ class NfiEPGScalingStrategy(EPGScalingStrategy):
         if interpolated_base_pairs is None:
             raise ValueError("Invalid size standard: interpolation failed validation.")
 
-        rescaled_indices = rescale_dye(interpolated_base_pairs)
+        rescaled_indices = rescale_dye(interpolated_base_pairs, rescale_size=4096, target_range=(65, 475))
         scaler = interpolated_base_pairs[rescaled_indices]
 
         return SizeStandardParseResult(

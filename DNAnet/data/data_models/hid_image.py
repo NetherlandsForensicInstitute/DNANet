@@ -21,8 +21,8 @@ from DNAnet.data.utils import (
     basepair_interpolator,
     find_peak_boundary,
     find_peak_idx_near_or_in_range,
-    extract_ss_peaks_new_unify,
-    rescale_dye_new_unify
+    extract_ss_peaks_simple,
+    rescale_dye
 )
 from DNAnet.typing import PathLike
 

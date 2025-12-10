@@ -3,7 +3,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import scipy
 
-
+# deprecated constants, kept for backward compatibility
 SIZE_STANDARD_BPS: np.ndarray = np.array([65, 80, 100, 120, 140, 160, 180,
                                           200, 225, 250, 275, 300, 325,
                                           350, 375, 400, 425, 450, 475])
@@ -214,7 +214,7 @@ def extract_ss_peaks(array: np.ndarray) -> np.ndarray:
     return np.delete(peak_idxs, close_idxs)
 
 
-def extract_ss_peaks_new_unify(array: np.ndarray) -> np.ndarray:
+def extract_ss_peaks_simple(array: np.ndarray) -> np.ndarray:
     """
     Takes an array and extracts the indices of the size standard peaks, by comparing each
     value with the neighbours and a threshold. We may find 'flat' peaks (e.g.
@@ -260,7 +260,7 @@ def basepair_interpolator(indices: Union[np.ndarray, list[float]],
     return interp
 
 
-def rescale_dye(basepairs: np.ndarray) -> np.ndarray:
+def rescale_dye_old(basepairs: np.ndarray) -> np.ndarray:
     """
     Rescale the interpolated base pairs of the size standard so that they fit between
     BASE_PAIR_START and BASE_PAIR_END, on exactly RESCALE_SIZE pixels. The output array
@@ -303,7 +303,7 @@ def rescale_dye(basepairs: np.ndarray) -> np.ndarray:
     )
 
 
-def rescale_dye_new_unify(
+def rescale_dye(
     basepairs: np.ndarray,
     rescale_size: int,
     target_range: Tuple[int, int]
