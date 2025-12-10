@@ -35,6 +35,7 @@ THRESHOLDS_PER_LOCUS = {
     'FGA': {'low': 40, 'high': 95},
     'DYS576': {'low': 40, 'high': 95},
     'DYS570': {'low': 40, 'high': 95},
+    'Yindel': {'low': 40, 'high': 95},
 }
 
 

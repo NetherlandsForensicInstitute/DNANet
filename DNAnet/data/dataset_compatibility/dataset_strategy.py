@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from pathlib import Path
 from typing import Iterable, Literal, Optional
+from typing import List, Dict
 
 from DNAnet.data.data_models.dna_models import Allele, Marker, Panel
 from DNAnet.utils import DONORS_PER_DATASET_NR, get_prefix_from_filename, is_rd_hid_filename
@@ -57,6 +58,17 @@ class DatasetStrategy(ABC):
             self.build_marker(marker_name, alleles)
             for marker_name, alleles in marker_allele_strings.items()
         ]
+
+    def serialize(self) -> dict:
+        """Return a lightweight serialization of the strategy."""
+        return {
+            "class": self.__class__.__name__,
+            "genotypes_path": str(self.genotypes_path),
+            "panel_path": str(getattr(self.panel, "_panel_path", "")),
+        }
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(genotypes_path={self.genotypes_path})"
 
 
 class NFI_RND_DatasetStrategy(DatasetStrategy):
@@ -115,8 +127,12 @@ class ProvedItDatasetStrategy(DatasetStrategy):
             return "ladder"
         if "LEA" in file_name:
             return "control"
-        if len(self.get_contributors(file_name)) > 0:
-            return "sample"
+        try:
+            if len(self.get_contributors(file_name)) > 0:
+                return "sample"
+        except ValueError:
+            # If we cannot parse contributors, treat the file as unknown instead of failing.
+            return "unknown"
         return "unknown"
 
     def get_contributors(self, file_name: str) -> list[str]:
@@ -149,3 +165,30 @@ class ProvedItDatasetStrategy(DatasetStrategy):
             for name in sorted(allele_names)
         ]
         return Marker(dye_row, marker_name, new_alleles)
+
+
+
+
+
+
+
+
+
+
+def categorize_files(
+        files: List, 
+        strategy: DatasetStrategy
+    ) -> Dict[FileCategory, List[Path]]:
+        """
+        Categorizes a list of files based on the provided categorization strategy.
+        Args:
+            files (List): List of file objects to categorize.
+            strategy (FileCategorizationStrategy): Strategy to use for categorization.
+        Returns:
+            Dict[FileCategory, List]: Dictionary mapping categories to lists of files.
+        """
+        categorized = defaultdict(list)
+        for f in files:
+            category = strategy.categorize_file(f.name)
+            categorized[category].append(f)
+        return dict(categorized)

@@ -5,7 +5,7 @@ import random
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from typing import Dict, Generator, List, Optional, Tuple, Union
+from typing import Dict, Generator, List, Optional, Set, Tuple, Union
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -14,6 +14,10 @@ from DNAnet.data.caching import _load_cached_hf_data, write_to_hf_cache
 from DNAnet.data.data_models import Panel
 from DNAnet.data.data_models.base import InMemoryDataset, SimpleDataset
 from DNAnet.data.data_models.hid_image import HIDImage, Ladder
+from DNAnet.data.dataset_compatibility.dataset_strategy import DatasetStrategy
+from DNAnet.data.kit_compatibility.kit import Kit
+from DNAnet.data.kit_compatibility.scaling_strategy import EPGScalingStrategy
+from DNAnet.data.strategies.sample_validation_strategy import SampleValidationStrategy
 from DNAnet.data.split import split_data_in_k_folds
 from DNAnet.typing import PathLike
 from DNAnet.utils import (
@@ -68,7 +72,11 @@ class HIDDataset(InMemoryDataset):
                  skip_if_invalid_ladder: Optional[bool] = False,
                  analysis_threshold_type: Optional[str] = 'DTL',
                  ground_truth_as_annotations: Optional[bool] = False,
-                 group_replicas_in_split: Optional[bool] = True):
+                 group_replicas_in_split: Optional[bool] = False,
+                 kit: Optional[Kit] = None,
+                 dataset_strategy: Optional[DatasetStrategy] = None,
+                 scaling_strategy: Optional[EPGScalingStrategy] = None,
+                 sample_validation_strategy: Optional[SampleValidationStrategy] = None):
         super().__init__(shuffle)
         self.root = str(root)
         self.limit = limit
@@ -78,6 +86,14 @@ class HIDDataset(InMemoryDataset):
         self.adjustment_of_annotations = adjustment_of_annotations
         self.ground_truth_as_annotations = ground_truth_as_annotations
         self.group_replicas_in_split = group_replicas_in_split
+        self.kit = kit
+        self.dataset_strategy = dataset_strategy
+        self.scaling_strategy = scaling_strategy
+        self.sample_validation_strategy = sample_validation_strategy or (lambda image: True)
+        self.annotations_path = annotations_path
+        self.hid_to_annotations_path = hid_to_annotations_path
+        self.best_ladder_paths_csv = best_ladder_paths_csv
+        self.panel_path = panel
 
         # If cache path is given and use_cache is set to true, load cached data.
         if cache_path and use_cache:
@@ -93,12 +109,15 @@ class HIDDataset(InMemoryDataset):
             self._validate_dataset_args(annotations_path, panel)
 
             self._panel = Panel(panel_path=panel)
-            # Map the hid file names to the annotation
-            self.annotation_dict = self._create_annotation_mapping_rd(
-                analysis_threshold_type=analysis_threshold_type,
-                hid_to_annotations_path=hid_to_annotations_path,
-                annotations_path=annotations_path,
-            )
+            # Map the hid file names to the annotation (optional for non-RD datasets)
+            if annotations_path and hid_to_annotations_path:
+                self.annotation_dict = self._create_annotation_mapping_rd(
+                    analysis_threshold_type=analysis_threshold_type,
+                    hid_to_annotations_path=hid_to_annotations_path,
+                    annotations_path=annotations_path,
+                )
+            else:
+                self.annotation_dict = {}
             # Map the image path to the path of the best fitting ladder
             self.best_ladder_paths = self.load_best_ladder_paths(best_ladder_paths_csv)
 
@@ -133,8 +152,24 @@ class HIDDataset(InMemoryDataset):
             for image in self._data:
                 # we want to store the ground truth donor alleles in meta['called_alleles'],
                 # therefore we copy the original 'called_alleles' into 'called_alleles_manual'
-                image._meta["called_alleles_manual"] = image._meta["called_alleles"]
-                image._meta["called_alleles"] = load_donor_alleles(image.path.stem, self._panel)
+                if "called_alleles" in image._meta:
+                    image._meta["called_alleles_manual"] = image._meta["called_alleles"]
+                try:
+                    if self.dataset_strategy:
+                        image._meta["called_alleles"] = self.dataset_strategy.load_donor_alleles(
+                            image.path.stem
+                        )
+                    else:
+                        image._meta["called_alleles"] = load_donor_alleles(image.path.stem, self._panel)
+                except ValueError as e:
+                    LOGGER.warning("Could not load ground truth annotations for %s: %s", image.path, e)
+
+        # Final validation pass to ensure cached or pre-filtered data respects the strategy.
+        if self.sample_validation_strategy:
+            before = len(self._data)
+            self._data = [im for im in self._data if self.sample_validation_strategy(im)]
+            if before != len(self._data):
+                LOGGER.info("Filtered out %d images that failed sample validation", before - len(self._data))
 
     def _validate_dataset_args(self,
                                annotations_path: Optional[PathLike],
@@ -152,7 +187,7 @@ class HIDDataset(InMemoryDataset):
         if not panel_path:
             raise ValueError("Panel path missing.")
 
-        if not annotations_path:
+        if not annotations_path and not self.ground_truth_as_annotations:
             raise ValueError("Annotations path missing.")
 
     def _collect_and_filter_file_paths(self) -> List[Dict[str, Union[str, PathLike, List[str]]]]:
@@ -177,22 +212,32 @@ class HIDDataset(InMemoryDataset):
         full_file_list = []
         # Keep track of the number of files we filter out because they have no annotation
         no_annotation_counter = 0
+        non_sample_counter = 0
         # Loop over each folder and its corresponding files
         for folder, files in tqdm(flat_folder_structure.items(), "Processing folders"):
             if len(files) == 0:  # no hid files in this folder
                 continue
 
-            # Retrieve the viable R&D HID files in the folder
-            hid_files = list(filter(is_rd_hid_filename, files))
+            # Retrieve viable HID files, filter by RD naming only when no dataset strategy is provided
+            hid_files = files if self.dataset_strategy else list(filter(is_rd_hid_filename, files))
 
             # Now for each file in the folder, save its corresponding ladder (if there is any)
             # and match the file with its corresponding annotation (if present).
             for file in hid_files:
+                if self.dataset_strategy:
+                    try:
+                        if self.dataset_strategy.categorize_file(Path(file).name) != "sample":
+                            non_sample_counter += 1
+                            continue
+                    except ValueError as e:
+                        LOGGER.warning("Skipping image: categorization failed for %s (%s)", file, e)
+                        non_sample_counter += 1
+                        continue
 
                 # get the annotation name and actual file containing annotations
                 _annotation = self.annotation_dict.get(Path(file).stem)
 
-                if not _annotation:
+                if not _annotation and not self.ground_truth_as_annotations:
                     # we only want to keep hid files that have an annotation
                     no_annotation_counter += 1
                     continue
@@ -209,6 +254,8 @@ class HIDDataset(InMemoryDataset):
         # Logging some statistics of our dataset
         LOGGER.info(f"Found {len(full_file_list)} .hid files")
         LOGGER.info(f"Removed {no_annotation_counter} .hid files without annotation")
+        if self.dataset_strategy:
+            LOGGER.info(f"Removed {non_sample_counter} non-sample files based on dataset strategy")
 
         return full_file_list
 
@@ -310,7 +357,7 @@ class HIDDataset(InMemoryDataset):
                 path, ladder_path, (annotation_name, annotation_file) = (
                     file_attributes["full_path"],
                     file_attributes["ladder_path"],
-                    file_attributes["annotation"]
+                    file_attributes["annotation"] if file_attributes["annotation"] else (None, None)
                 )
                 # create a ladder from the ladder_path if present
                 ladder = Ladder(ladder_path, self._panel) if ladder_path else None
@@ -324,6 +371,10 @@ class HIDDataset(InMemoryDataset):
                     path=path,
                     annotations_file=annotation_file,
                     panel=panel,
+                    kit=self.kit,
+                    dataset_strategy=self.dataset_strategy,
+                    scaling_strategy=self.scaling_strategy,
+                    use_ground_truth_as_annotations=self.ground_truth_as_annotations,
                     meta={
                         "annotations_name": annotation_name,
                         "ladder_path": ladder_path,
@@ -335,8 +386,11 @@ class HIDDataset(InMemoryDataset):
                 if _image.data is None:
                     LOGGER.warning("Skipping image: Missing data (%s)", path)
                     continue
-                elif _image.meta.get("called_alleles") is None:
+                elif not self.ground_truth_as_annotations and _image.meta.get("called_alleles") is None:
                     LOGGER.warning("Skipping image: Missing called_alleles (%s)", path)
+                    continue
+                elif not self.sample_validation_strategy(_image):
+                    LOGGER.warning("Skipping image: Failed sample validation (%s)", path)
                     continue
 
                 yield _image
@@ -389,6 +443,42 @@ class HIDDataset(InMemoryDataset):
         else:
             return super(HIDDataset, self).split_k_fold(n_folds, seed)
 
+    def split_by_genotypes(self, genotypes: Set[str]) -> Tuple['SimpleDataset', 'SimpleDataset']:
+        """
+        Split images into two datasets based on contributor IDs. Images with contributors that
+        are a subset of `genotypes` go to A; images disjoint from `genotypes` go to B; mixed or
+        unparseable contributors are discarded.
+        """
+        if not self.dataset_strategy:
+            raise ValueError("split_by_genotypes requires a dataset_strategy to extract contributors.")
+
+        community_A_images: List[HIDImage] = []
+        community_B_images: List[HIDImage] = []
+        ambiguous_images: List[HIDImage] = []
+
+        for img in self._data:
+            try:
+                contribs = set(self.dataset_strategy.get_contributors(img.path.name))
+            except Exception as e:
+                LOGGER.warning("Could not extract contributors for %s: %s", img.path, e)
+                ambiguous_images.append(img)
+                continue
+
+            if contribs.issubset(genotypes):
+                community_A_images.append(img)
+            elif contribs.isdisjoint(genotypes):
+                community_B_images.append(img)
+            else:
+                ambiguous_images.append(img)
+
+        LOGGER.info("Split by genotypes: A=%d, B=%d, ambiguous=%d",
+                    len(community_A_images), len(community_B_images), len(ambiguous_images))
+
+        community_A_dataset = SimpleDataset(data=community_A_images, shuffle=self.shuffle)
+        community_B_dataset = SimpleDataset(data=community_B_images, shuffle=self.shuffle)
+
+        return community_A_dataset, community_B_dataset
+
     def _split_k_fold_by_replicas_and_noc(self, n_folds: int, seed: Optional[float] = None) \
             -> List[Tuple[SimpleDataset, SimpleDataset]]:
         """
@@ -439,3 +529,35 @@ class HIDDataset(InMemoryDataset):
         if len(image) == 0:
             return None
         return image[0]
+
+    def serialize(self) -> Dict[str, Union[str, int, float, bool, None, dict]]:
+        """Return a minimal serializable representation of this dataset."""
+        return {
+            "class": self.__class__.__name__,
+            "root": self.root,
+            "annotations_path": str(self.annotations_path) if self.annotations_path else None,
+            "hid_to_annotations_path": str(self.hid_to_annotations_path) if self.hid_to_annotations_path else None,
+            "best_ladder_paths_csv": str(self.best_ladder_paths_csv) if self.best_ladder_paths_csv else None,
+            "panel_path": str(self.panel_path) if self.panel_path else None,
+            "limit": self.limit,
+            "use_cache": bool(self.cache_path) if self.cache_path else False,
+            "cache_path": str(self.cache_path) if self.cache_path else None,
+            "adjustment_of_annotations": self.adjustment_of_annotations,
+            "shuffle": self.shuffle,
+            "skip_if_invalid_ladder": self.skip_if_invalid_ladder,
+            "analysis_threshold_type": self.analysis_threshold_type,
+            "ground_truth_as_annotations": self.ground_truth_as_annotations,
+            "group_replicas_in_split": self.group_replicas_in_split,
+            "kit": {
+                "name": self.kit.name,
+                "size_standard": getattr(self.kit.size_standard, "name", str(self.kit.size_standard)),
+                "panel_path": str(self.kit.panel_path) if self.kit and self.kit.panel_path else None,
+            } if self.kit else None,
+            "dataset_strategy": self.dataset_strategy.serialize() if self.dataset_strategy else None,
+            "scaling_strategy": self.scaling_strategy.__class__.__name__ if self.scaling_strategy else None,
+            "sample_validation_strategy": getattr(self.sample_validation_strategy, "__name__", str(self.sample_validation_strategy)),
+            "num_samples": len(self._data),
+        }
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.serialize()})"
