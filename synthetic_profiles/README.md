@@ -9,7 +9,7 @@ This folder hosts the R-based pipeline for generating synthetic DNA profiles wit
 ## Setup (renv)
 From the repository root:
 ```bash
-cd synthetic_profiles
+cd synthetic_profiles/simulateDNA
 Rscript -e "renv::restore()" --vanilla
 ```
 This restores the isolated `renv` environment using the committed `renv.lock` and installs the required packages (`simDNAmixtures`, `dplyr`, `xml2`).
@@ -17,7 +17,7 @@ This restores the isolated `renv` environment using the committed `renv.lock` an
 ## Run
 From the repository root (after setup/restore):
 ```bash
-cd synthetic_profiles
+cd synthetic_profiles/simulateDNA
 Rscript simulateMassProduceRandomParamsFixedTemplate.R
 # Optional: pass a custom suffix for the output directory (defaults to timestamp)
 Rscript simulateMassProduceRandomParamsFixedTemplate.R my_experiment_name
@@ -27,7 +27,7 @@ Outputs land under `generated/generated_alleles_<suffix>` with EPG CSVs, referen
 Each run also writes `run_parameters.json` into the output folder with the key parameters and RFU threshold (uses `jsonlite` if installed; otherwise falls back to a simple R dump).
 
 ## Tuning the generator
-Common knobs live in `synthetic_profiles/sim_helpers.R` (template ratio functions, degradation settings, default template amounts, output naming, panel lookup helpers). Adjust them there; the main script stays focused on orchestration.
+Common knobs live in `synthetic_profiles/simulateDNA/sim_helpers.R` (template ratio functions, degradation settings, default template amounts, output naming, panel lookup helpers). Adjust them there; the main script stays focused on orchestration.
 
 - **Detection threshold (RFU)**: `configure_global_filer()` sets `threshold_rfu`. We default to `15` as a middle ground: higher (e.g., ~80) misses many low-template peaks (allelic and artefactual), while very low (near 0) floods you with undetectable peaks and extra compute. Raise to be stricter, lower to keep more weak signals.
 - **Template ratios**: The four rule-based ratio generators in `get_template_ratio_functions()` were hand-picked to mimic ProvedIt-like patterns. Feel free to add/replace functions to explore other mixture ratios.

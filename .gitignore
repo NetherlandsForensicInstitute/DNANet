@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Mac OS files
+.DS_Store
+
 # Distribution / packaging
 .Python
 .idea/
@@ -177,4 +180,4 @@ resources/data/
 
 
 # Synthetic data
-synthetic_profiles/generated/
+generated/

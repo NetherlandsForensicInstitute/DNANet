@@ -1,7 +1,7 @@
 # Utility helpers for the synthetic profile generator.
 
-build_output_dirs <- function(output_subdir) {
-  output_dir <- file.path("generated", output_subdir)
+build_output_dirs <- function(repo_root, output_subdir) {
+  output_dir <- file.path(repo_root, "generated", output_subdir)
   alleles_dir <- file.path(output_dir, "epgs")
   genotypes_dir <- file.path(output_dir, "reference_genotypes")
   dir.create(alleles_dir, showWarnings = FALSE, recursive = TRUE)

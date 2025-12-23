@@ -7,13 +7,13 @@ library(xml2)
 source("sim_helpers.R")
 
 # Repo root is the parent directory of synthetic_profiles
-repo_root <- normalizePath("..")
+repo_root <- normalizePath("../..")
 
 # Allow caller to override the output directory suffix; default to timestamped folder
 args <- commandArgs(trailingOnly = TRUE)
 output_suffix <- if (length(args) >= 1 && nzchar(args[1])) args[1] else format(Sys.time(), "%Y%m%d_%H%M%S")
 output_dir_name <- sprintf("generated_alleles_%s", output_suffix)
-paths <- build_output_dirs(output_dir_name)
+paths <- build_output_dirs(file.path(repo_root, "synthetic_profiles"), output_dir_name)
 
 # Load allele frequencies
 allele_freqs_file <- system.file("extdata","FBI_extended_Cauc_022024.csv", package = "simDNAmixtures")
