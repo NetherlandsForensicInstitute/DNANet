@@ -78,6 +78,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+notebooks/
 
 # IPython
 profile_default/
@@ -173,3 +174,7 @@ figures/
 
 # Ignore all files that are on HF
 resources/data/
+
+
+# Synthetic data
+synthetic_profiles/generated/

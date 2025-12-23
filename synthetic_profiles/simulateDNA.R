@@ -2,108 +2,46 @@ library(simDNAmixtures)
 library(dplyr)
 library(xml2)
 
-output_dir_base <- getwd()
-output_dir <- file.path(output_dir_base, "generated", "generated_alleles_fixed_ratios_all_loci_thresh_15_8k")
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
+# File must be run from synthetic_profiles/ directory,
+# otherwise adjust the path to sim_helpers.R accordingly.
+source("sim_helpers.R")
+
+# Repo root is the parent directory of synthetic_profiles
+repo_root <- normalizePath("..")
+
+# Allow caller to override the output directory suffix; default to timestamped folder
+args <- commandArgs(trailingOnly = TRUE)
+output_suffix <- if (length(args) >= 1 && nzchar(args[1])) args[1] else format(Sys.time(), "%Y%m%d_%H%M%S")
+output_dir_name <- sprintf("generated_alleles_%s", output_suffix)
+paths <- build_output_dirs(output_dir_name)
 
 # Load allele frequencies
 allele_freqs_file <- system.file("extdata","FBI_extended_Cauc_022024.csv", package = "simDNAmixtures")
 allele_freqs <- read_allele_freqs(allele_freqs_file)
 
-# Change the GlobalFiler configuration to include Yindel and DYS391, and lower detection thresholds to only 15 RFU
-gf <- gf_configuration()
-
-# Add Yindel and DYS391 to the locus_names vector
-gf$log_normal_settings$locus_names <- unique(c(gf$log_normal_settings$locus_names, "Yindel", "DYS391"))
-
-# Set all detection thresholds to zero for all loci in locus_names
-gf$log_normal_settings$detection_threshold <- setNames(
-  rep(15, length(gf$log_normal_settings$locus_names)),
-  gf$log_normal_settings$locus_names
-)
-
+threshold_rfu <- 15
+gf <- configure_global_filer(threshold_rfu)
 
 dye_map <- kits$GlobalFiler[, c("Marker", "Color")] %>% distinct(Marker, .keep_all = TRUE)
-size_standard_sizes <- c(20, 40, 60, 80, 100, 114, 120, 140, 160, 180, 200, 214,
-                         220, 240, 250, 260, 280, 300, 314, 320, 340, 360, 380,
-                         400, 414, 420, 440, 460, 480, 500, 514, 520, 540, 560,
-                         580, 600)
-size_standard_df <- data.frame(
-  Locus = "LIZ",
-  Allele = NA,
-  Height = 3000,
-  Size = size_standard_sizes,
-  Color = "orange"
-)
+size_standard_df <- gf_build_size_standard_df()
+panel_lookup <- build_panel_lookup(file.path(repo_root, "resources", "data", "SGPanel_Globalfiler_Panel.xml"))
+template_ratio_functions <- get_template_ratio_functions()
 
-# Fix sizes to align with panel
-# Parse XML panel
-panel_xml <- read_xml(file.path(repo_root, "resources", "data", "SGPanel_Globalfiler_Panel.xml"))
-panel_loci <- xml_find_all(panel_xml, ".//Locus")
-
-# Extract marker names and allele sizes from the XML
-panel_lookup <- lapply(panel_loci, function(locus) {
-  marker <- xml_text(xml_find_first(locus, "./MarkerTitle"))
-  alleles <- xml_find_all(locus, ".//Allele")
-  data.frame(
-    Locus = marker,
-    Allele = sapply(alleles, function(a) xml_attr(a, "Label")),
-    PanelSize = as.numeric(sapply(alleles, function(a) xml_attr(a, "Size"))),
-    stringsAsFactors = FALSE
-  )
-}) %>% bind_rows()
-
-
-
-# # Parameter grids
-# template_ranges <- list(
-#   c(50, 500),
-#   c(5000, 10000),
-#   c(50, 10000)
-# )
-# Template ratio functions
-template_ratio_even <- function(n) rep(1/n, n)
-template_ratio_increasing <- function(n) { ratios <- 1:n; ratios / sum(ratios) }
-template_ratio_last_dominates <- function(n) { ratios <- rep(1/20, n); ratios[n] <- 1 - sum(ratios[-n]); ratios }
-template_ratio_first_two_10 <- function(n) {
-  ratios <- rep(0, n)
-  if (n == 1) {
-    ratios[1] <- 1
-  } else if (n == 2) {
-    ratios[1] <- 0.1
-    ratios[2] <- 0.9
-  } else {
-    ratios[1:2] <- 0.1
-    ratios[3:n] <- (1 - 0.2) / (n - 2)
-  }
-  ratios
-}
-template_ratio_functions <- list(
-  template_ratio_even,
-  template_ratio_increasing,
-  template_ratio_last_dominates,
-  template_ratio_first_two_10
-)
-# Varying parameters
-base_template_amounts <- c(300, 500, 1000, 5000)  # total template amount per sample
-
-degradation_settings <- list(
-  list(shape = 2.5, scale = 1e-3),
-  list(shape = 3.5, scale = 2e-3)
-)
-contributors_list <- c(2, 3, 4, 5)
-replicates <- 1
-
-# Calculate number of genotypes per configuration
-n_per_config <- 2
+sim_params <- get_simulation_params()
+base_template_amounts <- sim_params$base_template_amounts
+degradation_settings <- sim_params$degradation_settings
+contributors_list <- sim_params$contributors_list
+replicates <- sim_params$replicates
+n_per_config <- sim_params$n_per_config
 config_id <- 1
+
+# Persist run metadata alongside outputs
+write_run_metadata(paths$output_dir, threshold_rfu, sim_params)
 
 
 # Output directories
-alleles_dir <- file.path(output_dir, "epgs")
-genotypes_dir <- file.path(output_dir, "reference_genotypes")
-dir.create(alleles_dir, showWarnings = FALSE, recursive = TRUE)
-dir.create(genotypes_dir, showWarnings = FALSE, recursive = TRUE)
+alleles_dir <- paths$alleles_dir
+genotypes_dir <- paths$genotypes_dir
 
 # Mapping list
 alleles_to_genotypes <- data.frame(EPGFile=character(), GenotypeFile=character(), stringsAsFactors=FALSE)
@@ -149,15 +87,11 @@ for (n_contributors in contributors_list) {
         for (i in seq_along(mixtures$samples)) {
           sim_peaks <- mixtures$samples[[i]]$mixture
           sim_peaks_with_dye <- left_join(sim_peaks, dye_map, by = c("Locus" = "Marker"))
-          # Adjust sizes to match panel sizes
-          # sim_peaks_with_dye <- sim_peaks_with_dye %>%
-          #   left_join(panel_lookup, by = c("Locus", "Allele")) %>%
-          #   mutate(Size = ifelse(is.na(PanelSize), Size, PanelSize)) %>
-          #   select(-PanelSize)
 
-          # If PanelSize is available, use it; otherwise, keep original Size
+          # Adjust sizes to match panel sizes
           sim_peaks_with_panel <- left_join(sim_peaks_with_dye, panel_lookup, by = c("Locus", "Allele"))
 
+          # If PanelSize is available, use it; otherwise, keep original Size
           peaks_fixed_size_df <- sim_peaks_with_panel %>%
             mutate(Size = ifelse(!is.na(PanelSize), PanelSize, Size)) %>%
             select(-PanelSize)
@@ -168,9 +102,11 @@ for (n_contributors in contributors_list) {
 
           # Extract sample and replicate info from sample_name
           sample_name <- mixtures$samples[[i]]$sample_name
+          
           # Save alleles file
           allele_file <- sprintf("%s/epg_configID%d_%s_deg%d.csv", alleles_dir, config_id, sample_name, deg_idx)
           write.csv(combined_peaks_df, allele_file, row.names = FALSE)
+
           # Save genotype file for each contributor
           genotype_file_list <- c()
           for (c_idx in seq_along(contributors)) {
@@ -194,4 +130,4 @@ for (n_contributors in contributors_list) {
   }
 }
 # Save mapping file
-write.csv(alleles_to_genotypes, file.path(output_dir, "alleles_to_genotypes_mapping.csv"), row.names = FALSE)
+write.csv(alleles_to_genotypes, file.path(paths$output_dir, "alleles_to_genotypes_mapping.csv"), row.names = FALSE)
