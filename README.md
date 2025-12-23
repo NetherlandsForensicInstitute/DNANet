@@ -60,6 +60,9 @@ Git LFS is used to track `.pt` (model) files. Make sure to [install Git LFS](htt
 $ git lfs pull
 ```
 
+# Synthetic data generation
+For instructions on simulating DNA profiles and generating synthetic EPGs, see [synthetic_profiles](synthetic_profiles/README.md).
+
 HugginFace datasets is used to download the research data. This is done automatically whenever the data is missing from your config's provided root directory.
 When this is triggered, data is pulled from the ["NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024"](https://huggingface.co/datasets/NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024) HuggingFace repository.
 

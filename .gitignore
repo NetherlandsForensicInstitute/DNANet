@@ -181,3 +181,4 @@ resources/data/
 
 # Synthetic data
 generated/
+generated_epgs/
