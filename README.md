@@ -52,7 +52,7 @@ $ pip install pdm
 ```
 Then run the following command to install the dependencies:
 ```bash
-$ pdm install
+$ pdm sync
 ```
 
 Git LFS is used to track `.pt` (model) files. Make sure to [install Git LFS](https://git-lfs.com/) on your system. In order to retrieve the files from the remote run the following command:
