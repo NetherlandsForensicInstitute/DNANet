@@ -49,6 +49,7 @@ class HIDDataset(InMemoryDataset):
         `DTH` (high) or `DTL` (low).
     :param ground_truth_as_annotations: whether to load the ground truth donor alleles as
         annotations.
+    :param include_size_standard: whether to include the size standard in the HIDImage.
     :param group_replicas_in_split: whether to put measurements from the same profile (replicas)
     in the same set when splitting, and balance the number of profiles per noc, if false all
     replicas will be mixed.
@@ -68,6 +69,7 @@ class HIDDataset(InMemoryDataset):
                  skip_if_invalid_ladder: Optional[bool] = False,
                  analysis_threshold_type: Optional[str] = 'DTL',
                  ground_truth_as_annotations: Optional[bool] = False,
+                 include_size_standard: bool = False,
                  group_replicas_in_split: Optional[bool] = True):
         super().__init__(shuffle)
         self.root = str(root)
@@ -77,6 +79,7 @@ class HIDDataset(InMemoryDataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.adjustment_of_annotations = adjustment_of_annotations
         self.ground_truth_as_annotations = ground_truth_as_annotations
+        self.include_size_standard = include_size_standard
         self.group_replicas_in_split = group_replicas_in_split
 
         # If cache path is given and use_cache is set to true, load cached data.
@@ -86,7 +89,7 @@ class HIDDataset(InMemoryDataset):
                 if panel is None:
                     raise ValueError("Need panel when loading ground truth annotations")
                 self._panel = Panel(panel_path=panel)
-            self._data = _load_cached_hf_data(cache_path, limit)
+            self._data = _load_cached_hf_data(cache_path, limit, include_size_standard)
         # Otherwise, read data and cache (optional)
         else:
             LOGGER.info(f"Loading raw data from {self.root}")
@@ -126,7 +129,7 @@ class HIDDataset(InMemoryDataset):
 
             if self.cache_path:
                 LOGGER.info(f"Writing data to arrow cache: {self.cache_path}")
-                write_to_hf_cache(self.cache_path, self._data)
+                write_to_hf_cache(self.cache_path, self._data, include_size_standard)
 
         if self.ground_truth_as_annotations:
             LOGGER.info("Loading ground truth annotations")
@@ -324,6 +327,7 @@ class HIDDataset(InMemoryDataset):
                     path=path,
                     annotations_file=annotation_file,
                     panel=panel,
+                    include_size_standard=self.include_size_standard,
                     meta={
                         "annotations_name": annotation_name,
                         "ladder_path": ladder_path,
