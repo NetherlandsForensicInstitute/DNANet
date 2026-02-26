@@ -7,6 +7,7 @@ from typing import List, Mapping, Optional, Sequence, Union
 import construct
 import numpy as np
 
+from DNAnet.data.preprocessing.baseline_and_smooth import baseline_superior
 from DNAnet.typing import PathLike
 
 
@@ -256,7 +257,7 @@ def parse_hid(filename: PathLike) -> Optional[Mapping[str, Optional[ElementValue
     return hid_data
 
 
-def get_peak_data(hid_file: PathLike) -> Optional[np.ndarray]:
+def get_peak_data(hid_file: PathLike, strategy: str) -> Optional[np.ndarray]:
     """
     Retrieve peak data from HID file. The data per dye
     can be stored in different columns (e.g. the first dye can be stored
@@ -264,8 +265,14 @@ def get_peak_data(hid_file: PathLike) -> Optional[np.ndarray]:
     be stored in either DATA_205 or DATA_105.
 
     :param hid_file: path to hid file
+    :param strategy: strategy to load data, either "raw", "analyzed" or "superior"
     :returns: RFU for each dye in a numpy array, or None if problems occurd with reading
     """
+
+    if strategy not in ("raw", "analyzed", "superior"):
+        raise ValueError(f"data loading strategy should be one of 'raw', 'analyzed' or 'superior', "
+                         f"got {strategy}")
+
     try:
         data = parse_hid(hid_file)
         data_colnames = [name for name in data if name.startswith("DATA")]
@@ -274,31 +281,42 @@ def get_peak_data(hid_file: PathLike) -> Optional[np.ndarray]:
         return None
 
     try:
-        if 'DATA_9' in data_colnames:
+        if strategy == "raw" or strategy == "superior":
+            dye1 = data['DATA_1']
+            dye2 = data['DATA_2']
+            dye3 = data['DATA_3']
+            dye4 = data['DATA_4']
+            dye5 = data['DATA_106']
+            size_standard = data['DATA_105']
+        elif strategy == "analyzed":
             dye1 = data['DATA_9']
             dye2 = data['DATA_10']
             dye3 = data['DATA_11']
             dye4 = data['DATA_12']
             dye5 = data['DATA_206']
             size_standard = data['DATA_205']
-        else:  # if 'DATA_1' in data_colnames:
-            dye1 = data['DATA_1']
-            dye2 = data['DATA_2']
-            dye3 = data['DATA_3']
-            dye4 = data['DATA_4']
-            dye5 = data['DATA_106']
+        else:
+            raise ValueError(f'Unknown parsing strategy: {strategy}')
 
-            if 'DATA_205' in data_colnames:
-                size_standard = data['DATA_205']
-            else:
-                size_standard = data['DATA_105']
         dyes = [dye1, dye2, dye3, dye4, dye5, size_standard]
     except KeyError:
-        LOGGER.debug(f'Could not find valid combination of DATA elements for {hid_file}, '
-                     f'found {data_colnames}')
+        LOGGER.warning(f'could not find {strategy} DATA elements for {hid_file}, found '
+                       f'{data_colnames}')
         return None
 
-    dyes = np.array(dyes, dtype=np.int16)
+    # first load as int32 to avoid overflow when subtracting the baseline, then convert to int16 (actual data size)
+    dyes = np.array(dyes, dtype=np.int32)
+
+
+    if strategy == "superior":
+        # subtract the baseline using the Genemarker superior method
+        # baseline is not subtracted for the size standard
+        baseline = baseline_superior(dyes)
+        dyes = dyes - baseline
+
+    iinfo = np.iinfo(np.int16)
+    dyes = np.clip(dyes, iinfo.min, iinfo.max).astype(np.int16)
+
     return dyes
 
 

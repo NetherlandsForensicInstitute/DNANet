@@ -50,6 +50,9 @@ class HIDDataset(InMemoryDataset):
     :param ground_truth_as_annotations: whether to load the ground truth donor alleles as
         annotations.
     :param include_size_standard: whether to include the size standard in the HIDImage.
+    :param data_loading_strategy: the strategy to load the data, either "raw", "analyzed" or "superior".
+        "raw" means loading the raw data, "analyzed" means loading the analyzed data,
+        and "superior" means loading the raw data and applying baseline subtraction
     :param group_replicas_in_split: whether to put measurements from the same profile (replicas)
     in the same set when splitting, and balance the number of profiles per noc, if false all
     replicas will be mixed.
@@ -70,6 +73,7 @@ class HIDDataset(InMemoryDataset):
                  analysis_threshold_type: Optional[str] = 'DTL',
                  ground_truth_as_annotations: Optional[bool] = False,
                  include_size_standard: bool = False,
+                 data_loading_strategy: str = "superior",
                  group_replicas_in_split: Optional[bool] = True):
         super().__init__(shuffle)
         self.root = str(root)
@@ -80,6 +84,7 @@ class HIDDataset(InMemoryDataset):
         self.adjustment_of_annotations = adjustment_of_annotations
         self.ground_truth_as_annotations = ground_truth_as_annotations
         self.include_size_standard = include_size_standard
+        self.data_loading_strategy = data_loading_strategy
         self.group_replicas_in_split = group_replicas_in_split
 
         # If cache path is given and use_cache is set to true, load cached data.
@@ -328,6 +333,7 @@ class HIDDataset(InMemoryDataset):
                     annotations_file=annotation_file,
                     panel=panel,
                     include_size_standard=self.include_size_standard,
+                    data_loading_strategy=self.data_loading_strategy,
                     meta={
                         "annotations_name": annotation_name,
                         "ladder_path": ladder_path,

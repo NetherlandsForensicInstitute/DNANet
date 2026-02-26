@@ -50,6 +50,7 @@ class HIDImage(Image):
                  include_size_standard: bool = False,
                  annotation: Optional[Annotation] = None,
                  use_cache: bool = True,
+                 data_loading_strategy: str = 'superior',
                  meta: MutableMapping[str, Any] = None):
         self.path = path if isinstance(path, Path) else Path(path)
         self.annotations_file = annotations_file
@@ -61,6 +62,7 @@ class HIDImage(Image):
         self._meta = meta or dict()
         self._scaler: Optional[np.ndarray] = None
         self._panel = panel
+        self.data_loading_strategy = data_loading_strategy
 
     @property
     def data(self) -> np.ndarray:
@@ -94,7 +96,7 @@ class HIDImage(Image):
             raise FileNotFoundError(str(self.path))
 
         # Parse the raw hid image into a numpy array.
-        if (profile := get_peak_data(self.path)) is None:
+        if (profile := get_peak_data(self.path, self.data_loading_strategy)) is None:
             return None
         # Use the size standard to translate the location in the profile (array) to base pairs
         interpolated_base_pairs = get_interpolated_basepairs(np.array(profile[-1]))
