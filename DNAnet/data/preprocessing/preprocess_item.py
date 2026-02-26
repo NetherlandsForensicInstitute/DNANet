@@ -72,3 +72,49 @@ def _scale_data_torch(
         x = torch.clamp(x, 0.0, 1.0)
 
     return x.to(orig_dtype) if torch.is_floating_point(data) else x
+
+
+
+def inverse_scale_data(
+        tensor: torch.Tensor,
+        log_scale: bool = True,
+        max_rfu_scale_value: Optional[int] = RFU_MAX_VALUE,
+) -> torch.Tensor:
+    """
+    Inverse of `scale_data_torch`
+
+    Args:
+        tensor: (..., C, T[, 1]) in preprocessed space.
+        log_scale: Whether log1p scaling was used.
+        max_rfu_scale_value: Max RFU value used during scaling.
+
+    Returns:
+        Tensor with the same shape as input, in original RFU space.
+    """
+    x = tensor
+
+    # Squeeze trailing singleton time-channel dim if present, but remember it
+    had_trailing_dim = False
+    if x.dim() >= 3 and x.shape[-1] == 1:
+        x = x.squeeze(-1)
+        had_trailing_dim = True
+
+    # Undo scaling: "scale_data" did (optionally) log1p + divide by log1p(max_rfu)
+    if log_scale and max_rfu_scale_value is not None:
+        # x \in [0, 1] => x * log1p(max_rfu) => expm1(...)
+        x = torch.expm1(x * torch.log1p(torch.tensor(max_rfu_scale_value, device=x.device, dtype=x.dtype)))
+    elif not log_scale and max_rfu_scale_value is not None:
+        x = x * max_rfu_scale_value
+    elif log_scale and max_rfu_scale_value is None:
+        x = torch.expm1(x)
+    # else: no scaling to undo
+
+
+    # Clip to avoid negative RFU values
+    x = torch.clamp(x, min=0.0)
+
+    # Restore trailing singleton dim if it was present
+    if had_trailing_dim:
+        x = x.unsqueeze(-1)
+
+    return x
