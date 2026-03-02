@@ -20,7 +20,9 @@ from DNAnet.evaluation import (
     pixel_precision,
     pixel_recall,
 )
+from DNAnet.evaluation.reconstruction import reconstruction_mse
 from DNAnet.models.base import Model, TrainableModel
+from DNAnet.models.reconstruction.autoencoder import HIDAutoencoder
 from DNAnet.models.segmentation.human_analysis import HumanAnalysis
 from DNAnet.models.segmentation.trainable_unet import DNANet_UNet
 from DNAnet.typing import PathLike
@@ -30,14 +32,21 @@ from huggingface_hub.errors import HfHubHTTPError
 
 
 DATASETS = {'dataset': {'hid': HIDDataset, }}
-MODELS = {'model': {'unet': DNANet_UNet, 'human_analysis': HumanAnalysis}}
+MODELS = {'model': {
+    'unet': DNANet_UNet,
+    'human_analysis': HumanAnalysis,
+    'autoencoder': HIDAutoencoder
+    }
+}
+
 METRICS = {'pixel_precision': pixel_precision,
            'pixel_recall': pixel_recall,
            'average_binary_iou': average_binary_iou,
            'pixel_f1_score': pixel_f1_score,
            'allele_precision': allele_precision,
            'allele_recall': allele_recall,
-           'allele_f1_score': allele_f1_score}
+           'allele_f1_score': allele_f1_score,
+           'reconstruction_mse': reconstruction_mse}
 HF_DATASET = "NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024"
 
 
@@ -117,7 +126,7 @@ def load_dataset(source: PathLike) -> InMemoryDataset:
     data_config["dataset"] = dict(data_config["dataset"])
     root_dir = Path(data_config["dataset"]["root"])
     files_in_root: bool = any(root_dir.glob("[!.]*"))  # Check for non-hidden files (not starting with `.`)
-    
+
     # If the root_dir does not exist, or it exists but there's no (hidden) files, we download from HF
     if not (root_dir.exists() and files_in_root):
         print(f"Downloading dataset {HF_DATASET}...")
@@ -151,14 +160,14 @@ def download_online_dataset(data_root: PathLike):
                 time.sleep(5)
             else:
                 raise e
-    
+
     # Read in data root
     shutil.copytree(local_path, data_root)
 
     # Clean up the download folder of remaining files
     shutil.rmtree(local_path)
     pass
-    
+
 
 def load_model(source: PathLike) -> Model:
     """
