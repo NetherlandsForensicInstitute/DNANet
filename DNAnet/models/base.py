@@ -1,14 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Sequence
 
-import torch
-
 from DNAnet.data.data_models.base import Image, InMemoryDataset
 from DNAnet.models.prediction import Prediction
 from DNAnet.typing import PathLike
-
-
-TORCH_DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class Model(ABC):
