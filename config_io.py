@@ -11,6 +11,7 @@ from confidence import Configuration, dumpf
 
 from DNAnet.data.data_models.base import InMemoryDataset
 from DNAnet.data.data_models.hid_dataset import HIDDataset
+from DNAnet.data.data_models.peak_dataset import PeakWindowDataset
 from DNAnet.evaluation import (
     allele_f1_score,
     allele_precision,
@@ -22,22 +23,36 @@ from DNAnet.evaluation import (
 )
 from DNAnet.evaluation.reconstruction import reconstruction_mse
 from DNAnet.models.base import Model, TrainableModel
-from DNAnet.models.reconstruction.autoencoder import HIDAutoencoder
-from DNAnet.models.segmentation.human_analysis import HumanAnalysis
-from DNAnet.models.segmentation.trainable_unet import DNANet_UNet
 from DNAnet.typing import PathLike
 from utils import get_defaults
 from huggingface_hub import snapshot_download
 from huggingface_hub.errors import HfHubHTTPError
 
 
-DATASETS = {'dataset': {'hid': HIDDataset, }}
-MODELS = {'model': {
-    'unet': DNANet_UNet,
-    'human_analysis': HumanAnalysis,
-    'autoencoder': HIDAutoencoder
+DATASETS = {
+    'dataset': {
+        'hid': HIDDataset,
+        'peak_dataset': PeakWindowDataset
     }
 }
+
+
+def get_models() -> Dict[str, Dict[str, type]]:
+    # Local import: avoids circular imports and only imports the relevant models when needed.
+    from DNAnet.models.classification.peak_classification import PeakClassification
+    from DNAnet.models.reconstruction.autoencoder import HIDAutoencoder
+    from DNAnet.models.segmentation.human_analysis import HumanAnalysis
+    from DNAnet.models.segmentation.peaknet import PeakNet
+    from DNAnet.models.segmentation.trainable_unet import DNANet_UNet
+
+    return {
+        "model": {
+            "unet": DNANet_UNet,
+            "human_analysis": HumanAnalysis,
+            "autoencoder": HIDAutoencoder,
+            "peak_classification": PeakClassification,
+        }
+    }
 
 METRICS = {'pixel_precision': pixel_precision,
            'pixel_recall': pixel_recall,

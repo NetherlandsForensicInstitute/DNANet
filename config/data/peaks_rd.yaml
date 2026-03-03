@@ -1,0 +1,29 @@
+dataset:
+  name: peak_dataset
+  data_root: resources/data/
+  root: resources/data/2p_5p_Dataset_NFI/Raw data .HID files
+  annotations_path: resources/data/2p_5p_Dataset_NFI/txt_annotations_2024
+  panel: resources/data/SGPanel_PPF6C.xml
+  hid_to_annotations_path: resources/data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv
+  best_ladder_paths_csv: resources/data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv
+  limit:
+  use_cache: False  # false: write to `cache_path`, true: load from `cache_path` (if provided)
+#  cache_path: resources/data/2p_5p_Dataset_NFI/cache
+  cache_path:
+  adjustment_of_annotations:   # None (leave empty), top, or complete
+  shuffle: false
+  skip_if_invalid_ladder: True
+  analysis_threshold_type: DTH  # DTH (high) or DTL (low)
+  ground_truth_as_annotations: false  # whether to store ground truth in meta['called_alleles']
+  include_size_standard: True
+  group_replicas_in_split: true
+  data_loading_strategy: superior  # raw, analyzed or superior
+  threshold: 25
+  window_size: 120
+  filter_peaks: False
+  preprocess: False
+  smooth_keep_factor: 0.4
+  log_scale: False
+  max_rfu_value:
+#  cache_path_peaks: resources/data/2p_5p_Dataset_NFI/peaks_cache
+  use_cache_peaks: False
