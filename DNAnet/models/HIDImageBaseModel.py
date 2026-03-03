@@ -49,6 +49,14 @@ class HIDImageBaseModel(TrainableModel, ABC):
         self.loss_fn = loss_fn.to(self._device)
         self.allele_caller = NearestBasePairCaller() if apply_allele_caller else None
 
+
+    @property
+    def model(self) -> torch.nn.Module:
+        """
+        Returns the underlying PyTorch model.
+        """
+        return self._model
+
     @abstractmethod
     def get_input(self, image: HIDImage) -> torch.Tensor:
         """
