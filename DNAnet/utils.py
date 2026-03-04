@@ -8,6 +8,8 @@ from collections import defaultdict
 from itertools import islice
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Union
 
+import coolname
+
 from DNAnet.data.data_models import Allele, Marker, Panel
 from DNAnet.typing import PathLike
 
@@ -45,6 +47,9 @@ def get_prefix_from_filename(file_name: PathLike) -> str:
         return file_name.split("_")[0]  # take '1A2'
     else:
         raise ValueError(f"Cannot take prefix from provided file name: {file_name}")
+
+def generate_random_name() -> str:
+    return ''.join([x.capitalize() for x in coolname.generate()])
 
 
 def is_non_case_sample_hid_file_name(file_name: str) -> bool:
