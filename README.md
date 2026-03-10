@@ -44,6 +44,15 @@ for the code and model.
 ## Requirements
 Python >= 3.10, <=3.12
 
+## Cloning
+Currently the repo has exceeded its git lfs quota. This is a current issue, which causes problems in the cloning process since there are files making use of git lfs. To be able to clone the repo without issues, temporarily disable git lfs when cloning. The commands are:
+```bash
+GIT_LFS_SKIP_SMUDGE=1 git clone <REPO_URL> DNANet
+
+cd DNANet
+git lfs install --skip-smudge
+```
+
 ## Setup
 Create a virtual environment. We have used `pdm` and a `pyproject.toml` file to manage environment dependencies. Ensure you
 have pdm installed:
@@ -273,6 +282,93 @@ python evaluate.py \
   -k 5 \  # number of folds to use
   -o output/example_run_cross_val  # write results to this folder
 ```
+
+
+
+## New: ProvedIt / GlobalFiler support
+- Load ProvedIt GlobalFiler mixtures directly (backwards-compatible with the NFI R&D workflow).
+- Reusable strategies for dataset-specific parsing (`DatasetStrategy`), kit/panel metadata (`Kit`), and EPG scaling (`EPGScalingStrategy`).
+- Utilities to split genotype workbooks into per-contributor CSVs and to train from an already-instantiated dataset.
+
+### Quick start: working with ProvedIt
+1. Download a GlobalFiler ProvedIt zip (e.g. `PROVEDIt_2-5-Person Profiles_3500 5sec_GF29cycles.zip`) from https://lftdi.camden.rutgers.edu/provedit/files/ and extract it. The root should contain both the `.hid` files and a genotype Excel file.
+2. Extract contributor genotypes into per-sample CSVs (semicolon-separated) that the dataset strategy can load:
+```python
+from pathlib import Path
+from DNAnet.data.dataset_compatibility.format_conversion import find_genotype_file, individualize_genotypes
+
+# Path to the extracted ProvedIt dataset (contains .hid files and the genotype Excel file)
+dataset_root_path = "/Users/amarmesic/Documents/tudelft/thesis/datasets/USE THIS - PROVEDIt_2-5-Person Profiles_3500 5sec_GF29cycles"
+
+# Locate the genotype Excel file inside the root directory
+genotype_file_path = find_genotype_file(dataset_root_path)
+
+# Extract the genotype data into individual CSV files that downstream loading uses
+# `genotypes_dir` is where we choose to store the genotypes of the contributors of the dataset.
+genotypes_dir = Path("resources/data/ProvedIt/individual_genotypes")
+individualize_genotypes(
+    input_path=genotype_file_path,
+    output_dir=genotypes_dir,
+)
+```
+3. Instantiate the reusable kit/strategy objects and load the dataset:
+```python
+from pathlib import Path
+from DNAnet.data.data_models import Panel
+from DNAnet.data.data_models.hid_dataset import HIDDataset
+from DNAnet.data.dataset_compatibility.dataset_strategy import ProvedItDatasetStrategy
+from DNAnet.data.kit_compatibility.kit import GLOBALFILER_KIT
+from DNAnet.data.kit_compatibility.scaling_strategy import ProvedItEPGScalingStrategy
+
+panel = Panel(GLOBALFILER_KIT.panel_path)
+dataset_strategy = ProvedItDatasetStrategy(
+    panel=panel,
+    genotypes_path=Path("resources/data/ProvedIt/individual_genotypes"),
+)
+scaling_strategy = ProvedItEPGScalingStrategy(kit=GLOBALFILER_KIT)
+
+provedit = HIDDataset(
+    root="/path/to/PROVEDIt_2-5-Person Profiles_3500 5sec_GF29cycles",
+    panel=GLOBALFILER_KIT.panel_path,
+    ground_truth_as_annotations=True,  # use contributor genotypes as annotations
+    dataset_strategy=dataset_strategy,
+    scaling_strategy=scaling_strategy,
+    kit=GLOBALFILER_KIT,
+)
+```
+This keeps legacy behavior intact: if you omit the strategies, the dataset/image loaders fall back to the original NFI R&D logic.
+
+### Strategy & kit reference (extensible)
+- [Kit](DNAnet/data/kit_compatibility/kit.py), see `GLOBALFILER_KIT` and `POWER_PLEX_FUSION_6C_KIT` objects): captures the size standard and panel for a multiplex. Create a new kit with a name, `InternalSizeStandard`, and a panel XML path.
+- [DatasetStrategy](DNAnet/data/dataset_compatibility/dataset_strategy.py) defines how to categorize files, parse contributor IDs, and build `Marker` objects from contributor genotype CSVs. `ProvedItDatasetStrategy` handles filenames like `F07_RD14-0003-30_31-...` and reads per-contributor CSVs stored under `genotypes_path`.
+- [EPGScalingStrategy](DNAnet/data/kit_compatibility/scaling_strategy.py) parses the size-standard dye and rescales EPGs. `ProvedItEPGScalingStrategy` mirrors the ProvedIt parsing pipeline; `NfiEPGScalingStrategy` preserves the legacy GlobalFiler flow.
+
+To extend to a new kit/dataset, subclass the relevant strategy and wire it up when constructing `HIDDataset`/`HIDImage`:
+```python
+from DNAnet.data.dataset_compatibility.dataset_strategy import DatasetStrategy
+
+class MyDatasetStrategy(DatasetStrategy):
+    def categorize_file(self, file_name: str): ...
+    def get_contributors(self, file_name: str): ...
+    def build_marker(self, marker_name, allele_names): ...
+```
+and pass `dataset_strategy=MyDatasetStrategy(panel, genotypes_path=Path(...))` plus a matching `EPGScalingStrategy`.
+
+### Training directly from an instantiated dataset
+When working with custom datasets/strategies, you can skip data configs and train with an in-memory dataset:
+```python
+from train_with_dataset import run_with_dataset
+
+run_with_dataset(
+    dataset=provedit,
+    model_config="config/models/unet.yaml",
+    training_config="config/training/segmentation.yaml",
+    output_dir="output/provedit_unet",
+)
+```
+
+
+
 
 ## scripts/select_ladder_for_images.py
 This script is used to select the best ladder for every `HIDImage` in a dataset. The best
