@@ -3,7 +3,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import scipy
 
-
+# deprecated constants, kept for backward compatibility
 SIZE_STANDARD_BPS: np.ndarray = np.array([65, 80, 100, 120, 140, 160, 180,
                                           200, 225, 250, 275, 300, 325,
                                           350, 375, 400, 425, 450, 475])
@@ -214,6 +214,30 @@ def extract_ss_peaks(array: np.ndarray) -> np.ndarray:
     return np.delete(peak_idxs, close_idxs)
 
 
+def extract_ss_peaks_simple(array: np.ndarray) -> np.ndarray:
+    """
+    Takes an array and extracts the indices of the size standard peaks, by comparing each
+    value with the neighbours and a threshold. We may find 'flat' peaks (e.g.
+    [500, 520, 520, 510]) or a peak within a close distance of another
+    peak, therefore we filter the found indices based on distance.
+    """
+    peak_idxs = find_peaks_above_threshold(array, 300)
+    # the final two peaks in the size standard are often lower than the other peaks, therefore we
+    # try to find those in the end of the array with a lower threshold if we haven't found them yet
+    # split_idx = 8200  # TODO: can we find this dynamically or something?
+    # if len(peak_idxs) > 0 and peak_idxs[-1] <= split_idx:
+    #     final_peak_idxs = find_peaks_above_threshold(array[split_idx:], 120) + split_idx
+    #     peak_idxs = np.union1d(peak_idxs, final_peak_idxs)
+    # look for peak that are close (within 15 pixels) and delete the peak on the first index. This
+    # may go wrong when we have a situation like [1000, 1001, 800, 800, 799], then we
+    # ideally want to keep the highest peak (1001), but now this one gets deleted and we keep 1000.
+    close_idxs = np.where(np.diff(peak_idxs) <= 15)[0]
+    return np.delete(peak_idxs, close_idxs)
+
+
+
+
+
 def basepair_interpolator(indices: Union[np.ndarray, list[float]],
                           original_x_values: Union[np.ndarray, list[float]],
                           extrapolate: bool = False) \
@@ -236,7 +260,7 @@ def basepair_interpolator(indices: Union[np.ndarray, list[float]],
     return interp
 
 
-def rescale_dye(basepairs: np.ndarray) -> np.ndarray:
+def rescale_dye_old(basepairs: np.ndarray) -> np.ndarray:
     """
     Rescale the interpolated base pairs of the size standard so that they fit between
     BASE_PAIR_START and BASE_PAIR_END, on exactly RESCALE_SIZE pixels. The output array
@@ -246,6 +270,53 @@ def rescale_dye(basepairs: np.ndarray) -> np.ndarray:
     scaled to the first pixel, and a pixel on index 3826 should be scaled to the second pixel.
     """
     target_linspace = np.linspace(BASE_PAIR_START, BASE_PAIR_END, RESCALE_SIZE)
+
+    # Presorting interpolated base pairs
+    sort_indices = np.argsort(basepairs)
+    sorted_basepairs = basepairs[sort_indices]
+
+    # Find insertion indices
+    insertion_indices = np.searchsorted(
+        sorted_basepairs,
+        target_linspace,
+        side='left'
+    )
+
+    # Adjust indices for boundary conditions
+    insertion_indices = np.clip(
+        insertion_indices,
+        1,
+        len(sorted_basepairs) - 1
+    )
+
+    # Determine the closest index prior or after based on value proximity
+    left_indices = insertion_indices - 1
+    right_indices = insertion_indices
+
+    left_deltas = np.abs(sorted_basepairs[left_indices] - target_linspace)
+    right_deltas = np.abs(sorted_basepairs[right_indices] - target_linspace)
+
+    return np.where(
+        (left_deltas < right_deltas) | (left_deltas == right_deltas),
+        sort_indices[left_indices],
+        sort_indices[right_indices],
+    )
+
+
+def rescale_dye(
+    basepairs: np.ndarray,
+    rescale_size: int,
+    target_range: Tuple[int, int]
+) -> np.ndarray:
+    """Map base-pair positions to scaled pixel indices.
+
+    ``basepairs`` is an array containing the interpolated base-pair value for
+    each scan point of the electropherogram. ``target_range`` defines the base
+    pair range of the rescaled profile (defaults to the size standard range when
+    ``None``).
+    """
+    bp_start, bp_end = target_range
+    target_linspace = np.linspace(bp_start, bp_end, rescale_size)
 
     # Presorting interpolated base pairs
     sort_indices = np.argsort(basepairs)

@@ -173,3 +173,10 @@ figures/
 
 # Ignore all files that are on HF
 resources/data/
+
+
+# temporarily ignore dependency changes
+# pdm.lock
+# pyproject.toml
+
+notebooks/

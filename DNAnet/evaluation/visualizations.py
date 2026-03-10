@@ -140,8 +140,7 @@ def _plot_segmentation(axs,
             enumerate(zip(image_annotation, max_value_dyes)):
         axs[i].fill_between(np.arange(len(dye_segment)), 0, max_value_dye,
                             where=dye_segment.flatten() == 1, color=color,
-                            alpha=alpha,
-                            transform=axs[i].get_xaxis_transform())
+                            alpha=alpha)
 
 
 def _get_marker_bin(marker):
@@ -175,7 +174,7 @@ def _plot_profile_marker(marker: Marker,
         allele_annotation = image_annotation[dye_row, _slice]
         ax.fill_between(np.arange(len(allele_annotation)), 0, marker_img.max(),
                         where=allele_annotation.flatten() == 1,
-                        color='green', alpha=.4, transform=ax.get_xaxis_transform())
+                        color='green', alpha=.4)
 
     if (prediction and
             (image_prediction := prediction.image) is not None):

@@ -37,6 +37,9 @@ class Image(ABC):
         Meta information about the image.
         """
         raise NotImplementedError
+    
+
+    
 
 
 class InMemoryDataset(Sequence[Image]):
