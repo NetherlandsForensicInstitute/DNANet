@@ -41,9 +41,6 @@ SIZE_STANDARD_BPS_MAP = {
     # Add more mappings as needed
 }
 
-# All supported size standards for compatibility checks
-ALL_SIZE_STANDARDS = [WEN_ILS_BPS, GENESCAN_600_LIZ_BPS, SYNTHETIC_GENESCAN_600_LIZ_BPS]
-
 
 
 def get_size_standard_bps(standard: Union[InternalSizeStandard, str]) -> np.ndarray:

@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 
@@ -182,8 +181,19 @@ class NfiEPGScalingStrategy(EPGScalingStrategy):
 
     def parse_size_standard(
         self,
-        size_standard_lane: np.ndarray,
+        size_standard_lane: np.ndarray
     ) -> SizeStandardParseResult:
+        """_summary_
+
+        Args:
+            size_standard_lane: The dye lane containing the size standard of the EPG
+
+        Raises:
+            ValueError: When interpolating the size standard fails
+
+        Returns:
+            SizeStandardParseresult containing the rescaled indices and scaler.
+        """
         size_standard_lane = np.asarray(size_standard_lane).reshape(-1)
 
         interpolated_base_pairs = get_interpolated_basepairs(size_standard_lane)

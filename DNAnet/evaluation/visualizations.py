@@ -140,7 +140,8 @@ def _plot_segmentation(axs,
             enumerate(zip(image_annotation, max_value_dyes)):
         axs[i].fill_between(np.arange(len(dye_segment)), 0, max_value_dye,
                             where=dye_segment.flatten() == 1, color=color,
-                            alpha=alpha)
+                            alpha=alpha,
+                            transform=axs[i].get_xaxis_transform())
 
 
 def _get_marker_bin(marker):

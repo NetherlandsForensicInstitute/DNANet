@@ -18,7 +18,7 @@ class DatasetStrategy(ABC):
     file categorization, contributor parsing and allele loading.
     """
 
-    def __init__(self, panel: Panel, genotypes_path: Path):
+    def __init__(self, panel: Panel, genotypes_path: Path | str):
         self.panel = panel
         self.genotypes_path = Path(genotypes_path)
 

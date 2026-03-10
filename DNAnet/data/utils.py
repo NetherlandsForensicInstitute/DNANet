@@ -4,6 +4,8 @@ import numpy as np
 import scipy
 
 # deprecated constants, kept for backward compatibility
+# These are in fact NOT deprecated and still used in parts of the code
+# TODO: Check how these CAN be deprecated based on the KIT strategy
 SIZE_STANDARD_BPS: np.ndarray = np.array([65, 80, 100, 120, 140, 160, 180,
                                           200, 225, 250, 275, 300, 325,
                                           350, 375, 400, 425, 450, 475])

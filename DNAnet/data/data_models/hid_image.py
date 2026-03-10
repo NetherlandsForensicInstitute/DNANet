@@ -20,9 +20,7 @@ from DNAnet.data.utils import (
     assert_image_data_valid_format,
     basepair_interpolator,
     find_peak_boundary,
-    find_peak_idx_near_or_in_range,
-    extract_ss_peaks_simple,
-    rescale_dye
+    find_peak_idx_near_or_in_range
 )
 from DNAnet.typing import PathLike
 
@@ -59,22 +57,6 @@ class HIDImage(Image):
                  annotation: Optional[Annotation] = None,
                  use_cache: bool = True,
                  meta: MutableMapping[str, Any] = None):
-        
-        # Provide legacy-friendly defaults when strategies are not supplied.
-        if kit is None:
-            kit = POWER_PLEX_FUSION_6C_KIT
-        if panel is None:
-            panel = kit.panel
-
-        if dataset_strategy is None:
-            if panel is None:
-                raise ValueError("Panel must be provided if no dataset_strategy is given.")
-            dataset_strategy = NFI_RND_DatasetStrategy(
-                panel=panel,
-                genotypes_path="resources/data/2p_5p_Dataset_NFI/References",
-            )
-        if scaling_strategy is None:
-            scaling_strategy = NfiEPGScalingStrategy(kit)
 
         self.path = path if isinstance(path, Path) else Path(path)
         self.annotations_file = annotations_file
@@ -123,7 +105,7 @@ class HIDImage(Image):
             raise FileNotFoundError(str(self.path))
 
         # Parse the raw hid image into a numpy array.
-        self.profile = profile = get_peak_data(self.path)
+        profile = get_peak_data(self.path)
         if profile is None:
             return None
         
