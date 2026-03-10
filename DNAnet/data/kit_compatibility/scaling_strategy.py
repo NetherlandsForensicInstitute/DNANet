@@ -13,7 +13,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from DNAnet.data.kit_compatibility.kit import GLOBALFILER_KIT, POWER_PLEX_FUSION_6C_KIT, Kit
+from DNAnet.data.kit_compatibility.kit import Kit
+from DNAnet.data.kit_compatibility.kit import get_standard_kit
 from DNAnet.data.kit_compatibility.lane_standards import (
     BASE_PAIR_END,
     BASE_PAIR_START,
@@ -84,10 +85,12 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
 
     def __init__(
         self,
-        kit: Kit = POWER_PLEX_FUSION_6C_KIT,
+        kit: Kit | None = None,
         max_shrinkages: int = 10,
         validation_threshold: float = VAL_THRESHOLD,
     ):
+        if kit is None:
+            kit = get_standard_kit("PPF6C")
         super().__init__(kit)
         self.max_shrinkages = max_shrinkages
         self.validation_threshold = validation_threshold
@@ -176,7 +179,9 @@ class NfiEPGScalingStrategy(EPGScalingStrategy):
     Relies on the classic size-standard validation/interpolation and rescaling.
     """
 
-    def __init__(self, kit: Kit = GLOBALFILER_KIT):
+    def __init__(self, kit: Kit | None = None):
+        if kit is None:
+            kit = get_standard_kit("GLOBALFILER")
         super().__init__(kit)
 
     def parse_size_standard(

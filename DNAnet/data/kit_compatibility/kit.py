@@ -6,6 +6,7 @@ kit-specific settings such as size standard and panel.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -34,27 +35,34 @@ class Kit:
     description: Optional[str] = None
 
 
-
-# Example pre-defined kits; extend as needed.
-POWER_PLEX_FUSION_6C_PANEL_PATH = Path("resources/data/SGPanel_PPF6C.xml")
-
-POWER_PLEX_FUSION_6C_KIT = Kit(
-    name="PPF6C",
-    size_standard=InternalSizeStandard.WEN_ILS,
-    panel_path=POWER_PLEX_FUSION_6C_PANEL_PATH,
-    panel=Panel(POWER_PLEX_FUSION_6C_PANEL_PATH),  # fill in when you load the panel
-    markers=None,  # fill in with marker names for quick validation
-    description="ProvedIt dataset kit using WEN_ILS size standard.",
-)
+_POWER_PLEX_FUSION_6C_PANEL_PATH = Path("resources/data/SGPanel_PPF6C.xml")
+_GLOBALFILER_PANEL_PATH = Path("resources/data/SGPanel_Globalfiler_Panel.xml")
 
 
-GLOBALFILER_PANEL_PATH = Path("resources/data/SGPanel_Globalfiler_Panel.xml")
+class KitStandards(Enum):
+    PPF6C = "POWER_PLEX_FUSION_6C_KIT"
+    GLOBALFILER = "GLOBALFILER_KIT"
 
-GLOBALFILER_KIT = Kit(
-    name="GlobalFiler",
-    size_standard=InternalSizeStandard.GENESCAN_600_LIZ,
-    panel_path=GLOBALFILER_PANEL_PATH,
-    panel=Panel(GLOBALFILER_PANEL_PATH),
-    markers=None,  # fill in with marker names for quick validation
-    description="GlobalFiler kit using GENESCAN_600_LIZ size standard.",
-)
+
+def get_standard_kit(kit_name: str) -> Kit:
+    if kit_name == KitStandards.PPF6C.name:
+        return Kit(
+        name="PPF6C",
+        size_standard=InternalSizeStandard.WEN_ILS,
+        panel_path=_POWER_PLEX_FUSION_6C_PANEL_PATH,
+        panel=Panel(_POWER_PLEX_FUSION_6C_PANEL_PATH),  # fill in when you load the panel
+        markers=None,  # fill in with marker names for quick validation
+        description="ProvedIt dataset kit using WEN_ILS size standard.",
+    )
+
+    if kit_name == KitStandards.GLOBALFILER.name:
+        return Kit(
+            name="GlobalFiler",
+            size_standard=InternalSizeStandard.GENESCAN_600_LIZ,
+            panel_path=_GLOBALFILER_PANEL_PATH,
+            panel=Panel(_GLOBALFILER_PANEL_PATH),
+            markers=None,  # fill in with marker names for quick validation
+            description="GlobalFiler kit using GENESCAN_600_LIZ size standard.",
+        )
+
+    raise ValueError(f"Kit name is not in the standards: {kit_name}")
