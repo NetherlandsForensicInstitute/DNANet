@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 from DNAnet.data.data_models.dna_models import Panel
-from DNAnet.data.kit_compatibility.lane_standards import InternalSizeStandard
+from DNAnet.data.strategies.kit_strategies.lane_standards import InternalSizeStandard
 
 
 @dataclass(frozen=True)
@@ -29,8 +29,8 @@ class Kit:
     """
     name: str
     size_standard: InternalSizeStandard
+    panel: Panel
     panel_path: Optional[Path] = None
-    panel: Optional[Panel] = None
     markers: Optional[Sequence[str]] = None
     description: Optional[str] = None
 

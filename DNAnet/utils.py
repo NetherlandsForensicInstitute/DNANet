@@ -3,6 +3,7 @@ import dataclasses
 import json
 import logging
 import os
+from pathlib import Path
 import re
 from collections import defaultdict
 from itertools import islice
@@ -168,3 +169,11 @@ def chunks(
         if not chunk or skip_remainder and len(chunk) < chunk_size:
             return
         yield chunk
+
+
+# get all the HID files from the hid_files_path directory
+def find_files_by_suffix(root_dir, suffix) -> List[Path]:
+    """
+    Recursively find all files in root_dir that end with the given suffix.
+    """
+    return list(Path(root_dir).rglob(f'*{suffix}'))

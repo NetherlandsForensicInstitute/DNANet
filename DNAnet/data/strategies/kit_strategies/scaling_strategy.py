@@ -13,9 +13,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from DNAnet.data.kit_compatibility.kit import Kit
-from DNAnet.data.kit_compatibility.kit import get_standard_kit
-from DNAnet.data.kit_compatibility.lane_standards import (
+from DNAnet.data.strategies.kit_strategies.kit import Kit
+from DNAnet.data.strategies.kit_strategies.kit import get_standard_kit
+from DNAnet.data.strategies.kit_strategies.lane_standards import (
     BASE_PAIR_END,
     BASE_PAIR_START,
     RESCALE_SIZE,
