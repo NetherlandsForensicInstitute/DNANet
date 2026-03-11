@@ -1,6 +1,8 @@
 import dataclasses
 import logging
-from typing import Dict, Mapping, Optional, Sequence, Set, Union
+from typing import Dict, Mapping, Optional, Sequence, Set, Union, List, Tuple
+
+from scipy.signal import find_peaks
 
 from DNAnet.data.data_models import Marker
 
@@ -44,6 +46,7 @@ def flatten_marker_list_to_locusallelename_list(
         locus: Optional[str] = None,
         min_rfu: Optional[int] = None,
         low_or_high: Optional[str] = None,
+        remove_duplicates: bool = False
 ) -> Set[str]:
     """
     Takes a sequence of Marker objects, each having a sequence of Allele objects. Parses it to a
@@ -54,6 +57,9 @@ def flatten_marker_list_to_locusallelename_list(
         Marker(D5, Alleles[13, 15.1]), Marker(D7, Alleles[14, 15.1])) ->
         set('D5_13','D5_15.1','D7_14','D7_15.1')
     )
+
+    raises ValueError if duplicate alleles exist, unless remove_duplicates is True - then it removes them
+
     """
     min_rfus = get_min_rfu_per_locus(locus, low_or_high, min_rfu)
 
@@ -84,7 +90,7 @@ def flatten_marker_list_to_locusallelename_list(
                     continue
             locus_alleles.append(f"{marker['name']}_{allele['name']}")
     locus_alleles_set = set(locus_alleles)
-    if len(locus_alleles_set) != len(locus_alleles):
+    if not remove_duplicates and len(locus_alleles_set) != len(locus_alleles):
         raise ValueError(f"Found non-unique locus-allele combinations for {markers}")
     return locus_alleles_set
 
@@ -125,3 +131,34 @@ def get_min_rfu_per_locus(
         return {locus: value[low_or_high] for locus, value in THRESHOLDS_PER_LOCUS.items()}
     else:  # set the same arbitrary (or None) threshold for all loci
         return {locus: min_rfu for locus in THRESHOLDS_PER_LOCUS.keys()}
+
+def get_peaks(profile, min_rfu: float) -> List[List[Tuple[float, float]]]:
+    """
+    Crude peak boundary detection per dye by walking until descent stops.
+
+    Parameters
+    ----------
+    profile : np.ndarray
+        Profile array; this function looks at channel 0: profile[:, :, 0].
+    min_rfu : float
+        Minimum RFU height threshold for a point to count as a peak.
+
+    Returns
+    -------
+    list of lists (start_idx, end_idx, peak_idx)
+        For each dye i, a list of [start, end, peak_idx] index ranges (inclusive).
+    """
+    simple_peaks: List[List[Tuple[float, float]]] = []
+    # Uses channel 0 as in your original code
+    for i_dye, dye in enumerate(profile[:, :, 0]):
+        peak_ids, _ = find_peaks(dye, height=min_rfu)
+        simple_peaks.append([])
+        for peak_idx in peak_ids:
+            end = peak_idx
+            while end + 1 < len(dye) and dye[end] > dye[end + 1]:
+                end += 1
+            start = peak_idx
+            while start > 0 and dye[start - 1] < dye[start]:
+                start -= 1
+            simple_peaks[i_dye].append((start, end, peak_idx))
+    return simple_peaks

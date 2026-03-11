@@ -73,10 +73,11 @@ HugginFace datasets is used to download the research data. This is done automati
 When this is triggered, data is pulled from the ["NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024"](https://huggingface.co/datasets/NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024) HuggingFace repository.
 
 ## Code overview
-The repository is roughly organized into three sections:
+The repository is roughly organized into four sections:
 * Data
 * Models
 * Evaluation
+* Labeltool
 
 Additionally, you can run a training script, an evaluation script and a cross validation script from the command line. 
 
@@ -171,12 +172,12 @@ Note that allele metrics (`DNAnet/evaluation/segmentation/allele_metrics.py`) ca
 is applied. 
 
 ## HumanAnalysis
-The `HumanAnalysis` model can be used to analyze the analyst's annotations. It is interesting to compare those with the 
+The `HumanAnalysis` model can be used to analyze the analyst's allele calls. It is interesting to compare those with the 
 ground truth donor alleles. For the 2p-5p R&D Dataset, the actual donor alleles are known. By setting `ground_truth_as_annotations: True` in the `dnanet_rd.yaml` file, those ground truth donor alleles will be stored in 
-`meta['called_alleles]` and the analyst annotations in `meta['called_alleles_manual']` of the `HIDImage` when loading the dataset.
+`meta['called_alleles]` and the analyst allele calls in `meta['called_alleles_manual']` of the `HIDImage` when loading the dataset.
 
 When applying the `HumanAnalysis` model to the dataset, the values in `meta['called_alleles_manual']` of the `HIDImage` will be stored in the
-`meta['called_alleles']` of a `Prediction` object. This way, the analyst annotations can be compared to the ground truth alleles. 
+`meta['called_alleles']` of a `Prediction` object. This way, the analyst allele calls can be compared to the ground truth alleles. 
 
 Note that pixel metrics (`DNAnet/evaluation/segmentation/pixel_metrics.py`) cannot be used on predictions of the `HumanAnalysis` model this does
 not predict an image, so the `.image` attribute of a `Prediction` will remain `None`.
@@ -383,4 +384,10 @@ The output of this script is a csv file containing a mapping between the .hid fi
 the high threshold (`DTH`) 2p-5p NFI data, the results can be found in 
 `resources/data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv`.
 
-Note that for this algorithm, annotated images (having called alleles) are necessary. 
+Note that for this algorithm, annotated images (having called alleles) are necessary.
+
+
+# Labeltool
+The 'scripts/labeltool.py' can be used to manually create scan point annotations, and also 
+(by providing the -c argument) to compare annotations made by different users.
+

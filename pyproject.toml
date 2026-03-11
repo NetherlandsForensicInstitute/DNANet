@@ -17,6 +17,7 @@ dependencies = [
     "tensorboard>=2.18.0",
     "huggingface-hub[hf_xet]>=0.35.0",
     "openpyxl>=3.1.5",
+    "seaborn>=0.13.2"
 
 ]
 requires-python = ">=3.10,<=3.12"

@@ -2,13 +2,17 @@ import csv
 import dataclasses
 import json
 import logging
+import math
 import os
 import re
 from collections import defaultdict
 from itertools import islice
-from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Union
+from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Union, Tuple
+
+import numpy as np
 
 from DNAnet.data.data_models import Allele, Marker, Panel
+from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.typing import PathLike
 
 
@@ -39,6 +43,12 @@ def is_rd_hid_filename(file_name: str) -> bool:
     """
     return len(re.findall(r'\d[ABCDEF]\d', file_name[:3])) > 0
 
+
+def is_no_control(file_name: str) -> bool:
+    """
+    Controls and ladders start with an 'A'
+    """
+    return not file_name.startswith('A')
 
 def get_prefix_from_filename(file_name: PathLike) -> str:
     if is_rd_hid_filename(file_name):
@@ -168,3 +178,86 @@ def chunks(
         if not chunk or skip_remainder and len(chunk) < chunk_size:
             return
         yield chunk
+
+
+def get_marker_ranges(
+    image: HIDImage, tail_size: int = 5
+) -> Dict[str, Tuple[int, np.ndarray]]:
+    """Using the image's panel, get the ranges of the markers in the image.
+    This function retrieves the ranges of the markers in the image,
+    which are used for zooming in on specific markers.
+
+    Args:
+        image (HIDImage): The HIDImage object containing the image data and metadata.
+        tail_size (int, optional):
+            Extra space that's added on the left and right side of a marker's bin.
+            Defaults to 5.
+
+    Returns:
+        Dict[str, Tuple[int, np.ndarray]]: A dictionary containing the marker names as keys,
+        and a tuple of the dye row and the bin range as values.
+    """
+    marker_ranges = {}
+    for marker in image._panel._panel:
+        marker_name = marker.name
+        marker_bin = _get_marker_bin(marker)
+        scanpoint_bin = tuple(np.argmin(np.abs(image._scaler - marker_bin), axis=1))
+        scanpoint_bin = (
+            max(0, scanpoint_bin[0] - tail_size),
+            min(4096, scanpoint_bin[1] + tail_size),
+        )
+        marker_ranges[marker_name] = (marker.dye_row, np.arange(*scanpoint_bin))
+    return marker_ranges
+
+
+def _get_marker_bin(marker):
+    left_bin, right_bin = math.inf, -math.inf
+    for allele in marker.alleles:
+        left_bin = min(left_bin, allele.base_pair - allele.left_bin)
+        right_bin = max(right_bin, allele.base_pair + allele.right_bin)
+
+    bins = np.array([left_bin, right_bin])[:, np.newaxis]
+    marker_bin = bins + np.array([-1, 1])[:, np.newaxis]
+
+    return marker_bin
+
+
+def get_allele_bins(
+    image: HIDImage
+) -> Iterable[Tuple[int, Tuple[int, int]]]:
+    """Using the image's panel, get the bins for all the alleles in the image.
+
+    Args:
+        image (HIDImage): The HIDImage object containing the image data and metadata.
+
+
+    Returns:
+        Dict[str, Tuple[int, np.ndarray]]: A dictionary containing the marker names as keys,
+        and a tuple of the dye row and the bin range as values.
+    """
+    allele_bins = []
+    for marker in image._panel._panel:
+        for allele in marker.alleles:
+            allele_bin = np.array([allele.base_pair - allele.left_bin,
+                                   allele.base_pair + allele.right_bin])[:, np.newaxis]
+            scanpoint_bin = tuple(np.argmin(np.abs(image._scaler - allele_bin), axis=1))
+            scanpoint_bin = (
+                max(0, scanpoint_bin[0]),
+                min(4096, scanpoint_bin[1]),
+            )
+            allele_bins.append((marker.dye_row, scanpoint_bin))
+    return allele_bins
+
+def _get_allele_bins(marker):
+    """
+    returns the set of bins for alle the marker's alleles in the panel
+    """
+    left_bin, right_bin = math.inf, -math.inf
+    for allele in marker.alleles:
+        left_bin = allele.base_pair - allele.left_bin
+        right_bin = allele.base_pair + allele.right_bin
+
+    bins = np.array([left_bin, right_bin])[:, np.newaxis]
+    marker_bin = bins + np.array([-1, 1])[:, np.newaxis]
+
+    return marker_bin
