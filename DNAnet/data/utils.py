@@ -3,6 +3,14 @@ from typing import Optional, Tuple, Union, Callable, List
 import numpy as np
 import scipy
 
+
+CATEGORIES = ["", "Allele", "Stutter", "PullUp", "BleedThrough", "Spike", "DyeBlob", "Artefact",
+              "Unclear", "Shoulder", "ForeignDNA", "OverloadingArtifact"]
+
+# TODO remove this, and use the kit specific settings
+DNA_CHANNELS = ('blue', 'green', 'black', 'red', 'purple', 'orange')
+
+
 # deprecated constants, kept for backward compatibility
 # These are in fact NOT deprecated and still used in parts of the code
 # TODO: Check how these CAN be deprecated based on the KIT strategy
@@ -304,6 +312,9 @@ def rescale_dye_old(basepairs: np.ndarray) -> np.ndarray:
     be on every pixel location.
     E.g. if the output is np.array([3825, 3826, ..]), then a pixel on index 3825 should be
     scaled to the first pixel, and a pixel on index 3826 should be scaled to the second pixel.
+
+    TODO we essentially either skip rfu values or take them twice, to make sure we end up with
+    the right number of values. better would be to interpolate the actual signal.
     """
     target_linspace = np.linspace(BASE_PAIR_START, BASE_PAIR_END, RESCALE_SIZE)
 
@@ -416,3 +427,36 @@ def rescale_dye(
         sort_indices[left_indices],
         sort_indices[right_indices],
     )
+
+
+def full_annotation_array_to_list(full_annotations_array: np.ndarray,
+                                  rfu_array: np.ndarray=None) -> list[list]:
+    """
+    Converts a numpy array of annotations to a list. Optionally provide the data rfu array
+    to get the max rfu for every annotation
+    """
+    results = []
+
+    # Do not include annotations from size standard
+    for row_idx in range(5):
+        row = full_annotations_array[row_idx]
+
+        # Find where labels change
+        changes = np.concatenate(([True], row[1:] != row[:-1], [True]))
+        change_indices = np.where(changes)[0]
+
+        # Extract segments
+        for i in range(len(change_indices) - 1):
+            start = change_indices[i]
+            end = change_indices[i + 1] - 1
+            label = row[start]
+            if label == 0:
+                continue
+            else:
+                max_rfu=-1
+                if not rfu_array is None:
+                    max_rfu = int(max(rfu_array[int(row_idx), start:end+1]))
+                results.append(
+                    [int(row_idx), start, end, int(label), max_rfu])
+
+    return results

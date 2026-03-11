@@ -3,10 +3,13 @@ import logging
 import os
 import random
 from collections import defaultdict
+from functools import partial
 from itertools import chain
 from pathlib import Path
 from typing import Dict, Generator, List, Optional, Set, Tuple, Union
+import numpy as np
 
+from DNAnet.data.utils import DNA_CHANNELS
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -23,12 +26,17 @@ from DNAnet.typing import PathLike
 from DNAnet.utils import (
     get_noc_from_rd_file_name,
     get_prefix_from_filename,
-    is_rd_hid_filename,
+    is_no_control, is_rd_hid_filename,
     load_donor_alleles,
 )
 
-
 LOGGER = logging.getLogger('dnanet')
+
+FILENAME_FILTERS = {'is_rd_hid_filename': is_rd_hid_filename,
+           'is_no_control': is_no_control,}
+
+CATEGORIES = ["", "Allele", "Stutter", "PullUp", "BleedThrough", "Spike", "DyeBlob", "Artefact",
+              "Unclear", "Shoulder", "ForeignDNA", "OverloadingArtifact"]
 
 
 class HIDDataset(InMemoryDataset):
@@ -60,6 +68,12 @@ class HIDDataset(InMemoryDataset):
     :param group_replicas_in_split: whether to put measurements from the same profile (replicas)
     in the same set when splitting, and balance the number of profiles per noc, if false all
     replicas will be mixed.
+    :param include_size_standard: whether to keep the internal lane standard (ILS) data in the
+    underlying profiles. Useful for QC and labelling.
+    :param data_loading_strategy: strategy to load the HID data. One of
+    "raw", "analyzed", "superior"
+    :param skip_if_invalid_internal_standard: if True, drops the file if the internal standard
+    cannot be parsed. If false, uses no internal scaling (use with care!).
     """
 
     def __init__(self,
@@ -82,7 +96,13 @@ class HIDDataset(InMemoryDataset):
                  kit: Optional[Kit] = None,
                  dataset_strategy: Optional[DatasetStrategy] = None,
                  scaling_strategy: Optional[EPGScalingStrategy] = None,
-                 sample_validation_strategy: Optional[SampleValidationStrategy] = None):
+                 sample_validation_strategy: Optional[SampleValidationStrategy] = None,
+                 skip_if_invalid_internal_standard: bool = True,
+                 hid_file_name_filter_function: Optional[str] = None,
+                 full_annotations_path: Optional[PathLike] = None):
+        if annotations_path and full_annotations_path:
+            raise ValueError("Too many annotations, choose one.")
+
         super().__init__(shuffle)
         self.root = str(root)
         self.limit = limit
@@ -91,8 +111,6 @@ class HIDDataset(InMemoryDataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.adjustment_of_annotations = adjustment_of_annotations
         self.ground_truth_as_annotations = ground_truth_as_annotations
-        self.include_size_standard = include_size_standard
-        self.data_loading_strategy = data_loading_strategy
         self.group_replicas_in_split = group_replicas_in_split
         self.kit = kit
         self.dataset_strategy = dataset_strategy
@@ -102,6 +120,14 @@ class HIDDataset(InMemoryDataset):
         self.hid_to_annotations_path = hid_to_annotations_path
         self.best_ladder_paths_csv = best_ladder_paths_csv
         self.panel_path = panel
+        self.include_size_standard = include_size_standard
+        self.hid_file_name_filter_function = hid_file_name_filter_function
+        self.data_loading_strategy = data_loading_strategy
+        self.skip_if_invalid_internal_standard = skip_if_invalid_internal_standard
+        self.full_annotations = self.parse_full_annotations(full_annotations_path) \
+            if full_annotations_path else None
+
+
 
         # If cache path is given and use_cache is set to true, load cached data.
         if cache_path and use_cache:
@@ -126,8 +152,11 @@ class HIDDataset(InMemoryDataset):
                 )
             else:
                 self.annotation_dict = {}
-            # Map the image path to the path of the best fitting ladder
-            self.best_ladder_paths = self.load_best_ladder_paths(best_ladder_paths_csv)
+
+            self.best_ladder_paths = {}
+            if best_ladder_paths_csv:
+                # Map the image path to the path of the best fitting ladder
+                self.best_ladder_paths = self.load_best_ladder_paths(best_ladder_paths_csv)
 
             # Create a list of .hid files, with their ladder paths and annotations
             self._files = self._collect_and_filter_file_paths()
@@ -222,12 +251,12 @@ class HIDDataset(InMemoryDataset):
         no_annotation_counter = 0
         non_sample_counter = 0
         # Loop over each folder and its corresponding files
-        for folder, files in tqdm(flat_folder_structure.items(), "Processing folders"):
-            if len(files) == 0:  # no hid files in this folder
+        for folder, hid_files in tqdm(flat_folder_structure.items(), "Processing folders"):
+            if len(hid_files) == 0:  # no hid files in this folder
                 continue
 
             # Retrieve viable HID files, filter by RD naming only when no dataset strategy is provided
-            hid_files = files if self.dataset_strategy else list(filter(is_rd_hid_filename, files))
+            hid_files = hid_files if self.dataset_strategy else list(filter(is_rd_hid_filename, hid_files))
 
             # Now for each file in the folder, save its corresponding ladder (if there is any)
             # and match the file with its corresponding annotation (if present).
@@ -243,7 +272,7 @@ class HIDDataset(InMemoryDataset):
                         continue
 
                 # get the annotation name and actual file containing annotations
-                _annotation = self.annotation_dict.get(Path(file).stem)
+                _annotation: Optional[Tuple[str, PathLike]] = self.annotation_dict.get(Path(file).stem)
 
                 if not _annotation and not self.ground_truth_as_annotations:
                     # we only want to keep hid files that have an annotation
@@ -353,6 +382,31 @@ class HIDDataset(InMemoryDataset):
 
         return flattened
 
+    @staticmethod
+    def parse_full_annotations(annotation_folder_path):
+        sample_arrays = defaultdict(partial(np.zeros, (5, 4096)))
+        blacklist = set()
+        csv_files = Path(annotation_folder_path).rglob('*.csv')
+        for csv_file in csv_files:
+            with open(csv_file, 'r') as file:
+                try:
+                    csv_file = csv.reader(file, delimiter=',')
+
+                    for num, line in enumerate(csv_file):
+                        if num == 0:
+                            header = line
+                        else:
+                            sample_name, dye, x0, x1, category = line[2], line[3], line[4], line[5], line[7]
+                            dye_idx = DNA_CHANNELS.index(dye)
+                            if dye_idx == 5:
+                                blacklist.add(sample_name)
+                            else:
+                                sample_arrays[sample_name][dye_idx, int(x0):int(x1)] = CATEGORIES.index(category)
+                except PermissionError:
+                    continue
+
+        return sample_arrays
+
     def load_images_from_files(self) -> Generator[HIDImage, None, None]:
         """
         From the hid file path, ladder file path(s) and annotation information, create the actual
@@ -367,6 +421,15 @@ class HIDDataset(InMemoryDataset):
                     file_attributes["ladder_path"],
                     file_attributes["annotation"] if file_attributes["annotation"] else (None, None)
                 )
+
+                full_annotation_image = None
+
+                if self.full_annotations:
+                    full_annotation_image = self.full_annotations[Path(path).stem]
+                    if len(np.unique(full_annotation_image)) < 4:
+                        LOGGER.warning("Skipping image: Not enough annotations found in full annotations (%s)", path)
+                        continue
+
                 # create a ladder from the ladder_path if present
                 ladder = Ladder(ladder_path, self._panel) if ladder_path else None
                 if self.skip_if_invalid_ladder and ladder is None:
@@ -377,6 +440,7 @@ class HIDDataset(InMemoryDataset):
                 panel = ladder._panel if (ladder and ladder._panel) else self._panel
                 _image = HIDImage(
                     path=path,
+                    full_annotation_image=full_annotation_image,
                     annotations_file=annotation_file,
                     panel=panel,
                     include_size_standard=self.include_size_standard,
@@ -385,6 +449,7 @@ class HIDDataset(InMemoryDataset):
                     dataset_strategy=self.dataset_strategy,
                     scaling_strategy=self.scaling_strategy,
                     use_ground_truth_as_annotations=self.ground_truth_as_annotations,
+                    skip_if_invalid_internal_standard=self.skip_if_invalid_internal_standard,
                     meta={
                         "annotations_name": annotation_name,
                         "ladder_path": ladder_path,

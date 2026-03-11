@@ -41,6 +41,9 @@ class HIDImage(Image):
         if `false` only the first five dyes are included. For training + testing models.
     :param annotation: any Annotation belonging to the image
     :param use_cache: whether retrieved peaks should be cached
+    :param data_loading_strategy: indicates how to load the data from the hid
+    :param skip_if_invalid_internal_standard: if True, drops the file if the internal standard
+       cannot be parsed. If false, uses no internal scaling (use with care!).
     :param meta: meta information of the HID file.
     """
     THRESHOLD = 40  # 40 rfu is the lowest detection threshold
@@ -57,12 +60,17 @@ class HIDImage(Image):
                  annotation: Optional[Annotation] = None,
                  use_cache: bool = True,
                  data_loading_strategy: str = 'superior',
-                 meta: MutableMapping[str, Any] = None):
+                 skip_if_invalid_internal_standard: bool = True,
+                 meta: MutableMapping[str, Any] = None,
+                 full_annotation_image: np.ndarray = None):
+        if annotations_file and full_annotation_image:
+            raise ValueError("Too many annotations, choose one.")
 
         self.path = path if isinstance(path, Path) else Path(path)
         self.annotations_file = annotations_file
         self.include_size_standard = include_size_standard
         self.use_cache = use_cache
+        self.skip_if_invalid_internal_standard = skip_if_invalid_internal_standard
         self.root = self.path.parent
         self._data: Optional[np.ndarray] = None
         self._annotation = annotation
@@ -74,6 +82,8 @@ class HIDImage(Image):
         self.dataset_strategy = dataset_strategy
         self.scaling_strategy = scaling_strategy
         self.kit = kit
+        self._annotation = Annotation(image=full_annotation_image)
+
 
     @property
     def data(self) -> np.ndarray:
