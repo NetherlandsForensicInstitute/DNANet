@@ -68,7 +68,7 @@ class UNet(nn.Module):
     """
     Implementation of a U-net with a specified depth using PyTorch.
     """
-    def __init__(self, depth, kernel_size, num_filters, device):
+    def __init__(self, depth, kernel_size, num_filters, device, num_classes: int = 2):
         super().__init__()
         self.encoders = nn.ModuleList()
 
@@ -90,9 +90,10 @@ class UNet(nn.Module):
             self.decoders.append(
                 DecoderBlock(input_size, output_size, kernel_size).to(device))
             input_size = output_size
+        self.num_classes = num_classes
 
         self.outputs = nn.Conv2d(in_channels=input_size,
-                                 out_channels=1,
+                                 out_channels=num_classes,
                                  kernel_size=1,
                                  padding=0).to(device)
 

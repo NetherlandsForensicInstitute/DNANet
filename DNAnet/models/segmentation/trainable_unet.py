@@ -1,8 +1,9 @@
 from typing import Sequence, Tuple, Optional, List
 
 import torch
-import torchmetrics
+from torch.nn import CrossEntropyLoss
 from torchmetrics import Metric
+from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex
 
 from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.data.utils import process_image
@@ -22,7 +23,8 @@ class DNANet_UNet(HIDImageBaseModel):
                  kernel_size: Tuple[int, int],
                  num_filters: int = 64,
                  device: Optional[str] = None,
-                 apply_allele_caller: Optional[bool] = True):
+                 apply_allele_caller: Optional[bool] = True,
+                 num_classes: int = 2):
         """
         Initialize the DNAnet UNet.
 
@@ -33,9 +35,10 @@ class DNANet_UNet(HIDImageBaseModel):
         "cuda" for CPU or GPU respectively.
         :param apply_allele_caller: Whether to call actual alleles from the predicted segmentation
         """
-        model = UNet(depth, kernel_size, num_filters, self._device)
-        loss = DiceLoss()
+        model = UNet(depth, kernel_size, num_filters, self._device, num_classes=num_classes)
+        loss = CrossEntropyLoss() if num_classes > 2 else DiceLoss()
         super().__init__(model, loss, device, apply_allele_caller)
+        self.num_classes = num_classes
 
 
     def get_input(self, image: HIDImage) -> torch.Tensor:
@@ -58,7 +61,7 @@ class DNANet_UNet(HIDImageBaseModel):
         Get the target for an image in the correct format
         """
         return torch.stack([
-            torch.tensor(image.annotation.image).movedim(2, 0)
+            torch.tensor(image.annotation.image).long()
             for image in images
         ]).to(self._device)
 
@@ -66,7 +69,9 @@ class DNANet_UNet(HIDImageBaseModel):
                       metric: Metric,
                       logits: torch.Tensor,
                       y_true: torch.Tensor):
-        metric.update(torch.flatten(torch.sigmoid(logits)), torch.flatten(y_true))
+
+        best_class = torch.argmax(logits, dim=1)
+        metric.update(torch.flatten(best_class), torch.flatten(y_true))
 
 
     def set_up_metrics(self, use_evaluation_metric: bool) -> List[Optional[Metric]]:
@@ -76,7 +81,8 @@ class DNANet_UNet(HIDImageBaseModel):
         if not use_evaluation_metric:
             return []
         else:
-            metrics = [torchmetrics.classification.BinaryAccuracy()]
+            metrics = [MulticlassAccuracy(num_classes=self.num_classes, average='none'),
+                       MulticlassJaccardIndex(num_classes=self.num_classes, average='macro')]
         return [metric.to(self._device) for metric in metrics]
 
 
