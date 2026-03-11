@@ -302,8 +302,16 @@ def dump_config(
     if "checkpoint_dir" in training_defaults:
         del training_defaults["checkpoint_dir"]
 
-    data_config = load_config(data_config_path, kind='data')
-    data_config = {**data_defaults, **dict(data_config.dataset)}
+    # Dataset serialization: prefer dataset.serialize() when provided; otherwise load config.
+    data_config = {}
+    if dataset and hasattr(dataset, "serialize"):
+        try:
+            data_config = dataset.serialize()
+        except Exception:
+            data_config = {}
+    if len(data_config) == 0 and data_config_path:
+        data_config = load_config(data_config_path, kind='data')
+        data_config = {**data_defaults, **dict(data_config.dataset)}
     model_config = load_config(model_config_path, kind='models')
     model_config = {**model_defaults, **dict(model_config.model)}
 
@@ -318,6 +326,8 @@ def dump_config(
         if isinstance(validation_config, str):
             validation_data_config = load_config(validation_config, kind='data')
             validation_data_config = {**data_defaults, **dict(validation_data_config.dataset)}
+        elif isinstance(validation_config, InMemoryDataset) and hasattr(validation_config, "serialize"):
+            validation_data_config = validation_config.serialize()
         else:
             validation_data_config = {'split': validation_config}
 
