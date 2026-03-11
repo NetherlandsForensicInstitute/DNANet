@@ -47,6 +47,17 @@ POWER_PLEX_FUSION_6C_KIT = Kit(
     description="ProvedIt dataset kit using WEN_ILS size standard.",
 )
 
+POWERPLEX_Y23 = Kit(
+    name="POWERPLEX_Y23",
+    size_standard=InternalSizeStandard.WEN_ILS,
+    panel_path=None,
+    panel=None,
+    markers=None,
+    description="POWERPLEX_Y23 kit using WEN_ILS size standard.",
+)
+
+
+
 
 GLOBALFILER_PANEL_PATH = Path("resources/data/SGPanel_Globalfiler_Panel.xml")
 

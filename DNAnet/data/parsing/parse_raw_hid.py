@@ -7,6 +7,7 @@ from typing import List, Mapping, Optional, Sequence, Union
 import construct
 import numpy as np
 
+from DNAnet.data.kit_compatibility.kit import Kit
 from DNAnet.data.preprocessing.baseline_and_smooth import baseline_superior
 from DNAnet.typing import PathLike
 
@@ -257,7 +258,7 @@ def parse_hid(filename: PathLike) -> Optional[Mapping[str, Optional[ElementValue
     return hid_data
 
 
-def get_peak_data(hid_file: PathLike, strategy: str) -> Optional[np.ndarray]:
+def get_peak_data(hid_file: PathLike, strategy: str, kit: Kit) -> Optional[np.ndarray]:
     """
     Retrieve peak data from HID file. The data per dye
     can be stored in different columns (e.g. the first dye can be stored
@@ -265,8 +266,11 @@ def get_peak_data(hid_file: PathLike, strategy: str) -> Optional[np.ndarray]:
     be stored in either DATA_205 or DATA_105.
 
     :param hid_file: path to hid file
-    :param strategy: strategy to load data, either "raw", "analyzed" or "superior"
-    :returns: RFU for each dye in a numpy array, or None if problems occurd with reading
+    :param strategy: strategy to use for parsing. One of
+        "raw", "analyzed", "superior"
+    :param kit: the kit of the HID file to read in
+    :returns: RFU for each dye [n-dyes (6), ...]. None if problems
+    with reading
     """
 
     if strategy not in ("raw", "analyzed", "superior"):
@@ -281,24 +285,22 @@ def get_peak_data(hid_file: PathLike, strategy: str) -> Optional[np.ndarray]:
         return None
 
     try:
-        if strategy == "raw" or strategy == "superior":
-            dye1 = data['DATA_1']
-            dye2 = data['DATA_2']
-            dye3 = data['DATA_3']
-            dye4 = data['DATA_4']
-            dye5 = data['DATA_106']
-            size_standard = data['DATA_105']
+        #TODO fix kit strategy
+        if strategy == 'superior' or strategy == 'raw':
+            if kit.name == "POWERPLEX_Y23":
+                data_elements = ["DATA_1","DATA_2", "DATA_3","DATA_4", "DATA_105"]
+            elif kit.name == "PPF6C":
+                data_elements = ["DATA_1","DATA_2", "DATA_3","DATA_4","DATA_106", "DATA_105"]
         elif strategy == "analyzed":
-            dye1 = data['DATA_9']
-            dye2 = data['DATA_10']
-            dye3 = data['DATA_11']
-            dye4 = data['DATA_12']
-            dye5 = data['DATA_206']
-            size_standard = data['DATA_205']
+            if kit.name == "POWERPLEX_Y23":
+                data_elements = ["DATA_9","DATA_10", "DATA_11","DATA_12", "DATA_205"]
+            elif kit.name == "PPF6C":
+                data_elements = ["DATA_9","DATA_10", "DATA_11","DATA_12", "DATA_205", "DATA_206"]
         else:
             raise ValueError(f'Unknown parsing strategy: {strategy}')
 
-        dyes = [dye1, dye2, dye3, dye4, dye5, size_standard]
+        dyes = [data[data_element] for data_element in data_elements]
+
     except KeyError:
         LOGGER.warning(f'could not find {strategy} DATA elements for {hid_file}, found '
                        f'{data_colnames}')

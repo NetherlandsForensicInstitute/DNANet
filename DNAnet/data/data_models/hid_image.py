@@ -117,8 +117,7 @@ class HIDImage(Image):
             raise FileNotFoundError(str(self.path))
 
         # Parse the raw hid image into a numpy array.
-        profile = get_peak_data(self.path, self.data_loading_strategy)
-        if profile is None:
+        if (profile := get_peak_data(self.path, self.data_loading_strategy, self.kit)) is None:
             return None
 
 
