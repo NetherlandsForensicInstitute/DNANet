@@ -28,16 +28,16 @@ class AlleleAnnotation(BaseModel):
         return data
                         
 
-class PixelAnnotation(BaseModel):
+class ScanpointAnnotation(BaseModel):
     annotation: pnp.Np2DArrayFp32
     
-Annotation = Annotated[Union[AlleleAnnotation, PixelAnnotation], Field(discriminator="type")]
+Annotation = Annotated[Union[AlleleAnnotation, ScanpointAnnotation], Field(discriminator="type")]
 
 
 class AllelePrediction(AlleleAnnotation):
     pass
 
-class PixelPrediction(PixelAnnotation):
+class ScanpointPrediction(ScanpointAnnotation):
     pass
     
-Prediction = Annotated[Union[AllelePrediction, PixelPrediction], Field(discriminator="type")]
+Prediction = Annotated[Union[AllelePrediction, ScanpointPrediction], Field(discriminator="type")]
