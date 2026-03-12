@@ -1,0 +1,44 @@
+data:
+  adjustment_of_annotations: null
+  analysis_threshold_type: DTH
+  annotations_path: null
+  cache_path: null
+  data_loading_strategy: superior
+  full_annotations_path: /mnt/diversen/DNA profiles_labeling/DNA profiles labeling
+    Analyse/All of our annotations
+  ground_truth_as_annotations: false
+  group_replicas_in_split: false
+  hid_file_name_filter_function: is_no_control
+  hid_to_annotations_path: null
+  include_size_standard: false
+  limit: null
+  name: hid
+  panel: resources/data/SGPanel_PPF6C_SPOOR.xml
+  root: /mnt/diversen/DNA profiles_labeling/DNA profiles labeling Analyse/
+  shuffle: false
+  skip_if_invalid_internal_standard: true
+  skip_if_invalid_ladder: false
+  use_cache: false
+model:
+  apply_allele_caller: false
+  depth: 4
+  device: null
+  kernel_size:
+  - 3
+  - 5
+  name: unet
+  num_classes: 12
+  num_filters: 32
+training:
+  batch_size: 16
+  learning_rate: 0.001
+  min_delta: -99999
+  num_epochs: 40
+  save_best: false
+  steps_per_epoch: null
+  tensorboard: false
+  use_evaluation_metric: true
+  use_scheduler: true
+  weight_decay: 0.0005
+validation:
+  split: 0.1
