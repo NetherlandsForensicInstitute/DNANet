@@ -30,6 +30,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
     """
     Strategy tailored to the NFI R&D dataset.
     """
+    READ_ANNOTATION_HEIGHTS: bool = False
 
     @classmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
@@ -103,6 +104,12 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
                                 if (allele_name := result[allele_col].strip("_OB")) != ''
                             ], strict=True)
                         )
+                        
+                        if cls.READ_ANNOTATION_HEIGHTS:
+                            logger.warning("Reading annotation RFU heights. Beware of RFU variations based on preprocessing during annotation.")
+                        else:
+                            allele_heights = None
+                        
                         marker = cls.build_marker(
                             marker_name=marker_name,
                             allele_names=allele_names,
