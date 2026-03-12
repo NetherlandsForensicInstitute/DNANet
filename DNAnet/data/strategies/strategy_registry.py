@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from DNAnet.data.strategies.kit_strategies.kit import (
     Kit,
-    KitStandards,
+    KitOptions,
     get_standard_kit,
 )
 
@@ -23,9 +23,9 @@ class StrategyRegistry:
         if isinstance(strategy, Kit):
             cls._kit_strategy = strategy
         elif isinstance(strategy, str):
-            if strategy not in KitStandards.__members__:
+            if strategy not in KitOptions.__members__:
                 raise ValueError(
-                    f"Unknown kit standard: '{strategy}'. Valid: {list(KitStandards.__members__)}"
+                    f"Unknown kit standard: '{strategy}'. Valid: {list(KitOptions.__members__)}"
                 )
             cls._kit_strategy = get_standard_kit(strategy)
         else:

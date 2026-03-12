@@ -100,6 +100,7 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
         self,
         size_standard_lane: np.ndarray,
     ) -> SizeStandardParseResult:
+        # TODO: Consolidate all this code with existing code and functions as seen in the NFI Strategy
         # Ensure 1D array for peak finding.
         size_standard_lane = np.asarray(size_standard_lane).reshape(-1)
 

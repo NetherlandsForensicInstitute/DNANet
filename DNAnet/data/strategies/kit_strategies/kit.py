@@ -40,13 +40,13 @@ _POWER_PLEX_FUSION_6C_PANEL_PATH = Path("resources/kit_panels/SGPanel_PPF6C.xml"
 _GLOBALFILER_PANEL_PATH = Path("resources/kit_panels/SGPanel_Globalfiler_Panel.xml")
 
 
-class KitStandards(Enum):
+class KitOptions(Enum):
     PPF6C = "POWER_PLEX_FUSION_6C_KIT"
     GLOBALFILER = "GLOBALFILER_KIT"
 
 
 def get_standard_kit(kit_name: str) -> Kit:
-    if kit_name == KitStandards.PPF6C.name:
+    if kit_name == KitOptions.PPF6C.name:
         return Kit(
             name="PPF6C",
             size_standard=InternalSizeStandard.WEN_ILS,
@@ -58,7 +58,7 @@ def get_standard_kit(kit_name: str) -> Kit:
             description="ProvedIt dataset kit using WEN_ILS size standard.",
         )
 
-    if kit_name == KitStandards.GLOBALFILER.name:
+    if kit_name == KitOptions.GLOBALFILER.name:
         return Kit(
             name="GlobalFiler",
             size_standard=InternalSizeStandard.GENESCAN_600_LIZ,
