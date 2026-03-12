@@ -1,8 +1,15 @@
 from DNAnet.data.data_models.dna_models import Allele, Marker
 from DNAnet.data.parsing.parse_annotations import _parse_csv_header
-from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import DatasetStrategy, FileCategory
+from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
+    DatasetStrategy,
+    FileCategory,
+)
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
-from DNAnet.utils import DONORS_PER_DATASET_NR, get_prefix_from_filename, is_rd_hid_filename
+from DNAnet.utils import (
+    DONORS_PER_DATASET_NR,
+    get_prefix_from_filename,
+    is_rd_hid_filename,
+)
 
 
 from loguru import logger
@@ -35,11 +42,11 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             or "ladder" in fname
             or "pocon" in fname
             or "controle" in fname
-            or fname.startswith('a')
+            or fname.startswith("a")
         ):
             return "control"
         # Valid sample HID file (using is_rd_hid_filename logic)
-        if len(re.findall(r'\d[ABCDEF]\d', file_name[:3])) > 0:
+        if len(re.findall(r"\d[ABCDEF]\d", file_name[:3])) > 0:
             return "sample"
         # Unknown or unhandled
         return "unknown"
@@ -62,25 +69,27 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
     def build_marker(self, marker_name: str, allele_names: Iterable[str]) -> Marker:
         dye_row = self.panel.get_dye_row(marker_name)
         if not dye_row:
-            raise RuntimeError(f'Could not retrieve dye row for {marker_name}')
+            raise RuntimeError(f"Could not retrieve dye row for {marker_name}")
         return Marker(dye_row, marker_name, [Allele(a) for a in sorted(allele_names)])
 
     @classmethod
-    def parse_annotation_file(cls, path: str | Path, sample_name: str | None = None) -> Optional[List[Marker]]:
+    def parse_annotation_file(
+        cls, path: str | Path, sample_name: str | None = None
+    ) -> Optional[List[Marker]]:
         # Files can be empty.
         if os.stat(path).st_size == 0:
-            logger.debug(f'Found empty file: {path}')
+            logger.debug(f"Found empty file: {path}")
             return None
 
         kit = StrategyRegistry.get_kit()
 
         provided_sample_name = sample_name
         markers = []
-        with open(path, 'r') as file:
+        with open(path, "r") as file:
             try:
                 delimiter, allele_cols, height_cols = _parse_csv_header(file)
             except TypeError as e:
-                logger.debug(f'Type error for {path}: {e}')
+                logger.debug(f"Type error for {path}: {e}")
                 return None
             csv_file = csv.reader(file, delimiter=delimiter)
             for sample, results in groupby(csv_file, lambda x: x[0]):
@@ -102,15 +111,18 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
                                         height=float(result[height_col]),
                                         # TODO: Do we want to have an adjusted panel already here?
                                     )
-                                    for allele_col, height_col in
-                                    zip(allele_cols, height_cols)
+                                    for allele_col, height_col in zip(
+                                        allele_cols, height_cols
+                                    )
                                     # 'OB_19.1' should be interpreted as '19.1'
-                                    if (allele_name := result[allele_col].strip('OB_'))
-                                ]
+                                    if (allele_name := result[allele_col].strip("OB_"))
+                                ],
                             )
                             markers.append(marker)
                 elif provided_sample_name is None and sample != sample_name:
-                    raise ValueError("No sample name provided but the file contains multiple!")
+                    raise ValueError(
+                        "No sample name provided but the file contains multiple!"
+                    )
         return markers
 
     @classmethod
@@ -123,12 +135,19 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
         :return: delimiter, allele columns indices and height columns indices
         """
         header = next(file)
-        for delimiter in [',', ';', '\t']:
-            allele_cols = [i for i, column in enumerate(header.split(delimiter))
-                        if column.startswith('Allele')]
+        for delimiter in [",", ";", "\t"]:
+            allele_cols = [
+                i
+                for i, column in enumerate(header.split(delimiter))
+                if column.startswith("Allele")
+            ]
             if len(allele_cols) > 0:
-                height_cols = [i for i, column in
-                            enumerate(header.split(delimiter))
-                            if column.startswith('Height')]
+                height_cols = [
+                    i
+                    for i, column in enumerate(header.split(delimiter))
+                    if column.startswith("Height")
+                ]
                 return delimiter, allele_cols, height_cols
-        raise TypeError(f'No valid delimiter found for file: {file.name} with header {header}.')
+        raise TypeError(
+            f"No valid delimiter found for file: {file.name} with header {header}."
+        )

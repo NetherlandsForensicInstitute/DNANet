@@ -2,7 +2,6 @@ from DNAnet.data.data_models.structs import AlleleAnnotation, AllelePrediction
 import pytest
 
 from DNAnet.data.strategies.dataset_strategies import NFI_RND_DatasetStrategy
-from DNAnet.data.strategies.kit_strategies.kit import get_standard_kit
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 

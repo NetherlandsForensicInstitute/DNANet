@@ -2,8 +2,8 @@ import csv
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from pathlib import Path
-from typing import Iterable, Literal, Optional
-from typing import List, Dict
+from typing import Iterable, Literal
+from typing import List
 
 
 from DNAnet.data.data_models.dna_models import Marker, Panel
@@ -16,6 +16,7 @@ class DatasetStrategy(ABC):
     Unified strategy interface for dataset-specific behavior such as
     file categorization, contributor parsing and allele loading.
     """
+
     # TODO: Do we really need an instance of this class for the load_donor_alleles function?
     def __init__(self, panel: Panel, genotypes_path: Path):
         self.panel = panel
@@ -35,8 +36,9 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def parse_annotation_file(cls, path: str | Path, sample_name: str | None = None) -> List[Marker] | None:
-        ...
+    def parse_annotation_file(
+        cls, path: str | Path, sample_name: str | None = None
+    ) -> List[Marker] | None: ...
 
     @abstractmethod
     def build_marker(self, marker_name: str, allele_names: Iterable[str]) -> Marker:
@@ -76,5 +78,3 @@ class DatasetStrategy(ABC):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(genotypes_path={self.genotypes_path})"
-
-

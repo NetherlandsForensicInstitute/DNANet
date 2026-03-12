@@ -1,5 +1,8 @@
 from DNAnet.data.data_models.dna_models import Allele, Marker
-from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import DatasetStrategy, FileCategory
+from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
+    DatasetStrategy,
+    FileCategory,
+)
 
 
 import re
@@ -19,7 +22,7 @@ class ProvedItDatasetStrategy(DatasetStrategy):
         if "LEA" in file_name:
             return "control"
         try:
-            if len(self.get_contributors(file_name)) > 0:
+            if len(cls.get_contributors(file_name)) > 0:
                 return "sample"
         except ValueError:
             # If we cannot parse contributors, treat the file as unknown instead of failing.
@@ -38,10 +41,14 @@ class ProvedItDatasetStrategy(DatasetStrategy):
         """
         match = re.search(r"RD14-0003-([\d_]+)-", file_name)
         if not match:
-            raise ValueError(f"Cannot extract contributors from provided file name: {file_name}")
-        contributors = match.group(1).split('_')
+            raise ValueError(
+                f"Cannot extract contributors from provided file name: {file_name}"
+            )
+        contributors = match.group(1).split("_")
         if not (2 <= len(contributors) <= 5):
-            raise ValueError(f"Expected 2-5 contributors, found {len(contributors)} in {file_name}")
+            raise ValueError(
+                f"Expected 2-5 contributors, found {len(contributors)} in {file_name}"
+            )
         return contributors
 
     def build_marker(self, marker_name: str, allele_names: Iterable[str]) -> Marker:
@@ -59,5 +66,7 @@ class ProvedItDatasetStrategy(DatasetStrategy):
         return Marker(dye_row, marker_name, new_alleles)
 
     @classmethod
-    def parse_annotation_file(cls, path: str | Path, sample_name: str | None = None) -> List[Marker] | None:
+    def parse_annotation_file(
+        cls, path: str | Path, sample_name: str | None = None
+    ) -> List[Marker] | None:
         raise NotImplementedError("To be done")

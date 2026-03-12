@@ -43,6 +43,7 @@ class SizeStandardParseResult:
         scaler: Base-pair value per rescaled pixel (1D).
         fit_error: Max absolute deviation between fitted and expected base pairs.
     """
+
     rescaled_indices: np.ndarray
     scaler: np.ndarray
     fit_error: float
@@ -113,7 +114,7 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
 
         # Attempt to fit; trim trailing peaks if the fit is too poor.
         while shrinkages < self.max_shrinkages:
-            peak_idxs = peak_idxs[-len(bps):]
+            peak_idxs = peak_idxs[-len(bps) :]
             coeffs = np.polyfit(peak_idxs, bps, 2)
             fitted = np.polyval(coeffs, peak_idxs)
             diff = float(np.max(np.abs(fitted - bps)))
@@ -127,7 +128,7 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
             raise ValueError(
                 f"Size standard differs {diff:.2f} from expected for {self.size_standard}"
             )
-        
+
         if shrinkages > 0:
             LOGGER.info(
                 "Size standard was shrunk %d times to fit the profile; max diff %.2f bp.",
@@ -185,8 +186,7 @@ class NfiEPGScalingStrategy(EPGScalingStrategy):
         super().__init__(kit)
 
     def parse_size_standard(
-        self,
-        size_standard_lane: np.ndarray
+        self, size_standard_lane: np.ndarray
     ) -> SizeStandardParseResult:
         """_summary_
 
@@ -205,7 +205,9 @@ class NfiEPGScalingStrategy(EPGScalingStrategy):
         if interpolated_base_pairs is None:
             raise ValueError("Invalid size standard: interpolation failed validation.")
 
-        rescaled_indices = rescale_dye(interpolated_base_pairs, rescale_size=4096, target_range=(65, 475))
+        rescaled_indices = rescale_dye(
+            interpolated_base_pairs, rescale_size=4096, target_range=(65, 475)
+        )
         scaler = interpolated_base_pairs[rescaled_indices]
 
         return SizeStandardParseResult(

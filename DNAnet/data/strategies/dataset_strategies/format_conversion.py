@@ -21,12 +21,19 @@ def find_genotype_file(dataset_root: str) -> Optional[Path]:
     """
     root = Path(dataset_root).expanduser()
     if not root.is_dir():
-        raise FileNotFoundError(f"Dataset root '{dataset_root}' does not exist or is not a directory.")
+        raise FileNotFoundError(
+            f"Dataset root '{dataset_root}' does not exist or is not a directory."
+        )
 
     return next(
-        (p for p in root.iterdir() if p.is_file() and p.name.lower().endswith("genotypes.xlsx")),
+        (
+            p
+            for p in root.iterdir()
+            if p.is_file() and p.name.lower().endswith("genotypes.xlsx")
+        ),
         None,
     )
+
 
 def individualize_genotypes(
     input_path: str,
@@ -54,7 +61,10 @@ def individualize_genotypes(
 
     os.makedirs(output_dir, exist_ok=True)
     if any(Path(output_dir).iterdir()):
-        LOGGER.warning("Output directory '%s' is not empty. Skipping conversion to avoid overwriting.", output_dir)
+        LOGGER.warning(
+            "Output directory '%s' is not empty. Skipping conversion to avoid overwriting.",
+            output_dir,
+        )
         return
 
     marker_columns = [col for col in df.columns if col not in exclude_columns]
@@ -65,13 +75,15 @@ def individualize_genotypes(
         for marker in marker_columns:
             if pd.isna(row[marker]) or row[marker] == "":
                 continue
-            alleles = str(row[marker]).split(',')
-            allele1 = alleles[0] if len(alleles) > 0 else ''
-            allele2 = alleles[1] if len(alleles) > 1 else ''
+            alleles = str(row[marker]).split(",")
+            allele1 = alleles[0] if len(alleles) > 0 else ""
+            allele2 = alleles[1] if len(alleles) > 1 else ""
             data.append([sample_name, marker, allele1, allele2])
-        new_df = pd.DataFrame(data, columns=[exclude_columns[0], 'Marker', 'Allele1', 'Allele2'])
+        new_df = pd.DataFrame(
+            data, columns=[exclude_columns[0], "Marker", "Allele1", "Allele2"]
+        )
         out_path = os.path.join(output_dir, f"{sample_name}.csv")
-        new_df.to_csv(out_path, sep=';', index=False)
+        new_df.to_csv(out_path, sep=";", index=False)
 
     LOGGER.info("Individualized genotype files saved to '%s'.", output_dir)
     return

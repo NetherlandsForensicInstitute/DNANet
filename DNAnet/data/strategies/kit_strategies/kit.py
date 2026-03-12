@@ -27,6 +27,7 @@ class Kit:
         markers: Optional list of marker names used by this kit (for quick checks or validation).
         description: Optional free-text description.
     """
+
     name: str
     size_standard: InternalSizeStandard
     panel: Panel
@@ -47,13 +48,15 @@ class KitStandards(Enum):
 def get_standard_kit(kit_name: str) -> Kit:
     if kit_name == KitStandards.PPF6C.name:
         return Kit(
-        name="PPF6C",
-        size_standard=InternalSizeStandard.WEN_ILS,
-        panel_path=_POWER_PLEX_FUSION_6C_PANEL_PATH,
-        panel=Panel(_POWER_PLEX_FUSION_6C_PANEL_PATH),  # fill in when you load the panel
-        markers=None,  # fill in with marker names for quick validation
-        description="ProvedIt dataset kit using WEN_ILS size standard.",
-    )
+            name="PPF6C",
+            size_standard=InternalSizeStandard.WEN_ILS,
+            panel_path=_POWER_PLEX_FUSION_6C_PANEL_PATH,
+            panel=Panel(
+                _POWER_PLEX_FUSION_6C_PANEL_PATH
+            ),  # fill in when you load the panel
+            markers=None,  # fill in with marker names for quick validation
+            description="ProvedIt dataset kit using WEN_ILS size standard.",
+        )
 
     if kit_name == KitStandards.GLOBALFILER.name:
         return Kit(
