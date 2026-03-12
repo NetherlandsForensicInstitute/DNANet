@@ -31,6 +31,7 @@ class Kit:
     name: str
     size_standard: InternalSizeStandard
     panel: Panel
+    num_dyes: int = 6
     panel_path: Optional[Path] = None
     markers: Optional[Sequence[str]] = None
     description: Optional[str] = None
@@ -50,6 +51,7 @@ def get_standard_kit(kit_name: str) -> Kit:
         return Kit(
             name="PPF6C",
             size_standard=InternalSizeStandard.WEN_ILS,
+            num_dyes=6,
             panel_path=_POWER_PLEX_FUSION_6C_PANEL_PATH,
             panel=Panel(
                 _POWER_PLEX_FUSION_6C_PANEL_PATH
@@ -62,6 +64,7 @@ def get_standard_kit(kit_name: str) -> Kit:
         return Kit(
             name="GlobalFiler",
             size_standard=InternalSizeStandard.GENESCAN_600_LIZ,
+            num_dyes=6,
             panel_path=_GLOBALFILER_PANEL_PATH,
             panel=Panel(_GLOBALFILER_PANEL_PATH),
             markers=None,  # fill in with marker names for quick validation

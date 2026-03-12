@@ -4,11 +4,17 @@ import os
 from itertools import groupby
 from typing import Iterable, List, Optional, Sequence, Tuple
 
+import numpy as np
+
 from DNAnet.data.data_models import Allele, Marker, Panel
+from DNAnet.data.data_models.structs import AlleleAnnotation, ScanpointAnnotation
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.typing import PathLike
 
 
 LOGGER = logging.getLogger("dnanet")
+
+
 
 
 def parse_called_alleles(annotation_file_path: PathLike,
@@ -45,6 +51,36 @@ def parse_called_alleles(annotation_file_path: PathLike,
         return None
 
 
+def translate_allele_to_scanpoint_annotation(allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray) -> ScanpointAnnotation:
+    """
+    Translates allele annotation to scanpoint annotation by finding the closest scanpoint indices for the left and right bins
+    of each allele using the provided scaler and adjusted panel. The entire allelic bin is annotated as 1.
+
+    All non annotated scanpoints are labeled as 0, while annotated scanpoints are labeled as 1.
+    The resulting scanpoint annotation is a binary matrix of shape (num_dyes, num_scanpoints)
+
+        :param allele_annotation: AlleleAnnotation object containing the allele annotations to be translated.
+        :param adjusted_panel: Panel object containing the adjusted panel information to be used for translation.
+        :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
+        :return: ScanpointAnnotation object containing the translated scanpoint annotation.
+    """
+    # TODO: do not hardcode amount of scanpoints
+    scanpoint_annotation = np.zeros((StrategyRegistry.get_kit().num_dyes, 4096), dtype=np.int8)
+    for locus in allele_annotation.annotation:
+        for allele in locus.alleles:
+            # for each allele, find the left and right bin of the allele using the panel that has been adjusted by the corresponding ladder.
+            bp, left_bin, right_bin = adjusted_panel.get_allele_basepair_and_bins(locus.name, allele.name)
+
+            # use the scaler to find the closest scanpoint indices for the left and right bins of the allele
+            left_scanpoint = np.argmin(np.abs(scaler - left_bin))
+            right_scanpoint = np.argmin(np.abs(scaler - right_bin))
+
+            scanpoint_annotation[locus.dye_row, left_scanpoint : right_scanpoint] = 1
+
+    return ScanpointAnnotation(annotation=scanpoint_annotation)
+
+
+
 def _parse_annotations(panel: Panel, results, allele_cols, height_cols) \
         -> List[Marker]:
     """
@@ -59,7 +95,7 @@ def _parse_annotations(panel: Panel, results, allele_cols, height_cols) \
             marker = Marker(dye_row,
                             marker_name,
                             [Allele(allele_name,
-                                    *panel.get_allele_info(
+                                    *panel.get_allele_basepair_and_bins(
                                         marker_name, allele_name),
                                     float(result[height_col]))
                              for allele_col, height_col in
