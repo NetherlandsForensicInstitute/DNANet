@@ -2,11 +2,13 @@ import csv
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from pathlib import Path
-from typing import Iterable, Literal
+from typing import Dict, Iterable, Literal, Optional
 from typing import List
 
 
-from DNAnet.data.data_models.dna_models import Marker, Panel
+from DNAnet.data.data_models.dna_models import Allele, Marker, Panel
+from DNAnet.data.data_models.structs import AlleleAnnotation
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 FileCategory = Literal["sample", "ladder", "control", "unknown"]
 
@@ -26,47 +28,43 @@ class DatasetStrategy(ABC):
     @abstractmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
         """Return the category (sample/ladder/control/unknown) for a given file name."""
-        ...
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
     def get_contributors(cls, file_name: str) -> List[str]:
         """Derive contributor file stems from the HID filename."""
-        ...
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
-    def parse_annotation_file(
-        cls, path: str | Path, sample_name: str | None = None
-    ) -> List[Marker] | None: ...
-
+    def parse_annotation_file(cls, path: str | Path) -> Dict[str, List[Marker]] | None:
+        raise NotImplementedError
+    
+    @classmethod
     @abstractmethod
-    def build_marker(self, marker_name: str, allele_names: Iterable[str]) -> Marker:
-        """Construct a Marker with Alleles using the provided panel metadata."""
-        ...
+    def create_annotation_for_sample(cls, annotation_mapping: Dict[str, List[Marker]], sample_name: str) -> AlleleAnnotation:
+        raise NotImplementedError
 
-    def load_donor_alleles(self, file_name: str) -> List[Marker]:
-        """
-        Load donor alleles for the provided file by reading reference genotype CSVs.
-        :param file_name: .hid file name (not full path) to load actual donors for
-        :return: list of Markers with combined alleles from all contributors
-        """
-
-        marker_allele_strings = defaultdict(set)
-        for file_stem in self.get_contributors(file_name):
-            # TODO: Fix this self. reference, is this something that the ABC Strategy should have? Isn't this a static class?
-            reference_profiles_path = self.genotypes_path / f"{file_stem}.csv"
-            with reference_profiles_path.open("r") as f:
-                reader = csv.DictReader(f, delimiter=";")
-                for row in reader:
-                    marker_allele_strings[row["Marker"]].update(
-                        [row["Allele1"], row["Allele2"]]
-                    )
-
-        return [
-            self.build_marker(marker_name, alleles)
-            for marker_name, alleles in marker_allele_strings.items()
-        ]
+    @classmethod
+    def build_marker(cls, marker_name: str, allele_names: Iterable[str], allele_heights: Optional[Iterable[float]] = None) -> Marker:
+        _kit = StrategyRegistry.get_kit()
+        dye_row = _kit.panel.get_dye_row(marker_name)
+        if dye_row is None:
+            raise RuntimeError(
+                f"Marker {marker_name} not found in panel {_kit.panel}. "
+                "Please check the panel or the marker name."
+            )
+        if allele_heights is None:
+            allele_heights = [None] * len(allele_names)
+        return Marker(
+            dye_row=dye_row,
+            name=marker_name,
+            alleles=[
+                Allele(name=allele_name, height=allele_height)
+                for allele_name, allele_height in zip(allele_names, allele_heights, strict=True)
+            ]
+        )
 
     def serialize(self) -> dict:
         """Return a lightweight serialization of the strategy."""

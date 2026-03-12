@@ -1,4 +1,7 @@
+import openpyxl
+
 from DNAnet.data.data_models.dna_models import Allele, Marker
+from DNAnet.data.data_models.structs import AlleleAnnotation
 from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
     DatasetStrategy,
     FileCategory,
@@ -7,7 +10,9 @@ from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
 
 import re
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
+
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 
 class ProvedItDatasetStrategy(DatasetStrategy):
@@ -51,22 +56,41 @@ class ProvedItDatasetStrategy(DatasetStrategy):
             )
         return contributors
 
-    def build_marker(self, marker_name: str, allele_names: Iterable[str]) -> Marker:
-        dye_row: Optional[int] = self.panel.get_dye_row(marker_name)
-        if dye_row is None:
-            raise TypeError(
-                f"Marker {marker_name} not found in panel {self.panel}. "
-                "Please check the panel or the marker name."
-            )
-
-        new_alleles = [
-            Allele(name, *self.panel.get_allele_info(marker_name, name))
-            for name in sorted(allele_names)
+    @classmethod
+    def parse_annotation_file(cls, path: str | Path) -> Dict[str, List[Marker]] | None:
+        path = Path(path)
+        # Check if it's the standard xlsx format
+        if not path.suffix in ('.xlsx', '.xls'):
+            raise ValueError("PROVEDIt dataset annotations should be in Excel format")
+        
+        excel_file = openpyxl.open(path)
+        sheet_values = [
+            [column.value for column in row]
+            for row in excel_file.worksheets[0].rows
         ]
-        return Marker(dye_row, marker_name, new_alleles)
+        headers = sheet_values[0]
+        rows = sheet_values[1:]
+        
+        _kit_strategy = StrategyRegistry.get_kit()
+        
+        annotation_mapping = {}
+        for row in rows:
+            markers = []
+            research_id, sample_id = None, None
+            for header, col in zip(headers, row, strict=True):
+                if header == "Research ID":
+                    research_id = col
+                elif header == "Sample ID":
+                    sample_id = col
+                else:
+                    marker_name = str(header)
+                    markers.append(cls.build_marker(marker_name, allele_names=str(col).split(",")))
+            annotation_mapping[str(sample_id)] = markers
+        
+        return annotation_mapping
 
     @classmethod
-    def parse_annotation_file(
-        cls, path: str | Path, sample_name: str | None = None
-    ) -> List[Marker] | None:
-        raise NotImplementedError("To be done")
+    def create_annotation_for_sample(cls, annotation_mapping: Dict[str, List[Marker]], sample_name: str) -> AlleleAnnotation:
+        sample_ids = cls.get_contributors(sample_name)
+        sample_markers = [annotation_mapping.get(sample) for sample in sample_ids]
+        return AlleleAnnotation(annotation=sample_markers)

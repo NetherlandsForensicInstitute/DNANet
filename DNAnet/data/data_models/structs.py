@@ -1,10 +1,8 @@
-from pathlib import Path
-from typing import Annotated, List, Union
+from typing import Annotated, Dict, List, Union
 
 from pydantic import BaseModel, Field, model_validator
 import pydantic_numpy.typing as pnp
 from DNAnet.data.data_models.dna_models import Marker
-from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 
 class AlleleAnnotation(BaseModel):
@@ -16,21 +14,22 @@ class AlleleAnnotation(BaseModel):
         if isinstance(data, dict):
             value = data.get("annotation")
             
-            if isinstance(value, (str, Path)):
-                # Get the dataset strategy for reading annotations
-                _dataset_strategy = StrategyRegistry.get_dataset()
-                
-                # Read the file
-                _markers = _dataset_strategy.parse_annotation_file(
-                    path=value,
-                    sample_name=data.get("sample_name")
-                )
-                data["annotation"] = _markers
-            
+            if isinstance(value, list) and not isinstance(value[0], Marker):
+                # Merge markers
+                markers: Dict[str, Marker] = {}
+
+                for sample in value:
+                    for sample_marker in sample:
+                        if (marker := markers.get(sample_marker.name)) is None:
+                            markers[sample_marker.name] = sample_marker
+                        else:
+                            marker.alleles.extend(sample_marker.alleles)
+                return {"annotation": list(markers.values())}
         return data
+                        
 
 class PixelAnnotation(BaseModel):
-    annotation: pnp.Np2DArrayFp64
+    annotation: pnp.Np2DArrayFp32
     
 Annotation = Annotated[Union[AlleleAnnotation, PixelAnnotation], Field(discriminator="type")]
 

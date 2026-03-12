@@ -36,8 +36,8 @@ class Kit:
     description: Optional[str] = None
 
 
-_POWER_PLEX_FUSION_6C_PANEL_PATH = Path("resources/data/SGPanel_PPF6C.xml")
-_GLOBALFILER_PANEL_PATH = Path("resources/data/SGPanel_Globalfiler_Panel.xml")
+_POWER_PLEX_FUSION_6C_PANEL_PATH = Path("resources/kit_panels/SGPanel_PPF6C.xml")
+_GLOBALFILER_PANEL_PATH = Path("resources/kit_panels/SGPanel_Globalfiler_Panel.xml")
 
 
 class KitStandards(Enum):

@@ -1,4 +1,7 @@
+from collections import defaultdict
+
 from DNAnet.data.data_models.dna_models import Allele, Marker
+from DNAnet.data.data_models.structs import AlleleAnnotation
 from DNAnet.data.parsing.parse_annotations import _parse_csv_header
 from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
     DatasetStrategy,
@@ -20,7 +23,7 @@ import os
 import re
 from itertools import groupby
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 
 class NFI_RND_DatasetStrategy(DatasetStrategy):
@@ -65,17 +68,12 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             for letter in DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]
         ]
 
-    # From previous implementation, but I believe this code is broken or deprecated.
-    def build_marker(self, marker_name: str, allele_names: Iterable[str]) -> Marker:
-        dye_row = self.panel.get_dye_row(marker_name)
-        if not dye_row:
-            raise RuntimeError(f"Could not retrieve dye row for {marker_name}")
-        return Marker(dye_row, marker_name, [Allele(a) for a in sorted(allele_names)])
-
     @classmethod
-    def parse_annotation_file(
-        cls, path: str | Path, sample_name: str | None = None
-    ) -> Optional[List[Marker]]:
+    def create_annotation_for_sample(cls, annotation_mapping: Dict[str, List[Marker]], sample_name: str) -> AlleleAnnotation:
+        return AlleleAnnotation(annotation=annotation_mapping[sample_name])
+    
+    @classmethod
+    def parse_annotation_file(cls, path: str | Path) -> Optional[Dict[str, List[Marker]]]:
         # Files can be empty.
         if os.stat(path).st_size == 0:
             logger.debug(f"Found empty file: {path}")
@@ -83,8 +81,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
 
         kit = StrategyRegistry.get_kit()
 
-        provided_sample_name = sample_name
-        markers = []
+        markers = defaultdict(list)
         with open(path, "r") as file:
             try:
                 delimiter, allele_cols, height_cols = _parse_csv_header(file)
@@ -93,37 +90,27 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
                 return None
             csv_file = csv.reader(file, delimiter=delimiter)
             for sample, results in groupby(csv_file, lambda x: x[0]):
-                # If no sample name is provided, we save the first we see
-                if sample_name is None:
-                    sample_name = sample
+                for result in results:
+                    marker_name = result[1]
+                    dye_row = kit.panel.get_dye_row(marker_name)
+                    if dye_row is not None:  # may be missing, e.g. Y-profile
+                        allele_names, allele_heights = map(
+                            list,
+                            zip(*[
+                                (allele_name, float(result[height_col]))
+                                for allele_col, height_col in
+                                zip(allele_cols, height_cols, strict=True)
+                                if (allele_name := result[allele_col].strip("_OB")) != ''
+                            ], strict=True)
+                        )
+                        marker = cls.build_marker(
+                            marker_name=marker_name,
+                            allele_names=allele_names,
+                            allele_heights=allele_heights
+                        )
+                        markers[sample].append(marker)
 
-                if sample == sample_name:
-                    for result in results:
-                        marker_name = result[1]
-                        dye_row = kit.panel.get_dye_row(marker_name)
-                        if dye_row is not None:  # may be missing, e.g. Y-profile
-                            marker = Marker(
-                                dye_row,
-                                marker_name,
-                                [
-                                    Allele(
-                                        name=allele_name,
-                                        height=float(result[height_col]),
-                                        # TODO: Do we want to have an adjusted panel already here?
-                                    )
-                                    for allele_col, height_col in zip(
-                                        allele_cols, height_cols
-                                    )
-                                    # 'OB_19.1' should be interpreted as '19.1'
-                                    if (allele_name := result[allele_col].strip("OB_"))
-                                ],
-                            )
-                            markers.append(marker)
-                elif provided_sample_name is None and sample != sample_name:
-                    raise ValueError(
-                        "No sample name provided but the file contains multiple!"
-                    )
-        return markers
+        return dict(markers)
 
     @classmethod
     def _parse_csv_header(cls, file) -> Tuple[str, Iterable[int], Iterable[int]]:
