@@ -87,7 +87,7 @@ class ProvedItDatasetStrategy(DatasetStrategy):
                     markers.append(cls.build_marker(marker_name, allele_names=str(col).split(",")))
             annotation_mapping[str(sample_id)] = markers
         
-        return annotation_mapping
+        return dict(annotation_mapping)
 
     @classmethod
     def create_annotation_for_sample(cls, annotation_mapping: Dict[str, List[Marker]], sample_name: str) -> AlleleAnnotation:
