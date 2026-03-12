@@ -13,8 +13,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from DNAnet.data.kit_compatibility.kit import GLOBALFILER_KIT, POWER_PLEX_FUSION_6C_KIT, Kit
-from DNAnet.data.kit_compatibility.lane_standards import (
+from DNAnet.data.strategies.kit_strategies.kit import Kit
+from DNAnet.data.strategies.kit_strategies.kit import get_standard_kit
+from DNAnet.data.strategies.kit_strategies.lane_standards import (
     BASE_PAIR_END,
     BASE_PAIR_START,
     RESCALE_SIZE,
@@ -42,6 +43,7 @@ class SizeStandardParseResult:
         scaler: Base-pair value per rescaled pixel (1D).
         fit_error: Max absolute deviation between fitted and expected base pairs.
     """
+
     rescaled_indices: np.ndarray
     scaler: np.ndarray
     fit_error: float
@@ -84,10 +86,12 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
 
     def __init__(
         self,
-        kit: Kit = POWER_PLEX_FUSION_6C_KIT,
+        kit: Kit | None = None,
         max_shrinkages: int = 10,
         validation_threshold: float = VAL_THRESHOLD,
     ):
+        if kit is None:
+            kit = get_standard_kit("PPF6C")
         super().__init__(kit)
         self.max_shrinkages = max_shrinkages
         self.validation_threshold = validation_threshold
@@ -96,6 +100,7 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
         self,
         size_standard_lane: np.ndarray,
     ) -> SizeStandardParseResult:
+        # TODO: Consolidate all this code with existing code and functions as seen in the NFI Strategy
         # Ensure 1D array for peak finding.
         size_standard_lane = np.asarray(size_standard_lane).reshape(-1)
 
@@ -110,7 +115,7 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
 
         # Attempt to fit; trim trailing peaks if the fit is too poor.
         while shrinkages < self.max_shrinkages:
-            peak_idxs = peak_idxs[-len(bps):]
+            peak_idxs = peak_idxs[-len(bps) :]
             coeffs = np.polyfit(peak_idxs, bps, 2)
             fitted = np.polyval(coeffs, peak_idxs)
             diff = float(np.max(np.abs(fitted - bps)))
@@ -124,7 +129,7 @@ class ProvedItEPGScalingStrategy(EPGScalingStrategy):
             raise ValueError(
                 f"Size standard differs {diff:.2f} from expected for {self.size_standard}"
             )
-        
+
         if shrinkages > 0:
             LOGGER.info(
                 "Size standard was shrunk %d times to fit the profile; max diff %.2f bp.",
@@ -176,12 +181,13 @@ class NfiEPGScalingStrategy(EPGScalingStrategy):
     Relies on the classic size-standard validation/interpolation and rescaling.
     """
 
-    def __init__(self, kit: Kit = GLOBALFILER_KIT):
+    def __init__(self, kit: Kit | None = None):
+        if kit is None:
+            kit = get_standard_kit("GLOBALFILER")
         super().__init__(kit)
 
     def parse_size_standard(
-        self,
-        size_standard_lane: np.ndarray
+        self, size_standard_lane: np.ndarray
     ) -> SizeStandardParseResult:
         """_summary_
 
@@ -200,7 +206,9 @@ class NfiEPGScalingStrategy(EPGScalingStrategy):
         if interpolated_base_pairs is None:
             raise ValueError("Invalid size standard: interpolation failed validation.")
 
-        rescaled_indices = rescale_dye(interpolated_base_pairs, rescale_size=4096, target_range=(65, 475))
+        rescaled_indices = rescale_dye(
+            interpolated_base_pairs, rescale_size=4096, target_range=(65, 475)
+        )
         scaler = interpolated_base_pairs[rescaled_indices]
 
         return SizeStandardParseResult(

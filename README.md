@@ -295,7 +295,7 @@ python evaluate.py \
 2. Extract contributor genotypes into per-sample CSVs (semicolon-separated) that the dataset strategy can load:
 ```python
 from pathlib import Path
-from DNAnet.data.dataset_compatibility.format_conversion import find_genotype_file, individualize_genotypes
+from DNAnet.data.strategies.dataset_compatibility.format_conversion import find_genotype_file, individualize_genotypes
 
 # Path to the extracted ProvedIt dataset (contains .hid files and the genotype Excel file)
 dataset_root_path = "/Users/amarmesic/Documents/tudelft/thesis/datasets/USE THIS - PROVEDIt_2-5-Person Profiles_3500 5sec_GF29cycles"
@@ -316,7 +316,7 @@ individualize_genotypes(
 from pathlib import Path
 from DNAnet.data.data_models import Panel
 from DNAnet.data.data_models.hid_dataset import HIDDataset
-from DNAnet.data.dataset_compatibility.dataset_strategy import ProvedItDatasetStrategy
+from DNAnet.data.strategies.dataset_strategy import ProvedItDatasetStrategy
 from DNAnet.data.kit_compatibility.kit import GLOBALFILER_KIT
 from DNAnet.data.kit_compatibility.scaling_strategy import ProvedItEPGScalingStrategy
 
@@ -345,7 +345,7 @@ This keeps legacy behavior intact: if you omit the strategies, the dataset/image
 
 To extend to a new kit/dataset, subclass the relevant strategy and wire it up when constructing `HIDDataset`/`HIDImage`:
 ```python
-from DNAnet.data.dataset_compatibility.dataset_strategy import DatasetStrategy
+from DNAnet.data.strategies.dataset_compatibility import DatasetStrategy
 
 class MyDatasetStrategy(DatasetStrategy):
     def categorize_file(self, file_name: str): ...

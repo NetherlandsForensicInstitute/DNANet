@@ -9,9 +9,9 @@ from typing import Any, Dict, List, MutableMapping, Optional, Sequence, Tuple
 import numpy as np
 from scipy.signal import find_peaks
 
-from DNAnet.data.dataset_compatibility.dataset_strategy import DatasetStrategy, NFI_RND_DatasetStrategy
-from DNAnet.data.kit_compatibility.kit import POWER_PLEX_FUSION_6C_KIT, Kit
-from DNAnet.data.kit_compatibility.scaling_strategy import EPGScalingStrategy, NfiEPGScalingStrategy
+from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import DatasetStrategy
+from DNAnet.data.strategies.kit_strategies.kit import Kit
+from DNAnet.data.strategies.kit_strategies.scaling_strategy import EPGScalingStrategy
 
 from DNAnet.data.data_models import Allele, Annotation, Marker, Panel
 from DNAnet.data.data_models.base import Image
