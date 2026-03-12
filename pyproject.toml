@@ -17,13 +17,21 @@ dependencies = [
     "tensorboard>=2.18.0",
     "huggingface-hub[hf_xet]>=0.35.0",
     "coolname>=2.2.0"
-
+    "openpyxl>=3.1.5",
+    "pydantic>=2.12.5",
+    "pydantic-numpy>=8.0.1",
+    "loguru>=0.7.3",
 ]
 requires-python = ">=3.10,<=3.12"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 
 
+[project.optional-dependencies]
+quality = [
+    "ruff>=0.15.5",
+    "mypy>=1.19.1",
+]
 [tool.pdm]
 distribution = false
 
@@ -31,3 +39,9 @@ distribution = false
 testing = [
     "pytest>=8.3.5",
 ]
+
+[tool.pdm.scripts]
+test = "pdm run pytest"
+lint = "pdm run ruff check ."
+format = "pdm run ruff format --check ."
+typing = "pdm run mypy"

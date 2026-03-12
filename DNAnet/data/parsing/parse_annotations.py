@@ -45,7 +45,7 @@ def parse_called_alleles(annotation_file_path: PathLike,
         return None
 
 
-def _parse_annotations(panel, results, allele_cols, height_cols) \
+def _parse_annotations(panel: Panel, results, allele_cols, height_cols) \
         -> List[Marker]:
     """
     Parses annotations for a single sample from annotations file

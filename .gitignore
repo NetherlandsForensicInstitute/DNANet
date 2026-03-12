@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Mac OS files
+.DS_Store
+
 # Distribution / packaging
 .Python
 .idea/
@@ -78,6 +81,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+notebooks/
 
 # IPython
 profile_default/
@@ -173,3 +177,8 @@ figures/
 
 # Ignore all files that are on HF
 resources/data/
+
+
+# Synthetic data
+generated/
+generated_epgs/
