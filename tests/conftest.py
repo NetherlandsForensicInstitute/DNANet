@@ -28,10 +28,10 @@ def hid_dataset_rd():
         panel=pytest.PANEL_PATH,
         annotations_path=pytest.RESOURCES_DIR / "profiles" / "RD",
         hid_to_annotations_path=(pytest.RESOURCES_DIR / "profiles" /
-                                 "RD" / "rd_hid_annotations_mapping.csv"),
+                                 "RD" / "2p_5p_hid_to_annotation.csv"),
         analysis_threshold_type="DTH",
         best_ladder_paths_csv=(pytest.RESOURCES_DIR / "profiles" /
-                               "RD" / "test_best_ladder_paths.csv")
+                               "RD" / "best_ladder_paths.csv")
     )
 
 
