@@ -1,5 +1,4 @@
 from collections import defaultdict
-
 from DNAnet.data.data_models.dna_models import Allele, Marker
 from DNAnet.data.data_models.structs import AlleleAnnotation
 from DNAnet.data.parsing.parse_annotations import _parse_csv_header
@@ -9,32 +8,35 @@ from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
 )
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.utils import (
-    DONORS_PER_DATASET_NR,
     get_prefix_from_filename,
     is_rd_hid_filename,
 )
-
-
 from loguru import logger
-
-
 import csv
 import os
 import re
 from itertools import groupby
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Tuple
+
 
 
 class NFI_RND_DatasetStrategy(DatasetStrategy):
     """
     Strategy tailored to the NFI R&D dataset.
     """
-
     READ_ANNOTATION_HEIGHTS: bool = False
+    DONORS_PER_DATASET_NR = {
+        '1': ['A', 'B', 'C', 'D', 'E'],
+        '2': ['F', 'G', 'H', 'I', 'J'],
+        '3': ['K', 'L', 'M', 'N', 'O'],
+        '4': ['P', 'Q', 'R', 'S', 'T'],
+        '5': ['U', 'V', 'W', 'X', 'Y'],
+        '6': ['Z', 'AA', 'AB', 'AC', 'AD'],
+    }
 
     @classmethod
-    def collect_dataset_files(cls, path: str | Path, **kwargs) -> Sequence[Tuple[str, str, str]]:
+    def collect_dataset_files(cls, path: str | Path, **kwargs) -> Tuple[List[Path], Mapping, Mapping]:
         path = Path(path)
         csv_files = list(path.rglob('*.csv'))
 
@@ -57,29 +59,35 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
         # Hid to Annotation mapping
         hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
         analysis_treshold_type_column = [
-            i for i, head in enumerate(hta_header) if analysis_treshold_type in head
+            i for i, head in enumerate(hta_header)
+            if analysis_treshold_type in head
         ]
         if len(analysis_treshold_type_column) != 1:
             raise RuntimeError(
                 f'Could not infer the analysis treshold type column for annotation mapping: {hta_header}'
             )
-        hid_to_annotation = {col[0]: col[analysis_treshold_type_column[0]] for col in hta_values}
+        
+        annotation_txt_files = list(path.rglob("*AlleleReport.txt"))
+        annotation_mapping = {}
+        for txt_file in annotation_txt_files:
+            _annotation = cls.parse_annotation_file(txt_file)
+            if _annotation:
+                annotation_mapping.update(_annotation)
+
+        hid_to_annotation = {
+            col[0].replace(".hid", ""): annotation_mapping[col[analysis_treshold_type_column[0]]]
+            for col in hta_values
+            if col[0] != ''
+        }
+        
         # Hid to Ladder mapping
         _, htl_values = cls._read_csv_file(hid_to_ladder_path)
-        hid_to_ladder = {hid: ladder for hid, ladder in htl_values}
+        hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
 
         hid_files = list(path.rglob('*.hid'))
-        samples: List[Tuple[str, str, str]] = []
-        for hid_file in hid_files:
-            hid_file_category = cls.categorize_file(hid_file.name)
-            if hid_file_category != 'sample':
-                logger.debug(f'Skipping HID file (not a sample): {hid_file}')
-                continue
-            hid_file_annotation = hid_to_annotation[hid_file.name]  # The annotation mapping uses the .hid
-            hid_file_ladder = hid_to_ladder[hid_file.stem]  # The ladder mapping uses without .hid
-            samples.append((str(hid_file), hid_file_annotation, hid_file_ladder))
+        hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == "sample", hid_files))
 
-        return samples
+        return hid_file_samples, hid_to_annotation, hid_to_ladder
 
     @classmethod
     def _read_csv_file(cls, csv_file: str | Path) -> Tuple[List[str], List[List[str]]]:
@@ -129,7 +137,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
 
         mixture_type = get_prefix_from_filename(file_name)
         dataset_nr, nr_donors = mixture_type[0], int(mixture_type[2])
-        return [f'{dataset_nr}{letter}' for letter in DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
+        return [f'{dataset_nr}{letter}' for letter in cls.DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
 
     @classmethod
     def create_annotation_for_sample(

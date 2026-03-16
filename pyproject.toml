@@ -27,30 +27,28 @@ readme = "README.md"
 license = {text = "Apache-2.0"}
 
 
-[project.optional-dependencies]
+[dependency-groups]
+testing = [
+    "pytest>=8.3.5",
+    "pytest-cov>=7.0.0",
+    "pytest-xdist>=3.8.0",
+]
 quality = [
     "ruff>=0.15.5",
     "mypy>=1.19.1",
 ]
-[tool.pdm]
-distribution = false
-
-[dependency-groups]
-testing = [
-    "pytest>=8.3.5",
-]
-
-[tool.pdm.scripts]
-test = "pdm run pytest"
-lint = "pdm run ruff check ."
-format = "pdm run ruff format --check ."
-typing = "pdm run mypy"
-
 
 [tool.pytest.ini_options]
 pythonpath = "."
 addopts = "--cov --cov-report=term"
 source = ["."]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "tests/*",
+    "*__init__.py"
+]
 
 [tool.coverage.report]
 skip_empty = true
@@ -109,3 +107,13 @@ convention = "google"
 
 [tool.mypy]
 disable_error_code = ["import-untyped"]
+[tool.pdm]
+distribution = false
+
+[tool.pdm.scripts]
+test = "pdm run pytest"
+lint = "pdm run ruff check ."
+format = "pdm run ruff format --check ."
+typing = "pdm run mypy"
+
+

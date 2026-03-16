@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Iterable, Literal, Optional, Sequence, Tuple
+from typing import Dict, Iterable, Literal, Mapping, Optional, Sequence, Tuple
 from typing import List
 
 
@@ -19,7 +19,7 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def collect_dataset_files(cls, path: str | Path, **kwargs) -> Sequence[Tuple[str, str, str]]:
+    def collect_dataset_files(cls, path: str | Path, **kwargs) -> Tuple[List[Path], Mapping, Mapping]:
         raise NotImplementedError
 
     @classmethod
