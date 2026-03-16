@@ -10,15 +10,14 @@ import numpy as np
 from scipy.signal import find_peaks
 
 from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import DatasetStrategy
-from DNAnet.data.strategies.kit_strategies.kit import Kit
-from DNAnet.data.strategies.kit_strategies.scaling_strategy import EPGScalingStrategy
+from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy
 
 from DNAnet.data.data_models import Allele, Annotation, Marker, Panel
 from DNAnet.data.data_models.base import Image
 from DNAnet.data.parsing import get_peak_data, parse_called_alleles
+from DNAnet.data.strategies.kit_strategies.str_kit import STRKit
 from DNAnet.data.utils import (
     assert_image_data_valid_format,
-    basepair_interpolator,
     find_peak_boundary,
     find_peak_idx_near_or_in_range
 )
@@ -48,8 +47,8 @@ class HIDImage(Image):
     def __init__(self,
                  path: PathLike,
                  dataset_strategy: Optional[DatasetStrategy] = None,
-                 scaling_strategy: Optional[EPGScalingStrategy] = None,
-                 kit: Optional[Kit] = None,
+                 scaling_strategy: Optional[ScalingStrategy] = None,
+                 kit: Optional[STRKit] = None,
                  panel: Optional[Panel] = None,
                  use_ground_truth_as_annotations: bool = False,
                  annotations_file: PathLike = None,
@@ -108,7 +107,7 @@ class HIDImage(Image):
         profile = get_peak_data(self.path)
         if profile is None:
             return None
-        
+
 
         size_standard_dye_lane = np.array(profile[-1])
         try:
@@ -123,7 +122,7 @@ class HIDImage(Image):
             self.include_size_standard,
         )
         self._scaler = ss.scaler
-        
+
 
         called_alleles = None
         # Determine the called alleles from the annotations file
@@ -191,7 +190,7 @@ class HIDImage(Image):
             # to avoid missing the scaler when we have not yet read the file.
             self._read()
         return self._scaler[np.newaxis, :]
-    
+
 
     @staticmethod
     def _rescale_profile(
@@ -216,7 +215,7 @@ class HIDImage(Image):
     @classmethod
     def _get_segmentation(
         cls,
-        scaler, 
+        scaler,
         called_alleles: Sequence[Marker],
         shape: Tuple[int, ...]
     ) -> np.ndarray:
@@ -283,7 +282,7 @@ class HIDImage(Image):
 
     def __repr__(self):
         return f"HIDImage({self.path.name})"
-    
+
 
 class Ladder(HIDImage):
     """
@@ -474,7 +473,7 @@ class Ladder(HIDImage):
                 next_idx = marker.alleles.index(next_allele)
 
                 # Interpolate all alleles in between the previous and next
-                interp = basepair_interpolator(
+                interp = self.scaling_strategy.basepair_interpolator(
                     indices=[prev_bp_in_panel, next_bp_in_panel],
                     original_x_values=[prev_bp_in_ladder, next_bp_in_ladder]
                 )
@@ -491,8 +490,8 @@ class Ladder(HIDImage):
 
         return adjusted_alleles
 
-    @staticmethod
-    def _extrapolate_base_pair(indices: List[float],
+
+    def _extrapolate_base_pair(self, indices: List[float],
                                x_values: List[float],
                                marker: Marker,
                                allele: Allele,
@@ -502,7 +501,7 @@ class Ladder(HIDImage):
         Extrapolates base pair for specified allele and returns an `Allele` object with the
         newly computed basepair location.
         """
-        interp = basepair_interpolator(indices=indices,
+        interp = self.scaling_strategy.basepair_interpolator(indices=indices,
                                        original_x_values=x_values,
                                        extrapolate=True)
         extrapolated_bp = interp(allele.base_pair)

@@ -40,7 +40,7 @@ class DatasetStrategy(ABC):
     @abstractmethod
     def parse_annotation_file(cls, path: str | Path) -> Dict[str, List[Marker]] | None:
         raise NotImplementedError
-    
+
     @classmethod
     @abstractmethod
     def create_annotation_for_sample(cls, annotation_mapping: Dict[str, List[Marker]], sample_name: str) -> AlleleAnnotation:
@@ -48,11 +48,11 @@ class DatasetStrategy(ABC):
 
     @classmethod
     def build_marker(cls, marker_name: str, allele_names: Iterable[str], allele_heights: Optional[Iterable[float]] = None) -> Marker:
-        _kit = StrategyRegistry.get_kit()
-        dye_row = _kit.panel.get_dye_row(marker_name)
+        _scaling_strategy = StrategyRegistry.get_scaling_strategy()
+        dye_row = _scaling_strategy.panel.get_dye_row(marker_name)
         if dye_row is None:
             raise RuntimeError(
-                f"Marker {marker_name} not found in panel {_kit.panel}. "
+                f"Marker {marker_name} not found in panel {_scaling_strategy.panel}. "
                 "Please check the panel or the marker name."
             )
         if allele_heights is None:

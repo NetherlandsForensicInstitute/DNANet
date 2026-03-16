@@ -72,7 +72,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
     @classmethod
     def create_annotation_for_sample(cls, annotation_mapping: Dict[str, List[Marker]], sample_name: str) -> AlleleAnnotation:
         return AlleleAnnotation(annotation=annotation_mapping[sample_name])
-    
+
     @classmethod
     def parse_annotation_file(cls, path: str | Path) -> Optional[Dict[str, List[Marker]]]:
         # Files can be empty.
@@ -80,7 +80,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             logger.debug(f"Found empty file: {path}")
             return None
 
-        kit = StrategyRegistry.get_kit()
+        scaling_strategy = StrategyRegistry.get_scaling_strategy()
 
         markers = defaultdict(list)
         with open(path, "r") as file:
@@ -93,7 +93,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             for sample, results in groupby(csv_file, lambda x: x[0]):
                 for result in results:
                     marker_name = result[1]
-                    dye_row = kit.panel.get_dye_row(marker_name)
+                    dye_row = scaling_strategy.panel.get_dye_row(marker_name)
                     if dye_row is not None:  # may be missing, e.g. Y-profile
                         allele_names, allele_heights = map(
                             list,
@@ -104,12 +104,12 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
                                 if (allele_name := result[allele_col].strip("_OB")) != ''
                             ], strict=True)
                         )
-                        
+
                         if cls.READ_ANNOTATION_HEIGHTS:
                             logger.warning("Reading annotation RFU heights. Beware of RFU variations based on preprocessing during annotation.")
                         else:
                             allele_heights = None
-                        
+
                         marker = cls.build_marker(
                             marker_name=marker_name,
                             allele_names=allele_names,

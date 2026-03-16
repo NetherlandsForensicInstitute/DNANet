@@ -1,20 +1,33 @@
+from dataclasses import dataclass
 from enum import Enum
+
 import numpy as np
-from typing import Union
 from numpy.typing import NDArray
 
 
-BASE_PAIR_START, BASE_PAIR_END = 60, 480
-RESCALE_SIZE = 4096
-VAL_THRESHOLD = 5.0
-
-
 # Enum for internal size standards
-class InternalSizeStandard(Enum):
+class InternalSizeStandardOptions(Enum):
     GENESCAN_600_LIZ = "GENESCAN_600_LIZ"
     WEN_ILS = "WEN_ILS"
     SYNTHETIC_GENESCAN_600_LIZ = "SYNTHETIC_GENESCAN_600_LIZ"
-    # Add more standards as needed
+
+
+@dataclass(frozen=True)
+class InternalSizeStandard:
+    name: str
+    expected_bps: np.ndarray
+
+
+
+def get_internal_size_standard(internal_standard: InternalSizeStandardOptions) -> InternalSizeStandard:
+    if internal_standard == InternalSizeStandardOptions.GENESCAN_600_LIZ:
+        return InternalSizeStandard(InternalSizeStandardOptions.GENESCAN_600_LIZ.name, GENESCAN_600_LIZ_BPS)
+    elif internal_standard == InternalSizeStandardOptions.WEN_ILS:
+        return InternalSizeStandard(InternalSizeStandardOptions.WEN_ILS.name, WEN_ILS_BPS)
+    elif internal_standard == InternalSizeStandardOptions.SYNTHETIC_GENESCAN_600_LIZ:
+        return InternalSizeStandard(InternalSizeStandardOptions.SYNTHETIC_GENESCAN_600_LIZ.name, SYNTHETIC_GENESCAN_600_LIZ_BPS)
+
+    raise ValueError(f"Internal standard name is not found: {internal_standard.name}")
 
 
 # Size standard base pair values for different kits
@@ -90,31 +103,3 @@ WEN_ILS_BPS: NDArray[np.int_] = np.array(
 # Why? because last 7 values are non-existent in syntetic data
 SYNTHETIC_GENESCAN_600_LIZ_BPS: NDArray[np.int_] = GENESCAN_600_LIZ_BPS[:-7]
 
-
-# Mapping from enum or string to BPS array
-SIZE_STANDARD_BPS_MAP = {
-    InternalSizeStandard.GENESCAN_600_LIZ: GENESCAN_600_LIZ_BPS,
-    InternalSizeStandard.WEN_ILS: WEN_ILS_BPS,
-    InternalSizeStandard.SYNTHETIC_GENESCAN_600_LIZ: SYNTHETIC_GENESCAN_600_LIZ_BPS,
-    # Add more mappings as needed
-}
-
-
-def get_size_standard_bps(standard: Union[InternalSizeStandard, str]) -> np.ndarray:
-    """
-    Get the BPS array for a given size standard enum or string.
-    """
-    if isinstance(standard, str):
-        try:
-            standard = InternalSizeStandard[standard.upper()]
-        except KeyError:
-            raise ValueError(
-                f"Unknown size standard '{standard}'. "
-                f"Valid options: {list_available_size_standards()}"
-            )
-    return SIZE_STANDARD_BPS_MAP[standard]
-
-
-def list_available_size_standards() -> list[str]:
-    """Return a list of valid size standard strings."""
-    return [e.name for e in InternalSizeStandard]

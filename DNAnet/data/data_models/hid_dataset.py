@@ -15,8 +15,8 @@ from DNAnet.data.data_models import Panel
 from DNAnet.data.data_models.base import InMemoryDataset, SimpleDataset
 from DNAnet.data.data_models.hid_image import HIDImage, Ladder
 from DNAnet.data.strategies.dataset_strategies import DatasetStrategy
-from DNAnet.data.strategies.kit_strategies.kit import Kit
-from DNAnet.data.strategies.kit_strategies.scaling_strategy import EPGScalingStrategy
+from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy
+from DNAnet.data.strategies.kit_strategies.str_kit import STRKit
 from DNAnet.data.strategies.sample_validation_strategy import SampleValidationStrategy
 from DNAnet.data.split import split_data_in_k_folds
 from DNAnet.typing import PathLike
@@ -73,9 +73,9 @@ class HIDDataset(InMemoryDataset):
                  analysis_threshold_type: Optional[str] = 'DTL',
                  ground_truth_as_annotations: Optional[bool] = False,
                  group_replicas_in_split: Optional[bool] = False,
-                 kit: Optional[Kit] = None,
+                 kit: Optional[STRKit] = None,
                  dataset_strategy: Optional[DatasetStrategy] = None,
-                 scaling_strategy: Optional[EPGScalingStrategy] = None,
+                 scaling_strategy: Optional[ScalingStrategy] = None,
                  sample_validation_strategy: Optional[SampleValidationStrategy] = None):
         super().__init__(shuffle)
         self.root = str(root)

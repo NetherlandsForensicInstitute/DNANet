@@ -62,7 +62,7 @@ class ProvedItDatasetStrategy(DatasetStrategy):
         # Check if it's the standard xlsx format
         if not path.suffix in ('.xlsx', '.xls'):
             raise ValueError("PROVEDIt dataset annotations should be in Excel format")
-        
+
         excel_file = openpyxl.open(path)
         sheet_values = [
             [column.value for column in row]
@@ -70,9 +70,9 @@ class ProvedItDatasetStrategy(DatasetStrategy):
         ]
         headers = sheet_values[0]
         rows = sheet_values[1:]
-        
-        _kit_strategy = StrategyRegistry.get_kit()
-        
+
+        _scaling_strategy = StrategyRegistry.get_scaling_strategy()
+
         annotation_mapping = {}
         for row in rows:
             markers = []
@@ -86,7 +86,7 @@ class ProvedItDatasetStrategy(DatasetStrategy):
                     marker_name = str(header)
                     markers.append(cls.build_marker(marker_name, allele_names=str(col).split(",")))
             annotation_mapping[str(sample_id)] = markers
-        
+
         return dict(annotation_mapping)
 
     @classmethod
