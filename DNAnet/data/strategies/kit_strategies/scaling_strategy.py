@@ -16,9 +16,7 @@ import numpy as np
 import scipy
 
 from DNAnet.data.data_models import Panel
-from DNAnet.data.strategies.kit_strategies.internal_size_standard import (
-    get_internal_size_standard, InternalSizeStandardOptions
-)
+from DNAnet.data.strategies.kit_strategies.internal_size_standard import GENESCAN_600_LIZ_BPS, WEN_ILS_BPS
 from DNAnet.data.strategies.kit_strategies.str_kit import STRKit
 from DNAnet.data.utils import (
     find_peaks_above_threshold
@@ -236,7 +234,7 @@ class GlobalFilerScalingStrategy(ScalingStrategy):
     ):
         kit = STRKit(
             name="GlobalFiler",
-            size_standard=get_internal_size_standard(InternalSizeStandardOptions.GENESCAN_600_LIZ),
+            size_standard=GENESCAN_600_LIZ_BPS,
             num_dyes=6,
             panel_path= _GLOBALFILER_PANEL_PATH,
             panel=Panel(_GLOBALFILER_PANEL_PATH),
@@ -322,7 +320,7 @@ class PowerPlexFusion6CScalingStrategy(ScalingStrategy):
     def __init__(self, **kwargs):
         kit = STRKit(
             name="PPF6C",
-            size_standard=get_internal_size_standard(InternalSizeStandardOptions.WEN_ILS),
+            size_standard=WEN_ILS_BPS,
             num_dyes=6,
             panel_path=_POWER_PLEX_FUSION_6C_PANEL_PATH,
             panel=Panel(

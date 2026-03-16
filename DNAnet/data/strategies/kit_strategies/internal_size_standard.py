@@ -1,33 +1,5 @@
-from dataclasses import dataclass
-from enum import Enum
-
 import numpy as np
 from numpy.typing import NDArray
-
-
-# Enum for internal size standards
-class InternalSizeStandardOptions(Enum):
-    GENESCAN_600_LIZ = "GENESCAN_600_LIZ"
-    WEN_ILS = "WEN_ILS"
-    SYNTHETIC_GENESCAN_600_LIZ = "SYNTHETIC_GENESCAN_600_LIZ"
-
-
-@dataclass(frozen=True)
-class InternalSizeStandard:
-    name: str
-    expected_bps: np.ndarray
-
-
-
-def get_internal_size_standard(internal_standard: InternalSizeStandardOptions) -> InternalSizeStandard:
-    if internal_standard == InternalSizeStandardOptions.GENESCAN_600_LIZ:
-        return InternalSizeStandard(InternalSizeStandardOptions.GENESCAN_600_LIZ.name, GENESCAN_600_LIZ_BPS)
-    elif internal_standard == InternalSizeStandardOptions.WEN_ILS:
-        return InternalSizeStandard(InternalSizeStandardOptions.WEN_ILS.name, WEN_ILS_BPS)
-    elif internal_standard == InternalSizeStandardOptions.SYNTHETIC_GENESCAN_600_LIZ:
-        return InternalSizeStandard(InternalSizeStandardOptions.SYNTHETIC_GENESCAN_600_LIZ.name, SYNTHETIC_GENESCAN_600_LIZ_BPS)
-
-    raise ValueError(f"Internal standard name is not found: {internal_standard.name}")
 
 
 # Size standard base pair values for different kits
