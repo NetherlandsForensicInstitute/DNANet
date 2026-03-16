@@ -71,8 +71,6 @@ class ProvedItDatasetStrategy(DatasetStrategy):
         headers = sheet_values[0]
         rows = sheet_values[1:]
 
-        _scaling_strategy = StrategyRegistry.get_scaling_strategy()
-
         annotation_mapping = {}
         for row in rows:
             markers = []

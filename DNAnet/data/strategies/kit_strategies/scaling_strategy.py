@@ -30,7 +30,7 @@ _POWER_PLEX_FUSION_6C_PANEL_PATH = Path("resources/kit_panels/SGPanel_PPF6C.xml"
 _GLOBALFILER_PANEL_PATH = Path("resources/kit_panels/SGPanel_Globalfiler_Panel.xml")
 
 
-class StrategyOptions(Enum):
+class ScalingStrategyOptions(Enum):
     PPF6C = "POWER_PLEX_FUSION_6C"
     GLOBALFILER = "GLOBALFILER"
 
@@ -52,10 +52,10 @@ class SizeStandardParseResult:
 
 
 def get_scaling_strategy(strat_name: str, **kwargs) -> ScalingStrategy:
-    if strat_name == StrategyOptions.PPF6C.name:
+    if strat_name == ScalingStrategyOptions.PPF6C.name:
         return PowerPlexFusion6CScalingStrategy()
 
-    if strat_name == StrategyOptions.GLOBALFILER.name:
+    if strat_name == ScalingStrategyOptions.GLOBALFILER.name:
         return GlobalFilerScalingStrategy(**kwargs)
 
     raise ValueError(f"Kit name is not in the standards: {strat_name}")

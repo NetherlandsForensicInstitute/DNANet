@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy, StrategyOptions, \
+from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy, ScalingStrategyOptions, \
     get_scaling_strategy
 
 if TYPE_CHECKING:
@@ -26,9 +26,9 @@ class StrategyRegistry:
         if isinstance(strategy, ScalingStrategy):
             cls._scaling_strategy = strategy
         elif isinstance(strategy, str):
-            if strategy not in StrategyOptions.__members__:
+            if strategy not in ScalingStrategyOptions.__members__:
                 raise ValueError(
-                    f"Unknown scaling strategy: '{strategy}'. Valid: {list(StrategyOptions.__members__)}"
+                    f"Unknown scaling strategy: '{strategy}'. Valid: {list(ScalingStrategyOptions.__members__)}"
                 )
             cls._scaling_strategy = get_scaling_strategy(strategy, **kwargs)
         else:

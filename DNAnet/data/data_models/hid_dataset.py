@@ -73,7 +73,6 @@ class HIDDataset(InMemoryDataset):
                  analysis_threshold_type: Optional[str] = 'DTL',
                  ground_truth_as_annotations: Optional[bool] = False,
                  group_replicas_in_split: Optional[bool] = False,
-                 kit: Optional[STRKit] = None,
                  dataset_strategy: Optional[DatasetStrategy] = None,
                  scaling_strategy: Optional[ScalingStrategy] = None,
                  sample_validation_strategy: Optional[SampleValidationStrategy] = None):
@@ -86,7 +85,6 @@ class HIDDataset(InMemoryDataset):
         self.adjustment_of_annotations = adjustment_of_annotations
         self.ground_truth_as_annotations = ground_truth_as_annotations
         self.group_replicas_in_split = group_replicas_in_split
-        self.kit = kit
         self.dataset_strategy = dataset_strategy
         self.scaling_strategy = scaling_strategy
         self.sample_validation_strategy = sample_validation_strategy or (lambda image: True)
