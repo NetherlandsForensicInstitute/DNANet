@@ -184,10 +184,12 @@ def download_online_dataset(data_root: PathLike):
     pass
 
 
-def load_model(source: Union[PathLike, Mapping[str, Any]]) -> Model:
+def load_model(source: Union[PathLike, Mapping[str, Any], Configuration]) -> Model:
     """
     Load a trainable model from a config file or mapping.
     """
+    if isinstance(source, Configuration):
+        return parse_config({'model': source}, MODELS)['model']
 
     if isinstance(source, PathLike):
         # The source is a path to a config file or checkpoint directory. We check if it's a

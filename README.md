@@ -61,13 +61,16 @@ $ pip install pdm
 ```
 Then run the following command to install the dependencies:
 ```bash
-$ pdm install
+$ pdm sync
 ```
 
 Git LFS is used to track `.pt` (model) files. Make sure to [install Git LFS](https://git-lfs.com/) on your system. In order to retrieve the files from the remote run the following command:
 ```bash
 $ git lfs pull
 ```
+
+# Synthetic data generation
+For instructions on simulating DNA profiles and generating synthetic EPGs, see [synthetic_profiles](synthetic_profiles/README.md).
 
 HugginFace datasets is used to download the research data. This is done automatically whenever the data is missing from your config's provided root directory.
 When this is triggered, data is pulled from the ["NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024"](https://huggingface.co/datasets/NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024) HuggingFace repository.
@@ -295,7 +298,7 @@ python evaluate.py \
 2. Extract contributor genotypes into per-sample CSVs (semicolon-separated) that the dataset strategy can load:
 ```python
 from pathlib import Path
-from DNAnet.data.dataset_compatibility.format_conversion import find_genotype_file, individualize_genotypes
+from DNAnet.data.strategies.dataset_compatibility.format_conversion import find_genotype_file, individualize_genotypes
 
 # Path to the extracted ProvedIt dataset (contains .hid files and the genotype Excel file)
 dataset_root_path = "/Users/amarmesic/Documents/tudelft/thesis/datasets/USE THIS - PROVEDIt_2-5-Person Profiles_3500 5sec_GF29cycles"
@@ -316,7 +319,7 @@ individualize_genotypes(
 from pathlib import Path
 from DNAnet.data.data_models import Panel
 from DNAnet.data.data_models.hid_dataset import HIDDataset
-from DNAnet.data.dataset_compatibility.dataset_strategy import ProvedItDatasetStrategy
+from DNAnet.data.strategies.dataset_strategy import ProvedItDatasetStrategy
 from DNAnet.data.kit_compatibility.kit import GLOBALFILER_KIT
 from DNAnet.data.kit_compatibility.scaling_strategy import ProvedItEPGScalingStrategy
 
@@ -345,7 +348,7 @@ This keeps legacy behavior intact: if you omit the strategies, the dataset/image
 
 To extend to a new kit/dataset, subclass the relevant strategy and wire it up when constructing `HIDDataset`/`HIDImage`:
 ```python
-from DNAnet.data.dataset_compatibility.dataset_strategy import DatasetStrategy
+from DNAnet.data.strategies.dataset_compatibility import DatasetStrategy
 
 class MyDatasetStrategy(DatasetStrategy):
     def categorize_file(self, file_name: str): ...

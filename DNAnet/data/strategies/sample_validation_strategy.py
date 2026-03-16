@@ -4,7 +4,7 @@ from DNAnet.data.data_models.base import Image
 
 
 class SampleValidationStrategy(Protocol):
-    def __call__(self, image: Image) -> bool : ...
+    def __call__(self, image: Image) -> bool: ...
 
 
 class NFIValidationStrategy(SampleValidationStrategy):

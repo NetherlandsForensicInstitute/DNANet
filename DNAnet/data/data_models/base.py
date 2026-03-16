@@ -7,6 +7,7 @@ import numpy as np
 
 from DNAnet.data.data_models import Annotation
 from DNAnet.data.split import split_data_in_k_folds
+from DNAnet.models.prediction import Prediction
 
 
 class Image(ABC):
@@ -122,3 +123,14 @@ class SimpleDataset(InMemoryDataset):
     def __init__(self, data: Sequence[Image], shuffle: Optional[bool] = False):
         super().__init__(shuffle)
         self._data = data
+
+
+
+class Metric:
+    def __init__(self, func, name: str = None):
+        self.func = func
+        self.__name__ = name or func.__name__
+
+    def __call__(self, images: Sequence[Image], predictions: Sequence[Prediction], **kwargs) -> float:
+        return self.func(images, predictions, **kwargs)
+

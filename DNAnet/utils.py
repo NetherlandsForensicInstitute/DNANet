@@ -3,33 +3,18 @@ import dataclasses
 import json
 import logging
 import os
+from pathlib import Path
 import re
 from collections import defaultdict
 from itertools import islice
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Union
 
+import coolname
+
 from DNAnet.data.data_models import Allele, Marker, Panel
+from DNAnet.data.strategies.dataset_strategies import NFI_RND_DatasetStrategy
 from DNAnet.typing import PathLike
 
-
-LOGGER = logging.getLogger("dnanet")
-LOGGER.setLevel(logging.INFO)
-console_handler = logging.StreamHandler()
-formatter = logging.Formatter(
-    fmt="%(asctime)s %(levelname)-8s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
-console_handler.setFormatter(formatter)
-LOGGER.addHandler(console_handler)
-
-
-DONORS_PER_DATASET_NR = {'1': ['A', 'B', 'C', 'D', 'E'],
-                         '2': ['F', 'G', 'H', 'I', 'J'],
-                         '3': ['K', 'L', 'M', 'N', 'O'],
-                         '4': ['P', 'Q', 'R', 'S', 'T'],
-                         '5': ['U', 'V', 'W', 'X', 'Y'],
-                         '6': ['Z', 'AA', 'AB', 'AC', 'AD'],
-                         }
 
 
 def is_rd_hid_filename(file_name: str) -> bool:
@@ -45,6 +30,9 @@ def get_prefix_from_filename(file_name: PathLike) -> str:
         return file_name.split("_")[0]  # take '1A2'
     else:
         raise ValueError(f"Cannot take prefix from provided file name: {file_name}")
+
+def generate_random_name() -> str:
+    return ''.join([x.capitalize() for x in coolname.generate()])
 
 
 def is_non_case_sample_hid_file_name(file_name: str) -> bool:
@@ -113,7 +101,7 @@ def load_donor_alleles(file_name: str, panel: Panel) -> List[Marker]:
     dataset_nr, nr_donors = mixture_type[0], int(mixture_type[2])
     # one file contains alleles of one donor, so find files for all donors of the profile
     file_stems = [f"{dataset_nr}{letter}" for letter in
-                  DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
+                  NFI_RND_DatasetStrategy.DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
 
     # find the set of all alleles of the donors per marker
     marker_allele_strings = defaultdict(set)
@@ -129,7 +117,8 @@ def load_donor_alleles(file_name: str, panel: Panel) -> List[Marker]:
     for marker_name, alleles in marker_allele_strings.items():
         dye_row = panel.get_dye_row(marker_name)
         markers.append(Marker(dye_row, marker_name, [Allele(a) for a in sorted(alleles)]))
-    return markers
+        
+    raise DeprecationWarning('This function will deprecate to Dataset Strategies')
 
 
 def chunks(
@@ -168,3 +157,11 @@ def chunks(
         if not chunk or skip_remainder and len(chunk) < chunk_size:
             return
         yield chunk
+
+
+# get all the HID files from the hid_files_path directory
+def find_files_by_suffix(root_dir, suffix) -> List[Path]:
+    """
+    Recursively find all files in root_dir that end with the given suffix.
+    """
+    return list(Path(root_dir).rglob(f'*{suffix}'))

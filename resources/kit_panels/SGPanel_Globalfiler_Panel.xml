@@ -1,0 +1,840 @@
+<?xml version="1.0"?> 
+<Panel> 
+    <Vendor>GeneMarker</Vendor> 
+    <FileVersion>01.3a</FileVersion> 
+    <PanelName>Globalfiler</PanelName> 
+    <n_Ploidy>2</n_Ploidy> 
+    <Chemistry></Chemistry>
+    <Lot_Number></Lot_Number>
+    <Fragment Enabled = '0'> </Fragment> 
+    <Loci>
+        <Locus>
+        <MarkerTitle>D3S1358</MarkerTitle>
+        <DyeIndex>1</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>91.7</LowerBoundary>
+        <UpperBoundary>146.1</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '10'	DecimalStutterPer_N_L4 = '9800'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '8'	DefSize = '92.33'	Size = '92.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '76'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '96.33'	Size = '96.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1850'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '100.66'	Size = '100.66'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2669'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '104.74'	Size = '104.74'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2924'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '108.99'	Size = '108.99'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3177'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '112.99'	Size = '112.99'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2898'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '116.99'	Size = '116.99'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2636'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '120.99'	Size = '120.99'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3398'	Comments = ''	></Allele>
+        <Allele 	Label = '15.2'	DefSize = '122.99'	Size = '122.99'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '9'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '124.99'	Size = '124.99'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3364'	Comments = ''	></Allele>
+        <Allele 	Label = '16.2'	DefSize = '126.99'	Size = '126.99'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '11'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '129.09'	Size = '129.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2361'	Comments = ''	></Allele>
+        <Allele 	Label = '17.1'	DefSize = '130.00'	Size = '130.00'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '165'	Comments = ''	></Allele>
+        <Allele 	Label = '17.2'	DefSize = '130.99'	Size = '130.99'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '8'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '133.14'	Size = '133.14'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2952'	Comments = ''	></Allele>
+        <Allele 	Label = '18.2'	DefSize = '134.99'	Size = '134.99'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '15'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '137.11'	Size = '137.11'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2393'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '141.42'	Size = '141.42'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2349'	Comments = ''	></Allele>
+        <Allele 	Label = '20.1'	DefSize = '142.33'	Size = '142.33'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '239'	Comments = ''	></Allele>
+        <Allele 	Label = '21'	DefSize = '145.48'	Size = '145.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '140'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>vWA</MarkerTitle>
+        <DyeIndex>1</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>152.0</LowerBoundary>
+        <UpperBoundary>213.9</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '10'	DecimalStutterPer_N_L4 = '7300'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '10'	DefSize = '152.59'	Size = '152.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '110'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '156.59'	Size = '156.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2943'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '160.59'	Size = '160.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2923'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '164.65'	Size = '164.65'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2773'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '168.90'	Size = '168.90'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2767'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '172.88'	Size = '172.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3014'	Comments = ''	></Allele>
+        <Allele 	Label = '15.2'	DefSize = '174.90'	Size = '174.90'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '13'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '176.88'	Size = '176.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3172'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '180.92'	Size = '180.92'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3342'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '184.95'	Size = '184.95'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3458'	Comments = ''	></Allele>
+        <Allele 	Label = '18.2'	DefSize = '187.09'	Size = '187.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '5'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '189.07'	Size = '189.07'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3475'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '193.12'	Size = '193.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3617'	Comments = ''	></Allele>
+        <Allele 	Label = '21'	DefSize = '197.17'	Size = '197.17'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3708'	Comments = ''	></Allele>
+        <Allele 	Label = '22'	DefSize = '201.17'	Size = '201.17'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3940'	Comments = ''	></Allele>
+        <Allele 	Label = '23'	DefSize = '205.08'	Size = '205.08'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3638'	Comments = ''	></Allele>
+        <Allele 	Label = '24'	DefSize = '209.37'	Size = '209.37'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3382'	Comments = ''	></Allele>
+        <Allele 	Label = '25'	DefSize = '213.29'	Size = '213.29'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '152'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D16S539</MarkerTitle>
+        <DyeIndex>1</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>222.7</LowerBoundary>
+        <UpperBoundary>272.3</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '9'	DecimalStutterPer_N_L4 = '4800'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '4'	DefSize = '223.28'	Size = '223.28'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '172'	Comments = ''	></Allele>
+        <Allele 	Label = '5'	DefSize = '227.15'	Size = '227.15'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3829'	Comments = ''	></Allele>
+        <Allele 	Label = '6'	DefSize = '231.35'	Size = '231.35'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '121'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '235.35'	Size = '235.35'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '306'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '239.31'	Size = '239.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3397'	Comments = ''	></Allele>
+        <Allele 	Label = '8.3'	DefSize = '242.35'	Size = '242.35'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '93'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '243.51'	Size = '243.51'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3415'	Comments = ''	></Allele>
+        <Allele 	Label = '9.3'	DefSize = '246.54'	Size = '246.54'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '72'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '247.60'	Size = '247.60'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3255'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '251.70'	Size = '251.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3302'	Comments = ''	></Allele>
+        <Allele 	Label = '11.3'	DefSize = '254.70'	Size = '254.70'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '72'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '255.70'	Size = '255.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3272'	Comments = ''	></Allele>
+        <Allele 	Label = '12.1'	DefSize = '256.70'	Size = '256.70'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '194'	Comments = ''	></Allele>
+        <Allele 	Label = '12.2'	DefSize = '257.70'	Size = '257.70'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '34'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '259.70'	Size = '259.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3259'	Comments = ''	></Allele>
+        <Allele 	Label = '13.3'	DefSize = '262.70'	Size = '262.70'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '124'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '263.70'	Size = '263.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3259'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '267.70'	Size = '267.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2991'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '271.70'	Size = '271.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '196'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>CSF1PO</MarkerTitle>
+        <DyeIndex>1</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>278.3</LowerBoundary>
+        <UpperBoundary>323.5</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '8'	DecimalStutterPer_N_L4 = '7700'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '5'	DefSize = '278.93'	Size = '278.93'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '134'	Comments = ''	></Allele>
+        <Allele 	Label = '6'	DefSize = '282.93'	Size = '282.93'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2806'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '286.93'	Size = '286.93'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3281'	Comments = ''	></Allele>
+        <Allele 	Label = '7.3'	DefSize = '289.93'	Size = '289.93'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '67'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '290.93'	Size = '290.93'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3182'	Comments = ''	></Allele>
+        <Allele 	Label = '8.1'	DefSize = '291.93'	Size = '291.93'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '78'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '294.88'	Size = '294.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3251'	Comments = ''	></Allele>
+        <Allele 	Label = '9.1'	DefSize = '295.86'	Size = '295.86'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '71'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '298.83'	Size = '298.83'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3329'	Comments = ''	></Allele>
+        <Allele 	Label = '10.1'	DefSize = '299.83'	Size = '299.83'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '112'	Comments = ''	></Allele>
+        <Allele 	Label = '10.2'	DefSize = '300.86'	Size = '300.86'	Left_Binning = '0.45'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '35'	Comments = ''	></Allele>
+        <Allele 	Label = '10.3'	DefSize = '301.86'	Size = '301.86'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '152'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '302.86'	Size = '302.86'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2539'	Comments = ''	></Allele>
+        <Allele 	Label = '11.1'	DefSize = '303.86'	Size = '303.86'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '56'	Comments = ''	></Allele>
+        <Allele 	Label = '11.3'	DefSize = '305.69'	Size = '305.69'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '86'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '306.64'	Size = '306.64'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2948'	Comments = ''	></Allele>
+        <Allele 	Label = '12.1'	DefSize = '307.62'	Size = '307.62'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '90'	Comments = ''	></Allele>
+        <Allele 	Label = '12.3'	DefSize = '309.74'	Size = '309.74'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '112'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '310.67'	Size = '310.67'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2977'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '314.70'	Size = '314.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2835'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '318.93'	Size = '318.93'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3021'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '322.93'	Size = '322.93'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '141'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>TPOX</MarkerTitle>
+        <DyeIndex>1</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>333.1</LowerBoundary>
+        <UpperBoundary>382.7</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '5'	DecimalStutterPer_N_L4 = '5500'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '4'	DefSize = '333.68'	Size = '333.68'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '22'	Comments = ''	></Allele>
+        <Allele 	Label = '5'	DefSize = '337.68'	Size = '337.68'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1892'	Comments = ''	></Allele>
+        <Allele 	Label = '6'	DefSize = '341.77'	Size = '341.77'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2409'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '345.77'	Size = '345.77'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1731'	Comments = ''	></Allele>
+        <Allele 	Label = '7.1'	DefSize = '347.04'	Size = '347.04'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '290'	Comments = ''	></Allele>
+        <Allele 	Label = '7.3'	DefSize = '348.95'	Size = '348.95'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '64'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '350.00'	Size = '350.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2532'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '354.13'	Size = '354.13'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2699'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '358.13'	Size = '358.13'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2491'	Comments = ''	></Allele>
+        <Allele 	Label = '10.1'	DefSize = '359.13'	Size = '359.13'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '405'	Comments = ''	></Allele>
+        <Allele 	Label = '10.3'	DefSize = '361.13'	Size = '361.13'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '71'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '362.13'	Size = '362.13'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2364'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '366.13'	Size = '366.13'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2342'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '370.13'	Size = '370.13'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2377'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '374.13'	Size = '374.13'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2194'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '378.13'	Size = '378.13'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2228'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '382.13'	Size = '382.13'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '51'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>Yindel</MarkerTitle>
+        <DyeIndex>2</DyeIndex>
+        <n_NucleotideRepeats>5</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>80.6</LowerBoundary>
+        <UpperBoundary>87.0</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '1'	DecimalStutterPer_N_L4 = '0'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '1'	DefSize = '81.20'	Size = '81.20'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2484'	Comments = ''	></Allele>
+        <Allele 	Label = '2'	DefSize = '86.44'	Size = '86.44'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2452'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>AMEL</MarkerTitle>
+        <DyeIndex>2</DyeIndex>
+        <n_NucleotideRepeats>9</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>98.1</LowerBoundary>
+        <UpperBoundary>105.3</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '1'	DecimalStutterPer_N_L4 = '0'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = 'X'	DefSize = '98.70'	Size = '98.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2669'	Comments = ''	></Allele>
+        <Allele 	Label = 'Y'	DefSize = '104.70'	Size = '104.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2693'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D8S1179</MarkerTitle>
+        <DyeIndex>2</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>109.6</LowerBoundary>
+        <UpperBoundary>176.1</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '9'	DecimalStutterPer_N_L4 = '6000'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '4'	DefSize = '110.24'	Size = '110.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '65'	Comments = ''	></Allele>
+        <Allele 	Label = '5'	DefSize = '114.24'	Size = '114.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2997'	Comments = ''	></Allele>
+        <Allele 	Label = '6'	DefSize = '118.24'	Size = '118.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2982'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '122.24'	Size = '122.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2867'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '126.24'	Size = '126.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3004'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '130.24'	Size = '130.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2879'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '134.24'	Size = '134.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2847'	Comments = ''	></Allele>
+        <Allele 	Label = '10.2'	DefSize = '136.24'	Size = '136.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '19'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '138.40'	Size = '138.40'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3133'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '142.45'	Size = '142.45'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2910'	Comments = ''	></Allele>
+        <Allele 	Label = '12.3'	DefSize = '145.59'	Size = '145.59'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '166'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '146.67'	Size = '146.67'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3306'	Comments = ''	></Allele>
+        <Allele 	Label = '13.3'	DefSize = '149.72'	Size = '149.72'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '122'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '150.83'	Size = '150.83'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2888'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '154.98'	Size = '154.98'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3151'	Comments = ''	></Allele>
+        <Allele 	Label = '15.3'	DefSize = '158.09'	Size = '158.09'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '106'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '159.14'	Size = '159.14'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2755'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '163.28'	Size = '163.28'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3077'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '167.33'	Size = '167.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2889'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '171.44'	Size = '171.44'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3046'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '175.46'	Size = '175.46'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '234'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D21S11</MarkerTitle>
+        <DyeIndex>2</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>180.2</LowerBoundary>
+        <UpperBoundary>244.3</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '10'	DecimalStutterPer_N_L4 = '4500'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '23.2'	DefSize = '180.83'	Size = '180.83'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '272'	Comments = ''	></Allele>
+        <Allele 	Label = '24'	DefSize = '182.83'	Size = '182.83'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2962'	Comments = ''	></Allele>
+        <Allele 	Label = '24.2'	DefSize = '184.88'	Size = '184.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2305'	Comments = ''	></Allele>
+        <Allele 	Label = '24.3'	DefSize = '186.04'	Size = '186.04'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '139'	Comments = ''	></Allele>
+        <Allele 	Label = '25'	DefSize = '187.04'	Size = '187.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3083'	Comments = ''	></Allele>
+        <Allele 	Label = '25.2'	DefSize = '189.04'	Size = '189.04'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '126'	Comments = ''	></Allele>
+        <Allele 	Label = '25.3'	DefSize = '190.04'	Size = '190.04'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '104'	Comments = ''	></Allele>
+        <Allele 	Label = '26'	DefSize = '191.04'	Size = '191.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2429'	Comments = ''	></Allele>
+        <Allele 	Label = '26.2'	DefSize = '193.04'	Size = '193.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '51'	Comments = ''	></Allele>
+        <Allele 	Label = '27'	DefSize = '195.12'	Size = '195.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2570'	Comments = ''	></Allele>
+        <Allele 	Label = '27.1'	DefSize = '196.17'	Size = '196.17'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '93'	Comments = ''	></Allele>
+        <Allele 	Label = '27.2'	DefSize = '197.17'	Size = '197.17'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '397'	Comments = ''	></Allele>
+        <Allele 	Label = '28'	DefSize = '199.17'	Size = '199.17'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3235'	Comments = ''	></Allele>
+        <Allele 	Label = '28.1'	DefSize = '200.12'	Size = '200.12'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '211'	Comments = ''	></Allele>
+        <Allele 	Label = '28.2'	DefSize = '201.12'	Size = '201.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2084'	Comments = ''	></Allele>
+        <Allele 	Label = '28.3'	DefSize = '202.15'	Size = '202.15'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '171'	Comments = ''	></Allele>
+        <Allele 	Label = '29'	DefSize = '203.12'	Size = '203.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2424'	Comments = ''	></Allele>
+        <Allele 	Label = '29.1'	DefSize = '204.17'	Size = '204.17'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '135'	Comments = ''	></Allele>
+        <Allele 	Label = '29.2'	DefSize = '205.12'	Size = '205.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2114'	Comments = ''	></Allele>
+        <Allele 	Label = '29.3'	DefSize = '206.12'	Size = '206.12'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '189'	Comments = ''	></Allele>
+        <Allele 	Label = '30'	DefSize = '207.12'	Size = '207.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2602'	Comments = ''	></Allele>
+        <Allele 	Label = '30.1'	DefSize = '208.12'	Size = '208.12'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '200'	Comments = ''	></Allele>
+        <Allele 	Label = '30.2'	DefSize = '209.09'	Size = '209.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2620'	Comments = ''	></Allele>
+        <Allele 	Label = '30.3'	DefSize = '210.12'	Size = '210.12'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '214'	Comments = ''	></Allele>
+        <Allele 	Label = '31'	DefSize = '211.12'	Size = '211.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3571'	Comments = ''	></Allele>
+        <Allele 	Label = '31.1'	DefSize = '212.23'	Size = '212.23'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '210'	Comments = ''	></Allele>
+        <Allele 	Label = '31.2'	DefSize = '213.17'	Size = '213.17'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3194'	Comments = ''	></Allele>
+        <Allele 	Label = '31.3'	DefSize = '214.25'	Size = '214.25'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '167'	Comments = ''	></Allele>
+        <Allele 	Label = '32'	DefSize = '215.25'	Size = '215.25'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '4448'	Comments = ''	></Allele>
+        <Allele 	Label = '32.1'	DefSize = '216.25'	Size = '216.25'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '201'	Comments = ''	></Allele>
+        <Allele 	Label = '32.2'	DefSize = '217.28'	Size = '217.28'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3128'	Comments = ''	></Allele>
+        <Allele 	Label = '32.3'	DefSize = '218.28'	Size = '218.28'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '149'	Comments = ''	></Allele>
+        <Allele 	Label = '33'	DefSize = '219.31'	Size = '219.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3172'	Comments = ''	></Allele>
+        <Allele 	Label = '33.1'	DefSize = '220.31'	Size = '220.31'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '227'	Comments = ''	></Allele>
+        <Allele 	Label = '33.2'	DefSize = '221.33'	Size = '221.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2878'	Comments = ''	></Allele>
+        <Allele 	Label = '33.3'	DefSize = '222.46'	Size = '222.46'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '167'	Comments = ''	></Allele>
+        <Allele 	Label = '34'	DefSize = '223.46'	Size = '223.46'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3602'	Comments = ''	></Allele>
+        <Allele 	Label = '34.1'	DefSize = '224.39'	Size = '224.39'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '250'	Comments = ''	></Allele>
+        <Allele 	Label = '34.2'	DefSize = '225.44'	Size = '225.44'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3202'	Comments = ''	></Allele>
+        <Allele 	Label = '35'	DefSize = '227.41'	Size = '227.41'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3056'	Comments = ''	></Allele>
+        <Allele 	Label = '35.1'	DefSize = '228.49'	Size = '228.49'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '217'	Comments = ''	></Allele>
+        <Allele 	Label = '35.2'	DefSize = '229.41'	Size = '229.41'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2941'	Comments = ''	></Allele>
+        <Allele 	Label = '36'	DefSize = '231.41'	Size = '231.41'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2979'	Comments = ''	></Allele>
+        <Allele 	Label = '36.1'	DefSize = '232.54'	Size = '232.54'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '104'	Comments = ''	></Allele>
+        <Allele 	Label = '36.2'	DefSize = '233.54'	Size = '233.54'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '261'	Comments = ''	></Allele>
+        <Allele 	Label = '37'	DefSize = '235.52'	Size = '235.52'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3231'	Comments = ''	></Allele>
+        <Allele 	Label = '37.2'	DefSize = '237.57'	Size = '237.57'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '137'	Comments = ''	></Allele>
+        <Allele 	Label = '38'	DefSize = '239.52'	Size = '239.52'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2928'	Comments = ''	></Allele>
+        <Allele 	Label = '38.2'	DefSize = '240.84'	Size = '240.84'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '49'	Comments = ''	></Allele>
+        <Allele 	Label = '39'	DefSize = '243.68'	Size = '243.68'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '320'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D18S51</MarkerTitle>
+        <DyeIndex>2</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>256.6</LowerBoundary>
+        <UpperBoundary>344.4</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '12'	DecimalStutterPer_N_L4 = '4200'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '6'	DefSize = '257.19'	Size = '257.19'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '121'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '261.19'	Size = '261.19'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2406'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '262.61'	Size = '262.61'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '23'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '269.19'	Size = '269.19'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2580'	Comments = ''	></Allele>
+        <Allele 	Label = '9.2'	DefSize = '271.19'	Size = '271.19'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '293'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '273.19'	Size = '273.19'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2336'	Comments = ''	></Allele>
+        <Allele 	Label = '10.2'	DefSize = '275.33'	Size = '275.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3043'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '277.33'	Size = '277.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2626'	Comments = ''	></Allele>
+        <Allele 	Label = '11.2'	DefSize = '279.19'	Size = '279.19'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '113'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '281.39'	Size = '281.39'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2676'	Comments = ''	></Allele>
+        <Allele 	Label = '12.2'	DefSize = '283.33'	Size = '283.33'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '335'	Comments = ''	></Allele>
+        <Allele 	Label = '12.3'	DefSize = '284.33'	Size = '284.33'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '32'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '285.39'	Size = '285.39'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2350'	Comments = ''	></Allele>
+        <Allele 	Label = '13.1'	DefSize = '286.39'	Size = '286.39'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '204'	Comments = ''	></Allele>
+        <Allele 	Label = '13.2'	DefSize = '287.36'	Size = '287.36'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3002'	Comments = ''	></Allele>
+        <Allele 	Label = '13.3'	DefSize = '288.46'	Size = '288.46'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '150'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '289.43'	Size = '289.43'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2452'	Comments = ''	></Allele>
+        <Allele 	Label = '14.2'	DefSize = '291.46'	Size = '291.46'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3192'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '293.39'	Size = '293.39'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2599'	Comments = ''	></Allele>
+        <Allele 	Label = '15.2'	DefSize = '295.19'	Size = '295.19'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '68'	Comments = ''	></Allele>
+        <Allele 	Label = '15.3'	DefSize = '296.19'	Size = '296.19'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '19'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '297.46'	Size = '297.46'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2808'	Comments = ''	></Allele>
+        <Allele 	Label = '16.1'	DefSize = '298.49'	Size = '298.49'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '111'	Comments = ''	></Allele>
+        <Allele 	Label = '16.2'	DefSize = '299.43'	Size = '299.43'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '100'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '301.36'	Size = '301.36'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2581'	Comments = ''	></Allele>
+        <Allele 	Label = '17.2'	DefSize = '303.19'	Size = '303.19'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '73'	Comments = ''	></Allele>
+        <Allele 	Label = '17.3'	DefSize = '304.19'	Size = '304.19'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '12'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '305.19'	Size = '305.19'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2036'	Comments = ''	></Allele>
+        <Allele 	Label = '18.1'	DefSize = '306.19'	Size = '306.19'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '465'	Comments = ''	></Allele>
+        <Allele 	Label = '18.2'	DefSize = '307.19'	Size = '307.19'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '79'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '309.33'	Size = '309.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2304'	Comments = ''	></Allele>
+        <Allele 	Label = '19.2'	DefSize = '311.19'	Size = '311.19'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '75'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '313.36'	Size = '313.36'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2634'	Comments = ''	></Allele>
+        <Allele 	Label = '20.2'	DefSize = '315.52'	Size = '315.52'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '153'	Comments = ''	></Allele>
+        <Allele 	Label = '21'	DefSize = '317.69'	Size = '317.69'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2806'	Comments = ''	></Allele>
+        <Allele 	Label = '21.2'	DefSize = '319.92'	Size = '319.92'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '114'	Comments = ''	></Allele>
+        <Allele 	Label = '22'	DefSize = '321.89'	Size = '321.89'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2390'	Comments = ''	></Allele>
+        <Allele 	Label = '22.2'	DefSize = '324.02'	Size = '324.02'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '126'	Comments = ''	></Allele>
+        <Allele 	Label = '23'	DefSize = '325.96'	Size = '325.96'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2810'	Comments = ''	></Allele>
+        <Allele 	Label = '23.2'	DefSize = '328.06'	Size = '328.06'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '146'	Comments = ''	></Allele>
+        <Allele 	Label = '24'	DefSize = '330.02'	Size = '330.02'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2378'	Comments = ''	></Allele>
+        <Allele 	Label = '25'	DefSize = '334.09'	Size = '334.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2470'	Comments = ''	></Allele>
+        <Allele 	Label = '26'	DefSize = '338.16'	Size = '338.16'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2915'	Comments = ''	></Allele>
+        <Allele 	Label = '27'	DefSize = '342.22'	Size = '342.22'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2727'	Comments = ''	></Allele>
+        <Allele 	Label = '28'	DefSize = '343.78'	Size = '343.78'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '73'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>DYS391</MarkerTitle>
+        <DyeIndex>2</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>360.4</LowerBoundary>
+        <UpperBoundary>393.6</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '7'	DecimalStutterPer_N_L4 = '4300'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '6'	DefSize = '361.04'	Size = '361.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '188'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '365.04'	Size = '365.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2983'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '369.04'	Size = '369.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3019'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '373.04'	Size = '373.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2932'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '377.04'	Size = '377.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2926'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '381.04'	Size = '381.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2637'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '385.04'	Size = '385.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2948'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '389.04'	Size = '389.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2392'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '393.04'	Size = '393.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '107'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D2S441</MarkerTitle>
+        <DyeIndex>3</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>76.1</LowerBoundary>
+        <UpperBoundary>114.3</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '8'	DecimalStutterPer_N_L4 = '1000'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '8'	DefSize = '76.68'	Size = '76.68'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2494'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '80.90'	Size = '80.90'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2500'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '84.86'	Size = '84.86'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2462'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '89.12'	Size = '89.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2488'	Comments = ''	></Allele>
+        <Allele 	Label = '11.3'	DefSize = '92.18'	Size = '92.18'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2744'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '93.24'	Size = '93.24'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3235'	Comments = ''	></Allele>
+        <Allele 	Label = '12.3'	DefSize = '96.24'	Size = '96.24'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1937'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '97.24'	Size = '97.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2762'	Comments = ''	></Allele>
+        <Allele 	Label = '13.3'	DefSize = '100.30'	Size = '100.30'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '814'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '101.30'	Size = '101.30'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2663'	Comments = ''	></Allele>
+        <Allele 	Label = '14.3'	DefSize = '104.30'	Size = '104.30'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '166'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '105.43'	Size = '105.43'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2620'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '109.68'	Size = '109.68'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2290'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '113.68'	Size = '113.68'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2502'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D19S433</MarkerTitle>
+        <DyeIndex>3</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>116.2</LowerBoundary>
+        <UpperBoundary>172.2</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '9'	DecimalStutterPer_N_L4 = '9700'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '5.2'	DefSize = '116.79'	Size = '116.79'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '37'	Comments = ''	></Allele>
+        <Allele 	Label = '6'	DefSize = '118.79'	Size = '118.79'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1657'	Comments = ''	></Allele>
+        <Allele 	Label = '6.2'	DefSize = '120.79'	Size = '120.79'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '56'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '122.50'	Size = '122.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1820'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '126.34'	Size = '126.34'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1883'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '130.21'	Size = '130.21'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2023'	Comments = ''	></Allele>
+        <Allele 	Label = '9.2'	DefSize = '132.28'	Size = '132.28'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '45'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '134.05'	Size = '134.05'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1784'	Comments = ''	></Allele>
+        <Allele 	Label = '10.2'	DefSize = '136.15'	Size = '136.15'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '92'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '137.89'	Size = '137.89'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2322'	Comments = ''	></Allele>
+        <Allele 	Label = '11.2'	DefSize = '139.85'	Size = '139.85'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '436'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '141.89'	Size = '141.89'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2117'	Comments = ''	></Allele>
+        <Allele 	Label = '12.1'	DefSize = '142.89'	Size = '142.89'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '203'	Comments = ''	></Allele>
+        <Allele 	Label = '12.2'	DefSize = '143.85'	Size = '143.85'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2226'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '145.76'	Size = '145.76'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2534'	Comments = ''	></Allele>
+        <Allele 	Label = '13.1'	DefSize = '146.85'	Size = '146.85'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '234'	Comments = ''	></Allele>
+        <Allele 	Label = '13.2'	DefSize = '147.82'	Size = '147.82'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2544'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '149.79'	Size = '149.79'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2364'	Comments = ''	></Allele>
+        <Allele 	Label = '14.2'	DefSize = '151.72'	Size = '151.72'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3041'	Comments = ''	></Allele>
+        <Allele 	Label = '14.3'	DefSize = '152.85'	Size = '152.85'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '302'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '153.82'	Size = '153.82'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2166'	Comments = ''	></Allele>
+        <Allele 	Label = '15.2'	DefSize = '155.72'	Size = '155.72'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2783'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '157.69'	Size = '157.69'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2600'	Comments = ''	></Allele>
+        <Allele 	Label = '16.2'	DefSize = '159.72'	Size = '159.72'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2732'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '161.66'	Size = '161.66'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2314'	Comments = ''	></Allele>
+        <Allele 	Label = '17.2'	DefSize = '163.72'	Size = '163.72'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2409'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '165.59'	Size = '165.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '129'	Comments = ''	></Allele>
+        <Allele 	Label = '18.2'	DefSize = '167.59'	Size = '167.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2666'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '169.50'	Size = '169.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '75'	Comments = ''	></Allele>
+        <Allele 	Label = '19.2'	DefSize = '171.56'	Size = '171.56'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2316'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>TH01</MarkerTitle>
+        <DyeIndex>3</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>174.7</LowerBoundary>
+        <UpperBoundary>218.9</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '4'	DecimalStutterPer_N_L4 = '4500'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '3'	DefSize = '175.31'	Size = '175.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '136'	Comments = ''	></Allele>
+        <Allele 	Label = '4'	DefSize = '179.31'	Size = '179.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2207'	Comments = ''	></Allele>
+        <Allele 	Label = '5'	DefSize = '183.31'	Size = '183.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2366'	Comments = ''	></Allele>
+        <Allele 	Label = '5.3'	DefSize = '186.31'	Size = '186.31'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '29'	Comments = ''	></Allele>
+        <Allele 	Label = '6'	DefSize = '187.31'	Size = '187.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2364'	Comments = ''	></Allele>
+        <Allele 	Label = '6.3'	DefSize = '190.31'	Size = '190.31'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '42'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '191.31'	Size = '191.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2232'	Comments = ''	></Allele>
+        <Allele 	Label = '7.3'	DefSize = '194.31'	Size = '194.31'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '46'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '195.31'	Size = '195.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2303'	Comments = ''	></Allele>
+        <Allele 	Label = '8.3'	DefSize = '198.31'	Size = '198.31'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '102'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '199.31'	Size = '199.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2461'	Comments = ''	></Allele>
+        <Allele 	Label = '9.3'	DefSize = '202.31'	Size = '202.31'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1985'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '203.31'	Size = '203.31'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2333'	Comments = ''	></Allele>
+        <Allele 	Label = '10.3'	DefSize = '206.31'	Size = '206.31'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '65'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '207.31'	Size = '207.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2640'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '211.31'	Size = '211.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '31'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '215.31'	Size = '215.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '7'	Comments = ''	></Allele>
+        <Allele 	Label = '13.3'	DefSize = '218.31'	Size = '218.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2429'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>FGA</MarkerTitle>
+        <DyeIndex>3</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>221.5</LowerBoundary>
+        <UpperBoundary>379.4</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '11'	DecimalStutterPer_N_L4 = '5500'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '12.2'	DefSize = '222.09'	Size = '222.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '41'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '224.09'	Size = '224.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1205'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '228.09'	Size = '228.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1298'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '232.09'	Size = '232.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1330'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '236.09'	Size = '236.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1558'	Comments = ''	></Allele>
+        <Allele 	Label = '16.1'	DefSize = '237.09'	Size = '237.09'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '36'	Comments = ''	></Allele>
+        <Allele 	Label = '16.2'	DefSize = '238.09'	Size = '238.09'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '17'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '240.09'	Size = '240.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1776'	Comments = ''	></Allele>
+        <Allele 	Label = '17.2'	DefSize = '242.09'	Size = '242.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '26'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '244.09'	Size = '244.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2315'	Comments = ''	></Allele>
+        <Allele 	Label = '18.2'	DefSize = '246.09'	Size = '246.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '14'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '248.09'	Size = '248.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2345'	Comments = ''	></Allele>
+        <Allele 	Label = '19.2'	DefSize = '250.09'	Size = '250.09'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '65535'	Comments = ''	></Allele>
+        <Allele 	Label = '19.3'	DefSize = '251.09'	Size = '251.09'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '74'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '252.09'	Size = '252.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2365'	Comments = ''	></Allele>
+        <Allele 	Label = '20.1'	DefSize = '253.09'	Size = '253.09'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '70'	Comments = ''	></Allele>
+        <Allele 	Label = '20.2'	DefSize = '254.09'	Size = '254.09'	Left_Binning = '0.45'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1'	Comments = ''	></Allele>
+        <Allele 	Label = '20.3'	DefSize = '255.09'	Size = '255.09'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '90'	Comments = ''	></Allele>
+        <Allele 	Label = '21'	DefSize = '256.09'	Size = '256.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2426'	Comments = ''	></Allele>
+        <Allele 	Label = '21.2'	DefSize = '258.09'	Size = '258.09'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '65534'	Comments = ''	></Allele>
+        <Allele 	Label = '21.3'	DefSize = '259.09'	Size = '259.09'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '93'	Comments = ''	></Allele>
+        <Allele 	Label = '22'	DefSize = '260.09'	Size = '260.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2180'	Comments = ''	></Allele>
+        <Allele 	Label = '22.1'	DefSize = '261.09'	Size = '261.09'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '27'	Comments = ''	></Allele>
+        <Allele 	Label = '22.2'	DefSize = '262.09'	Size = '262.09'	Left_Binning = '0.45'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '17'	Comments = ''	></Allele>
+        <Allele 	Label = '22.3'	DefSize = '263.09'	Size = '263.09'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '117'	Comments = ''	></Allele>
+        <Allele 	Label = '23'	DefSize = '264.09'	Size = '264.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2169'	Comments = ''	></Allele>
+        <Allele 	Label = '23.1'	DefSize = '265.09'	Size = '265.09'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '34'	Comments = ''	></Allele>
+        <Allele 	Label = '23.2'	DefSize = '266.09'	Size = '266.09'	Left_Binning = '0.45'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '25'	Comments = ''	></Allele>
+        <Allele 	Label = '23.3'	DefSize = '267.09'	Size = '267.09'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '156'	Comments = ''	></Allele>
+        <Allele 	Label = '24'	DefSize = '268.09'	Size = '268.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2432'	Comments = ''	></Allele>
+        <Allele 	Label = '24.1'	DefSize = '269.19'	Size = '269.19'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '7'	Comments = ''	></Allele>
+        <Allele 	Label = '24.2'	DefSize = '270.22'	Size = '270.22'	Left_Binning = '0.45'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '39'	Comments = ''	></Allele>
+        <Allele 	Label = '24.3'	DefSize = '271.19'	Size = '271.19'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '175'	Comments = ''	></Allele>
+        <Allele 	Label = '25'	DefSize = '272.28'	Size = '272.28'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1543'	Comments = ''	></Allele>
+        <Allele 	Label = '25.1'	DefSize = '273.32'	Size = '273.32'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '54'	Comments = ''	></Allele>
+        <Allele 	Label = '25.2'	DefSize = '274.28'	Size = '274.28'	Left_Binning = '0.45'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '299'	Comments = ''	></Allele>
+        <Allele 	Label = '25.3'	DefSize = '275.22'	Size = '275.22'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '205'	Comments = ''	></Allele>
+        <Allele 	Label = '26'	DefSize = '276.25'	Size = '276.25'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1806'	Comments = ''	></Allele>
+        <Allele 	Label = '26.1'	DefSize = '277.28'	Size = '277.28'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '306'	Comments = ''	></Allele>
+        <Allele 	Label = '26.2'	DefSize = '278.38'	Size = '278.38'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1499'	Comments = ''	></Allele>
+        <Allele 	Label = '27'	DefSize = '280.25'	Size = '280.25'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1817'	Comments = ''	></Allele>
+        <Allele 	Label = '27.2'	DefSize = '282.09'	Size = '282.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '89'	Comments = ''	></Allele>
+        <Allele 	Label = '28'	DefSize = '284.22'	Size = '284.22'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2190'	Comments = ''	></Allele>
+        <Allele 	Label = '28.2'	DefSize = '286.19'	Size = '286.19'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '44'	Comments = ''	></Allele>
+        <Allele 	Label = '29'	DefSize = '288.22'	Size = '288.22'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2136'	Comments = ''	></Allele>
+        <Allele 	Label = '29.2'	DefSize = '290.09'	Size = '290.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '348'	Comments = ''	></Allele>
+        <Allele 	Label = '30'	DefSize = '292.28'	Size = '292.28'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1772'	Comments = ''	></Allele>
+        <Allele 	Label = '30.2'	DefSize = '294.09'	Size = '294.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1729'	Comments = ''	></Allele>
+        <Allele 	Label = '31'	DefSize = '296.09'	Size = '296.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '86'	Comments = ''	></Allele>
+        <Allele 	Label = '31.2'	DefSize = '298.02'	Size = '298.02'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2037'	Comments = ''	></Allele>
+        <Allele 	Label = '32'	DefSize = '300.09'	Size = '300.09'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '35'	Comments = ''	></Allele>
+        <Allele 	Label = '32.2'	DefSize = '301.90'	Size = '301.90'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1992'	Comments = ''	></Allele>
+        <Allele 	Label = '33.2'	DefSize = '305.83'	Size = '305.83'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2210'	Comments = ''	></Allele>
+        <Allele 	Label = '34.2'	DefSize = '309.86'	Size = '309.86'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '81'	Comments = ''	></Allele>
+        <Allele 	Label = '41.2'	DefSize = '338.59'	Size = '338.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '351'	Comments = ''	></Allele>
+        <Allele 	Label = '42.2'	DefSize = '342.59'	Size = '342.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2520'	Comments = ''	></Allele>
+        <Allele 	Label = '43.2'	DefSize = '346.59'	Size = '346.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2445'	Comments = ''	></Allele>
+        <Allele 	Label = '44.2'	DefSize = '350.72'	Size = '350.72'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2563'	Comments = ''	></Allele>
+        <Allele 	Label = '45.2'	DefSize = '354.85'	Size = '354.85'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2220'	Comments = ''	></Allele>
+        <Allele 	Label = '46.2'	DefSize = '358.75'	Size = '358.75'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2382'	Comments = ''	></Allele>
+        <Allele 	Label = '47.2'	DefSize = '362.85'	Size = '362.85'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2078'	Comments = ''	></Allele>
+        <Allele 	Label = '48.2'	DefSize = '366.85'	Size = '366.85'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2152'	Comments = ''	></Allele>
+        <Allele 	Label = '49.2'	DefSize = '370.88'	Size = '370.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '672'	Comments = ''	></Allele>
+        <Allele 	Label = '50.2'	DefSize = '374.88'	Size = '374.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2215'	Comments = ''	></Allele>
+        <Allele 	Label = '51.2'	DefSize = '378.85'	Size = '378.85'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2372'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D22S1045</MarkerTitle>
+        <DyeIndex>4</DyeIndex>
+        <n_NucleotideRepeats>3</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>84.9</LowerBoundary>
+        <UpperBoundary>124.4</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '16'	DecimalStutterPer_N_L4 = '2600'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '6'	DecimalStutterPer_N_R4 = '6900'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '7'	DefSize = '85.50'	Size = '85.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '74'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '88.50'	Size = '88.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3557'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '91.50'	Size = '91.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3265'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '94.50'	Size = '94.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2197'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '97.50'	Size = '97.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2464'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '100.50'	Size = '100.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2616'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '103.50'	Size = '103.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3039'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '106.50'	Size = '106.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3183'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '109.50'	Size = '109.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3168'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '112.50'	Size = '112.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3143'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '115.50'	Size = '115.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2566'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '118.23'	Size = '118.23'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3234'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '121.17'	Size = '121.17'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2610'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '123.83'	Size = '123.83'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '817'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D5S818</MarkerTitle>
+        <DyeIndex>4</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>133.9</LowerBoundary>
+        <UpperBoundary>188.0</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '9'	DecimalStutterPer_N_L4 = '1600'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '6'	DefSize = '134.52'	Size = '134.52'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '214'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '138.52'	Size = '138.52'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3272'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '142.52'	Size = '142.52'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3164'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '146.65'	Size = '146.65'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3333'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '150.85'	Size = '150.85'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3441'	Comments = ''	></Allele>
+        <Allele 	Label = '10.1'	DefSize = '152.04'	Size = '152.04'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '85'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '154.98'	Size = '154.98'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3415'	Comments = ''	></Allele>
+        <Allele 	Label = '11.1'	DefSize = '156.04'	Size = '156.04'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '110'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '158.98'	Size = '158.98'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3481'	Comments = ''	></Allele>
+        <Allele 	Label = '12.1'	DefSize = '160.04'	Size = '160.04'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '172'	Comments = ''	></Allele>
+        <Allele 	Label = '12.3'	DefSize = '161.78'	Size = '161.78'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '13'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '163.04'	Size = '163.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3246'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '166.98'	Size = '166.98'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3222'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '171.23'	Size = '171.23'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3400'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '175.23'	Size = '175.23'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2956'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '179.10'	Size = '179.10'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3058'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '183.30'	Size = '183.30'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3021'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '187.36'	Size = '187.36'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '328'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D13S317</MarkerTitle>
+        <DyeIndex>4</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>198.4</LowerBoundary>
+        <UpperBoundary>248.0</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '9'	DecimalStutterPer_N_L4 = '1900'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '5'	DefSize = '199.00'	Size = '199.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3463'	Comments = ''	></Allele>
+        <Allele 	Label = '6'	DefSize = '203.00'	Size = '203.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3291'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '207.00'	Size = '207.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3161'	Comments = ''	></Allele>
+        <Allele 	Label = '7.1'	DefSize = '208.00'	Size = '208.00'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '75'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '211.00'	Size = '211.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3504'	Comments = ''	></Allele>
+        <Allele 	Label = '8.1'	DefSize = '212.00'	Size = '212.00'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '93'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '215.00'	Size = '215.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3537'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '219.04'	Size = '219.04'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3384'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '223.08'	Size = '223.08'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3278'	Comments = ''	></Allele>
+        <Allele 	Label = '11.3'	DefSize = '226.08'	Size = '226.08'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '17'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '227.20'	Size = '227.20'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3282'	Comments = ''	></Allele>
+        <Allele 	Label = '12.3'	DefSize = '230.08'	Size = '230.08'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '17'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '231.12'	Size = '231.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3291'	Comments = ''	></Allele>
+        <Allele 	Label = '13.3'	DefSize = '234.12'	Size = '234.12'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '10'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '235.12'	Size = '235.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2884'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '239.24'	Size = '239.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3311'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '243.24'	Size = '243.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3061'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '247.35'	Size = '247.35'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '118'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D7S820</MarkerTitle>
+        <DyeIndex>4</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>257.9</LowerBoundary>
+        <UpperBoundary>303.1</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '8'	DecimalStutterPer_N_L4 = '3200'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '5'	DefSize = '258.48'	Size = '258.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '111'	Comments = ''	></Allele>
+        <Allele 	Label = '5.2'	DefSize = '260.48'	Size = '260.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '56'	Comments = ''	></Allele>
+        <Allele 	Label = '6'	DefSize = '262.48'	Size = '262.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3329'	Comments = ''	></Allele>
+        <Allele 	Label = '6.3'	DefSize = '265.48'	Size = '265.48'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '308'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '266.48'	Size = '266.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3169'	Comments = ''	></Allele>
+        <Allele 	Label = '7.1'	DefSize = '267.48'	Size = '267.48'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '148'	Comments = ''	></Allele>
+        <Allele 	Label = '7.3'	DefSize = '269.48'	Size = '269.48'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '339'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '270.48'	Size = '270.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3563'	Comments = ''	></Allele>
+        <Allele 	Label = '8.1'	DefSize = '271.48'	Size = '271.48'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '191'	Comments = ''	></Allele>
+        <Allele 	Label = '8.2'	DefSize = '272.48'	Size = '272.48'	Left_Binning = '0.45'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '13'	Comments = ''	></Allele>
+        <Allele 	Label = '8.3'	DefSize = '273.48'	Size = '273.48'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '310'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '274.48'	Size = '274.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3331'	Comments = ''	></Allele>
+        <Allele 	Label = '9.1'	DefSize = '275.48'	Size = '275.48'	Left_Binning = '0.40'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '185'	Comments = ''	></Allele>
+        <Allele 	Label = '9.2'	DefSize = '276.48'	Size = '276.48'	Left_Binning = '0.45'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '15'	Comments = ''	></Allele>
+        <Allele 	Label = '9.3'	DefSize = '277.48'	Size = '277.48'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '290'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '278.48'	Size = '278.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3059'	Comments = ''	></Allele>
+        <Allele 	Label = '10.1'	DefSize = '279.48'	Size = '279.48'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '191'	Comments = ''	></Allele>
+        <Allele 	Label = '10.3'	DefSize = '281.48'	Size = '281.48'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '306'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '282.48'	Size = '282.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3161'	Comments = ''	></Allele>
+        <Allele 	Label = '11.1'	DefSize = '283.48'	Size = '283.48'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '209'	Comments = ''	></Allele>
+        <Allele 	Label = '11.3'	DefSize = '285.48'	Size = '285.48'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '313'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '286.48'	Size = '286.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3122'	Comments = ''	></Allele>
+        <Allele 	Label = '12.1'	DefSize = '287.48'	Size = '287.48'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '191'	Comments = ''	></Allele>
+        <Allele 	Label = '12.3'	DefSize = '289.48'	Size = '289.48'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '346'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '290.48'	Size = '290.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3454'	Comments = ''	></Allele>
+        <Allele 	Label = '13.1'	DefSize = '291.48'	Size = '291.48'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '207'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '294.48'	Size = '294.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3285'	Comments = ''	></Allele>
+        <Allele 	Label = '14.1'	DefSize = '295.48'	Size = '295.48'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '186'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '298.48'	Size = '298.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3440'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '302.48'	Size = '302.48'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '237'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>SE33</MarkerTitle>
+        <DyeIndex>4</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>306.6</LowerBoundary>
+        <UpperBoundary>443.5</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '14'	DecimalStutterPer_N_L4 = '4900'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '4.2'	DefSize = '307.22'	Size = '307.22'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3532'	Comments = ''	></Allele>
+        <Allele 	Label = '5'	DefSize = '309.29'	Size = '309.29'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '62'	Comments = ''	></Allele>
+        <Allele 	Label = '6'	DefSize = '313.24'	Size = '313.24'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '55'	Comments = ''	></Allele>
+        <Allele 	Label = '6.3'	DefSize = '316.47'	Size = '316.47'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '4015'	Comments = ''	></Allele>
+        <Allele 	Label = '7'	DefSize = '319.14'	Size = '319.14'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '55'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '321.70'	Size = '321.70'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3486'	Comments = ''	></Allele>
+        <Allele 	Label = '8.2'	DefSize = '323.79'	Size = '323.79'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '216'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '325.81'	Size = '325.81'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3330'	Comments = ''	></Allele>
+        <Allele 	Label = '9.2'	DefSize = '327.87'	Size = '327.87'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '77'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '329.84'	Size = '329.84'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '331'	Comments = ''	></Allele>
+        <Allele 	Label = '10.2'	DefSize = '331.86'	Size = '331.86'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '197'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '333.92'	Size = '333.92'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3707'	Comments = ''	></Allele>
+        <Allele 	Label = '11.2'	DefSize = '335.95'	Size = '335.95'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '247'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '337.95'	Size = '337.95'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3709'	Comments = ''	></Allele>
+        <Allele 	Label = '12.2'	DefSize = '340.02'	Size = '340.02'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '220'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '342.03'	Size = '342.03'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3297'	Comments = ''	></Allele>
+        <Allele 	Label = '13.2'	DefSize = '344.00'	Size = '344.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '164'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '346.07'	Size = '346.07'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2990'	Comments = ''	></Allele>
+        <Allele 	Label = '14.2'	DefSize = '348.09'	Size = '348.09'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '201'	Comments = ''	></Allele>
+        <Allele 	Label = '14.3'	DefSize = '349.10'	Size = '349.10'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '14'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '350.12'	Size = '350.12'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3208'	Comments = ''	></Allele>
+        <Allele 	Label = '15.2'	DefSize = '352.15'	Size = '352.15'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '152'	Comments = ''	></Allele>
+        <Allele 	Label = '15.3'	DefSize = '353.12'	Size = '353.12'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '65530'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '354.17'	Size = '354.17'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2559'	Comments = ''	></Allele>
+        <Allele 	Label = '16.2'	DefSize = '356.21'	Size = '356.21'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '120'	Comments = ''	></Allele>
+        <Allele 	Label = '16.3'	DefSize = '357.20'	Size = '357.20'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '358.26'	Size = '358.26'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2300'	Comments = ''	></Allele>
+        <Allele 	Label = '17.2'	DefSize = '360.34'	Size = '360.34'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '145'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '362.34'	Size = '362.34'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2257'	Comments = ''	></Allele>
+        <Allele 	Label = '18.2'	DefSize = '364.33'	Size = '364.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '194'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '366.33'	Size = '366.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2874'	Comments = ''	></Allele>
+        <Allele 	Label = '19.2'	DefSize = '368.35'	Size = '368.35'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '657'	Comments = ''	></Allele>
+        <Allele 	Label = '19.3'	DefSize = '369.35'	Size = '369.35'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '49'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '370.33'	Size = '370.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2727'	Comments = ''	></Allele>
+        <Allele 	Label = '20.2'	DefSize = '372.33'	Size = '372.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3066'	Comments = ''	></Allele>
+        <Allele 	Label = '21'	DefSize = '374.39'	Size = '374.39'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2845'	Comments = ''	></Allele>
+        <Allele 	Label = '21.1'	DefSize = '375.40'	Size = '375.40'	Left_Binning = '0.40'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '306'	Comments = ''	></Allele>
+        <Allele 	Label = '21.2'	DefSize = '376.38'	Size = '376.38'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3618'	Comments = ''	></Allele>
+        <Allele 	Label = '22'	DefSize = '378.31'	Size = '378.31'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '190'	Comments = ''	></Allele>
+        <Allele 	Label = '22.2'	DefSize = '380.36'	Size = '380.36'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2957'	Comments = ''	></Allele>
+        <Allele 	Label = '23'	DefSize = '382.43'	Size = '382.43'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '116'	Comments = ''	></Allele>
+        <Allele 	Label = '23.2'	DefSize = '384.44'	Size = '384.44'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2579'	Comments = ''	></Allele>
+        <Allele 	Label = '24'	DefSize = '386.50'	Size = '386.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '113'	Comments = ''	></Allele>
+        <Allele 	Label = '24.2'	DefSize = '388.47'	Size = '388.47'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2929'	Comments = ''	></Allele>
+        <Allele 	Label = '25'	DefSize = '390.54'	Size = '390.54'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '46'	Comments = ''	></Allele>
+        <Allele 	Label = '25.2'	DefSize = '392.50'	Size = '392.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2958'	Comments = ''	></Allele>
+        <Allele 	Label = '26'	DefSize = '394.59'	Size = '394.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '168'	Comments = ''	></Allele>
+        <Allele 	Label = '26.2'	DefSize = '396.59'	Size = '396.59'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2832'	Comments = ''	></Allele>
+        <Allele 	Label = '27'	DefSize = '398.66'	Size = '398.66'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '136'	Comments = ''	></Allele>
+        <Allele 	Label = '27.2'	DefSize = '400.61'	Size = '400.61'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2788'	Comments = ''	></Allele>
+        <Allele 	Label = '28'	DefSize = '402.62'	Size = '402.62'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '133'	Comments = ''	></Allele>
+        <Allele 	Label = '28.2'	DefSize = '404.54'	Size = '404.54'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2465'	Comments = ''	></Allele>
+        <Allele 	Label = '29'	DefSize = '406.54'	Size = '406.54'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '94'	Comments = ''	></Allele>
+        <Allele 	Label = '29.2'	DefSize = '408.53'	Size = '408.53'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2515'	Comments = ''	></Allele>
+        <Allele 	Label = '30'	DefSize = '410.63'	Size = '410.63'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '153'	Comments = ''	></Allele>
+        <Allele 	Label = '30.2'	DefSize = '412.52'	Size = '412.52'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2850'	Comments = ''	></Allele>
+        <Allele 	Label = '31'	DefSize = '414.56'	Size = '414.56'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '200'	Comments = ''	></Allele>
+        <Allele 	Label = '31.2'	DefSize = '416.54'	Size = '416.54'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3287'	Comments = ''	></Allele>
+        <Allele 	Label = '32'	DefSize = '418.64'	Size = '418.64'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '166'	Comments = ''	></Allele>
+        <Allele 	Label = '32.2'	DefSize = '420.69'	Size = '420.69'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2768'	Comments = ''	></Allele>
+        <Allele 	Label = '33'	DefSize = '422.81'	Size = '422.81'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '282'	Comments = ''	></Allele>
+        <Allele 	Label = '33.2'	DefSize = '424.71'	Size = '424.71'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2708'	Comments = ''	></Allele>
+        <Allele 	Label = '34'	DefSize = '426.75'	Size = '426.75'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '843'	Comments = ''	></Allele>
+        <Allele 	Label = '34.2'	DefSize = '428.80'	Size = '428.80'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3332'	Comments = ''	></Allele>
+        <Allele 	Label = '35'	DefSize = '430.85'	Size = '430.85'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3361'	Comments = ''	></Allele>
+        <Allele 	Label = '35.2'	DefSize = '432.89'	Size = '432.89'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3514'	Comments = ''	></Allele>
+        <Allele 	Label = '36'	DefSize = '434.86'	Size = '434.86'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3460'	Comments = ''	></Allele>
+        <Allele 	Label = '36.2'	DefSize = '436.89'	Size = '436.89'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '383'	Comments = ''	></Allele>
+        <Allele 	Label = '37'	DefSize = '438.81'	Size = '438.81'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3070'	Comments = ''	></Allele>
+        <Allele 	Label = '37.2'	DefSize = '440.90'	Size = '440.90'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '35'	Comments = ''	></Allele>
+        <Allele 	Label = '38'	DefSize = '442.92'	Size = '442.92'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '85'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D10S1248</MarkerTitle>
+        <DyeIndex>6</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>80.8</LowerBoundary>
+        <UpperBoundary>130.3</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '11'	DecimalStutterPer_N_L4 = '4600'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '7'	DefSize = '81.41'	Size = '81.41'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '170'	Comments = ''	></Allele>
+        <Allele 	Label = '8'	DefSize = '85.45'	Size = '85.45'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3162'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '89.64'	Size = '89.64'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2511'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '93.60'	Size = '93.60'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2897'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '97.88'	Size = '97.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1751'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '101.88'	Size = '101.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2241'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '105.88'	Size = '105.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2765'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '109.88'	Size = '109.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2893'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '113.88'	Size = '113.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2843'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '117.88'	Size = '117.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2559'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '121.88'	Size = '121.88'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1850'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '125.80'	Size = '125.80'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '1918'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '129.72'	Size = '129.72'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2011'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D1S1656</MarkerTitle>
+        <DyeIndex>6</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>155.4</LowerBoundary>
+        <UpperBoundary>209.0</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '12'	DecimalStutterPer_N_L4 = '2100'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '8'	DefSize = '156.00'	Size = '156.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '230'	Comments = ''	></Allele>
+        <Allele 	Label = '9'	DefSize = '160.00'	Size = '160.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3136'	Comments = ''	></Allele>
+        <Allele 	Label = '10'	DefSize = '164.00'	Size = '164.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3210'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '168.00'	Size = '168.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2849'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '172.00'	Size = '172.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2930'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '176.00'	Size = '176.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3350'	Comments = ''	></Allele>
+        <Allele 	Label = '13.3'	DefSize = '179.00'	Size = '179.00'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '216'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '180.00'	Size = '180.00'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2872'	Comments = ''	></Allele>
+        <Allele 	Label = '14.3'	DefSize = '183.00'	Size = '183.00'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2313'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '184.00'	Size = '184.00'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3424'	Comments = ''	></Allele>
+        <Allele 	Label = '15.3'	DefSize = '187.23'	Size = '187.23'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3225'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '188.13'	Size = '188.13'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3581'	Comments = ''	></Allele>
+        <Allele 	Label = '16.3'	DefSize = '191.26'	Size = '191.26'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3162'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '192.17'	Size = '192.17'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3013'	Comments = ''	></Allele>
+        <Allele 	Label = '17.1'	DefSize = '194.30'	Size = '194.30'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '132'	Comments = ''	></Allele>
+        <Allele 	Label = '17.3'	DefSize = '195.36'	Size = '195.36'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3252'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '196.46'	Size = '196.46'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '155'	Comments = ''	></Allele>
+        <Allele 	Label = '18.3'	DefSize = '199.43'	Size = '199.43'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3497'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '200.40'	Size = '200.40'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '120'	Comments = ''	></Allele>
+        <Allele 	Label = '19.3'	DefSize = '203.33'	Size = '203.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3531'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '204.33'	Size = '204.33'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '134'	Comments = ''	></Allele>
+        <Allele 	Label = '20.3'	DefSize = '207.33'	Size = '207.33'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2905'	Comments = ''	></Allele>
+        <Allele 	Label = '21'	DefSize = '208.40'	Size = '208.40'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '89'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D12S391</MarkerTitle>
+        <DyeIndex>6</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>211.9</LowerBoundary>
+        <UpperBoundary>268.9</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '13'	DecimalStutterPer_N_L4 = '6600'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '13'	DefSize = '212.50'	Size = '212.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '223'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '216.43'	Size = '216.43'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3237'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '220.50'	Size = '220.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3507'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '224.50'	Size = '224.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3139'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '228.43'	Size = '228.43'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3222'	Comments = ''	></Allele>
+        <Allele 	Label = '17.1'	DefSize = '229.47'	Size = '229.47'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '74'	Comments = ''	></Allele>
+        <Allele 	Label = '17.3'	DefSize = '231.50'	Size = '231.50'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '139'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '232.46'	Size = '232.46'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2936'	Comments = ''	></Allele>
+        <Allele 	Label = '18.1'	DefSize = '233.44'	Size = '233.44'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '100'	Comments = ''	></Allele>
+        <Allele 	Label = '18.3'	DefSize = '235.36'	Size = '235.36'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '459'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '236.35'	Size = '236.35'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2957'	Comments = ''	></Allele>
+        <Allele 	Label = '19.1'	DefSize = '237.37'	Size = '237.37'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '95'	Comments = ''	></Allele>
+        <Allele 	Label = '19.3'	DefSize = '239.37'	Size = '239.37'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3326'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '240.37'	Size = '240.37'	Left_Binning = '0.45'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3218'	Comments = ''	></Allele>
+        <Allele 	Label = '20.1'	DefSize = '241.35'	Size = '241.35'	Left_Binning = '0.40'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '138'	Comments = ''	></Allele>
+        <Allele 	Label = '20.3'	DefSize = '243.50'	Size = '243.50'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '223'	Comments = ''	></Allele>
+        <Allele 	Label = '21'	DefSize = '244.46'	Size = '244.46'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3194'	Comments = ''	></Allele>
+        <Allele 	Label = '22'	DefSize = '248.37'	Size = '248.37'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3293'	Comments = ''	></Allele>
+        <Allele 	Label = '23'	DefSize = '252.35'	Size = '252.35'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3246'	Comments = ''	></Allele>
+        <Allele 	Label = '24'	DefSize = '256.36'	Size = '256.36'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2734'	Comments = ''	></Allele>
+        <Allele 	Label = '24.3'	DefSize = '259.44'	Size = '259.44'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '93'	Comments = ''	></Allele>
+        <Allele 	Label = '25'	DefSize = '260.36'	Size = '260.36'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2084'	Comments = ''	></Allele>
+        <Allele 	Label = '26'	DefSize = '264.22'	Size = '264.22'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2021'	Comments = ''	></Allele>
+        <Allele 	Label = '27'	DefSize = '268.35'	Size = '268.35'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2249'	Comments = ''	></Allele>
+        </Locus>
+        <Locus>
+        <MarkerTitle>D2S1338</MarkerTitle>
+        <DyeIndex>6</DyeIndex>
+        <n_NucleotideRepeats>4</n_NucleotideRepeats>
+        <Enabled>1</Enabled>
+        <LowerBoundary>277.1</LowerBoundary>
+        <UpperBoundary>354.1</UpperBoundary>
+        <MarkerComments></MarkerComments>
+        <LocusFilter 	MinIntensity = '100'	HomoInconclusive = '200'	MinHeteroIntensity = '100'	HeteroInconclusive = '200'	LocalPercent = '20'	DecimalLocalPercent = '0'	StutterPer_N_L4 = '11'	DecimalStutterPer_N_L4 = '7300'	StutterPer_N_L8 = '1'	DecimalStutterPer_N_L8 = '0'	StutterPer_N_R4 = '1'	DecimalStutterPer_N_R4 = '0'	HetroImbalancePer = '60'	DecimalHetroImbalancePer = '0'	></LocusFilter>
+        <Allele 	Label = '10'	DefSize = '277.65'	Size = '277.65'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '142'	Comments = ''	></Allele>
+        <Allele 	Label = '11'	DefSize = '281.61'	Size = '281.61'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2760'	Comments = ''	></Allele>
+        <Allele 	Label = '12'	DefSize = '285.61'	Size = '285.61'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2850'	Comments = ''	></Allele>
+        <Allele 	Label = '13'	DefSize = '289.50'	Size = '289.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3002'	Comments = ''	></Allele>
+        <Allele 	Label = '14'	DefSize = '293.50'	Size = '293.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2763'	Comments = ''	></Allele>
+        <Allele 	Label = '15'	DefSize = '297.32'	Size = '297.32'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2916'	Comments = ''	></Allele>
+        <Allele 	Label = '16'	DefSize = '301.26'	Size = '301.26'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2264'	Comments = ''	></Allele>
+        <Allele 	Label = '17'	DefSize = '305.14'	Size = '305.14'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2939'	Comments = ''	></Allele>
+        <Allele 	Label = '18'	DefSize = '309.08'	Size = '309.08'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2860'	Comments = ''	></Allele>
+        <Allele 	Label = '18.3'	DefSize = '312.19'	Size = '312.19'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '265'	Comments = ''	></Allele>
+        <Allele 	Label = '19'	DefSize = '313.14'	Size = '313.14'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2858'	Comments = ''	></Allele>
+        <Allele 	Label = '19.3'	DefSize = '316.32'	Size = '316.32'	Left_Binning = '0.50'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '212'	Comments = ''	></Allele>
+        <Allele 	Label = '20'	DefSize = '317.26'	Size = '317.26'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2676'	Comments = ''	></Allele>
+        <Allele 	Label = '21'	DefSize = '321.50'	Size = '321.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2745'	Comments = ''	></Allele>
+        <Allele 	Label = '22'	DefSize = '325.50'	Size = '325.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3010'	Comments = ''	></Allele>
+        <Allele 	Label = '23'	DefSize = '329.50'	Size = '329.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3105'	Comments = ''	></Allele>
+        <Allele 	Label = '23.2'	DefSize = '331.50'	Size = '331.50'	Left_Binning = '0.50'	Right_Binning = '0.45'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '67'	Comments = ''	></Allele>
+        <Allele 	Label = '23.3'	DefSize = '332.50'	Size = '332.50'	Left_Binning = '0.45'	Right_Binning = '0.40'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '121'	Comments = ''	></Allele>
+        <Allele 	Label = '24'	DefSize = '333.50'	Size = '333.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3067'	Comments = ''	></Allele>
+        <Allele 	Label = '24.2'	DefSize = '335.50'	Size = '335.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '63'	Comments = ''	></Allele>
+        <Allele 	Label = '25'	DefSize = '337.50'	Size = '337.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2973'	Comments = ''	></Allele>
+        <Allele 	Label = '26'	DefSize = '341.50'	Size = '341.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2981'	Comments = ''	></Allele>
+        <Allele 	Label = '27'	DefSize = '345.64'	Size = '345.64'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '2931'	Comments = ''	></Allele>
+        <Allele 	Label = '28'	DefSize = '349.82'	Size = '349.82'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '1'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '3068'	Comments = ''	></Allele>
+        <Allele 	Label = '29'	DefSize = '353.50'	Size = '353.50'	Left_Binning = '0.50'	Right_Binning = '0.50'	Control = '0'	Distance = '0.00'	Chrom_Pos = ''	Recom_Freq = '-1.00'	Height = '60'	Comments = ''	></Allele>
+        </Locus>
+    </Loci>
+</Panel> 
