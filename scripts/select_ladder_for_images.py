@@ -50,7 +50,7 @@ def get_best_ladder_path(image: HIDImage, default_panel: Panel) -> Optional[str]
         for marker in image.meta['called_alleles']:
             for allele in marker.alleles:
                 # for every annotated peak, find the allele bin in terms of base pairs
-                _, bp_left, bp_right = ladder._panel.get_allele_info(marker.name, allele.name)
+                _, bp_left, bp_right = ladder._panel.get_allele_basepair_and_bins(marker.name, allele.name)
                 # translate base pairs to pixels using the image's scaler
                 pix_left, pix_right = basepair_to_pixel(image.scaler, bp_left), \
                                       basepair_to_pixel(image.scaler, bp_right)

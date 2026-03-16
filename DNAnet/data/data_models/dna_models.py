@@ -27,10 +27,10 @@ class Allele:
     :param height: peak height in RFU
     """
     name: str
-    base_pair: float = None
-    left_bin: float = None
-    right_bin: float = None
-    height: float = None
+    base_pair: float | None = None
+    left_bin: float | None = None
+    right_bin: float | None = None
+    height: float | None = None
 
     @property
     def bin(self) -> np.ndarray:
@@ -129,7 +129,7 @@ class Panel:
             raise ValueError("Cannot instantiate Panel object, since panel path nor panel contents "
                              "are provided.")
 
-    def get_allele_info(self, marker_name: str, allele_name: str) \
+    def get_allele_basepair_and_bins(self, marker_name: str, allele_name: str) \
             -> Tuple[float, float, float]:
         """
         Retrieve allele information for a given allele name and
@@ -150,7 +150,7 @@ class Panel:
         # could be rare allele. see if we can find the base (e.g. 21 for 21.1)
         if '.' in allele_name and len(allele_name.split('.')) == 2:
             base_allele, extra_base_pairs = allele_name.split('.')
-            mid, left, right = self.get_allele_info(marker_name, base_allele)
+            mid, left, right = self.get_allele_basepair_and_bins(marker_name, base_allele)
             return (mid + int(extra_base_pairs),
                     left + int(extra_base_pairs),
                     right + int(extra_base_pairs))
