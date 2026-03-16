@@ -41,6 +41,19 @@ for the data, and
 ```
 for the code and model.
 
+For work related to the Data synthethization please cite the following:
+```
+@ARTICLE{Taylor2025,
+    title = {Simulating realistic short tandem repeat capillary electrophoretic signal using a generative adversarial network},
+    journal = {Expert Systems with Applications},
+    volume = {280},
+    pages = {127536},
+    year = {2025},
+    doi = {https://doi.org/10.1016/j.eswa.2025.127536},
+    author = {D. A. Taylor and M. Humphries}
+}
+```
+
 ## Requirements
 Python >= 3.10, <=3.12
 
