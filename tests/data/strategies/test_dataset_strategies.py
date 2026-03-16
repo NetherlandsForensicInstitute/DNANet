@@ -34,6 +34,15 @@ def test_collect_nfi_rnd_files(ppf6c_kit):
     assert collected_files[0][1] == '1L_11148_1A2'
     assert Path(collected_files[0][2]).stem == 'Ladder_G03_21'
 
+def test_collect_provedit_files(globalfiler_kit):
+    collected_files = ProvedItDatasetStrategy.collect_dataset_files(
+        pytest.RESOURCES_DIR / 'profiles/RD'
+    )
+    collected_files = list(
+        set(collected_files)
+    )  # Use a set to prevent ordering issues with the assert
+
+
 
 @pytest.mark.parametrize(
     'read_annotation_heights, first_marker',

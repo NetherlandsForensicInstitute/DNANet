@@ -27,10 +27,10 @@ class Allele:
     :param height: peak height in RFU
     """
     name: str
-    base_pair: float = None
-    left_bin: float = None
-    right_bin: float = None
-    height: float = None
+    base_pair: float | None = None
+    left_bin: float | None = None
+    right_bin: float | None = None
+    height: float | None = None
 
     @property
     def bin(self) -> np.ndarray:

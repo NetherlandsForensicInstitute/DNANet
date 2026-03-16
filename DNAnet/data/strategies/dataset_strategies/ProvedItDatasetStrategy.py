@@ -92,5 +92,5 @@ class ProvedItDatasetStrategy(DatasetStrategy):
     @classmethod
     def create_annotation_for_sample(cls, annotation_mapping: Dict[str, List[Marker]], sample_name: str) -> AlleleAnnotation:
         sample_ids = cls.get_contributors(sample_name)
-        sample_markers = [annotation_mapping.get(sample) for sample in sample_ids]
-        return AlleleAnnotation(annotation=sample_markers)
+        sample_markers = [annotation_mapping[sample] for sample in sample_ids]
+        return AlleleAnnotation(annotation=sample_markers) # type: ignore

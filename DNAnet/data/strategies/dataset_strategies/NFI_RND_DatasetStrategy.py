@@ -75,12 +75,8 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             if hid_file_category != 'sample':
                 logger.debug(f'Skipping HID file (not a sample): {hid_file}')
                 continue
-            hid_file_annotation = hid_to_annotation.get(
-                hid_file.name
-            )  # The annotation mapping uses the .hid
-            hid_file_ladder = hid_to_ladder.get(
-                hid_file.stem
-            )  # The ladder mapping uses without .hid
+            hid_file_annotation = hid_to_annotation[hid_file.name]  # The annotation mapping uses the .hid
+            hid_file_ladder = hid_to_ladder[hid_file.stem]  # The ladder mapping uses without .hid
             samples.append((str(hid_file), hid_file_annotation, hid_file_ladder))
 
         return samples
@@ -163,6 +159,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
                     marker_name = result[1]
                     dye_row = kit.panel.get_dye_row(marker_name)
                     if dye_row is not None:  # may be missing, e.g. Y-profile
+                        allele_heights: None | List[float] = None
                         allele_names, allele_heights = map(
                             list,
                             zip(
