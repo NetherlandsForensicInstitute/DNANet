@@ -21,7 +21,7 @@ class ProvedItDatasetStrategy(DatasetStrategy):
     @classmethod
     def collect_dataset_files(
         cls, path: str | Path, **kwargs
-    ) -> Tuple[List[Path], Mapping, Mapping]:
+    ) -> List[Tuple[Path, AlleleAnnotation | None, Path | None]]:
         """Collect all needed dataset files and mappings.
 
         Args:
@@ -50,7 +50,14 @@ class ProvedItDatasetStrategy(DatasetStrategy):
             hid_file_mapping['sample'], hid_file_mapping['ladder']
         )
 
-        return list(hid_file_mapping['sample']), annotation_mapping, ladder_mapping
+        return [
+            (
+                hid_file,
+                cls.create_annotation_for_sample(annotation_mapping, hid_file.stem),
+                ladder_mapping[hid_file.stem]
+            )
+            for hid_file in hid_file_mapping["sample"]
+        ]
 
     @classmethod
     def _find_genotypes_file(cls, path: Path) -> Path:

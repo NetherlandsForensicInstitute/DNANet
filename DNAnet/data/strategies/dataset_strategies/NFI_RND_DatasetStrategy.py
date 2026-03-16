@@ -38,7 +38,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
     @classmethod
     def collect_dataset_files(
         cls, path: str | Path, **kwargs
-    ) -> Tuple[List[Path], Mapping, Mapping]:
+    ) -> List[Tuple[Path, AlleleAnnotation | None, Path | None]]:
         """Collect the dataset files for this dataset with annotation and label mapping.
 
         Args:
@@ -60,7 +60,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
         hid_to_ladder_pattern = r'.*best_ladder_paths.*'
         hid_to_ladder_path = None
 
-        analysis_treshold_type: str = kwargs.get('analysis_treshold_type', 'DTL')
+        analysis_treshold_type: str = kwargs.get('analysis_treshold_type', 'DTH')
 
         for csv_file in csv_files:
             if re.match(hid_to_annotation_file_pattern, csv_file.name):
@@ -71,7 +71,17 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             raise ValueError(
                 'Path does not contain the neccessary mapping files (annotation & ladder)'
             )
-        # Hid to Annotation mapping
+            
+        # Allele Report for Annotations
+        annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
+        annotation_mapping = {}
+        for txt_file in annotation_txt_files:
+            _annotation = cls.parse_annotation_file(txt_file)
+            
+            if _annotation:
+                annotation_mapping.update(_annotation)
+        
+        # HID to Annotation mapping
         hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
         analysis_treshold_type_column = [
             i for i, head in enumerate(hta_header) if analysis_treshold_type in head
@@ -80,19 +90,11 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             raise RuntimeError(
                 f'Could not infer the analysis treshold type column for annotation mapping: {hta_header}'
             )
+        hid_to_annotation_sample = dict([
+            (v[0].replace('.hid', ''), annotation_mapping.get(v[analysis_treshold_type_column[0]]))
+            for v in hta_values
+        ])
 
-        annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
-        annotation_mapping = {}
-        for txt_file in annotation_txt_files:
-            _annotation = cls.parse_annotation_file(txt_file)
-            if _annotation:
-                annotation_mapping.update(_annotation)
-
-        hid_to_annotation = {
-            col[0].replace('.hid', ''): annotation_mapping[col[analysis_treshold_type_column[0]]]
-            for col in hta_values
-            if col[0] != ''
-        }
 
         # Hid to Ladder mapping
         _, htl_values = cls._read_csv_file(hid_to_ladder_path)
@@ -100,8 +102,15 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
 
         hid_files = list(path.rglob('*.hid'))
         hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == 'sample', hid_files))
-
-        return hid_file_samples, hid_to_annotation, hid_to_ladder
+        
+        return [
+            (
+                hid_file,
+                cls.create_annotation_for_sample(hid_to_annotation_sample, hid_file.stem),
+                hid_to_ladder.get(hid_file.stem)
+            )
+            for hid_file in hid_file_samples
+        ]
 
     @classmethod
     def _read_csv_file(cls, csv_file: str | Path) -> Tuple[List[str], List[List[str]]]:

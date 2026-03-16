@@ -20,7 +20,7 @@ class DatasetStrategy(ABC):
     @abstractmethod
     def collect_dataset_files(
         cls, path: str | Path, **kwargs
-    ) -> Tuple[List[Path], Mapping, Mapping]:
+    ) -> List[Tuple[Path, AlleleAnnotation | None, Path | None]]:
         raise NotImplementedError
 
     @classmethod
