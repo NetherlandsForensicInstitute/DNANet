@@ -56,6 +56,7 @@ class HIDImage(Image):
                  include_size_standard: bool = False,
                  annotation: Optional[Annotation] = None,
                  use_cache: bool = True,
+                 data_loading_strategy: str = 'superior',
                  meta: MutableMapping[str, Any] = None):
 
         self.path = path if isinstance(path, Path) else Path(path)
@@ -69,6 +70,7 @@ class HIDImage(Image):
         self._scaler: Optional[np.ndarray] = None
         self.use_ground_truth_as_annotations = use_ground_truth_as_annotations
         self._panel = panel
+        self.data_loading_strategy = data_loading_strategy
         self.dataset_strategy = dataset_strategy
         self.scaling_strategy = scaling_strategy
         self.kit = kit
@@ -105,10 +107,10 @@ class HIDImage(Image):
             raise FileNotFoundError(str(self.path))
 
         # Parse the raw hid image into a numpy array.
-        profile = get_peak_data(self.path)
+        profile = get_peak_data(self.path, self.data_loading_strategy)
         if profile is None:
             return None
-        
+
 
         size_standard_dye_lane = np.array(profile[-1])
         try:
@@ -123,7 +125,7 @@ class HIDImage(Image):
             self.include_size_standard,
         )
         self._scaler = ss.scaler
-        
+
 
         called_alleles = None
         # Determine the called alleles from the annotations file
@@ -191,7 +193,7 @@ class HIDImage(Image):
             # to avoid missing the scaler when we have not yet read the file.
             self._read()
         return self._scaler[np.newaxis, :]
-    
+
 
     @staticmethod
     def _rescale_profile(
@@ -216,7 +218,7 @@ class HIDImage(Image):
     @classmethod
     def _get_segmentation(
         cls,
-        scaler, 
+        scaler,
         called_alleles: Sequence[Marker],
         shape: Tuple[int, ...]
     ) -> np.ndarray:
@@ -283,7 +285,7 @@ class HIDImage(Image):
 
     def __repr__(self):
         return f"HIDImage({self.path.name})"
-    
+
 
 class Ladder(HIDImage):
     """
