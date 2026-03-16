@@ -18,7 +18,6 @@ from DNAnet.data.data_models.hid_image import HIDImage, Ladder
 from DNAnet.data.data_models.structs import AlleleAnnotation, ScanpointAnnotation
 from DNAnet.data.strategies.dataset_strategies import DatasetStrategy
 from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy
-from DNAnet.data.strategies.kit_strategies.str_kit import STRKit
 from DNAnet.data.strategies.sample_validation_strategy import SampleValidationStrategy
 from DNAnet.data.split import split_data_in_k_folds
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
@@ -56,6 +55,10 @@ class HIDDataset(InMemoryDataset):
         `DTH` (high) or `DTL` (low).
     :param ground_truth_as_annotations: whether to load the ground truth donor alleles as
         annotations.
+    :param include_size_standard: whether to include the size standard in the HIDImage.
+    :param data_loading_strategy: the strategy to load the data, either "raw", "analyzed" or "superior".
+        "raw" means loading the raw data, "analyzed" means loading the analyzed data,
+        and "superior" means loading the raw data and applying baseline subtraction
     :param group_replicas_in_split: whether to put measurements from the same profile (replicas)
     in the same set when splitting, and balance the number of profiles per noc, if false all
     replicas will be mixed.
@@ -75,6 +78,8 @@ class HIDDataset(InMemoryDataset):
                  skip_if_invalid_ladder: Optional[bool] = False,
                  analysis_threshold_type: Optional[str] = 'DTL',
                  ground_truth_as_annotations: Optional[bool] = False,
+                 include_size_standard: bool = False,
+                 data_loading_strategy: str = "superior",
                  group_replicas_in_split: Optional[bool] = False,
                  dataset_strategy: Optional[DatasetStrategy] = None,
                  scaling_strategy: Optional[ScalingStrategy] = None,
@@ -87,6 +92,8 @@ class HIDDataset(InMemoryDataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.adjustment_of_annotations = adjustment_of_annotations
         self.ground_truth_as_annotations = ground_truth_as_annotations
+        self.include_size_standard = include_size_standard
+        self.data_loading_strategy = data_loading_strategy
         self.group_replicas_in_split = group_replicas_in_split
         self.dataset_strategy = dataset_strategy
         self.scaling_strategy = scaling_strategy
@@ -103,7 +110,7 @@ class HIDDataset(InMemoryDataset):
                 if panel is None:
                     raise ValueError("Need panel when loading ground truth annotations")
                 self._panel = Panel(panel_path=panel)
-            self._data = _load_cached_hf_data(cache_path, limit)
+            self._data = _load_cached_hf_data(cache_path, limit, include_size_standard)
         # Otherwise, read data and cache (optional)
         else:
             LOGGER.info(f"Loading raw data from {self.root}")
@@ -146,7 +153,7 @@ class HIDDataset(InMemoryDataset):
 
             if self.cache_path:
                 LOGGER.info(f"Writing data to arrow cache: {self.cache_path}")
-                write_to_hf_cache(self.cache_path, self._data)
+                write_to_hf_cache(self.cache_path, self._data, include_size_standard)
 
         if self.ground_truth_as_annotations:
             LOGGER.info("Loading ground truth annotations")
@@ -372,6 +379,8 @@ class HIDDataset(InMemoryDataset):
                     path=path,
                     annotations_file=annotation_file,
                     panel=panel,
+                    include_size_standard=self.include_size_standard,
+                    data_loading_strategy=self.data_loading_strategy,
                     kit=self.kit,
                     dataset_strategy=self.dataset_strategy,
                     scaling_strategy=self.scaling_strategy,

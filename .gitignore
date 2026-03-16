@@ -175,9 +175,6 @@ mlruns/
 figures/
 .ruff_cache
 
-# Ignore all files that are on HF
-resources/data/
-
 
 # Synthetic data
 generated/

@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple, Union, Callable
 
 import numpy as np
 import scipy
@@ -136,8 +136,4 @@ def find_peak_idx_near_or_in_range(array: np.ndarray, index_range: np.ndarray,
             peak_idx = peak_idx[np.argmax(peak_heights), np.newaxis]
     # return only peak index if the peak is above threshold
     return peak_idx if peak_idx.size > 0 and array[peak_idx] >= threshold else np.array([])
-
-
-
-
 
