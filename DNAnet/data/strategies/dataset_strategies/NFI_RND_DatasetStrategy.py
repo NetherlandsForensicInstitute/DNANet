@@ -1,30 +1,30 @@
-from collections import defaultdict
-from DNAnet.data.data_models.dna_models import Allele, Marker
-from DNAnet.data.data_models.structs import AlleleAnnotation
-from DNAnet.data.parsing.parse_annotations import _parse_csv_header
-from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
-    DatasetStrategy,
-    FileCategory,
-)
-from DNAnet.data.strategies.strategy_registry import StrategyRegistry
-from DNAnet.utils import (
-    get_prefix_from_filename,
-    is_rd_hid_filename,
-)
-from loguru import logger
-import csv
 import os
 import re
-from itertools import groupby
+import csv
+from typing import Dict, List, Tuple, Mapping, Iterable, Optional
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple
+from itertools import groupby
+from collections import defaultdict
 
+from loguru import logger
+
+from DNAnet.utils import (
+    is_rd_hid_filename,
+    get_prefix_from_filename,
+)
+from DNAnet.data.data_models.structs import AlleleAnnotation
+from DNAnet.data.data_models.dna_models import Allele, Marker
+from DNAnet.data.parsing.parse_annotations import _parse_csv_header
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
+from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
+    FileCategory,
+    DatasetStrategy,
+)
 
 
 class NFI_RND_DatasetStrategy(DatasetStrategy):
-    """
-    Strategy tailored to the NFI R&D dataset.
-    """
+    """Strategy tailored to the NFI R&D dataset."""
+
     READ_ANNOTATION_HEIGHTS: bool = False
     DONORS_PER_DATASET_NR = {
         '1': ['A', 'B', 'C', 'D', 'E'],
@@ -36,7 +36,22 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
     }
 
     @classmethod
-    def collect_dataset_files(cls, path: str | Path, **kwargs) -> Tuple[List[Path], Mapping, Mapping]:
+    def collect_dataset_files(
+        cls, path: str | Path, **kwargs
+    ) -> Tuple[List[Path], Mapping, Mapping]:
+        """Collect the dataset files for this dataset with annotation and label mapping.
+
+        Args:
+            path: The root path of this dataset
+            **kwargs: Additional arguments (none are used here)
+
+        Raises:
+            ValueError: When no mapping files could be found in the root
+            RuntimeError: _description_
+
+        Returns:
+            _description_
+        """
         path = Path(path)
         csv_files = list(path.rglob('*.csv'))
 
@@ -59,15 +74,14 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
         # Hid to Annotation mapping
         hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
         analysis_treshold_type_column = [
-            i for i, head in enumerate(hta_header)
-            if analysis_treshold_type in head
+            i for i, head in enumerate(hta_header) if analysis_treshold_type in head
         ]
         if len(analysis_treshold_type_column) != 1:
             raise RuntimeError(
                 f'Could not infer the analysis treshold type column for annotation mapping: {hta_header}'
             )
-        
-        annotation_txt_files = list(path.rglob("*AlleleReport.txt"))
+
+        annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
         annotation_mapping = {}
         for txt_file in annotation_txt_files:
             _annotation = cls.parse_annotation_file(txt_file)
@@ -75,17 +89,17 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
                 annotation_mapping.update(_annotation)
 
         hid_to_annotation = {
-            col[0].replace(".hid", ""): annotation_mapping[col[analysis_treshold_type_column[0]]]
+            col[0].replace('.hid', ''): annotation_mapping[col[analysis_treshold_type_column[0]]]
             for col in hta_values
             if col[0] != ''
         }
-        
+
         # Hid to Ladder mapping
         _, htl_values = cls._read_csv_file(hid_to_ladder_path)
         hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
 
         hid_files = list(path.rglob('*.hid'))
-        hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == "sample", hid_files))
+        hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == 'sample', hid_files))
 
         return hid_file_samples, hid_to_annotation, hid_to_ladder
 
@@ -107,6 +121,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
 
     @classmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
+        """Categorize a ProvedIt filename as ladder, control, or sample."""
         OTHER_KITS = ('ppy23', 'minifiler', 'hdplex')
 
         fname = file_name.lower()
@@ -130,6 +145,17 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
 
     @classmethod
     def get_contributors(cls, file_name: str) -> list[str]:
+        """Get the file name meta-information about number of contributors.
+
+        Args:
+            file_name: The filename to get information about
+
+        Raises:
+            ValueError: When the filename format is not in R&D format.
+
+        Returns:
+            A list of dataset number and contributor letter combinations.
+        """
         if not is_rd_hid_filename(file_name):
             raise ValueError(
                 f'Cannot load donor alleles for non-RD sample. Found file name {file_name}'
@@ -137,16 +163,35 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
 
         mixture_type = get_prefix_from_filename(file_name)
         dataset_nr, nr_donors = mixture_type[0], int(mixture_type[2])
-        return [f'{dataset_nr}{letter}' for letter in cls.DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
+        return [
+            f'{dataset_nr}{letter}' for letter in cls.DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]
+        ]
 
     @classmethod
     def create_annotation_for_sample(
         cls, annotation_mapping: Dict[str, List[Marker]], sample_name: str
     ) -> AlleleAnnotation:
+        """Create an AlleleAnnotation for a specific sample.
+
+        Args:
+            annotation_mapping: A mapping from sample ID to list of Markers
+            sample_name: Name of the sample to build an Annotation for
+
+        Returns:
+            AlleleAnnotation with a list of Markers for the provided sample
+        """
         return AlleleAnnotation(annotation=annotation_mapping[sample_name])
 
     @classmethod
     def parse_annotation_file(cls, path: str | Path) -> Optional[Dict[str, List[Marker]]]:
+        """Parse the annotation file to a mapping from sample to list of Markers.
+
+        Args:
+            path: The path to the annotation file
+
+        Returns:
+            A mapping from sample ID to list of Markers
+        """
         # Files can be empty.
         if os.stat(path).st_size == 0:
             logger.debug(f'Found empty file: {path}')
@@ -200,7 +245,8 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
 
     @classmethod
     def _parse_csv_header(cls, file) -> Tuple[str, Iterable[int], Iterable[int]]:
-        """
+        """Parse a csv files header.
+
         Retrieve delimiter and indices of columns that have allele names and
         peak heights within csv header
 

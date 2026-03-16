@@ -1,25 +1,26 @@
 from abc import ABC, abstractmethod
+from typing import Dict, List, Tuple, Literal, Mapping, Iterable, Optional, Sequence
 from pathlib import Path
-from typing import Dict, Iterable, Literal, Mapping, Optional, Sequence, Tuple
-from typing import List
 
-
-from DNAnet.data.data_models.dna_models import Allele, Marker
 from DNAnet.data.data_models.structs import AlleleAnnotation
+from DNAnet.data.data_models.dna_models import Allele, Marker
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
+
 
 FileCategory = Literal['sample', 'ladder', 'control', 'unknown']
 
 
 class DatasetStrategy(ABC):
-    """
-    Unified strategy interface for dataset-specific behavior such as
-    file categorization, contributor parsing and allele loading.
+    """Unified strategy interface for dataset-specific behavior.
+
+    This can include file categorization, contributor parsing and allele loading.
     """
 
     @classmethod
     @abstractmethod
-    def collect_dataset_files(cls, path: str | Path, **kwargs) -> Tuple[List[Path], Mapping, Mapping]:
+    def collect_dataset_files(
+        cls, path: str | Path, **kwargs
+    ) -> Tuple[List[Path], Mapping, Mapping]:
         raise NotImplementedError
 
     @classmethod
@@ -74,6 +75,8 @@ class DatasetStrategy(ABC):
             name=marker_name,
             alleles=[
                 Allele(name=allele_name, height=allele_height)
-                for allele_name, allele_height in zip(allele_names, allele_heights_checked, strict=True)
+                for allele_name, allele_height in zip(
+                    allele_names, allele_heights_checked, strict=True
+                )
             ],
         )
