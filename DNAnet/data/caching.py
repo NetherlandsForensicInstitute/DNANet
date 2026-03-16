@@ -42,11 +42,9 @@ def _load_cached_hf_data(cache_path: PathLike, limit: Optional[int], include_siz
         images = islice(images, limit)
     return list(tqdm(images, desc="Loading cached data", total=img_count))
 
-@lru_cache(maxsize=None)
 def _cached_arrow(cache_directory: str, include_size_standard: bool) -> HFDataset:
     """
-    Load a Huggingface Dataset from an arrow cache. This function is cached using lru_cache to avoid
-    loading the same cache multiple times when calling read_from_hf_cache multiple times. The cache is loaded
+    Load a Huggingface Dataset from an arrow cache. The cache is loaded
     with the format set to numpy to avoid unnecessary conversions when creating HIDImages from the cache.
 
         :param cache_directory: the path to the cache directory
