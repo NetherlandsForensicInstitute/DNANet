@@ -47,10 +47,13 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
 
         Raises:
             ValueError: When no mapping files could be found in the root
-            RuntimeError: _description_
+            RuntimeError: When it cannot be determined which annotation mapping column to use (DTH/DTL)
 
         Returns:
-            _description_
+            A list of tuples consisting of:
+                * Path to .HID file for the sample
+                * AlleleAnnotation with Markers (optional)
+                * Path to Ladder file for scaling (optional)
         """
         path = Path(path)
         csv_files = list(path.rglob('*.csv'))
