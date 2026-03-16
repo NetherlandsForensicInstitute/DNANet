@@ -55,7 +55,7 @@ def add_bin_info(called_alleles: List[Marker], panel: Panel) -> List[Marker]:
     """
     for marker in called_alleles:
         for allele in marker.alleles:
-            bin_info = panel.get_allele_info(
+            bin_info = panel.get_allele_basepair_and_bins(
                 marker_name=marker.name, allele_name=allele.name
             )
             allele.base_pair, allele.left_bin, allele.right_bin = bin_info

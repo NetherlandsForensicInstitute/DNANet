@@ -117,7 +117,7 @@ def load_dataset(source: PathLike) -> InMemoryDataset:
     data_config["dataset"] = dict(data_config["dataset"])
     root_dir = Path(data_config["dataset"]["root"])
     files_in_root: bool = any(root_dir.glob("[!.]*"))  # Check for non-hidden files (not starting with `.`)
-    
+
     # If the root_dir does not exist, or it exists but there's no (hidden) files, we download from HF
     if not (root_dir.exists() and files_in_root):
         print(f"Downloading dataset {HF_DATASET}...")
@@ -151,19 +151,22 @@ def download_online_dataset(data_root: PathLike):
                 time.sleep(5)
             else:
                 raise e
-    
+
     # Read in data root
     shutil.copytree(local_path, data_root)
 
     # Clean up the download folder of remaining files
     shutil.rmtree(local_path)
     pass
-    
 
-def load_model(source: PathLike) -> Model:
+
+def load_model(source: Union[PathLike, Configuration]) -> Model:
     """
     Load a trainable model from a config file.
     """
+    if isinstance(source, Configuration):
+        return parse_config({'model': source}, MODELS)['model']
+
     if os.path.isdir(source):
         # search for the yaml config file and load the checkpoint
         yaml_files = glob.glob(os.path.join(source, '*.yaml'))
@@ -266,8 +269,16 @@ def dump_config(
     if "checkpoint_dir" in training_defaults:
         del training_defaults["checkpoint_dir"]
 
-    data_config = load_config(data_config_path, kind='data')
-    data_config = {**data_defaults, **dict(data_config.dataset)}
+    # Dataset serialization: prefer dataset.serialize() when provided; otherwise load config.
+    data_config = {}
+    if dataset and hasattr(dataset, "serialize"):
+        try:
+            data_config = dataset.serialize()
+        except Exception:
+            data_config = {}
+    if len(data_config) == 0 and data_config_path:
+        data_config = load_config(data_config_path, kind='data')
+        data_config = {**data_defaults, **dict(data_config.dataset)}
     model_config = load_config(model_config_path, kind='models')
     model_config = {**model_defaults, **dict(model_config.model)}
 
@@ -282,6 +293,8 @@ def dump_config(
         if isinstance(validation_config, str):
             validation_data_config = load_config(validation_config, kind='data')
             validation_data_config = {**data_defaults, **dict(validation_data_config.dataset)}
+        elif isinstance(validation_config, InMemoryDataset) and hasattr(validation_config, "serialize"):
+            validation_data_config = validation_config.serialize()
         else:
             validation_data_config = {'split': validation_config}
 
