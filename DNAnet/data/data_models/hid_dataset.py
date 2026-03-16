@@ -7,6 +7,7 @@ from itertools import chain
 from pathlib import Path
 from typing import Dict, Generator, List, Optional, Set, Tuple, Union
 
+import numpy as np
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -14,11 +15,13 @@ from DNAnet.data.caching import _load_cached_hf_data, write_to_hf_cache
 from DNAnet.data.data_models import Panel
 from DNAnet.data.data_models.base import InMemoryDataset, SimpleDataset
 from DNAnet.data.data_models.hid_image import HIDImage, Ladder
+from DNAnet.data.data_models.structs import AlleleAnnotation, ScanpointAnnotation
 from DNAnet.data.strategies.dataset_strategies import DatasetStrategy
 from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy
 from DNAnet.data.strategies.kit_strategies.str_kit import STRKit
 from DNAnet.data.strategies.sample_validation_strategy import SampleValidationStrategy
 from DNAnet.data.split import split_data_in_k_folds
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.typing import PathLike
 from DNAnet.utils import (
     get_noc_from_rd_file_name,
@@ -559,3 +562,32 @@ class HIDDataset(InMemoryDataset):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.serialize()})"
+
+    @staticmethod
+    def _translate_allele_to_scanpoint_annotation(allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray) -> ScanpointAnnotation:
+        """
+        Translates allele annotation to scanpoint annotation by finding the closest scanpoint indices for the left and right bins
+        of each allele using the provided scaler and adjusted panel. The entire allelic bin is annotated as 1.
+
+        All non annotated scanpoints are labeled as 0, while annotated scanpoints are labeled as 1.
+        The resulting scanpoint annotation is a binary matrix of shape (num_dyes, num_scanpoints)
+
+            :param allele_annotation: AlleleAnnotation object containing the allele annotations to be translated.
+            :param adjusted_panel: Panel object containing the adjusted panel information to be used for translation.
+            :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
+            :return: ScanpointAnnotation object containing the translated scanpoint annotation.
+        """
+        # TODO: do not hardcode amount of scanpoints
+        scanpoint_annotation = np.zeros((StrategyRegistry.get_kit().num_dyes, 4096), dtype=np.int8)
+        for locus in allele_annotation.annotation:
+            for allele in locus.alleles:
+                # for each allele, find the left and right bin of the allele using the panel that has been adjusted by the corresponding ladder.
+                bp, left_bin, right_bin = adjusted_panel.get_allele_basepair_and_bins(locus.name, allele.name)
+
+                # use the scaler to find the closest scanpoint indices for the left and right bins of the allele
+                left_scanpoint = np.argmin(np.abs(scaler - left_bin))
+                right_scanpoint = np.argmin(np.abs(scaler - right_bin))
+
+                scanpoint_annotation[locus.dye_row, left_scanpoint : right_scanpoint] = 1
+
+        return ScanpointAnnotation(annotation=scanpoint_annotation)
