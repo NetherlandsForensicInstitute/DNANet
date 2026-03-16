@@ -53,7 +53,7 @@ class SizeStandardParseResult:
 
 def get_scaling_strategy(strat_name: str, **kwargs) -> ScalingStrategy:
     if strat_name == ScalingStrategyOptions.PPF6C.name:
-        return PowerPlexFusion6CScalingStrategy()
+        return PowerPlexFusion6CScalingStrategy(**kwargs)
 
     if strat_name == ScalingStrategyOptions.GLOBALFILER.name:
         return GlobalFilerScalingStrategy(**kwargs)
@@ -319,7 +319,7 @@ class PowerPlexFusion6CScalingStrategy(ScalingStrategy):
     Scaling strategy for PowerPlex Fusion 6C data.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         kit = STRKit(
             name="PPF6C",
             size_standard=get_internal_size_standard(InternalSizeStandardOptions.WEN_ILS),
