@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Callable
 
 import numpy as np
 import scipy
@@ -104,24 +104,56 @@ class ScalingStrategy(ABC):
     def basepair_interpolator(indices: Union[np.ndarray, list[float]],
                               original_x_values: Union[np.ndarray, list[float]],
                               extrapolate: bool = False) \
-            -> scipy.interpolate.interp1d:
-        """
-        Generates a function whose call method uses interpolation to find the
-        value of new points.
+            -> Callable[[Union[np.ndarray, float]], np.ndarray]:
+        """Generate a cubic-spline interpolator for translating pixel indices.
 
-        :param indices: indices for which a value is present
-        :param original_x_values: known x_values between which to interpolate
-        :param extrapolate: whether to use extrapolation or not
-        """
+           GeneMarker's sizing uses a cubic spline that passes exactly through every
+           size-standard point. To mimic this behaviour we construct a natural cubic
+           spline between the detected size-standard peak indices (``indices``) and
+           the expected base-pair values (``original_x_values``). Outside of the
+           calibrated range we zero-out the values unless explicit extrapolation is
+           requested, reproducing the previous behaviour of returning zeros beyond the
+           last standard fragment.
+
+           :param indices: indices for which a value is present
+           :param original_x_values: known x_values between which to interpolate
+           :param extrapolate: whether to use extrapolation or not
+           :return: callable that evaluates the spline at the requested positions
+           """
         indices = np.asarray(indices)
         original_x_values = np.asarray(original_x_values)
-        # TODO: use cubic spline interpolation
-        interp = scipy.interpolate.interp1d(indices,
-                                            original_x_values,
-                                            bounds_error=False,
-                                            fill_value='extrapolate' if extrapolate else 0)
 
-        return interp
+        if indices.ndim != 1 or original_x_values.ndim != 1:
+            raise ValueError("`indices` and `original_x_values` must be one-dimensional arrays")
+
+        if indices.size != original_x_values.size:
+            raise ValueError("`indices` and `original_x_values` must contain the same number of points")
+
+        sort_order = np.argsort(indices)
+        sorted_indices = indices[sort_order]
+        sorted_basepairs = original_x_values[sort_order]
+
+        spline = scipy.interpolate.CubicSpline(
+            sorted_indices,
+            sorted_basepairs,
+            bc_type="natural",
+            extrapolate=True,
+        )
+
+        lower_bound = sorted_indices[0]
+        upper_bound = sorted_indices[-1]
+
+        def _interpolate(x_new: Union[np.ndarray, float]) -> np.ndarray:
+            x_new_arr = np.asarray(x_new, dtype=float)
+            values = np.asarray(spline(x_new_arr))
+
+            if not extrapolate:
+                outside_mask = (x_new_arr < lower_bound) | (x_new_arr > upper_bound)
+                values = np.where(outside_mask, 0.0, values)
+
+            return np.atleast_1d(values)
+
+        return _interpolate
 
     def interpolate(self, peak_idxs: np.ndarray, bps: np.ndarray, size_standard_lane: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
