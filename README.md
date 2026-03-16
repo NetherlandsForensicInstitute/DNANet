@@ -41,7 +41,7 @@ for the data, and
 ```
 for the code and model.
 
-For work related to the Data synthethization please cite the following:
+For work related to the Data synthetization please cite the following:
 ```
 @ARTICLE{Taylor2025,
     title = {Simulating realistic short tandem repeat capillary electrophoretic signal using a generative adversarial network},
