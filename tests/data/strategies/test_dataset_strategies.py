@@ -22,25 +22,40 @@ def ppf6c_kit():
 
 
 def test_collect_nfi_rnd_files(ppf6c_kit):
-    collected_files = NFI_RND_DatasetStrategy.collect_dataset_files(
+    collected_files, annotation_mapping, ladder_mapping  = NFI_RND_DatasetStrategy.collect_dataset_files(
         pytest.RESOURCES_DIR / 'profiles/RD'
+        # '/Users/abel/Documents/Coding/NFI/DNANet/resources/data/2p_5p_Dataset_NFI'
     )
-    collected_files = list(
-        set(collected_files)
-    )  # Use a set to prevent ordering issues with the assert
+    # Sort to prevent ordering issues with the assert
+    collected_files = list(sorted(collected_files))
 
     assert len(collected_files) == 2, f'Incorrect amount of files found {len(collected_files)} != 2'
-    assert Path(collected_files[0][0]).stem == '1A2_A01_01'
-    assert collected_files[0][1] == '1L_11148_1A2'
-    assert Path(collected_files[0][2]).stem == 'Ladder_G03_21'
+    assert Path(collected_files[0]).stem == '1A2_A01_01'
+    assert ladder_mapping[collected_files[0].stem].stem == 'Ladder_G03_21'
+
+def test_collect_nfi_rnd_files_DTH(ppf6c_kit):
+    collected_files, annotation_mapping, ladder_mapping  = NFI_RND_DatasetStrategy.collect_dataset_files(
+        pytest.RESOURCES_DIR / 'profiles/RD',
+        analysis_treshold_type="DTH"
+    )
+    # Sort to prevent ordering issues with the assert
+    collected_files = list(sorted(collected_files))
+
+    assert len(collected_files) == 2, f'Incorrect amount of files found {len(collected_files)} != 2'
+    assert Path(collected_files[0]).stem == '1A2_A01_01'
+    
+def test_collect_nfi_rnd_file_raise():
+    with pytest.raises(ValueError):
+        NFI_RND_DatasetStrategy.collect_dataset_files("/tmp/")
+    
 
 def test_collect_provedit_files(globalfiler_kit):
-    collected_files = ProvedItDatasetStrategy.collect_dataset_files(
-        pytest.RESOURCES_DIR / 'profiles/RD'
+    collected_files, annotation_mapping, ladder_mapping = ProvedItDatasetStrategy.collect_dataset_files(
+        # pytest.RESOURCES_DIR / 'PROVEDIt_resources'
+        "/Users/abel/Documents/Coding/NFI/DNANet/resources/data/PROVEDIt"
     )
-    collected_files = list(
-        set(collected_files)
-    )  # Use a set to prevent ordering issues with the assert
+    # Sort to prevent ordering issues with the assert
+    collected_files = list(sorted(collected_files))
 
 
 
