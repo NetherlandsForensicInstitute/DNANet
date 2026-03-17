@@ -33,7 +33,7 @@ class DNANet_UNet(HIDImageBaseModel):
         "cuda" for CPU or GPU respectively.
         :param apply_allele_caller: Whether to call actual alleles from the predicted segmentation
         """
-        model = UNet(depth, kernel_size, num_filters, self._device)
+        model = UNet(depth, kernel_size, num_filters, device)
         loss = DiceLoss()
         super().__init__(model, loss, device, apply_allele_caller)
 
