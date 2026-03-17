@@ -5,7 +5,6 @@ from DNAnet.data.data_models import Allele, Marker, Panel
 from DNAnet.data.data_models.structs import AlleleAnnotation
 from DNAnet.data.parsing import parse_called_alleles
 from DNAnet.data.parsing.parse_annotations import translate_allele_to_scanpoint_annotation
-from DNAnet.data.strategies.kit_strategies.kit import KitOptions, get_standard_kit
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 
@@ -44,8 +43,12 @@ def test_parse_called_alleles():
     assert len(markers) == 27
 
 
-def test_translate_allele_to_scanpoint_annotation():
-    StrategyRegistry.configure_kit(get_standard_kit("PPF6C"))
+@pytest.fixture
+def ppf6c_kit():
+    StrategyRegistry.configure_kit("PPF6C")
+
+
+def test_translate_allele_to_scanpoint_annotation(ppf6c_kit):
     panel = Panel(pytest.PANEL_PATH)
     scaler = np.arange(4096)
     annotation =  Marker(dye_row=0, name='AMEL', alleles=[

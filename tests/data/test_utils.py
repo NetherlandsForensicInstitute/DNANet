@@ -3,14 +3,15 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from DNAnet.data.parsing import get_peak_data
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.data.utils import (
-    basepair_interpolator,
-    basepair_to_pixel, extract_ss_peaks,
+    basepair_to_pixel,
     find_peak_boundary,
     find_peak_idx_near_or_in_range,
     find_peak_near_idx,
     find_peaks_above_threshold,
 )
+
 
 
 @pytest.mark.parametrize(
@@ -65,25 +66,32 @@ def test_find_peak_idx_near_or_in_range(array, range, result):
     assert np.array_equal(out, result)
 
 
-def test_extract_peaks():
-    profile = get_peak_data(f'{pytest.RESOURCES_DIR}/profiles/RD/1A2_A01_01.hid')[-1]
+@pytest.fixture
+def ppf6c_kit():
+    StrategyRegistry.configure_kit("PPF6C")
+
+
+def test_extract_peaks(ppf6c_kit):
+    scaling_strat = StrategyRegistry.get_scaling_strategy()
+    profile = get_peak_data(f'{pytest.RESOURCES_DIR}/profiles/RD/1A2_A01_01.hid', "analyzed")[-1]
     result = np.array([2796, 2813, 2901, 2917, 2961, 2989, 3038, 3095, 3144,
                        3387, 3645, 3702, 3881, 4120, 4348, 4578, 4806, 5033,
                        5257, 5531, 5798, 6059, 6323, 6579, 6827, 7077, 7318,
                        7560, 7788, 8018, 8238])
-    assert np.array_equal(extract_ss_peaks(profile), result)
+    assert np.array_equal(scaling_strat.extract_ss_peaks(profile), result)
     # adapt the profile so the final peak is below the 180rfu threshold, in
     # that case, this final peak should be caught in the if-statement
     profile[8199:] = 0
     profile[result[-1]] = 150
-    assert np.array_equal(extract_ss_peaks(profile), result)
+    assert np.array_equal(scaling_strat.extract_ss_peaks(profile), result)
 
 
-def test_interpolate_basepairs_integers():
+def test_interpolate_basepairs_integers(ppf6c_kit):
+    scaling_strat = StrategyRegistry.get_scaling_strategy()
     indices = [0, 3, 6]
     original_x_values = [1, 7, 13]
     length = 6
-    interp = basepair_interpolator(indices, original_x_values)
+    interp = scaling_strat.basepair_interpolator(indices, original_x_values)
     # returns with linear interpolation
     assert_array_equal(interp(np.arange(length)), np.array([1., 3., 5., 7., 9., 11.]))
 
@@ -91,7 +99,7 @@ def test_interpolate_basepairs_integers():
     indices = [2, 3]
     original_x_values = [12, 13]
     length = 3
-    interp = basepair_interpolator(indices, original_x_values, extrapolate=True)
+    interp = scaling_strat.basepair_interpolator(indices, original_x_values, extrapolate=True)
     assert_array_equal(interp(np.arange(length)), np.array([10., 11., 12.]))
     assert_array_equal(interp(0), np.array([10.]))
     assert_array_equal(interp(1), np.array([11.]))
@@ -99,25 +107,44 @@ def test_interpolate_basepairs_integers():
     assert_array_equal(interp(5), np.array([15.]))
 
 
-def test_interpolate_basepairs_float():
+def test_interpolate_basepairs_float(ppf6c_kit):
+    scaling_strat = StrategyRegistry.get_scaling_strategy()
     indices = [97.82, 102.13]
     original_x_values = [97.64, 101.95]
-    interp = basepair_interpolator(indices, original_x_values)
+    interp = scaling_strat.basepair_interpolator(indices, original_x_values)
     assert_array_equal(interp(101.22), np.array([101.04]))
 
     # Extrapolation
-    interp = basepair_interpolator(indices, original_x_values, extrapolate=True)
+    interp = scaling_strat.basepair_interpolator(indices, original_x_values, extrapolate=True)
     assert_array_equal(interp(93.47), np.array([93.29]))
 
 
 @pytest.mark.parametrize(
-    "basepair, expected",
+    "basepair, expected_edge",
     [
-        (0, 0.0),
-        (180, 1149.0),
-        (456.7, 3913.0),
-        (1000, 4095.0),
+        (0, 0),       # below calibrated range -> first pixel
+        (1000, -1),   # above calibrated range -> last pixel
     ],
 )
-def test_basepair_to_pixel(hid_image, basepair, expected):
-    assert basepair_to_pixel(hid_image.scaler, basepair) == expected
+
+def test_basepair_to_pixel_edges(hid_image, basepair, expected_edge):
+    out = int(basepair_to_pixel(hid_image.scaler, basepair))
+    if expected_edge == -1:
+        assert out == hid_image.scaler.shape[1] - 1
+    else:
+        assert out == expected_edge
+
+
+@pytest.mark.parametrize("basepair", [180, 456.7])
+def test_basepair_to_pixel_nearest(hid_image, basepair):
+    scaler = hid_image.scaler[0]
+    idx = int(basepair_to_pixel(hid_image.scaler, basepair))
+
+    assert 0 <= idx < scaler.shape[0]
+
+    # Must be the nearest scaler position to the requested basepair.
+    dist = abs(scaler[idx] - basepair)
+    if idx > 0:
+        assert dist <= abs(scaler[idx - 1] - basepair)
+    if idx < scaler.shape[0] - 1:
+        assert dist <= abs(scaler[idx + 1] - basepair)

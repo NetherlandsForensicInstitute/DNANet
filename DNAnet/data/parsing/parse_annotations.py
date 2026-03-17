@@ -64,8 +64,8 @@ def translate_allele_to_scanpoint_annotation(allele_annotation: AlleleAnnotation
         :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
         :return: ScanpointAnnotation object containing the translated scanpoint annotation.
     """
-    # TODO: do not hardcode amount of scanpoints
-    scanpoint_annotation = np.zeros((StrategyRegistry.get_scaling_strategy().num_dyes,), dtype=np.int8)
+    scaling_strategy = StrategyRegistry.get_scaling_strategy()
+    scanpoint_annotation = np.zeros((scaling_strategy.kit.num_dyes, scaling_strategy.scanpoint_resolution), dtype=np.int8)
     for locus in allele_annotation.annotation:
         for allele in locus.alleles:
             # for each allele, find the left and right bin of the allele using the panel that has been adjusted by the corresponding ladder.
