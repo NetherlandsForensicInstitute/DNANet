@@ -47,11 +47,13 @@ def hid_dataset_rd(ppf6c_kit):
 
 
 @pytest.fixture
-def hid_image():
+def hid_image(ppf6c_kit):
     annotation_path = os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "1A2_A01_01_annotation.npy")
     return HIDImage(
         path=os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "1A2_A01_01.hid"),
-        annotation=Annotation(image=np.load(annotation_path))
+        annotation=Annotation(image=np.load(annotation_path)),
+        panel=Panel(pytest.PANEL_PATH),
+        meta={"called_alleles": None}
     )
 
 

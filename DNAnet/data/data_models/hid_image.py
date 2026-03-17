@@ -322,6 +322,7 @@ class Ladder(HIDImage):
         therefore neither the ladder, do not contain all alleles possible alleles.
         """
         lines = defaultdict(list)
+        # FIXME: remove hardcoded path
         with open('resources/data/ladder_alleles.csv',
                   mode='r', newline='', encoding='utf-8') as file:
             csv_reader = csv.DictReader(file)
