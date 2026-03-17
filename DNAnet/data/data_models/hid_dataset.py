@@ -16,10 +16,10 @@ from DNAnet.data.data_models import Panel
 from DNAnet.data.data_models.base import InMemoryDataset, SimpleDataset
 from DNAnet.data.data_models.hid_image import HIDImage, Ladder
 from DNAnet.data.data_models.structs import AlleleAnnotation, ScanpointAnnotation
+from DNAnet.data.split import split_data_in_k_folds
 from DNAnet.data.strategies.dataset_strategies import DatasetStrategy, NFI_RND_DatasetStrategy
 from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy
 from DNAnet.data.strategies.sample_validation_strategy import SampleValidationStrategy
-from DNAnet.data.split import split_data_in_k_folds
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.typing import PathLike
 from DNAnet.utils import (
@@ -27,7 +27,6 @@ from DNAnet.utils import (
     get_prefix_from_filename,
     is_rd_hid_filename
 )
-
 
 LOGGER = logging.getLogger('dnanet')
 
@@ -381,9 +380,6 @@ class HIDDataset(InMemoryDataset):
                     panel=panel,
                     include_size_standard=self.include_size_standard,
                     data_loading_strategy=self.data_loading_strategy,
-                    kit=self.kit,
-                    dataset_strategy=self.dataset_strategy,
-                    scaling_strategy=self.scaling_strategy,
                     use_ground_truth_as_annotations=self.ground_truth_as_annotations,
                     meta={
                         "annotations_name": annotation_name,

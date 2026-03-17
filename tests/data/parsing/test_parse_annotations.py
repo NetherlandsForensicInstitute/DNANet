@@ -5,7 +5,6 @@ from DNAnet.data.data_models import Allele, Marker, Panel
 from DNAnet.data.data_models.hid_dataset import HIDDataset
 from DNAnet.data.data_models.structs import AlleleAnnotation
 from DNAnet.data.parsing import parse_called_alleles
-from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 
 def test_parse_called_alleles():
