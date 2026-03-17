@@ -298,7 +298,7 @@ class HIDDataset(InMemoryDataset):
         # DTH/DTL is part of the .txt file name with the annotations we need, and indicates that
         # profiles where measured with either high or low detection threshold
         if analysis_threshold_type not in ["DTH", "DTL"]:
-            raise ValueError("Provide analysis threshold type AT or LT when loading RD data, "
+            raise ValueError("Provide analysis threshold type DTH or DTL when loading RD data, "
                              f"not {analysis_threshold_type}.")
 
         with open(hid_to_annotations_path, "r") as f:
