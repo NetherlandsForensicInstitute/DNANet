@@ -137,3 +137,34 @@ def find_peak_idx_near_or_in_range(array: np.ndarray, index_range: np.ndarray,
     # return only peak index if the peak is above threshold
     return peak_idx if peak_idx.size > 0 and array[peak_idx] >= threshold else np.array([])
 
+def fill_lut_range(lut: List[Optional[str]], offset: int, s_k: int, e_k: int,
+                   name: str, ranges: List[Tuple[float, float, str]], marker_bp_scale: int) -> None:
+    """
+    Fill a range in the LUT, handling overlaps by splitting evenly at midpoint.
+    """
+    for k in range(s_k, e_k + 1):
+        idx = k + offset
+        if lut[idx] is not None and lut[idx] != name:
+            # Overlap detected - find midpoint and split
+            existing_name = lut[idx]
+            existing_range = next((r for r in ranges if r[2] == existing_name), None)
+            if existing_range:
+                existing_start, existing_end, _ = existing_range
+                current_range = next((r for r in ranges if r[2] == name), None)
+                if current_range:
+                    start, end, _ = current_range
+                    # Calculate overlap region
+                    overlap_start = max(start, existing_start)
+                    overlap_end = min(end, existing_end)
+                    midpoint = (overlap_start + overlap_end) / 2
+                    mid_k = int(round(midpoint * marker_bp_scale))
+
+                    # Assign based on which side of midpoint
+                    if k < mid_k:
+                        if start < existing_start:
+                            lut[idx] = name
+                    else:
+                        if start >= existing_start:
+                            lut[idx] = name
+        else:
+            lut[idx] = name
