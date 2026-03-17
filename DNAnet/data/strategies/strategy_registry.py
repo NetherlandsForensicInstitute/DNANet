@@ -1,10 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from DNAnet.data.strategies.kit_strategies.kit import (
-    Kit,
-    KitOptions,
-    get_standard_kit,
-)
+
+from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy, ScalingStrategyOptions, \
+    get_scaling_strategy
 
 if TYPE_CHECKING:
     from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
@@ -13,23 +11,28 @@ if TYPE_CHECKING:
 
 
 class StrategyRegistry:
-    _kit_strategy: Kit | None = None
+    """
+    Central registry for user-configured strategies.
+    Only supports one active kit strategy and one active dataset strategy at a time, as these are typically
+    configured at the start of a run and then used globally.
+    """
+    _scaling_strategy: ScalingStrategy | None = None
     _dataset_strategy: DatasetStrategy | None = None
 
     # --- configure ---
 
     @classmethod
-    def configure_kit(cls, strategy: Kit | str):
-        if isinstance(strategy, Kit):
-            cls._kit_strategy = strategy
+    def configure_kit(cls, strategy: ScalingStrategy | str, **kwargs):
+        if isinstance(strategy, ScalingStrategy):
+            cls._scaling_strategy = strategy
         elif isinstance(strategy, str):
-            if strategy not in KitOptions.__members__:
+            if strategy not in ScalingStrategyOptions.__members__:
                 raise ValueError(
-                    f"Unknown kit standard: '{strategy}'. Valid: {list(KitOptions.__members__)}"
+                    f"Unknown scaling strategy: '{strategy}'. Valid: {list(ScalingStrategyOptions.__members__)}"
                 )
-            cls._kit_strategy = get_standard_kit(strategy)
+            cls._scaling_strategy = get_scaling_strategy(strategy, **kwargs)
         else:
-            raise TypeError(f"Expected Kit or str, got {type(strategy)}")
+            raise TypeError(f"Expected ScalingStrategy or str, got {type(strategy)}")
 
     @classmethod
     def configure_dataset(cls, strategy: DatasetStrategy):
@@ -38,12 +41,12 @@ class StrategyRegistry:
     # --- get ---
 
     @classmethod
-    def get_kit(cls) -> Kit:
-        if cls._kit_strategy is None:
+    def get_scaling_strategy(cls) -> ScalingStrategy:
+        if cls._scaling_strategy is None:
             raise RuntimeError(
-                "No kit strategy configured. Call configure_kit() first."
+                "No scaling strategy configured. Call configure_kit() first."
             )
-        return cls._kit_strategy
+        return cls._scaling_strategy
 
     @classmethod
     def get_dataset(cls) -> DatasetStrategy:

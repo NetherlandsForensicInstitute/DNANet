@@ -153,8 +153,6 @@ class ProvedItDatasetStrategy(DatasetStrategy):
         headers = sheet_values[0]
         rows = sheet_values[1:]
 
-        _kit_strategy = StrategyRegistry.get_kit()
-
         annotation_mapping = {}
         for row in rows:
             markers = []
