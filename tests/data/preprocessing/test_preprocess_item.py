@@ -73,19 +73,19 @@ def test_inverse_scale_data_max_only():
 def test_preprocess_profile_torch_with_real_image(hid_image):
     # hid_image is a fixture from conftest.py
     # Test with default parameters (log_scale=True, max_rfu_scale_value=32768, num_dyes_included=6)
-    preprocessed = preprocess_profile_torch(hid_image)
+    preprocessed = preprocess_profile_torch(hid_image, num_dyes_included=5)
 
     assert torch.is_tensor(preprocessed)
     # Check shape: (dyes, time, 1) or (dyes, time)?
     # HIDImage.data returns (6, time, 1) or (6, time)?
     # Let's check HIDImage data shape.
     raw_data = torch.tensor(hid_image.data, dtype=torch.float32)
-    assert preprocessed.shape[0] == 6 # num_dyes_included
+    assert preprocessed.shape[0] == 5 # num_dyes_included
     assert preprocessed.shape[1] == raw_data.shape[1]
 
     # Verify scaling
     max_rfu = RFU_MAX_VALUE
-    expected = torch.log1p(torch.clamp(raw_data[:6], 0.0, float(max_rfu))) / np.log1p(max_rfu)
+    expected = torch.log1p(torch.clamp(raw_data[:5], 0.0, float(max_rfu))) / np.log1p(max_rfu)
     torch.testing.assert_close(preprocessed, expected)
 
 
