@@ -9,21 +9,16 @@ from typing import Any, Dict, List, MutableMapping, Optional, Sequence, Tuple
 import numpy as np
 from scipy.signal import find_peaks
 
-from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import DatasetStrategy
-from DNAnet.data.strategies.kit_strategies.kit import Kit
-from DNAnet.data.strategies.kit_strategies.scaling_strategy import EPGScalingStrategy
-
 from DNAnet.data.data_models import Allele, Annotation, Marker, Panel
 from DNAnet.data.data_models.base import Image
 from DNAnet.data.parsing import get_peak_data, parse_called_alleles
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.data.utils import (
     assert_image_data_valid_format,
-    basepair_interpolator,
     find_peak_boundary,
     find_peak_idx_near_or_in_range
 )
 from DNAnet.typing import PathLike
-
 
 LOGGER = logging.getLogger("dnanet")
 
@@ -47,9 +42,6 @@ class HIDImage(Image):
 
     def __init__(self,
                  path: PathLike,
-                 dataset_strategy: Optional[DatasetStrategy] = None,
-                 scaling_strategy: Optional[EPGScalingStrategy] = None,
-                 kit: Optional[Kit] = None,
                  panel: Optional[Panel] = None,
                  use_ground_truth_as_annotations: bool = False,
                  annotations_file: PathLike = None,
@@ -71,9 +63,6 @@ class HIDImage(Image):
         self.use_ground_truth_as_annotations = use_ground_truth_as_annotations
         self._panel = panel
         self.data_loading_strategy = data_loading_strategy
-        self.dataset_strategy = dataset_strategy
-        self.scaling_strategy = scaling_strategy
-        self.kit = kit
 
     @property
     def data(self) -> np.ndarray:
@@ -114,7 +103,7 @@ class HIDImage(Image):
 
         size_standard_dye_lane = np.array(profile[-1])
         try:
-            ss = self.scaling_strategy.parse_size_standard(size_standard_dye_lane)
+            ss = StrategyRegistry.get_scaling_strategy().parse_size_standard(size_standard_dye_lane)
         except ValueError as e:
             LOGGER.warning(f"Size standard invalid for {self.path.name}: {e}")
             return None
@@ -143,6 +132,7 @@ class HIDImage(Image):
 
         # But what if there is no annotations file, only genotype info?
         # This is ofc hardcoded for the ProvedIt dataset for now
+        # TODO do not hardcode for ProvedIt
         if self.use_ground_truth_as_annotations and self.annotation is None and self._panel:
             try:
                 true_alleles = self.dataset_strategy.load_donor_alleles(self.path.stem)
@@ -476,7 +466,7 @@ class Ladder(HIDImage):
                 next_idx = marker.alleles.index(next_allele)
 
                 # Interpolate all alleles in between the previous and next
-                interp = basepair_interpolator(
+                interp = StrategyRegistry.get_scaling_strategy().basepair_interpolator(
                     indices=[prev_bp_in_panel, next_bp_in_panel],
                     original_x_values=[prev_bp_in_ladder, next_bp_in_ladder]
                 )
@@ -504,7 +494,7 @@ class Ladder(HIDImage):
         Extrapolates base pair for specified allele and returns an `Allele` object with the
         newly computed basepair location.
         """
-        interp = basepair_interpolator(indices=indices,
+        interp = StrategyRegistry.get_scaling_strategy().basepair_interpolator(indices=indices,
                                        original_x_values=x_values,
                                        extrapolate=True)
         extrapolated_bp = interp(allele.base_pair)

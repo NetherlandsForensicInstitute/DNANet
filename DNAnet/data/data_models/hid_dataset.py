@@ -16,20 +16,17 @@ from DNAnet.data.data_models import Panel
 from DNAnet.data.data_models.base import InMemoryDataset, SimpleDataset
 from DNAnet.data.data_models.hid_image import HIDImage, Ladder
 from DNAnet.data.data_models.structs import AlleleAnnotation, ScanpointAnnotation
-from DNAnet.data.strategies.dataset_strategies import DatasetStrategy
-from DNAnet.data.strategies.kit_strategies.kit import Kit
-from DNAnet.data.strategies.kit_strategies.scaling_strategy import EPGScalingStrategy
-from DNAnet.data.strategies.sample_validation_strategy import SampleValidationStrategy
 from DNAnet.data.split import split_data_in_k_folds
+from DNAnet.data.strategies.dataset_strategies import DatasetStrategy, NFI_RND_DatasetStrategy
+from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy
+from DNAnet.data.strategies.sample_validation_strategy import SampleValidationStrategy
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.typing import PathLike
 from DNAnet.utils import (
     get_noc_from_rd_file_name,
     get_prefix_from_filename,
-    is_rd_hid_filename,
-    load_donor_alleles,
+    is_rd_hid_filename
 )
-
 
 LOGGER = logging.getLogger('dnanet')
 
@@ -82,9 +79,8 @@ class HIDDataset(InMemoryDataset):
                  include_size_standard: bool = False,
                  data_loading_strategy: str = "superior",
                  group_replicas_in_split: Optional[bool] = False,
-                 kit: Optional[Kit] = None,
                  dataset_strategy: Optional[DatasetStrategy] = None,
-                 scaling_strategy: Optional[EPGScalingStrategy] = None,
+                 scaling_strategy: Optional[ScalingStrategy] = None,
                  sample_validation_strategy: Optional[SampleValidationStrategy] = None):
         super().__init__(shuffle)
         self.root = str(root)
@@ -97,7 +93,6 @@ class HIDDataset(InMemoryDataset):
         self.include_size_standard = include_size_standard
         self.data_loading_strategy = data_loading_strategy
         self.group_replicas_in_split = group_replicas_in_split
-        self.kit = kit
         self.dataset_strategy = dataset_strategy
         self.scaling_strategy = scaling_strategy
         self.sample_validation_strategy = sample_validation_strategy or (lambda image: True)
@@ -158,6 +153,7 @@ class HIDDataset(InMemoryDataset):
                 LOGGER.info(f"Writing data to arrow cache: {self.cache_path}")
                 write_to_hf_cache(self.cache_path, self._data, include_size_standard)
 
+        # TODO improve loading of annotations and ground truth annotations
         if self.ground_truth_as_annotations:
             LOGGER.info("Loading ground truth annotations")
             for image in self._data:
@@ -171,7 +167,7 @@ class HIDDataset(InMemoryDataset):
                             image.path.stem
                         )
                     else:
-                        image._meta["called_alleles"] = load_donor_alleles(image.path.stem, self._panel)
+                        image._meta["called_alleles"] = NFI_RND_DatasetStrategy.load_donor_alleles(image.path.stem, self._panel)
                 except ValueError as e:
                     LOGGER.warning("Could not load ground truth annotations for %s: %s", image.path, e)
 
@@ -384,9 +380,6 @@ class HIDDataset(InMemoryDataset):
                     panel=panel,
                     include_size_standard=self.include_size_standard,
                     data_loading_strategy=self.data_loading_strategy,
-                    kit=self.kit,
-                    dataset_strategy=self.dataset_strategy,
-                    scaling_strategy=self.scaling_strategy,
                     use_ground_truth_as_annotations=self.ground_truth_as_annotations,
                     meta={
                         "annotations_name": annotation_name,
@@ -589,12 +582,12 @@ class HIDDataset(InMemoryDataset):
             :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
             :return: ScanpointAnnotation object containing the translated scanpoint annotation.
         """
-        # TODO: do not hardcode amount of scanpoints
-        scanpoint_annotation = np.zeros((StrategyRegistry.get_kit().num_dyes, 4096), dtype=np.int8)
+        scanpoint_annotation = np.zeros((StrategyRegistry.get_scaling_strategy().kit.num_dyes,
+                                         StrategyRegistry.get_scaling_strategy().scanpoint_resolution), dtype=np.int8)
         for locus in allele_annotation.annotation:
             for allele in locus.alleles:
                 # for each allele, find the left and right bin of the allele using the panel that has been adjusted by the corresponding ladder.
-                bp, left_bin, right_bin = adjusted_panel.get_allele_basepair_and_bins(locus.name, allele.name)
+                _, left_bin, right_bin = adjusted_panel.get_allele_basepair_and_bins(locus.name, allele.name)
 
                 # use the scaler to find the closest scanpoint indices for the left and right bins of the allele
                 left_scanpoint = np.argmin(np.abs(scaler - left_bin))

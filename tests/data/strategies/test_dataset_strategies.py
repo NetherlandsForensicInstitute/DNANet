@@ -11,14 +11,6 @@ from DNAnet.data.strategies.dataset_strategies import (
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 
-@pytest.fixture
-def globalfiler_kit():
-    StrategyRegistry.configure_kit('GLOBALFILER')
-
-
-@pytest.fixture
-def ppf6c_kit():
-    StrategyRegistry.configure_kit('PPF6C')
 
 
 def test_collect_nfi_rnd_files(ppf6c_kit):
@@ -42,11 +34,11 @@ def test_collect_nfi_rnd_files_DTH(ppf6c_kit):
 
     assert len(collected_files) == 2, f'Incorrect amount of files found {len(collected_files)} != 2'
     assert Path(collected_files[0][0]).stem == '1A2_A01_01'
-    
+
 def test_collect_nfi_rnd_file_raise():
     with pytest.raises(ValueError):
         NFI_RND_DatasetStrategy.collect_dataset_files("/tmp/")
-    
+
 
 def test_collect_provedit_files(globalfiler_kit):
     collected_files = ProvedItDatasetStrategy.collect_dataset_files(

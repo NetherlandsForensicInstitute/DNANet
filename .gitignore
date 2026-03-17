@@ -178,7 +178,6 @@ figures/
 # Ignore all files that are on HF
 resources/data/
 
-
 # Synthetic data
 generated/
 generated_epgs/

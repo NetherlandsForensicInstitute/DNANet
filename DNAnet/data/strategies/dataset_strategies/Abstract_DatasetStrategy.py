@@ -54,12 +54,11 @@ class DatasetStrategy(ABC):
         allele_names: Iterable[str],
         allele_heights: Optional[Iterable[float]] = None,
     ) -> Marker:
-        _kit = StrategyRegistry.get_kit()
-
-        dye_row = _kit.panel.get_dye_row(marker_name)
+        _scaling_strategy = StrategyRegistry.get_scaling_strategy()
+        dye_row = _scaling_strategy.panel.get_dye_row(marker_name)
         if dye_row is None:
             raise RuntimeError(
-                f'Marker {marker_name} not found in panel {_kit.panel}. '
+                f'Marker {marker_name} not found in panel {_scaling_strategy.panel}. '
                 'Please check the panel or the marker name.'
             )
 

@@ -10,6 +10,7 @@ from DNAnet.data.data_models import Annotation, Panel
 from DNAnet.data.data_models.hid_dataset import HIDDataset
 from DNAnet.data.data_models.hid_image import HIDImage, Ladder
 from DNAnet.data.parsing import parse_called_alleles
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 
 def pytest_configure():
@@ -20,9 +21,19 @@ def pytest_configure():
     pytest.RESOURCES_DIR = tests_dir / 'resources'
     pytest.PANEL_PATH = pytest.RESOURCES_DIR / "panel.xml"
 
+@pytest.fixture
+def globalfiler_kit():
+    StrategyRegistry.configure_kit('GLOBALFILER')
+
 
 @pytest.fixture
-def hid_dataset_rd():
+def ppf6c_kit():
+    StrategyRegistry.configure_kit('PPF6C')
+
+
+
+@pytest.fixture
+def hid_dataset_rd(ppf6c_kit):
     return HIDDataset(
         root=pytest.RESOURCES_DIR / "profiles" / "RD",
         panel=pytest.PANEL_PATH,
