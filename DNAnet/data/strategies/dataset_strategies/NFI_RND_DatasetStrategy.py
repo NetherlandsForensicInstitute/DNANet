@@ -1,24 +1,24 @@
+import csv
 import os
 import re
-import csv
-from typing import Dict, List, Tuple, Mapping, Iterable, Optional
-from pathlib import Path
-from itertools import groupby
 from collections import defaultdict
+from itertools import groupby
+from pathlib import Path
+from typing import Dict, List, Tuple, Iterable, Optional
 
 from loguru import logger
 
-from DNAnet.utils import (
-    is_rd_hid_filename,
-    get_prefix_from_filename,
-)
+from DNAnet.data.data_models.dna_models import Allele, Marker, Panel
 from DNAnet.data.data_models.structs import AlleleAnnotation
-from DNAnet.data.data_models.dna_models import Allele, Marker
 from DNAnet.data.parsing.parse_annotations import _parse_csv_header
-from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import (
     FileCategory,
     DatasetStrategy,
+)
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
+from DNAnet.utils import (
+    is_rd_hid_filename,
+    get_prefix_from_filename,
 )
 
 
@@ -74,16 +74,16 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             raise ValueError(
                 'Path does not contain the neccessary mapping files (annotation & ladder)'
             )
-            
+
         # Allele Report for Annotations
         annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
         annotation_mapping = {}
         for txt_file in annotation_txt_files:
             _annotation = cls.parse_annotation_file(txt_file)
-            
+
             if _annotation:
                 annotation_mapping.update(_annotation)
-        
+
         # HID to Annotation mapping
         hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
         analysis_treshold_type_column = [
@@ -105,7 +105,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
 
         hid_files = list(path.rglob('*.hid'))
         hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == 'sample', hid_files))
-        
+
         return [
             (
                 hid_file,
@@ -209,7 +209,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             logger.debug(f'Found empty file: {path}')
             return None
 
-        kit = StrategyRegistry.get_kit()
+        scaling_strategy = StrategyRegistry.get_scaling_strategy()
 
         markers = defaultdict(list)
         with open(path, 'r') as file:
@@ -222,8 +222,7 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
             for sample, results in groupby(csv_file, lambda x: x[0]):
                 for result in results:
                     marker_name = result[1]
-                    dye_row = kit.panel.get_dye_row(marker_name)
-                    if dye_row is not None:  # may be missing, e.g. Y-profile
+                    if scaling_strategy.panel.get_dye_row(marker_name) is not None:  # may be missing, e.g. Y-profile
                         allele_heights: None | List[float] = None
                         allele_names, allele_heights = map(
                             list,
@@ -278,3 +277,40 @@ class NFI_RND_DatasetStrategy(DatasetStrategy):
                 ]
                 return delimiter, allele_cols, height_cols
         raise TypeError(f'No valid delimiter found for file: {file.name} with header {header}.')
+
+    @staticmethod
+    def load_donor_alleles(file_name: str, panel: Panel) -> List[Marker]:
+        """
+        For R&D files, we know the donors that contributed and the DNA profiles of the donors. For a
+        single .hid file, find the donors (from the file name) and return the list of Markers of those
+        donors combined.
+        :param file_name: .hid file to load actual donors for
+        :param panel: the panel to retrieve the dye row of the markers from
+        """
+        reference_path = "resources/data/2p_5p_Dataset_NFI/References"
+        if not is_rd_hid_filename(file_name):
+            raise ValueError("Cannot load donor alleles for non-RD sample. "
+                             f"Found file name {file_name}")
+
+        mixture_type = get_prefix_from_filename(file_name)  # to retrieve e.g. '1A2'
+        dataset_nr, nr_donors = mixture_type[0], int(mixture_type[2])
+        # one file contains alleles of one donor, so find files for all donors of the profile
+        file_stems = [f"{dataset_nr}{letter}" for letter in
+                      NFI_RND_DatasetStrategy.DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
+
+        # find the set of all alleles of the donors per marker
+        marker_allele_strings = defaultdict(set)
+        for file_stem in file_stems:
+            reference_profiles_path = os.path.join(reference_path, f'{file_stem}.csv')
+            with open(reference_profiles_path, "r") as f:
+                reader = csv.DictReader(f, delimiter=";")
+                for row in reader:
+                    marker_allele_strings[row['Marker']].update([row['Allele1'], row['Allele2']])
+
+        # transform into Marker/Allele objects
+        markers = []
+        for marker_name, alleles in marker_allele_strings.items():
+            dye_row = panel.get_dye_row(marker_name)
+            markers.append(Marker(dye_row, marker_name, [Allele(a) for a in sorted(alleles)]))
+
+        return markers

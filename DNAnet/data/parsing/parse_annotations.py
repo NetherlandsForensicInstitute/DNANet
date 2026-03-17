@@ -52,7 +52,6 @@ def parse_called_alleles(annotation_file_path: PathLike,
 
 
 
-
 def _parse_annotations(panel: Panel, results, allele_cols, height_cols) \
         -> List[Marker]:
     """

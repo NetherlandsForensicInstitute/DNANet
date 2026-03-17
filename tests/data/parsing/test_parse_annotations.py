@@ -44,8 +44,8 @@ def test_parse_called_alleles():
     assert len(markers) == 27
 
 
-def test_translate_allele_to_scanpoint_annotation():
-    StrategyRegistry.configure_kit(get_standard_kit("PPF6C"))
+
+def test_translate_allele_to_scanpoint_annotation(ppf6c_kit):
     panel = Panel(pytest.PANEL_PATH)
     scaler = np.arange(4096)
     annotation =  Marker(dye_row=0, name='AMEL', alleles=[
