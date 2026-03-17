@@ -22,8 +22,14 @@ def pytest_configure():
     pytest.PANEL_PATH = pytest.RESOURCES_DIR / "panel.xml"
 
 @pytest.fixture
+def globalfiler_kit():
+    StrategyRegistry.configure_kit('GLOBALFILER')
+
+
+@pytest.fixture
 def ppf6c_kit():
-    StrategyRegistry.configure_kit("PPF6C")
+    StrategyRegistry.configure_kit('PPF6C')
+
 
 
 @pytest.fixture

@@ -9,13 +9,9 @@ from typing import Any, Dict, List, MutableMapping, Optional, Sequence, Tuple
 import numpy as np
 from scipy.signal import find_peaks
 
-from DNAnet.data.strategies.dataset_strategies.Abstract_DatasetStrategy import DatasetStrategy
-from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy
-
 from DNAnet.data.data_models import Allele, Annotation, Marker, Panel
 from DNAnet.data.data_models.base import Image
 from DNAnet.data.parsing import get_peak_data, parse_called_alleles
-from DNAnet.data.strategies.kit_strategies.str_kit import STRKit
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.data.utils import (
     assert_image_data_valid_format,
@@ -23,7 +19,6 @@ from DNAnet.data.utils import (
     find_peak_idx_near_or_in_range
 )
 from DNAnet.typing import PathLike
-
 
 LOGGER = logging.getLogger("dnanet")
 
@@ -488,8 +483,8 @@ class Ladder(HIDImage):
 
         return adjusted_alleles
 
-
-    def _extrapolate_base_pair(self, indices: List[float],
+    @staticmethod
+    def _extrapolate_base_pair(indices: List[float],
                                x_values: List[float],
                                marker: Marker,
                                allele: Allele,

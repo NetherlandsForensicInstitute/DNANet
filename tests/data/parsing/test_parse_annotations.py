@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 
 from DNAnet.data.data_models import Allele, Marker, Panel
+from DNAnet.data.data_models.hid_dataset import HIDDataset
 from DNAnet.data.data_models.structs import AlleleAnnotation
 from DNAnet.data.parsing import parse_called_alleles
-from DNAnet.data.parsing.parse_annotations import translate_allele_to_scanpoint_annotation
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 
@@ -43,10 +43,6 @@ def test_parse_called_alleles():
     assert len(markers) == 27
 
 
-@pytest.fixture
-def ppf6c_kit():
-    StrategyRegistry.configure_kit("PPF6C")
-
 
 def test_translate_allele_to_scanpoint_annotation(ppf6c_kit):
     panel = Panel(pytest.PANEL_PATH)
@@ -55,7 +51,7 @@ def test_translate_allele_to_scanpoint_annotation(ppf6c_kit):
         Allele(name='X', base_pair=81.5, left_bin=81.0, right_bin=82.0)])
     allele_annotation = AlleleAnnotation(annotation=[annotation])
 
-    scanpoint_annotation = translate_allele_to_scanpoint_annotation(allele_annotation, adjusted_panel=panel, scaler=scaler)
+    scanpoint_annotation = HIDDataset._translate_allele_to_scanpoint_annotation(allele_annotation, adjusted_panel=panel, scaler=scaler)
 
     assert scanpoint_annotation.annotation[0, 81:82].all() == 1
     assert scanpoint_annotation.annotation[0, :81].all() == 0

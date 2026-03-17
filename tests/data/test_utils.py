@@ -66,10 +66,6 @@ def test_find_peak_idx_near_or_in_range(array, range, result):
     assert np.array_equal(out, result)
 
 
-@pytest.fixture
-def ppf6c_kit():
-    StrategyRegistry.configure_kit("PPF6C")
-
 
 def test_extract_peaks(ppf6c_kit):
     scaling_strat = StrategyRegistry.get_scaling_strategy()
