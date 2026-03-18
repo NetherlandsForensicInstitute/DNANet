@@ -160,10 +160,10 @@ def filter_peaks_AT_LT(peaks: Sequence['ExtractedPeak'],
 
     if analysis_threshold_type == "NT": # No Threshold, Do not filter
         return peaks
-    elif analysis_threshold_type == "AT":
+    elif analysis_threshold_type == "DTH":
         hetro_imbalance_percentage = HETRO_IMBALANCE_PERCENTAGE_AT
         threshold = THRESHOLDS_AT
-    elif analysis_threshold_type == "LT":
+    elif analysis_threshold_type == "DTL":
         hetro_imbalance_percentage = HETRO_IMBALANCE_PERCENTAGE_LT
         threshold = THRESHOLDS_LT
     else:

@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 from DNAnet.data.data_models.dna_models import Panel
-from DNAnet.data.kit_compatibility.lane_standards import InternalSizeStandard
+from DNAnet.data.strategies.kit_strategies.internal_size_standard import InternalSizeStandard
 
 
 @dataclass(frozen=True)
-class Kit:
+class STRKit:
     """
     Describes a DNA profiling kit and its key configuration.
 
@@ -26,35 +26,13 @@ class Kit:
         markers: Optional list of marker names used by this kit (for quick checks or validation).
         description: Optional free-text description.
     """
+
     name: str
     size_standard: InternalSizeStandard
+    panel: Panel
+    num_dyes: int = 6
     panel_path: Optional[Path] = None
-    panel: Optional[Panel] = None
     markers: Optional[Sequence[str]] = None
     description: Optional[str] = None
 
 
-
-# Example pre-defined kits; extend as needed.
-POWER_PLEX_FUSION_6C_PANEL_PATH = Path("resources/data/SGPanel_PPF6C.xml")
-
-POWER_PLEX_FUSION_6C_KIT = Kit(
-    name="PPF6C",
-    size_standard=InternalSizeStandard.WEN_ILS,
-    panel_path=POWER_PLEX_FUSION_6C_PANEL_PATH,
-    panel=Panel(POWER_PLEX_FUSION_6C_PANEL_PATH),  # fill in when you load the panel
-    markers=None,  # fill in with marker names for quick validation
-    description="ProvedIt dataset kit using WEN_ILS size standard.",
-)
-
-
-GLOBALFILER_PANEL_PATH = Path("resources/data/SGPanel_Globalfiler_Panel.xml")
-
-GLOBALFILER_KIT = Kit(
-    name="GlobalFiler",
-    size_standard=InternalSizeStandard.GENESCAN_600_LIZ,
-    panel_path=GLOBALFILER_PANEL_PATH,
-    panel=Panel(GLOBALFILER_PANEL_PATH),
-    markers=None,  # fill in with marker names for quick validation
-    description="GlobalFiler kit using GENESCAN_600_LIZ size standard.",
-)

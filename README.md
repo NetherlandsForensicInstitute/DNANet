@@ -41,6 +41,19 @@ for the data, and
 ```
 for the code and model.
 
+For work related to the Data synthetization please cite the following:
+```
+@ARTICLE{Taylor2025,
+    title = {Simulating realistic short tandem repeat capillary electrophoretic signal using a generative adversarial network},
+    journal = {Expert Systems with Applications},
+    volume = {280},
+    pages = {127536},
+    year = {2025},
+    doi = {https://doi.org/10.1016/j.eswa.2025.127536},
+    author = {D. A. Taylor and M. Humphries}
+}
+```
+
 ## Requirements
 Python >= 3.10, <=3.12
 
@@ -61,13 +74,16 @@ $ pip install pdm
 ```
 Then run the following command to install the dependencies:
 ```bash
-$ pdm install
+$ pdm sync
 ```
 
 Git LFS is used to track `.pt` (model) files. Make sure to [install Git LFS](https://git-lfs.com/) on your system. In order to retrieve the files from the remote run the following command:
 ```bash
 $ git lfs pull
 ```
+
+# Synthetic data generation
+For instructions on simulating DNA profiles and generating synthetic EPGs, see [synthetic_profiles](synthetic_profiles/README.md).
 
 HugginFace datasets is used to download the research data. This is done automatically whenever the data is missing from your config's provided root directory.
 When this is triggered, data is pulled from the ["NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024"](https://huggingface.co/datasets/NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024) HuggingFace repository.
@@ -142,6 +158,23 @@ The list of `HIDImage`'s is stored in the `._data` attribute of the class.
 
 Note that when loading the 2p-5p R&D dataset without limit, two hid files do not pass data validation, leaving the dataset with 348 images instead of 350.
 
+## Annotations
+There are three types of 'annotations' we can have for a hid image:
+
+* Ground truth. These are the alleles of the donors to a sample. Will generally not be available for case data.
+* Called alleles. This is what analysts generally create during case work, thus will be available for all case data. 
+There can be multiple sets of called alleles, for instance when alleles are called using low or standard thresholds.
+* Scan point annotations. For each profile, it is possible to annotate each scan point of each peak separately as belonging to a given
+category, e.g. Allele, Stutter, Bleedthrough, Spike, Dye blob, etc. The current repository has a labeltool to help
+in creating these annotations. All scan points not annotated are assumed to be baseline.
+
+The scan point annotations give much detailed information on what can be seen in a profile, but are harder to create
+at scale than the called alleles.
+
+Models can potentially be trained or evaluated on any of the above. Note that the prediction problem will be binary
+for the first to annotations, and multiclass for the third.
+
+
 # Models
 
 ## U-Net
@@ -155,7 +188,9 @@ hid_dataset = load_dataset("config/data/dnanet_rd.yaml")
 unet_model = load_model("config/models/unet.yaml")
 predictions = unet_model.predict_batch(hid_dataset)
 ```
-This model creates a binary segmentation, where `1` indicates the presence of a peak and `0` otherwise. 
+For binary annotations, this model creates a binary segmentation, where `1` indicates the presence of 
+an allele and `0` otherwise. 
+For multiclass annotations, the different classes are predicted.
 
 We have also implemented an `AlleleCaller` (see `DNAnet/allele_callers.py`) to translate the binary segmentation
 into called alleles. This step is part of the `predict_batch()` function of the U-Net and will be applied when
@@ -296,7 +331,7 @@ python evaluate.py \
 2. Extract contributor genotypes into per-sample CSVs (semicolon-separated) that the dataset strategy can load:
 ```python
 from pathlib import Path
-from DNAnet.data.dataset_compatibility.format_conversion import find_genotype_file, individualize_genotypes
+from DNAnet.data.strategies.dataset_compatibility.format_conversion import find_genotype_file, individualize_genotypes
 
 # Path to the extracted ProvedIt dataset (contains .hid files and the genotype Excel file)
 dataset_root_path = "/Users/amarmesic/Documents/tudelft/thesis/datasets/USE THIS - PROVEDIt_2-5-Person Profiles_3500 5sec_GF29cycles"
@@ -317,7 +352,7 @@ individualize_genotypes(
 from pathlib import Path
 from DNAnet.data.data_models import Panel
 from DNAnet.data.data_models.hid_dataset import HIDDataset
-from DNAnet.data.dataset_compatibility.dataset_strategy import ProvedItDatasetStrategy
+from DNAnet.data.strategies.dataset_strategy import ProvedItDatasetStrategy
 from DNAnet.data.kit_compatibility.kit import GLOBALFILER_KIT
 from DNAnet.data.kit_compatibility.scaling_strategy import ProvedItEPGScalingStrategy
 
@@ -346,7 +381,7 @@ This keeps legacy behavior intact: if you omit the strategies, the dataset/image
 
 To extend to a new kit/dataset, subclass the relevant strategy and wire it up when constructing `HIDDataset`/`HIDImage`:
 ```python
-from DNAnet.data.dataset_compatibility.dataset_strategy import DatasetStrategy
+from DNAnet.data.strategies.dataset_compatibility import DatasetStrategy
 
 class MyDatasetStrategy(DatasetStrategy):
     def categorize_file(self, file_name: str): ...
@@ -386,8 +421,67 @@ the high threshold (`DTH`) 2p-5p NFI data, the results can be found in
 
 Note that for this algorithm, annotated images (having called alleles) are necessary.
 
+## scripts/scan_point_annotation_statistics.py
+This script combines annotation CSV files and publishes basic statistics (counts per label, sample type, and annotation width). For datasets with known ground truth, it also reports annotation-derived allele-calling performance.
 
-# Labeltool
-The 'scripts/labeltool.py' can be used to manually create scan point annotations, and also 
-(by providing the -c argument) to compare annotations made by different users.
+Run for example:
+```bash
+python scripts/scan_point_annotation_statistics.py \
+  -a <annotation_folder> \
+  -o output/annotations_all.csv
+```
 
+Arguments:
+- `-a`, `--annotation-folder-path`: folder containing annotation CSV files.
+- `-o`, `--output-file`: path of the merged output CSV.
+
+## scripts/annotator_agreement.py
+This script compares repeated annotations from multiple annotators on the same profiles. It computes pairwise overlap/label agreement and produces visual outputs such as heatmaps, confusion plots, and Sankey diagrams.
+
+Run for example:
+```bash
+python scripts/annotator_agreement.py \
+  -a <annotation_folder> \
+  -d dnanet_rd_annotation \
+  -o output/annotations_repeated.csv
+```
+
+Arguments:
+- `-a`, `--annotation-folder-path`: folder containing annotation CSV files.
+- `-d`, `--data-config`: dataset config used to load profiles.
+- `-o`, `--output-file`: path of the merged output CSV.
+
+## scripts/create_paper_figures.py
+This script generates publication-style figures from a trained model and selected profiles. It creates full-profile figures, optional marker-level figures, and a bin-type illustration figure.
+
+Run:
+```bash
+python scripts/create_paper_figures.py
+```
+
+Note: input model/data paths and selected profile-marker pairs are defined in the script `__main__` block.
+
+## labeltool.py
+This interactive tool is used to create and edit scan-point annotations, and to compare annotations between users.
+
+Run for annotation mode:
+```bash
+python labeltool.py \
+  -u <user_name> \
+  -f <annotations_csv> \
+  -d <data_config>
+```
+
+Run for compare mode:
+```bash
+python labeltool.py \
+  -c \
+  -f <folder_with_annotation_csvs> \
+  -d <data_config>
+```
+
+Arguments:
+- `-u`, `--user`: user name used while writing/filtering annotations.
+- `-f`, `--filepath`: annotation CSV file (annotation mode) or annotation folder (compare mode).
+- `-d`, `--data-config`: dataset config to load profiles.
+- `-c`, `--compare`: load all annotators and show stacked annotations in non-interactive compare mode.

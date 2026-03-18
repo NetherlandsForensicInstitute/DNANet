@@ -16,9 +16,9 @@ from torchmetrics import Metric
 from tqdm import tqdm
 
 from DNAnet.allele_callers import NearestBasePairCaller
+from DNAnet.data.data_models.base import Image, InMemoryDataset
 from DNAnet.data.data_models.hid_dataset import HIDDataset
 from DNAnet.data.data_models.hid_image import HIDImage
-from DNAnet.models.base import TrainableModel
 from DNAnet.models.prediction import Prediction
 from DNAnet.typing import PathLike
 from DNAnet.utils import chunks
@@ -28,8 +28,48 @@ TORCH_DEFAULT_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 LOGGER = logging.getLogger('dnanet')
 
+class Model(ABC):
 
-class HIDImageBaseModel(TrainableModel, ABC):
+    @abstractmethod
+    def predict(self, image: Image) -> Prediction:
+        """
+        Make a model prediction for a single image.
+        """
+        raise NotImplementedError
+
+    def predict_batch(self, batch: Sequence[Image]) -> Sequence[Prediction]:
+        """
+        Make model predictions for multiple images.
+        """
+        return list(map(self.predict, batch))
+
+    @abstractmethod
+    def save(self, model_dir: PathLike):
+        """
+        Load any file(s) from the specified `model_dir`.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def load(self, model_dir: PathLike):
+        """
+        Save any file(s) to the specified `model_dir`.
+        """
+        raise NotImplementedError
+
+
+class TrainableModel(Model, ABC):
+
+    @abstractmethod
+    def fit(self, dataset: InMemoryDataset, **kwargs):
+        """
+        Fit the model on the dataset.
+        """
+        raise NotImplementedError
+
+
+
+class BaseModel(TrainableModel, ABC):
     """
     A base model for analyzing HIDImages using PyTorch. This class provides a general setup for training and
     evaluating a PyTorch model on HIDImages, and can be extended to specific model architectures and tasks by

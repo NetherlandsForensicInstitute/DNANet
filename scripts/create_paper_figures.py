@@ -7,12 +7,13 @@ import scipy.interpolate
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 
-from DNAnet.models.base import Model
+from DNAnet.models.base_model import Model
+from DNAnet.utils import get_marker_ranges
 from config_io import load_dataset, load_model
 from DNAnet.data.data_models.dna_models import Marker, Panel
 from DNAnet.data.data_models.hid_dataset import HIDDataset
 from DNAnet.data.data_models.hid_image import HIDImage
-from DNAnet.evaluation.visualizations import DNA_CHANNELS, _get_marker_bin
+from DNAnet.evaluation.visualizations import DNA_CHANNELS
 from DNAnet.models.prediction import Prediction
 
 # Set up matplotlib parameters for the paper figures text size
@@ -55,7 +56,7 @@ def add_bin_info(called_alleles: List[Marker], panel: Panel) -> List[Marker]:
     """
     for marker in called_alleles:
         for allele in marker.alleles:
-            bin_info = panel.get_allele_info(
+            bin_info = panel.get_allele_basepair_and_bins(
                 marker_name=marker.name, allele_name=allele.name
             )
             allele.base_pair, allele.left_bin, allele.right_bin = bin_info
@@ -279,36 +280,6 @@ def plot_allele_profile(
     return fig
 
 
-def get_marker_ranges(
-    image: HIDImage, tail_size: int = 5
-) -> Dict[str, Tuple[int, np.ndarray]]:
-    """Using the image's panel, get the ranges of the markers in the image.
-    This function retrieves the ranges of the markers in the image,
-    which are used for zooming in on specific markers.
-
-    Args:
-        image (HIDImage): The HIDImage object containing the image data and metadata.
-        tail_size (int, optional):
-            Extra space that's added on the left and right side of a marker's bin.
-            Defaults to 5.
-
-    Returns:
-        Dict[str, Tuple[int, np.ndarray]]: A dictionary containing the marker names as keys,
-        and a tuple of the dye row and the bin range as values.
-    """
-    marker_ranges = {}
-    for marker in image._panel._panel:
-        marker_name = marker.name
-        marker_bin = _get_marker_bin(marker)
-        scanpoint_bin = tuple(np.argmin(np.abs(image._scaler - marker_bin), axis=1))
-        scanpoint_bin = (
-            max(0, scanpoint_bin[0] - tail_size),
-            min(4096, scanpoint_bin[1] + tail_size),
-        )
-        marker_ranges[marker_name] = (marker.dye_row, np.arange(*scanpoint_bin))
-    return marker_ranges
-
-
 def save_figure(fig: plt.Figure, path: str):
     """Save the figure to the specified path.
 
@@ -402,8 +373,8 @@ def create_bin_type_plot(dataset: HIDDataset) -> None:
 
 
 if __name__ == "__main__":
-    model = load_model("resources/model/current_best_unet/")
-    dataset = load_dataset("config/data/dnanet_rd.yaml")
+    model = load_model("../resources/model/current_best_unet/")
+    dataset = load_dataset("../config/data/dnanet_rd.yaml")
 
     paper_figures = [
         ("1E3_rerun_F04_16", "SE33"),

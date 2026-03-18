@@ -11,17 +11,17 @@ from DNAnet.data.data_models.base import Image
 from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.data.preprocessing.peak_extraction import extract_peaks_torch, extract_peak_windows
 from DNAnet.data.preprocessing.peak_utils import get_peak_centers
-from DNAnet.models.HIDImageBaseModel import HIDImageBaseModel
+from DNAnet.models.base_model import BaseModel
 from DNAnet.models.classification.peak_classification import PeakClassification
 from DNAnet.models.prediction import Prediction
-from DNAnet.models.reconstruction.autoencoder import HIDAutoencoder
+from DNAnet.models.reconstruction.autoencoder import Autoencoder
 from DNAnet.models.segmentation.peaknet_architecture import CombinedClassifier, PeakOnlyClassifier
 from DNAnet.typing import PathLike
 from config_io import load_model
 
 LOGGER = logging.getLogger('dnanet')
 
-class PeakNet(HIDImageBaseModel):
+class CombinedPeakNet(BaseModel):
 
 
     def __init__(self,
@@ -63,14 +63,14 @@ class PeakNet(HIDImageBaseModel):
 
         if autoencoder is not None or autoencoder_checkpoint is not None:
             if autoencoder is not None and autoencoder_checkpoint is not None:
-                self.autoencoder: HIDAutoencoder = load_model(autoencoder)
+                self.autoencoder: Autoencoder = load_model(autoencoder)
                 self.autoencoder.load(autoencoder_checkpoint)
                 LOGGER.info(f"Loaded autoencoder from {autoencoder_checkpoint}")
             elif autoencoder is not None:
-                self.autoencoder: HIDAutoencoder = load_model(autoencoder)
+                self.autoencoder: Autoencoder = load_model(autoencoder)
                 LOGGER.info(f"Loaded autoencoder from config")
             elif autoencoder_checkpoint is not None:
-                self.autoencoder: HIDAutoencoder = load_model(autoencoder_checkpoint)
+                self.autoencoder: Autoencoder = load_model(autoencoder_checkpoint)
                 LOGGER.info(f"Loaded autoencoder from {autoencoder_checkpoint}")
 
             autoencoder_out_shape = self.autoencoder.encoded_shape
@@ -91,9 +91,7 @@ class PeakNet(HIDImageBaseModel):
             model = PeakOnlyClassifier(
                 peak_classifier=self.peak_classifier.model,
                 num_classes=self.peak_classifier.num_classes,
-                default_class=self.noise_label_idx,
-                out_channels=6, # assume output size when no autoencoder is used
-                out_length=4096,
+                default_class=self.noise_label_idx
             )
 
 
@@ -141,7 +139,7 @@ class PeakNet(HIDImageBaseModel):
             image_tensor = self.autoencoder.get_input(image) # (C, 4096, 1)
             image_tensor = image_tensor.squeeze(-1)  # (C, 4096)
         else:
-            image_tensor = None
+            image_tensor = torch.from_numpy(image.data).to(device=self._device, dtype=torch.float32).squeeze() # (C, 4096)
 
         return image_tensor, peak_tensors, marker_idx, peak_centers
 
@@ -173,14 +171,14 @@ class PeakNet(HIDImageBaseModel):
             # peak_window: (N_p, C, W),
             # marker_idx: (N_p,)
             # peak_centers: (N_p, 2)
-            if image_tensor is not None: # image tensor is not required when no autoencoder is used
-                image_tensors.append(image_tensor)
+
+            image_tensors.append(image_tensor)
             peak_tensors_list.append(peak_window)
             marker_idx_list.append(marker_idx)
             peak_centers_list.append(peak_center)
 
-        if self.autoencoder is not None:
-            image_tensors = torch.stack(image_tensors)  # (N, C, 4096)
+
+        image_tensors = torch.stack(image_tensors)  # (N, C, 4096)
 
         # We use nested tensors because N_p is ragged-shaped: the number of peaks per image can vary
         peak_tensors_list = torch.nested.nested_tensor(peak_tensors_list, layout=torch.jagged, device=self._device) # (N, N_p, C, W)

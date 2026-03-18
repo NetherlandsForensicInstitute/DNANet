@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from typing import List, Tuple
 
 import numpy as np
@@ -9,10 +9,11 @@ from DNAnet.data.data_models import Allele, Marker, Panel
 from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.models.prediction import Prediction
 
-
 LOGGER = logging.getLogger('dnanet')
 
 NON_AUTOSOMAL_MARKERS = ['AMEL', 'DYS391', 'DYS576', 'DYS570']
+scan_point_annotation = namedtuple('ScanPointAnnotation',
+                                   ['dye_index', 'start', 'end', 'label'])
 
 
 class AlleleCaller(ABC):
@@ -60,6 +61,99 @@ class NearestBasePairCaller(AlleleCaller):
             prediction.called_alleles = called_alleles
         return prediction
 
+    def call_alleles_from_scan_points_annotations(self,
+                                                  image: HIDImage,
+                                                  annotations: List[scan_point_annotation],
+                                                  aggregate: bool=True,
+                                                  warn_for_multiple_peaks=False) -> List[
+        Marker]:
+        """
+        Calls alleles from annotations as provided by the annotation tool.
+        If aggregate, only provides every allele once, with rfu = max rfu.
+        Else, can provide the same allele multiple times, e.g. from different annotators.
+
+        stores start and end of annotation in left and right bin of the allele
+        gives a warning if warn_for_multiple_peaks and multiple local maxima are found in an
+        annotated region.
+        """
+        scaler = image._scaler[np.newaxis, :]
+        loci_dict = defaultdict(list)
+        rfus = defaultdict(int)
+        left = defaultdict(int)
+        right = defaultdict(int)
+        for annotation in annotations:
+            rfu_of_annotation = image.data[annotation.dye_index, max(annotation.start,0):annotation.end+1]
+            top_bp = np.argmax(rfu_of_annotation) + annotation.start
+            max_rfu = int(max(rfu_of_annotation))
+
+            # find the bin closest to the top rfu in the annotation
+            # not to the whole annotation range, as the long slopes of a peak can also be annotated
+            allele_name, marker_name = self.get_marker_and_allele_from_bin(annotation.dye_index,
+                                                                           image._panel,
+                                                                           top_bp,
+                                                                           scaler)
+
+            if warn_for_multiple_peaks:
+                from scipy.signal import find_peaks
+
+                # find all peaks of at least certain RFU, whose distance to the next bottom is
+                # at least prominence, and who are distance apart
+                peaks, _ = find_peaks(rfu_of_annotation.squeeze(),
+                                      height=50,
+                                      prominence=20,
+                                      distance=5,
+                                      width=5)
+                if len(peaks)>1:
+                    print('found multiple peaks for ', image.path.stem, marker_name, allele_name, rfu_of_annotation.squeeze()[peaks], _)
+
+            if aggregate:
+                loci_dict[(annotation.dye_index, marker_name)].append(allele_name)
+                # save highest rfu found for this allele (alleles may be found several times)
+                rfus[(marker_name, allele_name)] = int(max(
+                    rfus[(marker_name, allele_name)],
+                    max_rfu
+                ))
+                left[(marker_name, allele_name)] = float(min(
+                    left[(marker_name, allele_name)],
+                    annotation.start
+                ))
+                right[(marker_name, allele_name)] = float(max(
+                    right[(marker_name, allele_name)],
+                    annotation.end
+                ))
+            if not aggregate:
+                allele = Allele(name=allele_name, height=max_rfu,
+                                left_bin=float(scaler[:, annotation.start]),
+                                right_bin=float(scaler[:, annotation.end]))
+                loci_dict[(annotation.dye_index, marker_name)].append(allele)
+
+
+        if aggregate:
+            return [
+                Marker(
+                    dye_index,
+                    marker_name,
+                    alleles=[
+                        Allele(name=allele_name,
+                               height=rfus[(marker_name, allele_name)],
+                               left_bin=scaler[:, left[(marker_name, allele_name)]],
+                               right_bin=scaler[:, right[(marker_name, allele_name)]],
+                               )
+                        for allele_name in set(alleles)
+                    ],
+                )
+                for (dye_index, marker_name), alleles in loci_dict.items()
+            ]
+        else:
+            return [
+                Marker(
+                    dye_index,
+                    marker_name,
+                    alleles=alleles,
+                )
+                for (dye_index, marker_name), alleles in loci_dict.items()
+            ]
+
     def translate_pixels_to_alleles(
             self,
             scaler: np.ndarray,
@@ -87,8 +181,9 @@ class NearestBasePairCaller(AlleleCaller):
             predicted_bins = np.split(positives, np.where(np.diff(positives) != 1)[0] + 1)
             for prediction_bin in predicted_bins:
                 # get the mean basepair of the bin via its pixel values and the scaler
-                mean_bp = np.mean(scaler[:, prediction_bin])
-                marker_name, allele_name = self.get_allele_by_nearest_bp(dye_index, mean_bp, panel)
+                allele_name, marker_name = self.get_marker_and_allele_from_bin(dye_index, panel,
+                                                                               prediction_bin,
+                                                                               scaler)
                 loci_dict[(dye_index, marker_name)].add(allele_name)
                 # save highest rfu found for this allele (alleles may be found several times)
                 max_rfu = max(image[dye_index, prediction_bin])
@@ -108,6 +203,11 @@ class NearestBasePairCaller(AlleleCaller):
             )
             for (dye_index, marker_name), alleles in loci_dict.items()
         ]
+
+    def get_marker_and_allele_from_bin(self, dye_index, panel, prediction_bin, scaler):
+        mean_bp = np.mean(scaler[:, prediction_bin])
+        marker_name, allele_name = self.get_allele_by_nearest_bp(dye_index, mean_bp, panel)
+        return allele_name, marker_name
 
     @staticmethod
     def get_allele_by_nearest_bp(

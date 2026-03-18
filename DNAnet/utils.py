@@ -1,39 +1,17 @@
-import csv
 import dataclasses
 import json
-import logging
 import math
-import os
 import re
-from collections import defaultdict
 from itertools import islice
+from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Union, Tuple
 
+import coolname
 import numpy as np
 
-from DNAnet.data.data_models import Allele, Marker, Panel
+from DNAnet.data.data_models import Allele, Marker
 from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.typing import PathLike
-
-
-LOGGER = logging.getLogger("dnanet")
-LOGGER.setLevel(logging.INFO)
-console_handler = logging.StreamHandler()
-formatter = logging.Formatter(
-    fmt="%(asctime)s %(levelname)-8s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
-console_handler.setFormatter(formatter)
-LOGGER.addHandler(console_handler)
-
-
-DONORS_PER_DATASET_NR = {'1': ['A', 'B', 'C', 'D', 'E'],
-                         '2': ['F', 'G', 'H', 'I', 'J'],
-                         '3': ['K', 'L', 'M', 'N', 'O'],
-                         '4': ['P', 'Q', 'R', 'S', 'T'],
-                         '5': ['U', 'V', 'W', 'X', 'Y'],
-                         '6': ['Z', 'AA', 'AB', 'AC', 'AD'],
-                         }
 
 
 def is_rd_hid_filename(file_name: str) -> bool:
@@ -55,6 +33,9 @@ def get_prefix_from_filename(file_name: PathLike) -> str:
         return file_name.split("_")[0]  # take '1A2'
     else:
         raise ValueError(f"Cannot take prefix from provided file name: {file_name}")
+
+def generate_random_name() -> str:
+    return ''.join([x.capitalize() for x in coolname.generate()])
 
 
 def is_non_case_sample_hid_file_name(file_name: str) -> bool:
@@ -105,41 +86,6 @@ def dict_to_marker_list(marker_dict: Union[List[Dict], str], as_json: bool = Fal
         markers_list.append(Marker(**marker))
     return markers_list
 
-
-def load_donor_alleles(file_name: str, panel: Panel) -> List[Marker]:
-    """
-    For R&D files, we know the donors that contributed and the DNA profiles of the donors. For a
-    single .hid file, find the donors (from the file name) and return the list of Markers of those
-    donors combined.
-    :param file_name: .hid file to load actual donors for
-    :param panel: the panel to retrieve the dye row of the markers from
-    """
-    reference_path = "resources/data/2p_5p_Dataset_NFI/References"
-    if not is_rd_hid_filename(file_name):
-        raise ValueError("Cannot load donor alleles for non-RD sample. "
-                         f"Found file name {file_name}")
-
-    mixture_type = get_prefix_from_filename(file_name)  # to retrieve e.g. '1A2'
-    dataset_nr, nr_donors = mixture_type[0], int(mixture_type[2])
-    # one file contains alleles of one donor, so find files for all donors of the profile
-    file_stems = [f"{dataset_nr}{letter}" for letter in
-                  DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
-
-    # find the set of all alleles of the donors per marker
-    marker_allele_strings = defaultdict(set)
-    for file_stem in file_stems:
-        reference_profiles_path = os.path.join(reference_path, f'{file_stem}.csv')
-        with open(reference_profiles_path, "r") as f:
-            reader = csv.DictReader(f, delimiter=";")
-            for row in reader:
-                marker_allele_strings[row['Marker']].update([row['Allele1'], row['Allele2']])
-
-    # transform into Marker/Allele objects
-    markers = []
-    for marker_name, alleles in marker_allele_strings.items():
-        dye_row = panel.get_dye_row(marker_name)
-        markers.append(Marker(dye_row, marker_name, [Allele(a) for a in sorted(alleles)]))
-    return markers
 
 
 def chunks(
@@ -261,3 +207,11 @@ def _get_allele_bins(marker):
     marker_bin = bins + np.array([-1, 1])[:, np.newaxis]
 
     return marker_bin
+
+
+# get all the HID files from the hid_files_path directory
+def find_files_by_suffix(root_dir, suffix) -> List[Path]:
+    """
+    Recursively find all files in root_dir that end with the given suffix.
+    """
+    return list(Path(root_dir).rglob(f'*{suffix}'))

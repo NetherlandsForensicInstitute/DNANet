@@ -68,6 +68,9 @@ class PeakWindowDataset(HIDDataset):
         LOGGER.info(f"Initialized PeakWindowDataset with threshold={threshold}, window_size={window_size}")
 
     def __iter__(self) -> Iterator[ExtractedPeak]:
+        if self._data and isinstance(self._data[0], ExtractedPeak):
+            return super().__iter__()
+
         if self.use_cache_peaks:
             out = Path(self.cache_path_peaks)
             if self.cache_path_peaks is not None:
