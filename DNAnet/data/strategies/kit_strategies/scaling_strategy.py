@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union, Tuple, Callable
+from typing import Optional, Union, Tuple, Callable, List
 
 import numpy as np
 import scipy
@@ -99,6 +99,10 @@ class ScalingStrategy(ABC):
     @property
     def basepair_end(self) -> int:
         return self._basepair_end
+
+    @abstractmethod
+    def dye_channel_colors(self) -> List[str]:
+        raise NotImplementedError
 
     @staticmethod
     def basepair_interpolator(indices: Union[np.ndarray, list[float]],
@@ -277,6 +281,9 @@ class GlobalFilerScalingStrategy(ScalingStrategy):
         self.max_shrinkages = max_shrinkages
         self.validation_threshold = validation_threshold
 
+    def dye_channel_colors(self) -> List[str]:
+        return ['blue', 'green', 'black', 'red', 'purple', 'orange']
+
     @staticmethod
     def attempt_fit(peak_idxs: np.ndarray, expected_bps: np.ndarray, validation_threshold: float, max_shrinkages: int) -> Tuple[np.ndarray, np.ndarray, float]:
         """
@@ -362,6 +369,9 @@ class PowerPlexFusion6CScalingStrategy(ScalingStrategy):
             description="PPF6C dataset using WEN_ILS size standard.",
         )
         super().__init__(kit, basepair_start=65, basepair_end=475, scanpoint_resolution=4096)
+
+    def dye_channel_colors(self) -> List[str]:
+        return ['blue', 'green', 'black', 'red', 'purple', 'orange']
 
     def parse_size_standard(
         self, size_standard_lane: np.ndarray
