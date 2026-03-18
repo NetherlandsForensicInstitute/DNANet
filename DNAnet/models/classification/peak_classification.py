@@ -70,7 +70,7 @@ class PeakClassification(HIDImageBaseModel):
         else:
             raise ValueError(f"Unknown loss function: {loss_fn}")
 
-        super().__init__(model, loss, device)
+        super().__init__(model, loss, device, apply_allele_caller=False)
 
     def _kl_div_loss(self, logits: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         log_probs = nn.functional.log_softmax(logits, dim=1)

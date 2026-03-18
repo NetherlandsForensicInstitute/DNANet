@@ -91,9 +91,7 @@ class PeakNet(HIDImageBaseModel):
             model = PeakOnlyClassifier(
                 peak_classifier=self.peak_classifier.model,
                 num_classes=self.peak_classifier.num_classes,
-                default_class=self.noise_label_idx,
-                out_channels=6, # assume output size when no autoencoder is used
-                out_length=4096,
+                default_class=self.noise_label_idx
             )
 
 
@@ -141,7 +139,7 @@ class PeakNet(HIDImageBaseModel):
             image_tensor = self.autoencoder.get_input(image) # (C, 4096, 1)
             image_tensor = image_tensor.squeeze(-1)  # (C, 4096)
         else:
-            image_tensor = None
+            image_tensor = torch.from_numpy(image.data).to(device=self._device, dtype=torch.float32).squeeze() # (C, 4096)
 
         return image_tensor, peak_tensors, marker_idx, peak_centers
 
@@ -173,14 +171,14 @@ class PeakNet(HIDImageBaseModel):
             # peak_window: (N_p, C, W),
             # marker_idx: (N_p,)
             # peak_centers: (N_p, 2)
-            if image_tensor is not None: # image tensor is not required when no autoencoder is used
-                image_tensors.append(image_tensor)
+
+            image_tensors.append(image_tensor)
             peak_tensors_list.append(peak_window)
             marker_idx_list.append(marker_idx)
             peak_centers_list.append(peak_center)
 
-        if self.autoencoder is not None:
-            image_tensors = torch.stack(image_tensors)  # (N, C, 4096)
+        
+        image_tensors = torch.stack(image_tensors)  # (N, C, 4096)
 
         # We use nested tensors because N_p is ragged-shaped: the number of peaks per image can vary
         peak_tensors_list = torch.nested.nested_tensor(peak_tensors_list, layout=torch.jagged, device=self._device) # (N, N_p, C, W)

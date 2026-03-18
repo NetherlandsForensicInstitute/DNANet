@@ -83,7 +83,7 @@ class HIDAutoencoder(HIDImageBaseModel):
         else:
             raise ValueError(f"Unknown architecture: {architecture}")
 
-        super().__init__(model, loss, device)
+        super().__init__(model, loss, device, apply_allele_caller=False)
 
         self.encoded_shape = self._model.encoded_shape()
 
