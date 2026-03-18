@@ -8,18 +8,9 @@ from typing import Any, Dict, Iterable, MutableMapping, Optional, Sequence, Set,
 
 import numpy as np
 
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.data.utils import fill_lut_range
 from DNAnet.typing import PathLike
-
-
-DYE_MAPPING = {1: 0, 2: 1, 3: 2, 4: 3, 6: 4}
-MARKER_NAME_TO_DYE = {
-    "AMEL": 0, "D3S1358": 0, "D1S1656": 0, "D2S441": 0, "D10S1248": 0, "D13S317": 0, "Penta E": 0,
-    "D16S539": 1, "D18S51": 1, "D2S1338": 1, "CSF1PO": 1, "Penta D": 1,
-    "TH01": 2, "vWA": 2, "D21S11": 2, "D7S820": 2, "D5S818": 2, "TPOX": 2,
-    "D8S1179": 3, "D12S391": 3, "D19S433": 3, "SE33": 3, "D22S1045": 3,
-    "DYS391": 4, "FGA": 4, "DYS576": 4, "DYS570": 4
-}
 
 LOGGER = logging.getLogger("dnanet")
 
@@ -136,8 +127,15 @@ class Panel:
     A class that retrieves information regarding alleles and markers. The panel can be
     read from file or can be directly instantiated by providing the raw contents.
 
+    Optionally builds a lookup table for the lookup of marker names by dye row and base pair.
+    The marker name is retrieved when the basepair value is between the leftmost point of the smallest allele bin
+    and the rightmost point of the largest allele bin in the marker.
+    This lookup table can be efficiently used in by models during training as retrieval is O(1).
+    The lookup table can be accessed by the 'get_marker_name_by_dye_and_bp' method.
+
     :param panel_path: path to a panel xml file with markers
     :param panel_contents: the direct contents of a panel
+    :param precomputer_marker_lookup: whether to precompute marker lookup table.
     """
 
     def __init__(self,
@@ -245,13 +243,14 @@ class Panel:
         :param panel_path: path to the panel file with markers
         :return: all Markers within the panel and the present Alleles
         """
+        dye_mapping = {1: 0, 2: 1, 3: 2, 4: 3, 6: 4} # TODO: should this be hardcoded?
         panel = []
         for event, elem in ET.iterparse(panel_path, events=('end',)):
             if elem.tag == 'Locus':
                 alleles = elem.findall('Allele')
                 panel.append(
                     Marker(
-                        DYE_MAPPING.get(int(elem.find('DyeIndex').text)),
+                        dye_mapping.get(int(elem.find('DyeIndex').text)),
                         elem.find('MarkerTitle').text,
                         [
                             Allele(
@@ -283,7 +282,7 @@ class Panel:
                 allele.right_bin = right_bin
 
             if marker.dye_row == -1:
-                marker.dye_row = MARKER_NAME_TO_DYE.get(marker.name, -1)
+                marker.dye_row = StrategyRegistry.get_scaling_strategy().marker_name_to_dye_idx().get(marker.name, -1)
 
     def get_marker_name_by_dye_and_bp(self, dye_row: int, base_pair: float) -> str:
         """
