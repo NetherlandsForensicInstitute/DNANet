@@ -290,6 +290,15 @@ class GlobalFilerScalingStrategy(ScalingStrategy):
         self.max_shrinkages = max_shrinkages
         self.validation_threshold = validation_threshold
 
+    def marker_name_to_dye_idx(self) -> Dict[str, int]:
+        return {
+            "D3S1358": 0, "vWA": 0, "D16S539": 0, "CSF1PO": 0, "TPOX": 0,
+            "Y-Indel": 1, "AMEL": 1, "D8S1179": 1, "D21S11": 1, "D18S51": 1, "DYS391": 1,
+            "D2S441": 2, "D19S433": 2, "TH01": 2, "FGA": 2,
+            "D22S1045": 3, "D5S818": 3, "D13S317": 3, "D7S820": 3, "SE33": 3,
+            "D10S1248": 4, "D1S1656": 4, "D12S391": 4, "D2S1338": 4,
+        }
+
     @staticmethod
     def attempt_fit(peak_idxs: np.ndarray, expected_bps: np.ndarray, validation_threshold: float, max_shrinkages: int) -> Tuple[np.ndarray, np.ndarray, float]:
         """
