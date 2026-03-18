@@ -45,7 +45,7 @@ class Autoencoder(BaseModel):
         self.preprocessing_num_dyes_included = input_dyes
         self.preprocessing_smooth_keep_factor = preprocessing_smooth_keep_factor
         self.architecture = architecture
-        # depth = np.sqrt(compression).astype(int)
+
 
 
         if architecture == "cnn":
@@ -123,7 +123,6 @@ class Autoencoder(BaseModel):
         inputs = self.get_inputs(batch)           # preprocessed
         y_true = self.get_targets(batch)
 
-        # print(f"Step: inputs shape: {inputs.shape}, y_true shape: {y_true.shape}")
 
         # 2. Forward pass in preprocessed space
         pred_pre = self._model(inputs)
@@ -143,7 +142,6 @@ class Autoencoder(BaseModel):
                 # For regression metrics we pass flattened vectors
                 metric.update(pred_orig.view(-1), y_true.view(-1))
 
-        # print(f"Step: pred_orig shape: {pred_orig.shape}, y_true shape: {y_true.shape}")
 
         # 6. Compute loss in original space
         loss = self.loss_fn(pred_orig, y_true)

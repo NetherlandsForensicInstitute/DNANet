@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union, Tuple, Callable, List
+from typing import Optional, Union, Tuple, Callable, Dict, Set, List
 
 import numpy as np
 import scipy
@@ -87,6 +87,19 @@ class ScalingStrategy(ABC):
     ) -> Optional[SizeStandardParseResult]:
         """Parse the size-standard dye lane into interpolation/rescaling data."""
         raise NotImplementedError
+
+    @abstractmethod
+    def marker_name_to_dye_idx(self) -> Dict[str, int]:
+        """Map marker names to dye indices."""
+        raise NotImplementedError
+
+    @property
+    def marker_names(self) -> List[str]:
+        return list(self.marker_name_to_dye_idx().keys())
+
+    @property
+    def marker_to_idx(self) -> Dict[str, int]:
+        return {name: idx for idx, name in enumerate(self.marker_names)}
 
     @property
     def scanpoint_resolution(self) -> int:
@@ -281,6 +294,15 @@ class GlobalFilerScalingStrategy(ScalingStrategy):
         self.max_shrinkages = max_shrinkages
         self.validation_threshold = validation_threshold
 
+    def marker_name_to_dye_idx(self) -> Dict[str, int]:
+        return {
+            "D3S1358": 0, "vWA": 0, "D16S539": 0, "CSF1PO": 0, "TPOX": 0,
+            "Y-Indel": 1, "AMEL": 1, "D8S1179": 1, "D21S11": 1, "D18S51": 1, "DYS391": 1,
+            "D2S441": 2, "D19S433": 2, "TH01": 2, "FGA": 2,
+            "D22S1045": 3, "D5S818": 3, "D13S317": 3, "D7S820": 3, "SE33": 3,
+            "D10S1248": 4, "D1S1656": 4, "D12S391": 4, "D2S1338": 4,
+        }
+
     def dye_channel_colors(self) -> List[str]:
         return ['blue', 'green', 'black', 'red', 'purple', 'orange']
 
@@ -372,6 +394,15 @@ class PowerPlexFusion6CScalingStrategy(ScalingStrategy):
 
     def dye_channel_colors(self) -> List[str]:
         return ['blue', 'green', 'black', 'red', 'purple', 'orange']
+
+    def marker_name_to_dye_idx(self) -> Dict[str, int]:
+        return {
+        "AMEL": 0, "D3S1358": 0, "D1S1656": 0, "D2S441": 0, "D10S1248": 0, "D13S317": 0, "Penta E": 0,
+        "D16S539": 1, "D18S51": 1, "D2S1338": 1, "CSF1PO": 1, "Penta D": 1,
+        "TH01": 2, "vWA": 2, "D21S11": 2, "D7S820": 2, "D5S818": 2, "TPOX": 2,
+        "D8S1179": 3, "D12S391": 3, "D19S433": 3, "SE33": 3, "D22S1045": 3,
+        "DYS391": 4, "FGA": 4, "DYS576": 4, "DYS570": 4
+    }
 
     def parse_size_standard(
         self, size_standard_lane: np.ndarray

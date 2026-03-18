@@ -6,31 +6,7 @@ import torch
 from DNAnet.data.data_models import Marker, Allele
 
 
-THRESHOLDS_AT = [
-    95,  # blue
-    140,  # green
-    85,  # yellow
-    135,  # red
-    95,  # purple
-]
 
-THRESHOLDS_LT = [
-    45,  # blue
-    50,  # green
-    45,  # yellow
-    80,  # red
-    40,  # purple
-]
-
-HETRO_IMBALANCE_PERCENTAGE_AT = 0.03
-HETRO_IMBALANCE_PERCENTAGE_LT = 0.02
-
-PPF6C_MARKERS = ['AMEL', 'D3S1358', 'D1S1656', 'D2S441', 'D10S1248', 'D13S317', 'Penta E',
-                 'D16S539', 'D18S51', 'D2S1338', 'CSF1PO', 'Penta D',
-                 'TH01', 'vWA', 'D21S11', 'D7S820', 'D5S818', 'TPOX',
-                 'D8S1179', 'D12S391', 'D19S433', 'SE33', 'D22S1045',
-                 'DYS391', 'FGA', 'DYS576', 'DYS570']
-MARKER_TO_IDX = {name: idx for idx, name in enumerate(PPF6C_MARKERS)}
 
 
 def build_peak_data(img_data: np.ndarray, dye_index: int, start: int, length: int, include_max_pool_dyes: bool, pad_value: int = 0) -> np.ndarray:
@@ -158,14 +134,35 @@ def filter_peaks_AT_LT(peaks: Sequence['ExtractedPeak'],
         Filtered peaks
     """
 
+    # TODO should these values be different for different kits/datasets?
+    thresholds_at = [
+        95,  # blue
+        140,  # green
+        85,  # yellow
+        135,  # red
+        95,  # purple
+    ]
+
+    thresholds_lt = [
+        45,  # blue
+        50,  # green
+        45,  # yellow
+        80,  # red
+        40,  # purple
+    ]
+
+    hetro_imbalance_percentage_at = 0.03
+    hetro_imbalance_percentage_lt = 0.02
+
+
     if analysis_threshold_type == "NT": # No Threshold, Do not filter
         return peaks
     elif analysis_threshold_type == "DTH":
-        hetro_imbalance_percentage = HETRO_IMBALANCE_PERCENTAGE_AT
-        threshold = THRESHOLDS_AT
+        hetro_imbalance_percentage = hetro_imbalance_percentage_at
+        threshold = thresholds_at
     elif analysis_threshold_type == "DTL":
-        hetro_imbalance_percentage = HETRO_IMBALANCE_PERCENTAGE_LT
-        threshold = THRESHOLDS_LT
+        hetro_imbalance_percentage = hetro_imbalance_percentage_lt
+        threshold = thresholds_lt
     else:
         raise ValueError(f"Unknown analysis threshold type: {analysis_threshold_type}")
 
