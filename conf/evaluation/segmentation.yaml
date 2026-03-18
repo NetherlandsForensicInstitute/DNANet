@@ -1,0 +1,14 @@
+# Evaluation settings for segmentation models
+metrics:
+  - pixel_precision
+  - pixel_recall
+  - pixel_f1_score
+  - average_binary_iou
+  - allele_precision
+  - allele_recall
+  - allele_f1_score
+
+# Output options
+save_predictions: false
+predictions_dir: predictions/
+visualize: false

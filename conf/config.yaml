@@ -1,0 +1,25 @@
+# DNANet master configuration.
+#
+# Hydra composes this file with the selected configs from each group.
+# Override any value from the command line:
+#   dnanet task=train data=dnanet_rd model=unet training.learning_rate=0.0001
+#
+# Design pattern: **Composition over Inheritance**
+#   Instead of one monolithic config file, each concern (data, model, training,
+#   evaluation, logging) lives in its own group. Hydra merges them at runtime.
+#   This means you can mix and match freely:
+#     dnanet data=provedit model=unet training=segmentation logging=mlflow
+
+defaults:
+  - data: dnanet_rd
+  - model: unet
+  - training: segmentation
+  - evaluation: segmentation
+  - logging: mlflow
+  - _self_
+
+# -- Global settings --
+task: train          # One of: train, evaluate, cross_validate
+seed: 42
+output_dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
+verbosity: INFO      # Logging level: DEBUG, INFO, WARNING, ERROR

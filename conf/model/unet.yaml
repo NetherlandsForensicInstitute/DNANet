@@ -1,0 +1,11 @@
+# U-Net architecture for EPG segmentation
+name: unet
+
+architecture:
+  _target_: dnanet.models.unet.UNet
+  depth: 4
+  kernel_size: [3, 5]
+  num_filters: 32
+
+loss:
+  _target_: dnanet.models.loss.DiceLoss

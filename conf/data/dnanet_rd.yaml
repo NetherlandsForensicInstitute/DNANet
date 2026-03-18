@@ -1,0 +1,26 @@
+# NFI R&D 2p/5p mixture dataset (PPF6C kit)
+name: dnanet_rd
+
+# HuggingFace dataset ID (auto-downloaded if local path doesn't exist)
+hf_dataset_id: NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024
+root: null  # Set via env or CLI override
+
+# Panel file for allele definitions
+panel_path: resources/data/SGPanel_PPF6C.xml
+
+# Annotations
+annotations_path: null  # Path to txt annotation directory
+
+# Preprocessing parameters (previously hard-coded magic numbers)
+preprocessing:
+  rfu_threshold: 40          # Minimum peak height in RFU
+  signal_length: 4096        # Number of scan points per dye channel
+  base_pair_range: [65, 475] # Valid base-pair range for analysis
+  smoothing_window: 11       # Savitzky-Golay filter window size
+  smoothing_order: 3         # Savitzky-Golay polynomial order
+
+# Data splitting
+splitting:
+  validation_fraction: 0.2
+  stratify_by_noc: true      # Stratify splits by number of contributors
+  group_by_replica: true     # Keep replicas in the same split

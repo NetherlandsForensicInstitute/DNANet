@@ -1,0 +1,7 @@
+# MLflow experiment tracking
+logger_type: mlflow
+
+mlflow:
+  tracking_uri: mlruns
+  experiment_name: dnanet
+  log_model: false
