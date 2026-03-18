@@ -1,0 +1,27 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Hydra outputs
+outputs/
+
+# Experiment tracking
+mlruns/
+tb_logs/
+
+# OS
+.DS_Store
+Thumbs.db
