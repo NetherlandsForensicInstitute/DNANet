@@ -1,6 +1,6 @@
 import pytest
 import torch
-from DNAnet.models.segmentation.peaknet import PeakNet
+from DNAnet.models.segmentation.combined_peaknet import CombinedPeakNet
 from DNAnet.models.classification.peak_classification import PeakClassification
 from tests.conftest import SKIP_MODELS
 
@@ -21,7 +21,7 @@ def test_peaknet_train_inference(hid_dataset_rd):
     }
 
     # We test PeakNet without autoencoder first as it's simpler
-    model = PeakNet(
+    model = CombinedPeakNet(
         peak_classifier=peak_classifier_config,
         hidden_dims=[32, 16],
         threshold=100

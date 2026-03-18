@@ -1,7 +1,7 @@
 import pytest
 import torch
 import numpy as np
-from DNAnet.models.reconstruction.autoencoder import HIDAutoencoder
+from DNAnet.models.reconstruction.autoencoder import Autoencoder
 from tests.conftest import SKIP_MODELS
 
 # Skip all these tests if an environment variable tells us to.
@@ -12,7 +12,7 @@ def test_hid_autoencoder_train_inference(hid_dataset_rd):
     assert len(hid_dataset_rd) > 0
 
     # We use small hyperparameters for the test to be fast
-    model = HIDAutoencoder(
+    model = Autoencoder(
         input_dyes=5,
         signal_length=4096,
         architecture="cnn_per_dye",

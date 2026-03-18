@@ -14,7 +14,7 @@ from confidence import Configuration
 from tqdm import tqdm
 
 from DNAnet.data.data_models.base import InMemoryDataset, Metric
-from DNAnet.models.base import TrainableModel
+from DNAnet.models.base_model import TrainableModel
 from DNAnet.typing import PathLike
 from config_io import parse_config, load_model
 

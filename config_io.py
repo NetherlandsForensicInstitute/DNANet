@@ -22,7 +22,7 @@ from DNAnet.evaluation import (
     pixel_recall,
 )
 from DNAnet.evaluation.reconstruction import reconstruction_mse
-from DNAnet.models.base import Model, TrainableModel
+from DNAnet.models.base_model import Model, TrainableModel
 from DNAnet.typing import PathLike
 from utils import get_defaults
 from huggingface_hub import snapshot_download
@@ -40,16 +40,16 @@ DATASETS = {
 def get_models() -> Dict[str, Dict[str, type]]:
     # Local import: avoids circular imports and only imports the relevant models when needed.
     from DNAnet.models.classification.peak_classification import PeakClassification
-    from DNAnet.models.reconstruction.autoencoder import HIDAutoencoder
+    from DNAnet.models.reconstruction.autoencoder import Autoencoder
     from DNAnet.models.segmentation.human_analysis import HumanAnalysis
-    from DNAnet.models.segmentation.peaknet import PeakNet
+    from DNAnet.models.segmentation.combined_peaknet import CombinedPeakNet
     from DNAnet.models.segmentation.trainable_unet import DNANet_UNet
 
     return {
         "model": {
             "unet": DNANet_UNet,
             "human_analysis": HumanAnalysis,
-            "autoencoder": HIDAutoencoder,
+            "autoencoder": Autoencoder,
             "peak_classification": PeakClassification,
         }
     }
@@ -189,7 +189,7 @@ def load_model(source: Union[PathLike, Mapping[str, Any], Configuration]) -> Mod
     Load a trainable model from a config file or mapping.
     """
     if isinstance(source, Configuration):
-        return parse_config({'model': source}, MODELS)['model']
+        return parse_config({'model': source}, get_models())['model']
 
     if isinstance(source, PathLike):
         # The source is a path to a config file or checkpoint directory. We check if it's a
