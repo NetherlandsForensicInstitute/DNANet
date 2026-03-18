@@ -1,16 +1,16 @@
 import logging
+import math
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Dict, Iterable, MutableMapping, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Dict, Iterable, MutableMapping, Optional, Sequence, Set, Tuple, Union, List
 
 import numpy as np
 
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
+from DNAnet.data.utils import fill_lut_range
 from DNAnet.typing import PathLike
-
-
-DYE_MAPPING = {1: 0, 2: 1, 3: 2, 4: 3, 6: 4}
 
 LOGGER = logging.getLogger("dnanet")
 
@@ -107,19 +107,41 @@ class Marker:
             alleles=alleles
         )
 
+    @property
+    def min_bp(self) -> float:
+        """Returns the leftmost bin edge of the smallest allele in the marker."""
+        if not self.alleles:
+            return float('inf')
+        return min(a.base_pair - a.left_bin for a in self.alleles if a.base_pair is not None)
+
+    @property
+    def max_bp(self) -> float:
+        """Returns the rightmost bin edge of the largest allele in the marker."""
+        if not self.alleles:
+            return float('-inf')
+        return max(a.base_pair + a.right_bin for a in self.alleles if a.base_pair is not None)
+
 
 class Panel:
     """
     A class that retrieves information regarding alleles and markers. The panel can be
     read from file or can be directly instantiated by providing the raw contents.
 
+    Optionally builds a lookup table for the lookup of marker names by dye row and base pair.
+    The marker name is retrieved when the basepair value is between the leftmost point of the smallest allele bin
+    and the rightmost point of the largest allele bin in the marker.
+    This lookup table can be efficiently used in by models during training as retrieval is O(1).
+    The lookup table can be accessed by the 'get_marker_name_by_dye_and_bp' method.
+
     :param panel_path: path to a panel xml file with markers
     :param panel_contents: the direct contents of a panel
+    :param precomputer_marker_lookup: whether to precompute marker lookup table.
     """
 
     def __init__(self,
                  panel_path: Optional[PathLike] = None,
-                 panel_contents: Optional[Sequence[Marker]] = None):
+                 panel_contents: Optional[Sequence[Marker]] = None,
+                 precomputer_marker_lookup: bool = True):
         self._panel_path = panel_path
         if panel_path:
             self._panel = self._parse_panel(panel_path)
@@ -128,6 +150,14 @@ class Panel:
         else:
             raise ValueError("Cannot instantiate Panel object, since panel path nor panel contents "
                              "are provided.")
+
+        if precomputer_marker_lookup:
+            # Precompute O(1) marker lookup by (dye_row, base_pair)
+            self._marker_bp_scale: int = 10 # 0.1 bp resolution
+            self._marker_name_lut: Dict[int, List[Optional[str]]] = {}
+            self._marker_name_lut_offset: Dict[int, int] = {}
+            self._build_marker_name_lut()
+
 
     def get_allele_basepair_and_bins(self, marker_name: str, allele_name: str) \
             -> Tuple[float, float, float]:
@@ -213,13 +243,14 @@ class Panel:
         :param panel_path: path to the panel file with markers
         :return: all Markers within the panel and the present Alleles
         """
+        dye_mapping = {1: 0, 2: 1, 3: 2, 4: 3, 6: 4} # TODO: should this be hardcoded?
         panel = []
         for event, elem in ET.iterparse(panel_path, events=('end',)):
             if elem.tag == 'Locus':
                 alleles = elem.findall('Allele')
                 panel.append(
                     Marker(
-                        DYE_MAPPING.get(int(elem.find('DyeIndex').text)),
+                        dye_mapping.get(int(elem.find('DyeIndex').text)),
                         elem.find('MarkerTitle').text,
                         [
                             Allele(
@@ -234,6 +265,95 @@ class Panel:
                 )
                 elem.clear()  # Clear the element from the memory once you're done with it
         return panel
+
+    def fill_allele_bins(self, called_alleles: Sequence[Marker]) -> None:
+        """
+        Fill in the base pair, left bin and right bin information for each allele
+        in the called_alleles based the allele names. Also fills in the dye_row for each marker.
+        The called_alleles are modified in place.
+        Args:
+            called_alleles: Sequence[Marker] - The called alleles to fill in.
+        """
+        for marker in called_alleles:
+            for allele in marker.alleles:
+                basepair, left_bin, right_bin = self.get_allele_info(marker.name, allele.name)
+                allele.base_pair = basepair
+                allele.left_bin = left_bin
+                allele.right_bin = right_bin
+
+            if marker.dye_row == -1:
+                marker.dye_row = StrategyRegistry.get_scaling_strategy().marker_name_to_dye_idx().get(marker.name, -1)
+
+    def get_marker_name_by_dye_and_bp(self, dye_row: int, base_pair: float) -> str:
+        """
+        O(1) lookup: return marker.name where dye_row matches and base_pair lies
+        inside the marker's overall allele bin coverage.
+        returns "Out of Bin" if no marker found.
+        """
+        if not hasattr(self, '_marker_name_lut'):
+            raise ValueError("Marker name lookup table not built.")
+        lut = self._marker_name_lut.get(dye_row)
+        if lut is None or len(lut) == 0:
+            return "Out of Bin"
+
+        k = int(round(base_pair * self._marker_bp_scale))
+        i = k + self._marker_name_lut_offset[dye_row]
+        if i < 0 or i >= len(lut) or lut[i] is None:
+            return "Out of Bin"
+
+        return lut[i]
+
+
+    def _build_marker_name_lut(self) -> None:
+        """
+        Builds a per-dye lookup table mapping base-pair positions to marker names
+        using O(1) array indexing.
+        """
+        by_dye: Dict[int, List[Marker]] = defaultdict(list)
+        for m in self._panel:
+            by_dye[m.dye_row].append(m)
+
+        for dye_row, markers in by_dye.items():
+            # Collect valid ranges using the Marker properties
+            ranges = []
+            for m in markers:
+                start, end = m.min_bp, m.max_bp
+                # Skip markers with no valid alleles (inf/-inf)
+                if start == float('inf') or end == float('-inf'):
+                    continue
+                ranges.append((start, end, m.name))
+
+            if not ranges:
+                self._marker_name_lut[dye_row] = []
+                self._marker_name_lut_offset[dye_row] = 0
+                continue
+
+            # Determine global bounds for the LUT
+            global_min = min(r[0] for r in ranges)
+            global_max = max(r[1] for r in ranges)
+
+            # Discretize bounds to integer indices
+            min_idx = int(math.floor(global_min * self._marker_bp_scale))
+            max_idx = int(math.ceil(global_max * self._marker_bp_scale))
+
+            # Initialize LUT
+            lut_len = max_idx - min_idx + 1
+            lut = [None] * lut_len
+
+            # offset shifts a discretized bp index to 0-based list index
+            # usage: lut[bp_idx + offset]
+            offset = -min_idx
+
+            for start, end, name in ranges:
+                s_k = int(math.floor(start * self._marker_bp_scale))
+                e_k = int(math.ceil(end * self._marker_bp_scale))
+
+                # Fill the range in the LUT, handling overlaps by splitting evenly
+                fill_lut_range(lut, offset, s_k, e_k, name, ranges, self._marker_bp_scale)
+
+            self._marker_name_lut[dye_row] = lut
+            self._marker_name_lut_offset[dye_row] = offset
+
 
 
 class Annotation:

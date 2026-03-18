@@ -1,0 +1,17 @@
+model:
+  name: peak_classification
+  labels:
+    - noise
+    - allele
+  window_size: 120
+  include_marker: True
+  channels: [32, 64]
+  kernel_size: 7
+  pooling: "flat" # flat, attn, or avg
+  include_max_pool_dyes: False
+  loss_fn: "cross_entropy" # cross_entropy, focal, or KL_divergence
+  use_batchnorm: False
+  conv_dropout_p: 0
+  head_dropout_p: 0
+  downsample: "maxpool" # conv or maxpool
+  activation: "relu" # relu, tanh, or gelu

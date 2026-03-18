@@ -11,6 +11,7 @@ from confidence import Configuration, dumpf
 
 from DNAnet.data.data_models.base import InMemoryDataset
 from DNAnet.data.data_models.hid_dataset import HIDDataset
+from DNAnet.data.data_models.peak_dataset import PeakWindowDataset
 from DNAnet.evaluation import (
     allele_f1_score,
     allele_precision,
@@ -20,24 +21,47 @@ from DNAnet.evaluation import (
     pixel_precision,
     pixel_recall,
 )
-from DNAnet.models.base import Model, TrainableModel
-from DNAnet.models.segmentation.human_analysis import HumanAnalysis
-from DNAnet.models.segmentation.trainable_unet import DNANet_UNet
+from DNAnet.evaluation.reconstruction import reconstruction_mse
+from DNAnet.models.base_model import Model, TrainableModel
 from DNAnet.typing import PathLike
 from utils import get_defaults
 from huggingface_hub import snapshot_download
 from huggingface_hub.errors import HfHubHTTPError
 
 
-DATASETS = {'dataset': {'hid': HIDDataset, }}
-MODELS = {'model': {'unet': DNANet_UNet, 'human_analysis': HumanAnalysis}}
+DATASETS = {
+    'dataset': {
+        'hid': HIDDataset,
+        'peak_dataset': PeakWindowDataset
+    }
+}
+
+
+def get_models() -> Dict[str, Dict[str, type]]:
+    # Local import: avoids circular imports and only imports the relevant models when needed.
+    from DNAnet.models.classification.peak_classification import PeakClassification
+    from DNAnet.models.reconstruction.autoencoder import Autoencoder
+    from DNAnet.models.segmentation.human_analysis import HumanAnalysis
+    from DNAnet.models.segmentation.combined_peaknet import CombinedPeakNet
+    from DNAnet.models.segmentation.trainable_unet import DNANet_UNet
+
+    return {
+        "model": {
+            "unet": DNANet_UNet,
+            "human_analysis": HumanAnalysis,
+            "autoencoder": Autoencoder,
+            "peak_classification": PeakClassification,
+        }
+    }
+
 METRICS = {'pixel_precision': pixel_precision,
            'pixel_recall': pixel_recall,
            'average_binary_iou': average_binary_iou,
            'pixel_f1_score': pixel_f1_score,
            'allele_precision': allele_precision,
            'allele_recall': allele_recall,
-           'allele_f1_score': allele_f1_score}
+           'allele_f1_score': allele_f1_score,
+           'reconstruction_mse': reconstruction_mse}
 HF_DATASET = "NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024"
 
 
@@ -160,33 +184,43 @@ def download_online_dataset(data_root: PathLike):
     pass
 
 
-def load_model(source: Union[PathLike, Configuration]) -> Model:
+def load_model(source: Union[PathLike, Mapping[str, Any], Configuration]) -> Model:
     """
-    Load a trainable model from a config file.
+    Load a trainable model from a config file or mapping.
     """
     if isinstance(source, Configuration):
-        return parse_config({'model': source}, MODELS)['model']
+        return parse_config({'model': source}, get_models())['model']
 
-    if os.path.isdir(source):
-        # search for the yaml config file and load the checkpoint
-        yaml_files = glob.glob(os.path.join(source, '*.yaml'))
-        if len(yaml_files) == 0:
-            raise FileNotFoundError(f"No config file found in {source}.")
-        if len(yaml_files) > 1:
-            raise ValueError(f"More than one config file found in {source}.")
-        if not glob.glob(os.path.join(source, '*.pt')):
-            raise FileNotFoundError(f"No checkpoint (.pt) file found in {source}.")
-        config_file = load_config(yaml_files[0])
-        # take only the model-part of the config as there might be other configurations
-        # present in the yaml
-        model_config = Configuration({'model': config_file['model']})
-        model = parse_config(model_config, MODELS)['model']
-        model.load(source)  # load the checkpoint file
-        return model
+    if isinstance(source, PathLike):
+        # The source is a path to a config file or checkpoint directory. We check if it's a
+        # directory first, and if so, we look for the config file and checkpoint inside it. If
+        # it's not a directory, we assume it's a config file.
+        if os.path.isdir(source):
+            # search for the yaml config file and load the checkpoint
+            yaml_files = glob.glob(os.path.join(source, '*.yaml'))
+            if len(yaml_files) == 0:
+                raise FileNotFoundError(f"No config file found in {source}.")
+            if len(yaml_files) > 1:
+                raise ValueError(f"More than one config file found in {source}.")
+            if not glob.glob(os.path.join(source, '*.pt')):
+                raise FileNotFoundError(f"No checkpoint (.pt) file found in {source}.")
+            config_file = load_config(yaml_files[0])
+            # take only the model-part of the config as there might be other configurations
+            # present in the yaml
+            model_config = Configuration({'model': config_file['model']})
+            model = parse_config(model_config, get_models())['model']
+            model.load(source)  # load the checkpoint file
+            return model
+        else:
+            # assume source is a config file
+            model_config = load_config(source, kind='models')
+            return parse_config(model_config, get_models())['model']
     else:
-        # assume source is a config file
-        model_config = load_config(source, kind='models')
-        return parse_config(model_config, MODELS)['model']
+        # The source is a mapping. We assume it's already parsed and just need to be instantiated.
+        source: Mapping[str, Any]
+        # print(f"Loading model from mapping: {source}")
+        model_config = Configuration({'model': source})
+        return parse_config(model_config, get_models())['model']
 
 
 def parse_config(config: Union[str, Path, Mapping[str, Any]],
@@ -210,6 +244,7 @@ def parse_config(config: Union[str, Path, Mapping[str, Any]],
             value = parse_config(value, config_options)
             if config_options and key in config_options and name in config_options[key]:
                 return config_options[key][name](**value)
+            value['name'] = name # Add the name back to the value dict, in case it is needed for parsing nested items.
             return value
 
         if isinstance(value, Iterable) and not isinstance(value, (str, bytes, bytearray)):

@@ -7,7 +7,7 @@ from typing import Optional, Union
 import mlflow
 
 from config_io import dump_config, load_config, load_dataset, load_model, load_training_config
-from DNAnet.models.base import TrainableModel
+from DNAnet.models.base_model import TrainableModel
 from utils import add_file_handler_to_logger, prepare_output_file
 
 

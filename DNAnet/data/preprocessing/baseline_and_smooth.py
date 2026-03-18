@@ -107,3 +107,28 @@ def baseline_enhanced(x: np.ndarray) -> np.ndarray:
         out[c] = base / np.maximum(counts, 1.0)
 
     return _from_2d(out, was_1d)
+
+def fft_lowpass_smooth_gauss(x: np.ndarray, keep_fraction: float) -> np.ndarray:
+    """
+    Smooth the signal using a Gaussian low-pass filter in the Fourier domain.
+    keep_fraction is the fraction of frequencies to keep (relative to Nyquist). Lower values => heavier smoothing.
+    """
+    x = np.asarray(x)
+    is_1d = x.ndim == 1
+    X = x[None, :] if is_1d else x               # (C,N)
+    N = X.shape[-1]
+
+    # reflect-pad to reduce edge jumps
+    pad = N // 2
+    Xp = np.concatenate([X[..., pad:0:-1], X, X[..., -2:-pad-2:-1]], axis=-1)
+    M = Xp.shape[-1]
+
+    F = np.fft.rfft(Xp, axis=-1)
+    freqs = np.fft.rfftfreq(M)                   # normalized (Nyquist = 0.5)
+    fc = keep_fraction * 0.5                     # cutoff as fraction of Nyquist
+    H = np.exp(-(freqs / max(fc, 1e-12))**2)     # smooth Gaussian low-pass
+    Y = np.fft.irfft(F * H, n=M, axis=-1)
+
+    # unpad
+    y = Y[..., pad:pad+N]
+    return y[0] if is_1d else y

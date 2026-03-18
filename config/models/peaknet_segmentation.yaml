@@ -1,0 +1,40 @@
+model:
+  name: peaknet
+  freeze_autoencoder: False
+  threshold: 25
+  hidden_dims: [64, 32]
+  combiner_strategy: mlp # options: mlp, film, attention
+#  autoencoder_checkpoint:
+  autoencoder:
+    name: autoencoder
+    input_dyes: 6
+    signal_length: 4096
+    preprocessing_max_rfu_scale_value: 32768
+    preprocessing_smooth_keep_factor: None
+    preprocessing_log_scale: True
+    architecture: "cnn_per_dye" # cnn, cnn_per_dye or cnn_shared_per_dye
+    compression: 8
+    hidden_dims: 64
+    kernel_size: 5
+    use_sigmoid: True
+    use_batchnorm: False
+    depth: 3
+  peak_classifier:
+    name: "peak_classification"
+    labels:
+      - noise
+      - allele
+    window_size: 120
+    include_marker: True
+    channels: [32, 64]
+    kernel_size: 7
+    pooling: "flat" # flat, attn, or avg
+    include_max_pool_dyes: True
+    loss_fn: "cross_entropy" # cross_entropy, focal, or KL_divergence
+    use_batchnorm: False
+    conv_dropout_p: 0
+    head_dropout_p: 0
+    downsample: "maxpool" # conv or maxpool
+    activation: "relu" # relu, tanh, or gelu
+
+

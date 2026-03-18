@@ -1,0 +1,3 @@
+evaluation:
+  metrics:
+    - name: reconstruction_mse

@@ -7,7 +7,7 @@ import scipy.interpolate
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 
-from DNAnet.models.base import Model
+from DNAnet.models.base_model import Model
 from config_io import load_dataset, load_model
 from DNAnet.data.data_models.dna_models import Marker, Panel
 from DNAnet.data.data_models.hid_dataset import HIDDataset

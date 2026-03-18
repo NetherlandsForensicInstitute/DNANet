@@ -7,8 +7,10 @@ import numpy as np
 import pytest
 
 from DNAnet.data.data_models import Annotation, Panel
+from DNAnet.data.data_models.extracted_peak import ExtractedPeak
 from DNAnet.data.data_models.hid_dataset import HIDDataset
 from DNAnet.data.data_models.hid_image import HIDImage, Ladder
+from DNAnet.data.data_models.peak_dataset import PeakWindowDataset
 from DNAnet.data.parsing import parse_called_alleles
 from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
@@ -45,6 +47,38 @@ def hid_dataset_rd(ppf6c_kit):
                                "RD" / "best_ladder_paths.csv")
     )
 
+@pytest.fixture
+def peak_dataset(hid_dataset_rd):
+    return PeakWindowDataset(
+        threshold=100.0,
+        window_size=10,
+        filter_peaks=False,
+        labels=["allele", "noise"],
+        # Inherit args from hid_dataset_rd
+        root=hid_dataset_rd.root,
+        panel=hid_dataset_rd.panel_path,
+        annotations_path=hid_dataset_rd.annotations_path,
+        hid_to_annotations_path=hid_dataset_rd.hid_to_annotations_path,
+        analysis_threshold_type=hid_dataset_rd.analysis_threshold_type,
+        best_ladder_paths_csv=hid_dataset_rd.best_ladder_paths_csv,
+        include_size_standard=hid_dataset_rd.include_size_standard
+    )
+
+@pytest.fixture()
+def extracted_peak(hid_image):
+    hid_image._scaler = np.arange(4096)
+    dye_index = 0
+    peak_center = 500
+    window_size = 10
+    peak_height = 800
+    return ExtractedPeak(
+        image=hid_image,
+        dye_index=dye_index,
+        peak_center=peak_center,
+        window_size=window_size,
+        peak_height=peak_height,
+        use_ground_truth=False
+    )
 
 @pytest.fixture
 def hid_image(ppf6c_kit):
@@ -53,7 +87,7 @@ def hid_image(ppf6c_kit):
         path=os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "1A2_A01_01.hid"),
         annotation=Annotation(image=np.load(annotation_path)),
         panel=Panel(pytest.PANEL_PATH),
-        meta={"called_alleles": None}
+        meta={"called_alleles": None},
     )
 
 

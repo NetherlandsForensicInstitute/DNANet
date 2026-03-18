@@ -1,0 +1,14 @@
+model:
+  name: autoencoder
+  input_dyes: 6
+  signal_length: 4096
+  preprocessing_max_rfu_scale_value: 32768
+  preprocessing_smooth_keep_factor: None
+  preprocessing_log_scale: True
+  architecture: "cnn_per_dye" # cnn, cnn_per_dye or cnn_shared_per_dye
+  compression: 8
+  hidden_dims: 64
+  kernel_size: 5
+  use_sigmoid: True
+  use_batchnorm: False
+  depth: 3
