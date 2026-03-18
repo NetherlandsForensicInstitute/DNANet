@@ -8,7 +8,6 @@ from typing import Any, Dict, Iterable, MutableMapping, Optional, Sequence, Set,
 
 import numpy as np
 
-from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.data.utils import fill_lut_range
 from DNAnet.typing import PathLike
 
@@ -274,6 +273,8 @@ class Panel:
         Args:
             called_alleles: Sequence[Marker] - The called alleles to fill in.
         """
+        from DNAnet.data.strategies.strategy_registry import StrategyRegistry # prevent circular import
+
         for marker in called_alleles:
             for allele in marker.alleles:
                 basepair, left_bin, right_bin = self.get_allele_info(marker.name, allele.name)

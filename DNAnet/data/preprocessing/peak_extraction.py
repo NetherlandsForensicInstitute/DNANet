@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Dict
 
 import numpy as np
 import scipy
@@ -6,7 +6,7 @@ import torch
 
 from DNAnet.data.data_models.extracted_peak import ExtractedPeak
 from DNAnet.data.data_models.hid_image import HIDImage
-from DNAnet.data.preprocessing.peak_utils import MARKER_TO_IDX
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 
 
 def extract_windows_torch(
@@ -181,6 +181,7 @@ def extract_peaks_torch(img: HIDImage,
     data = img.data[:5] if img.include_size_standard else img.data
     image = torch.from_numpy(data).to(device=device, dtype=torch.float32) # (6, 4096, 1)
     image = image.squeeze() # (6, 4096)
+    marker_to_idx = StrategyRegistry.get_scaling_strategy().marker_name_to_dye_idx()
     # print(f"Image shape: {image.shape}, dtype: {image.dtype}, device: {image.device}")
 
     peak_centers = find_peaks_torch_indices(image, threshold) # (num_peaks, 2) where each row is (dye_index, position)
@@ -192,7 +193,7 @@ def extract_peaks_torch(img: HIDImage,
     #
     # print(img._panel._panel)
 
-    marker_idx = [MARKER_TO_IDX.get(img._panel.get_marker_name_by_dye_and_bp(dye, bp), len(MARKER_TO_IDX)) for dye, bp in peak_centers.tolist()]
+    marker_idx = [marker_to_idx.get(img._panel.get_marker_name_by_dye_and_bp(dye, bp), len(marker_to_idx)) for dye, bp in peak_centers.tolist()]
     marker_idx = torch.tensor(marker_idx, device=device, dtype=torch.long) # (num_peaks,)
 
     # Should return peak_tensors, marker_idx, peak_centers

@@ -8,7 +8,7 @@ from torchmetrics import Metric
 
 from DNAnet.data.data_models.extracted_peak import ExtractedPeak
 from DNAnet.data.data_models.hid_image import HIDImage
-from DNAnet.data.preprocessing.peak_utils import MARKER_TO_IDX
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.models.base_model import BaseModel
 from DNAnet.models.classification.peak_classification_torch import PeakClassificationModel
 from DNAnet.models.prediction import Prediction
@@ -39,7 +39,7 @@ class PeakClassification(BaseModel):
         model = PeakClassificationModel(
             num_classes=self.num_classes,
             width=window_size,
-            n_markers=len(MARKER_TO_IDX) + 1,
+            n_markers=len(StrategyRegistry.get_scaling_strategy().marker_to_idx) + 1,
             embedding_dim=embedding_dim,
             include_max_pool_dyes=include_max_pool_dyes,
             hidden_channels=channels,
