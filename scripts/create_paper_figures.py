@@ -7,7 +7,7 @@ import scipy.interpolate
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 
-from DNAnet.models.base import Model
+from DNAnet.models.base_model import Model
 from DNAnet.utils import get_marker_ranges
 from config_io import load_dataset, load_model
 from DNAnet.data.data_models.dna_models import Marker, Panel
@@ -56,7 +56,7 @@ def add_bin_info(called_alleles: List[Marker], panel: Panel) -> List[Marker]:
     """
     for marker in called_alleles:
         for allele in marker.alleles:
-            bin_info = panel.get_allele_info(
+            bin_info = panel.get_allele_basepair_and_bins(
                 marker_name=marker.name, allele_name=allele.name
             )
             allele.base_pair, allele.left_bin, allele.right_bin = bin_info

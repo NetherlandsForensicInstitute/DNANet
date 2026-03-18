@@ -10,7 +10,7 @@ from torchmetrics import Metric
 
 from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.data.preprocessing.preprocess_item import RFU_MAX_VALUE, inverse_scale_data, preprocess_profile_torch
-from DNAnet.models.HIDImageBaseModel import HIDImageBaseModel
+from DNAnet.models.base_model import BaseModel
 from DNAnet.models.prediction import Prediction
 from DNAnet.models.reconstruction.autoencoder_architectures import Conv1dAutoencoder, PerDyeConv1dAutoencoder, \
     SharedWeightPerDyeConv1dAutoencoder
@@ -19,7 +19,7 @@ from DNAnet.models.reconstruction.autoencoder_baselines import FourierAutoEncode
 LOGGER = logging.getLogger('dnanet')
 
 
-class HIDAutoencoder(HIDImageBaseModel):
+class Autoencoder(BaseModel):
 
 
     def __init__(self,
@@ -83,7 +83,7 @@ class HIDAutoencoder(HIDImageBaseModel):
         else:
             raise ValueError(f"Unknown architecture: {architecture}")
 
-        super().__init__(model, loss, device)
+        super().__init__(model, loss, device, apply_allele_caller=False)
 
         self.encoded_shape = self._model.encoded_shape()
 

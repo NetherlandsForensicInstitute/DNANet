@@ -1,7 +1,7 @@
 import logging
 
 from DNAnet.data.data_models.hid_image import HIDImage
-from DNAnet.models.base import Model
+from DNAnet.models.base_model import Model
 from DNAnet.models.prediction import Prediction
 from DNAnet.typing import PathLike
 

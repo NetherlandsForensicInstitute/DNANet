@@ -6,13 +6,13 @@ from torchmetrics import Metric
 
 from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.data.utils import process_image
-from DNAnet.models.HIDImageBaseModel import HIDImageBaseModel
+from DNAnet.models.base_model import BaseModel
 from DNAnet.models.loss import DiceLoss
 from DNAnet.models.prediction import Prediction
 from DNAnet.models.segmentation.unet_architecture import UNet
 
 
-class DNANet_UNet(HIDImageBaseModel):
+class DNANet_UNet(BaseModel):
     """
     A setup for a U-Net model geared towards analysing dna profiles using PyTorch.
     """
@@ -33,7 +33,7 @@ class DNANet_UNet(HIDImageBaseModel):
         "cuda" for CPU or GPU respectively.
         :param apply_allele_caller: Whether to call actual alleles from the predicted segmentation
         """
-        model = UNet(depth, kernel_size, num_filters, self._device)
+        model = UNet(depth, kernel_size, num_filters, device)
         loss = DiceLoss()
         super().__init__(model, loss, device, apply_allele_caller)
 

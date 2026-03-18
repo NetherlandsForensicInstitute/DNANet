@@ -183,16 +183,12 @@ class PeakOnlyClassifier(nn.Module):
     def __init__(self,
                  peak_classifier: nn.Module,
                  num_classes : int = 2,
-                 default_class: int = 0,
-                 out_channels: int = 6,
-                 out_length: int = 4096,
+                 default_class: int = 0
                  ):
         super().__init__()
         self.peak_classifier = peak_classifier
         self.num_classes = num_classes
         self.default_class_idx = default_class
-        self.out_channels = out_channels
-        self.out_length = out_length
 
     def forward(self, x: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]) -> torch.Tensor:
         ### DEFINITION OF DIMENSIONS:
@@ -204,8 +200,8 @@ class PeakOnlyClassifier(nn.Module):
         # L: Length of electropherogram (4096)
         # F_a: Dimension of autoencoder features (when flattened)
         # F_p: Dimension of peak classifier features (when flattened)
-
-        _, peak_windows, marker_idxs, peak_centers = x
+        # TODO: reduce duplicated code from CombinedClassifier
+        full_image, peak_windows, marker_idxs, peak_centers = x
 
         # peak_windows: (N, N_p, C, W)
         # marker_idxs: (N, N_p)
@@ -228,9 +224,8 @@ class PeakOnlyClassifier(nn.Module):
 
         # 4) MAP BACK TO IMAGE
         # create output tensor
-        N = num_images
-        C = self.out_channels
-        L = self.out_length
+
+        N, C, L = full_image.size() # N: num images, C: num dyes, L: length (4096)
         # very_negative = torch.finfo(logits.dtype).min
         # segmented = torch.full((N, C, L, self.num_classes), fill_value=very_negative, device=full_image.device) # (N, C, 4096)
         segmented = torch.zeros((N, C, L, self.num_classes), device=logits.device, dtype=logits.dtype) # (N, C, L, num_classes)

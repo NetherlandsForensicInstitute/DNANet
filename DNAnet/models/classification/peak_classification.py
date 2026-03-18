@@ -9,12 +9,12 @@ from torchmetrics import Metric
 from DNAnet.data.data_models.extracted_peak import ExtractedPeak
 from DNAnet.data.data_models.hid_image import HIDImage
 from DNAnet.data.preprocessing.peak_utils import MARKER_TO_IDX
-from DNAnet.models.HIDImageBaseModel import HIDImageBaseModel
+from DNAnet.models.base_model import BaseModel
 from DNAnet.models.classification.peak_classification_torch import PeakClassificationModel
 from DNAnet.models.prediction import Prediction
 
 
-class PeakClassification(HIDImageBaseModel):
+class PeakClassification(BaseModel):
     def __init__(self,
                  labels: List[str],
                  device: Optional[str] = None,
@@ -70,7 +70,7 @@ class PeakClassification(HIDImageBaseModel):
         else:
             raise ValueError(f"Unknown loss function: {loss_fn}")
 
-        super().__init__(model, loss, device)
+        super().__init__(model, loss, device, apply_allele_caller=False)
 
     def _kl_div_loss(self, logits: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         log_probs = nn.functional.log_softmax(logits, dim=1)

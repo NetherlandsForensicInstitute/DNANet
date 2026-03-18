@@ -4,11 +4,17 @@ import os
 from itertools import groupby
 from typing import Iterable, List, Optional, Sequence, Tuple
 
+import numpy as np
+
 from DNAnet.data.data_models import Allele, Marker, Panel
+from DNAnet.data.data_models.structs import AlleleAnnotation, ScanpointAnnotation
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
 from DNAnet.typing import PathLike
 
 
 LOGGER = logging.getLogger("dnanet")
+
+
 
 
 def parse_called_alleles(annotation_file_path: PathLike,
@@ -45,7 +51,8 @@ def parse_called_alleles(annotation_file_path: PathLike,
         return None
 
 
-def _parse_annotations(panel, results, allele_cols, height_cols) \
+
+def _parse_annotations(panel: Panel, results, allele_cols, height_cols) \
         -> List[Marker]:
     """
     Parses annotations for a single sample from annotations file
@@ -59,7 +66,7 @@ def _parse_annotations(panel, results, allele_cols, height_cols) \
             marker = Marker(dye_row,
                             marker_name,
                             [Allele(allele_name,
-                                    *panel.get_allele_info(
+                                    *panel.get_allele_basepair_and_bins(
                                         marker_name, allele_name),
                                     float(result[height_col]))
                              for allele_col, height_col in

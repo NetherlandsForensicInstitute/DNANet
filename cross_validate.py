@@ -13,7 +13,7 @@ from config_io import (
     load_model,
     load_training_config,
 )
-from DNAnet.models.base import TrainableModel
+from DNAnet.models.base_model import TrainableModel
 from utils import add_file_handler_to_logger, prepare_output_file
 
 

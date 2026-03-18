@@ -16,19 +16,105 @@ dependencies = [
     "mlflow>=2.21.3",
     "tensorboard>=2.18.0",
     "huggingface-hub[hf_xet]>=0.35.0",
+    "coolname>=2.2.0",
     "openpyxl>=3.1.5",
-    "seaborn>=0.13.2"
-
+    "seaborn>=0.13.2",
+    "pydantic>=2.12.5",
+    "pydantic-numpy>=8.0.1",
+    "loguru>=0.7.3",
 ]
 requires-python = ">=3.10,<=3.12"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 
 
-[tool.pdm]
-distribution = false
-
 [dependency-groups]
 testing = [
     "pytest>=8.3.5",
+    "pytest-cov>=7.0.0",
+    "pytest-xdist>=3.8.0",
 ]
+quality = [
+    "ruff>=0.15.5",
+    "mypy>=1.19.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = "."
+addopts = "--cov --cov-report=term"
+source = ["."]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "tests/*",
+    "*__init__.py"
+]
+
+[tool.coverage.report]
+skip_empty = true
+show_missing = true
+
+exclude_also = [
+    "def __repr__",
+    "if self\\.debug",
+
+    "raise AssertionError",
+    "raise NotImplementedError",
+
+    "if 0:",
+    "if __name__ == .__main__.:",
+
+    "@(abc\\.)?abstractmethod",
+]
+ignore_errors = true
+
+
+##### LINT & FORMAT #####
+[tool.ruff]
+extend-exclude = [
+    ".venv"
+]
+line-length = 101
+
+[tool.ruff.format]
+quote-style = "single"
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+# Rules: 'https://docs.astral.sh/ruff/rules'
+select = [
+    "I",  # Imports
+    "B",  # Bugbear,
+    "D",  # Docstyles
+    "NPY",  # Numpy
+    "TC",  # Type Checking
+]
+exclude = ["tests/*"]
+ignore = ["D100"]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "D104"]
+"**/{tests,docs}/*" = ["E402", "D"]
+
+[tool.ruff.lint.isort]
+length-sort = true
+lines-after-imports = 2
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+disable_error_code = ["import-untyped"]
+[tool.pdm]
+distribution = false
+
+[tool.pdm.scripts]
+test = "pdm run pytest"
+lint = "pdm run ruff check ."
+format = "pdm run ruff format --check ."
+typing = "pdm run mypy"
+
+
