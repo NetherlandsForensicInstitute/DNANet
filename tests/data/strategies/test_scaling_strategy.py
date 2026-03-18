@@ -1,9 +1,14 @@
+from typing import List
+
 import numpy as np
 import pytest
 from DNAnet.data.strategies.kit_strategies.scaling_strategy import ScalingStrategy, GlobalFilerScalingStrategy
 from unittest.mock import MagicMock
 
 class ConcreteScalingStrategy(ScalingStrategy):
+    def dye_channel_colors(self) -> List[str]:
+        return []
+
     def parse_size_standard(self, size_standard_lane):
         return None
 

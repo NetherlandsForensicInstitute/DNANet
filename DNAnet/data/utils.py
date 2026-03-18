@@ -168,3 +168,37 @@ def fill_lut_range(lut: List[Optional[str]], offset: int, s_k: int, e_k: int,
                             lut[idx] = name
         else:
             lut[idx] = name
+
+
+# TODO update method for new annotations
+def full_annotation_array_to_list(full_annotations_array: np.ndarray,
+                                  rfu_array: np.ndarray=None) -> list[list]:
+    """
+    Converts a numpy array of annotations to a list. Optionally provide the data rfu array
+    to get the max rfu for every annotation
+    """
+    results = []
+
+    # Do not include annotations from size standard
+    for row_idx in range(5):
+        row = full_annotations_array[row_idx]
+
+        # Find where labels change
+        changes = np.concatenate(([True], row[1:] != row[:-1], [True]))
+        change_indices = np.where(changes)[0]
+
+        # Extract segments
+        for i in range(len(change_indices) - 1):
+            start = change_indices[i]
+            end = change_indices[i + 1] - 1
+            label = row[start]
+            if label == 0:
+                continue
+            else:
+                max_rfu=-1
+                if not rfu_array is None:
+                    max_rfu = int(max(rfu_array[int(row_idx), start:end+1]))
+                results.append(
+                    [int(row_idx), start, end, int(label), max_rfu])
+
+    return results

@@ -9,16 +9,17 @@ from matplotlib.ticker import FuncFormatter, FixedLocator
 from matplotlib.patches import Rectangle
 
 
-from DNAnet.constants import LABEL_CATEGORIES
+from DNAnet.constants import LABEL_CATEGORIES, LABEL_CATEGORIES_STR
 from DNAnet.data.data_models import Marker
 from DNAnet.data.data_models.hid_image import HIDImage
-from DNAnet.data.utils import CATEGORIES, DNA_CHANNELS, RESCALE_SIZE, full_annotation_array_to_list
+from DNAnet.data.strategies.strategy_registry import StrategyRegistry
+from DNAnet.data.utils import full_annotation_array_to_list
 from DNAnet.evaluation.interactivity import Interactivity
 from DNAnet.evaluation.utils import get_peaks
-from DNAnet.models.base import Model
+from DNAnet.models.base_model import Model
 from DNAnet.models.prediction import Prediction
 from DNAnet.utils import _get_marker_bin, get_allele_bins
-from config_io import load_model
+
 
 LOGGER = logging.getLogger("dnanet")
 
@@ -63,6 +64,8 @@ def plot_profile(hid_images: Sequence[HIDImage],
     """
     _validate_input(hid_images, predictions)
 
+    dye_colors = StrategyRegistry.get_scaling_strategy().dye_channel_colors()
+
     fig = None
     for enum, image in enumerate(hid_images):
         img = image.data
@@ -73,7 +76,7 @@ def plot_profile(hid_images: Sequence[HIDImage],
         fig, axs = plt.subplots(len(img), figsize=(20, 20), sharex=True)
 
         # plot DNA profile
-        _plot_profile(axs, img, DNA_CHANNELS)
+        _plot_profile(axs, img, dye_colors)
 
         # plot called alleles (if present)
         if image.annotation and \
@@ -125,7 +128,7 @@ def plot_profile(hid_images: Sequence[HIDImage],
             # map the annotation names to colours
             for span in spans:
                 # add the right axis and artist:
-                i_dye = DNA_CHANNELS.index(span['dye'])
+                i_dye = dye_colors.index(span['dye'])
                 span['ax'] = axs[i_dye]
                 if len(users) == 1:
                     span['artist'] = axs[i_dye].axvspan(span['x0'], span['x1'],
@@ -151,7 +154,7 @@ def plot_profile(hid_images: Sequence[HIDImage],
         title_string = ""
 
         if not spans and min_rfu_peak_detection is not None:
-            if img.shape[1]==RESCALE_SIZE:
+            if img.shape[1]==StrategyRegistry.get_scaling_strategy().scanpoint_resolution:
                 # if we have a 'regular' sized profile, we look for peaks
                 spans = _add_initial_spans(
                     axs=axs, peak_ranges=get_peaks(profile=img, min_rfu=min_rfu_peak_detection)
@@ -194,8 +197,11 @@ def plot_profile(hid_images: Sequence[HIDImage],
         #  todo: make dynamic axis labels? When you zoom, you lose the X-axis labels.to
         major_bp = np.arange(0, 500, 25)  # 65, 476: 65, 90, 115, ..., 465
         major_scan = bp_to_scan(major_bp)
-        ax.xaxis.set_major_locator(FixedLocator(major_scan))
-        ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{scan_to_bp(x):.0f}"))
+        for ax in axs:
+            ax.xaxis.set_major_locator(FixedLocator(major_scan))
+            ax.xaxis.set_major_formatter(
+                FuncFormatter(lambda x, pos: f"{scan_to_bp(x):.0f}")
+            )
 
         plt.show()
     return fig
@@ -272,10 +278,10 @@ def _predict_initial_spans(model: Model, image: HIDImage, axs) -> List[Dict[str,
         dye, x0, x1, category, _ = annotation
 
         artist = axs[dye].axvspan(x0, x1,
-                                  color=label_to_color[CATEGORIES[category]],
+                                  color=label_to_color[LABEL_CATEGORIES_STR[category]],
                                   alpha=0.3)
 
-        spans.append({"artist": artist, "ax": axs[dye], "category": CATEGORIES[category],
+        spans.append({"artist": artist, "ax": axs[dye], "category": LABEL_CATEGORIES_STR[category],
                       "x0": x0, "x1": x1, "peak_idx": -1})
 
     return spans
@@ -324,7 +330,8 @@ def _plot_profile_marker(marker: Marker,
         _slice = _slice[slice(*zoom_x_values)]
 
     marker_img = image.data[dye_row, _slice]
-    ax.plot(marker_img, DNA_CHANNELS[dye_row])
+    dye_colors = StrategyRegistry.get_scaling_strategy().dye_channel_colors()
+    ax.plot(marker_img, dye_colors[dye_row])
 
     if image.annotation and \
             (image_annotation := image.annotation.image) is not None:

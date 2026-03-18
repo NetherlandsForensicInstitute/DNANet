@@ -16,4 +16,7 @@ LABEL_CATEGORIES: dict[str, dict[str, object]] = {
                                         "pyval": "OverloadingArtifact"},
 }
 
+LABEL_CATEGORIES_STR = ["", "Allele", "Stutter", "PullUp", "BleedThrough", "Spike", "DyeBlob", "Artefact",
+              "Unclear", "Shoulder", "ForeignDNA", "OverloadingArtifact"]
+
 LABELTOOL_VERSION = "0.4"
