@@ -1,0 +1,16 @@
+# Per-dye Conv1d autoencoder for EPG reconstruction
+name: autoencoder
+
+architecture:
+  _target_: dnanet.models.autoencoder.PerDyeConv1dAutoencoder
+  in_channels: 5
+  hidden_channels: 64
+  depth: 3
+  input_length: 4096
+  kernel_size: 5
+  compression: 8
+  use_sigmoid: true
+  use_batchnorm: false
+
+loss:
+  _target_: torch.nn.MSELoss

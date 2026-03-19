@@ -1,0 +1,21 @@
+# Conv1d peak classifier for allele/noise classification
+name: peak_classifier
+
+architecture:
+  _target_: dnanet.models.peak_classifier.PeakClassificationModel
+  num_classes: 2
+  width: 120
+  n_markers: 28
+  embedding_dim: 8
+  include_max_pool_dyes: false
+  hidden_channels: [32, 64]
+  kernel_size: 7
+  pooling: flat          # flat, avg, or attn
+  activation: relu       # relu, tanh, or gelu
+  use_batchnorm: false
+  conv_dropout_p: 0.0
+  head_dropout_p: 0.0
+  downsample: maxpool    # maxpool or conv
+
+loss:
+  _target_: torch.nn.CrossEntropyLoss

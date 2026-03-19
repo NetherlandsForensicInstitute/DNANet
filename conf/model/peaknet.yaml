@@ -1,0 +1,17 @@
+# Combined PeakNet: autoencoder (global) + peak classifier (local)
+name: peaknet
+
+architecture:
+  _target_: dnanet.models.peaknet.CombinedClassifier
+  hidden_dims: [64, 32]
+  num_classes: 2
+  default_class: 0
+  freeze_autoencoder: false
+  combiner: mlp           # mlp, film, or attention
+
+loss:
+  _target_: torch.nn.CrossEntropyLoss
+
+# Peak detection threshold for extracting windows at inference
+peak_threshold: 25
+window_size: 120
