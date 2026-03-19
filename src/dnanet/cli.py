@@ -18,6 +18,7 @@ Usage:
 """
 
 from __future__ import annotations
+from pathlib import Path
 
 import hydra
 from omegaconf import DictConfig
@@ -25,7 +26,9 @@ from omegaconf import DictConfig
 from dnanet import logging as dnanet_logging
 
 
-@hydra.main(version_base=None, config_path="../../conf", config_name="config")
+WORKSPACE_FOLDER = Path(__file__).parents[2]
+
+@hydra.main(version_base=None, config_path=str(WORKSPACE_FOLDER / "conf"), config_name="config")
 def main(cfg: DictConfig) -> None:
     """DNANet CLI — train, evaluate, or cross-validate DNA profile models."""
     # Configure logging first (before any other import triggers log messages)

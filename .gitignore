@@ -21,7 +21,12 @@ outputs/
 # Experiment tracking
 mlruns/
 tb_logs/
+logs/
 
 # OS
 .DS_Store
 Thumbs.db
+
+.pytest_cache/
+.coverage
+.pdm-python
