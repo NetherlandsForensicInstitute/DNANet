@@ -1,10 +1,30 @@
 """Shared test fixtures for DNANet."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 from dnanet.core import Allele, Annotation, Marker, Panel, Prediction
+from dnanet.data.strategies.registry import StrategyRegistry
 
+
+# ---------------------------------------------------------------------------
+# Resource paths
+# ---------------------------------------------------------------------------
+
+TESTS_DIR = Path(__file__).parent
+RESOURCES_DIR = TESTS_DIR / "resources"
+PANEL_PATH = RESOURCES_DIR / "panel.xml"
+LADDER_ALLELES_CSV = RESOURCES_DIR / "ladder_alleles.csv"
+
+RD_DIR = RESOURCES_DIR / "profiles" / "RD"
+PROVEDIT_DIR = RESOURCES_DIR / "PROVEDIt"
+
+
+# ---------------------------------------------------------------------------
+# Core domain fixtures (synthetic / in-memory)
+# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def sample_alleles() -> tuple[Allele, ...]:
@@ -44,3 +64,33 @@ def sample_panel(sample_marker, amel_marker) -> Panel:
 def segmentation_mask() -> np.ndarray:
     """A small fake segmentation mask."""
     return np.zeros((5, 100), dtype=np.float32)
+
+
+# ---------------------------------------------------------------------------
+# Strategy fixtures (configure global kit strategy for integration tests)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def ppf6c_kit():
+    """Configure the PPF6C scaling strategy globally."""
+    StrategyRegistry.configure_kit("PPF6C")
+    yield
+    StrategyRegistry.reset()
+
+
+@pytest.fixture
+def globalfiler_kit():
+    """Configure the GlobalFiler scaling strategy globally."""
+    StrategyRegistry.configure_kit("GLOBALFILER")
+    yield
+    StrategyRegistry.reset()
+
+
+# ---------------------------------------------------------------------------
+# Real-data fixtures (from test resources)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def ppf6c_panel() -> Panel:
+    """The PPF6C panel loaded from the real XML file."""
+    return Panel.from_xml(PANEL_PATH)
