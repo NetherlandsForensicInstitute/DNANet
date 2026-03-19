@@ -34,9 +34,11 @@ from typing import Sequence
 from loguru import logger
 
 from dnanet.core.allele import Allele
-from dnanet.core.constants import DyeIndex
 from dnanet.core.marker import Marker
 from dnanet.core.types import PathLike
+
+# Default dye mapping: PPF6C style (1-based HID indices, skipping dye 5)
+_DEFAULT_HID_DYE_MAPPING: dict[int, int] = {1: 0, 2: 1, 3: 2, 4: 3, 6: 4}
 
 
 class Panel:
@@ -49,15 +51,17 @@ class Panel:
         markers: The complete list of markers in this panel.
     """
 
-    def __init__(self, markers: Sequence[Marker]) -> None:
-        if not markers:
-            raise ValueError("A Panel requires at least one Marker.")
+    def __init__(self, markers: Sequence[Marker] = ()) -> None:
         self._markers = tuple(markers)
 
     # -- Factory methods -------------------------------------------------- #
 
     @classmethod
-    def from_xml(cls, path: PathLike) -> Panel:
+    def from_xml(
+        cls,
+        path: PathLike,
+        hid_dye_mapping: dict[int, int] | None = None,
+    ) -> Panel:
         """Parse a panel from an SGPanel XML file.
 
         This is the standard format exported by forensic DNA analysis
@@ -66,17 +70,26 @@ class Panel:
 
         Args:
             path: Path to the panel XML file.
+            hid_dye_mapping: Maps 1-based HID dye indices to 0-based channel
+                rows. If ``None``, uses the default PPF6C mapping
+                ``{1: 0, 2: 1, 3: 2, 4: 3, 6: 4}``.
 
         Returns:
             A fully constructed Panel instance.
         """
+        mapping = hid_dye_mapping or _DEFAULT_HID_DYE_MAPPING
         markers: list[Marker] = []
 
         for _event, elem in ET.iterparse(str(path), events=("end",)):
             if elem.tag != "Locus":
                 continue
 
-            dye_index = DyeIndex.from_hid_index(int(elem.find("DyeIndex").text))
+            hid_idx = int(elem.find("DyeIndex").text)
+            if hid_idx not in mapping:
+                # Skip dye channels not in the mapping (e.g. size standard)
+                elem.clear()
+                continue
+            dye_index = mapping[hid_idx]
             marker_name = elem.find("MarkerTitle").text
 
             alleles = tuple(

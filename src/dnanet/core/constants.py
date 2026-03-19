@@ -7,11 +7,13 @@ Design pattern: **Enum as a Value Object**
     - Discoverability: IDE autocomplete shows all valid labels.
     - Single source of truth: color, index, and display name live together.
 
-    The `DyeIndex` enum similarly replaces the hard-coded `{1: 0, 2: 1, ...}`
-    mapping that was buried inside `Panel._parse_panel`.
+Note:
+    Kit-specific constants (dye count, dye-index mapping) live on ``STRKit``
+    and ``ScalingStrategy``, NOT here. This module only holds constants that
+    are truly universal across all kits and datasets.
 """
 
-from enum import Enum, IntEnum, unique
+from enum import Enum, unique
 
 
 @unique
@@ -62,46 +64,6 @@ class LabelCategory(Enum):
         """Return all label names in order (matches original LABEL_CATEGORIES_STR)."""
         return [member.label_name for member in cls]
 
-
-@unique
-class DyeIndex(IntEnum):
-    """Mapping from 1-based HID dye indices to 0-based channel rows.
-
-    The HID file format uses 1-based dye numbering with a gap (no dye 5).
-    This enum makes that mapping explicit instead of hiding it in a dict
-    literal inside the panel parser.
-    """
-
-    BLUE = 0       # HID dye 1
-    GREEN = 1      # HID dye 2
-    YELLOW = 2     # HID dye 3
-    RED = 3        # HID dye 4
-    ORANGE = 4     # HID dye 6 (dye 5 is skipped in PPF6C kit)
-
-    @classmethod
-    def from_hid_index(cls, hid_index: int) -> "DyeIndex":
-        """Convert a 1-based HID dye index to the 0-based channel row.
-
-        Args:
-            hid_index: The dye index as stored in the HID/panel file (1-based).
-
-        Returns:
-            The corresponding DyeIndex enum member.
-
-        Raises:
-            ValueError: If the HID index doesn't map to a known dye.
-        """
-        mapping = {1: cls.BLUE, 2: cls.GREEN, 3: cls.YELLOW, 4: cls.RED, 6: cls.ORANGE}
-        if hid_index not in mapping:
-            raise ValueError(
-                f"Unknown HID dye index {hid_index}. "
-                f"Valid indices: {list(mapping.keys())}"
-            )
-        return mapping[hid_index]
-
-
-# Number of fluorescence channels (dyes) in a standard EPG
-NUM_DYES: int = 5
 
 # Default signal length (number of scan points per dye channel)
 DEFAULT_SIGNAL_LENGTH: int = 4096

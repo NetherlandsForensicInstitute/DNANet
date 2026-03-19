@@ -8,9 +8,10 @@ from dnanet.core import Panel
 class TestPanel:
     """Test suite for Panel."""
 
-    def test_creation_requires_markers(self):
-        with pytest.raises(ValueError, match="at least one Marker"):
-            Panel(markers=[])
+    def test_empty_panel_allowed(self):
+        """Empty panels are valid (e.g. default/placeholder before loading)."""
+        panel = Panel(markers=[])
+        assert len(panel) == 0
 
     def test_len(self, sample_panel):
         assert len(sample_panel) == 2

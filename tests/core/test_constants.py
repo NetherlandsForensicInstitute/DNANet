@@ -1,8 +1,6 @@
 """Tests for domain constants."""
 
-import pytest
-
-from dnanet.core.constants import DyeIndex, LabelCategory
+from dnanet.core.constants import LabelCategory
 
 
 class TestLabelCategory:
@@ -32,19 +30,3 @@ class TestLabelCategory:
 
     def test_unlabeled_has_empty_name(self):
         assert LabelCategory.UNLABELED.label_name == ""
-
-
-class TestDyeIndex:
-    """Test suite for the DyeIndex enum."""
-
-    def test_from_hid_index_valid(self):
-        assert DyeIndex.from_hid_index(1) == DyeIndex.BLUE
-        assert DyeIndex.from_hid_index(6) == DyeIndex.ORANGE
-
-    def test_from_hid_index_invalid(self):
-        with pytest.raises(ValueError, match="Unknown HID dye index"):
-            DyeIndex.from_hid_index(5)
-
-    def test_values_are_zero_based(self):
-        assert DyeIndex.BLUE == 0
-        assert DyeIndex.ORANGE == 4
