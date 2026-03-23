@@ -1,4 +1,5 @@
 # Training hyperparameters for segmentation models
+type: segmentation
 max_epochs: 15
 batch_size: 16
 learning_rate: 0.0001

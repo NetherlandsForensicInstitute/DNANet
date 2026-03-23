@@ -235,7 +235,7 @@ class HIDImage:
                     )
                 elif method == "complete":
                     start, end = find_peak_boundary(
-                        dye, int(peak_idx), self.rfu_threshold
+                        dye, int(peak_idx.flat[0]), self.rfu_threshold
                     )
                     annotations[layer, np.arange(start, end + 1), 0] = 1.0
                 elif method == "top":

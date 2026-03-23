@@ -1,4 +1,5 @@
 # Training hyperparameters for autoencoder reconstruction
+type: reconstruction
 max_epochs: 150
 batch_size: 16
 learning_rate: 0.001

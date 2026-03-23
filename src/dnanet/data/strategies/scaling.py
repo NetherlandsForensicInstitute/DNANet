@@ -396,35 +396,58 @@ class GlobalFilerStrategy(ScalingStrategy):
     ) -> tuple[np.ndarray, np.ndarray, float]:
         """Iteratively trim trailing peaks until the polynomial fit is good.
 
+        If the fit doesn't converge within ``max_shrinkages`` iterations,
+        returns the best fit found (with a warning) rather than raising.
+        This matches the original behavior where marginally bad fits are
+        still usable for size-standard calibration.
+
         Returns:
             Tuple of ``(trimmed_peak_idxs, trimmed_bps, max_deviation)``.
-
-        Raises:
-            ValueError: If the fit doesn't converge within ``max_shrinkages``.
         """
         bps = expected_bps
-        diff = threshold + 1
+        best_trimmed, best_bps, best_diff = None, None, float("inf")
 
-        for shrink in range(max_shrinkages + 1):
+        # Need at least 3 peaks for a degree-2 polynomial fit
+        if len(peak_idxs) < 3:
+            logger.warning(
+                "Too few size standard peaks ({}) for polynomial fit",
+                len(peak_idxs),
+            )
+            return peak_idxs, bps[:len(peak_idxs)], float("inf")
+
+        shrinkages = 0
+        while shrinkages < max_shrinkages:
             trimmed = peak_idxs[-len(bps):]
+            # If fewer peaks than expected bps, trim bps to match
+            if len(trimmed) < len(bps):
+                bps = bps[-len(trimmed):]
+            if len(trimmed) < 3:
+                break
             coeffs = np.polyfit(trimmed, bps, 2)
             fitted = np.polyval(coeffs, trimmed)
             diff = float(np.max(np.abs(fitted - bps)))
 
+            # Track the best fit seen so far
+            if diff < best_diff:
+                best_trimmed, best_bps, best_diff = trimmed, bps, diff
+
             if diff < threshold:
-                if shrink > 0:
+                if shrinkages > 0:
                     logger.info(
                         "Size standard shrunk {} times; max diff {:.2f} bp",
-                        shrink, diff,
+                        shrinkages, diff,
                     )
                 return trimmed, bps, diff
 
             bps = bps[:-1]
+            shrinkages += 1
 
-        raise ValueError(
-            f"Size standard fit failed: {diff:.2f} bp deviation after "
-            f"{max_shrinkages} shrinkages."
+        logger.warning(
+            "Size standard fit did not converge: {:.2f} bp deviation after "
+            "{} shrinkages (threshold={:.1f}). Using best fit found.",
+            best_diff, max_shrinkages, threshold,
         )
+        return best_trimmed, best_bps, best_diff
 
 
 # ---------------------------------------------------------------------------
