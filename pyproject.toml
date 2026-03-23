@@ -39,6 +39,11 @@ dependencies = [
     "coolname>=2.2.0",
 ]
 
+[project.optional-dependencies]
+tools = [
+    "plotly>=6.0.0",
+]
+
 [project.scripts]
 dnanet = "dnanet.cli:main"
 dnanet-label = "dnanet.tools.labeltool:main"

@@ -14,6 +14,8 @@ Design pattern: **Service Locator**
 
 from __future__ import annotations
 
+from loguru import logger
+
 from typing import TYPE_CHECKING
 
 from dnanet.data.strategies.scaling import ScalingStrategy, get_scaling_strategy
@@ -47,6 +49,7 @@ class StrategyRegistry:
             cls._scaling_strategy = get_scaling_strategy(strategy, **kwargs)
         else:
             raise TypeError(f"Expected ScalingStrategy or str, got {type(strategy)}")
+        logger.debug(f"Set scaling strategy: {strategy}")
 
     @classmethod
     def configure_dataset(cls, strategy: type[DatasetStrategy] | str) -> None:

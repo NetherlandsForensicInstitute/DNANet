@@ -52,7 +52,41 @@ class LabelCategory(Enum):
         if self is LabelCategory.UNLABELED:
             return ""
         # Convert PULL_UP -> PullUp, BLEED_THROUGH -> BleedThrough, etc.
-        return "".join(part.capitalize() for part in self.name.split("_"))
+        result = "".join(part.capitalize() for part in self.name.split("_"))
+        # Preserve "DNA" acronym (capitalize() lowercases it to "Dna")
+        return result.replace("Dna", "DNA")
+
+    @property
+    def display_name(self) -> str:
+        """Human-readable name with spaces, e.g. 'Pull Up', 'Foreign DNA'.
+
+        Used in radio button labels for the interactive label tool.
+        """
+        _NAMES: dict[str, str] = {
+            "UNLABELED": "Unlabeled",
+            "ALLELE": "Allele",
+            "STUTTER": "Stutter",
+            "PULL_UP": "Pull Up",
+            "BLEED_THROUGH": "Bleed Through",
+            "SPIKE": "Spike",
+            "DYE_BLOB": "Dye Blob",
+            "ARTEFACT": "Artefact",
+            "UNCLEAR": "Unclear",
+            "SHOULDER": "Shoulder",
+            "FOREIGN_DNA": "Foreign DNA",
+            "OVERLOADING_ARTEFACT": "Overloading artefact",
+        }
+        return _NAMES[self.name]
+
+    @property
+    def color_display(self) -> str:
+        """Human-readable color name, e.g. 'Green', 'Orange'."""
+        return self.color.replace("tab:", "").capitalize()
+
+    @property
+    def radio_label(self) -> str:
+        """Full radio-button label, e.g. ``'Allele (Green - 1)'``."""
+        return f"{self.display_name} ({self.color_display} - {self.shortcut.upper()})"
 
     @classmethod
     def from_index(cls, index: int) -> "LabelCategory":
@@ -67,6 +101,9 @@ class LabelCategory(Enum):
 
 # Default signal length (number of scan points per dye channel)
 DEFAULT_SIGNAL_LENGTH: int = 4096
+
+# Label tool format version
+LABELTOOL_VERSION: str = "1.0"
 
 # Markers that are not autosomal (used for filtering in allele calling)
 NON_AUTOSOMAL_PREFIXES: tuple[str, ...] = ("DYS",)
