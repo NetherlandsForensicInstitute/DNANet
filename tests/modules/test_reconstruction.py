@@ -107,11 +107,13 @@ class TestReconstructionModule:
         assert "train/mse" in computed
         module.train_metrics.reset()
 
-    def test_handles_trailing_singleton(self, module):
-        """Should squeeze trailing dim from 4D output/target."""
-        x = torch.randn(2, 1, 512, 1)
-        # Wrapping in tuple to test the shape handling
-        loss = module.training_step((x,), batch_idx=0)
+    def test_handles_trailing_singleton(self):
+        """Should squeeze trailing dim from 4D output/target via FourierAutoencoder."""
+        from dnanet.models.autoencoder import FourierAutoencoder
+        ae = FourierAutoencoder(in_channels=1, signal_length=512, latent_coeffs=64)
+        mod = ReconstructionModule(model=ae)
+        x = torch.randn(2, 1, 512)
+        loss = mod.training_step((x,), batch_idx=0)
         assert loss.dim() == 0
 
     def test_hparams_saved(self, module):

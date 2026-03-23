@@ -108,16 +108,16 @@ class TestConv1dAutoencoder:
 class TestPerDyeAutoencoder:
     def test_forward_shape(self, batch):
         model = PerDyeConv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=2,
-            input_length=4096, kernel_size=9, compression=8,
+            in_channels=5, hidden_channels=16, depth=3,
+            input_length=4096, kernel_size=7, compression=8,
         )
         out = model(batch)
         assert out.shape == batch.shape
 
     def test_encoded_shape(self):
         model = PerDyeConv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=2,
-            input_length=4096, kernel_size=9, compression=8,
+            in_channels=5, hidden_channels=16, depth=3,
+            input_length=4096, kernel_size=7, compression=8,
         )
         shape = model.encoded_shape()
         assert len(shape) == 2
@@ -129,8 +129,8 @@ class TestPerDyeAutoencoder:
     def test_independent_weights(self):
         """Each dye channel should have its own weights."""
         model = PerDyeConv1dAutoencoder(in_channels=3, hidden_channels=8,
-                                         depth=2, input_length=4096,
-                                         kernel_size=5, compression=8)
+                                         depth=3, input_length=4096,
+                                         kernel_size=7, compression=8)
         # Weights for channel 0 and channel 1 should differ
         w0 = list(model.per_channel_nets[0].parameters())[0]
         w1 = list(model.per_channel_nets[1].parameters())[0]
@@ -139,8 +139,8 @@ class TestPerDyeAutoencoder:
     def test_handles_4d_input(self, batch):
         """Should squeeze trailing singleton dim."""
         model = PerDyeConv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=2,
-            input_length=4096, kernel_size=9, compression=8,
+            in_channels=5, hidden_channels=16, depth=3,
+            input_length=4096, kernel_size=7, compression=8,
         )
         x_4d = batch.unsqueeze(-1)  # (B, C, L, 1)
         z = model.encode(x_4d)
@@ -154,8 +154,8 @@ class TestPerDyeAutoencoder:
 class TestSharedWeightAutoencoder:
     def test_forward_shape(self, batch):
         model = SharedWeightPerDyeConv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=2,
-            input_length=4096, kernel_size=9, compression=8,
+            in_channels=5, hidden_channels=16, depth=3,
+            input_length=4096, kernel_size=7, compression=8,
         )
         out = model(batch)
         assert out.shape == batch.shape
@@ -163,8 +163,8 @@ class TestSharedWeightAutoencoder:
     def test_shared_weights(self):
         """All channels should share the same parameters."""
         model = SharedWeightPerDyeConv1dAutoencoder(
-            in_channels=3, hidden_channels=8, depth=2,
-            input_length=4096, kernel_size=5, compression=8,
+            in_channels=3, hidden_channels=8, depth=3,
+            input_length=4096, kernel_size=7, compression=8,
         )
         # All per_channel_nets should be the same object
         assert model.per_channel_nets[0] is model.per_channel_nets[1]
