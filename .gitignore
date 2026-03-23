@@ -18,6 +18,9 @@ build/
 # Hydra outputs
 outputs/
 
+# Data files
+data/
+
 # Experiment tracking
 mlruns/
 tb_logs/
