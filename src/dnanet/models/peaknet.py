@@ -1,5 +1,4 @@
 """Combined PeakNet architecture for per-scan-point classification.
-
 PeakNet is a dual-branch model that produces per-position class logits
 over the entire electropherogram:
 
@@ -37,11 +36,15 @@ from torch import Tensor, nn
 # Combiner strategies
 # ---------------------------------------------------------------------------
 
+
 class MLPCombiner(nn.Module):
     """Concatenate global + local features → MLP → class logits."""
 
     def __init__(
-        self, input_dim: int, hidden_dims: list[int], out_dim: int,
+        self,
+        input_dim: int,
+        hidden_dims: list[int],
+        out_dim: int,
     ) -> None:
         super().__init__()
         layers: list[nn.Module] = []
@@ -147,12 +150,11 @@ class CrossAttentionCombiner(nn.Module):
         peak_to_image: Tensor,
         global_signal: Tensor,
     ) -> Tensor:
-        """
-        Args:
-            global_features: Unused (kept for interface compat).
-            local_features: (P, D_local) per-peak features.
-            peak_to_image: (P,) mapping each peak to its source image.
-            global_signal: (N, C_global, W) autoencoder encoded output.
+        """Args:
+        global_features: Unused (kept for interface compat).
+        local_features: (P, D_local) per-peak features.
+        peak_to_image: (P,) mapping each peak to its source image.
+        global_signal: (N, C_global, W) autoencoder encoded output.
         """
         g = self.global_proj(global_signal) + self.positional_encoding
         g = g.transpose(1, 2)  # (N, W, E)
@@ -169,6 +171,7 @@ class CrossAttentionCombiner(nn.Module):
 # ---------------------------------------------------------------------------
 # Full models
 # ---------------------------------------------------------------------------
+
 
 class CombinedClassifier(nn.Module):
     """Dual-branch model: autoencoder (global) + peak classifier (local).
@@ -189,14 +192,14 @@ class CombinedClassifier(nn.Module):
     def __init__(
         self,
         autoencoder: nn.Module,
-        autoencoder_out_shape: tuple[int, ...],
         peak_classifier: nn.Module,
-        peak_classifier_out_features: int,
+        autoencoder_out_shape: tuple[int, ...] | None = None,
+        peak_classifier_out_features: int | None = None,
         hidden_dims: list[int] | None = None,
         num_classes: int = 2,
         default_class: int = 0,
         freeze_autoencoder: bool = True,
-        combiner: str = "mlp",
+        combiner: str = 'mlp',
     ) -> None:
         super().__init__()
 
@@ -215,18 +218,46 @@ class CombinedClassifier(nn.Module):
                 param.requires_grad = False
             self.autoencoder.eval()
 
+        # Auto-infer output shapes from sub-models when not explicitly given
+        if autoencoder_out_shape is None:
+            if hasattr(autoencoder, 'encoded_shape'):
+                autoencoder_out_shape = autoencoder.encoded_shape()
+            else:
+                raise ValueError(
+                    'Cannot infer autoencoder output shape. Pass '
+                    'autoencoder_out_shape or use an autoencoder with '
+                    'an encoded_shape() method.'
+                )
+
+        if peak_classifier_out_features is None:
+            if hasattr(peak_classifier, 'backbone_out_features'):
+                peak_classifier_out_features = peak_classifier.backbone_out_features()
+            else:
+                raise ValueError(
+                    'Cannot infer peak_classifier output features. Pass '
+                    'peak_classifier_out_features or use a classifier with '
+                    'a backbone_out_features() method.'
+                )
+
+        self._autoencoder_out_shape = autoencoder_out_shape
+
         flat_ae = int(np.prod(autoencoder_out_shape))
         flat_pc = int(peak_classifier_out_features)
 
-        if combiner == "mlp":
+        if combiner == 'mlp':
             self.combiner = MLPCombiner(
-                flat_ae + flat_pc, hidden_dims, num_classes,
+                flat_ae + flat_pc,
+                hidden_dims,
+                num_classes,
             )
-        elif combiner == "film":
+        elif combiner == 'film':
             self.combiner = FiLMCombiner(
-                flat_ae, flat_pc, hidden_dims, num_classes,
+                flat_ae,
+                flat_pc,
+                hidden_dims,
+                num_classes,
             )
-        elif combiner == "attention":
+        elif combiner == 'attention':
             self.combiner = CrossAttentionCombiner(
                 global_channels=autoencoder_out_shape[0],
                 local_dim=flat_pc,
@@ -234,7 +265,7 @@ class CombinedClassifier(nn.Module):
                 out_dim=num_classes,
             )
         else:
-            raise ValueError(f"Unknown combiner strategy: {combiner}")
+            raise ValueError(f'Unknown combiner strategy: {combiner}')
 
     def forward(
         self,
@@ -271,14 +302,13 @@ class CombinedClassifier(nn.Module):
         ae_per_peak = ae_flat[peak_to_image]  # (P, F_a)
 
         # Local branch
-        local_features = self.peak_classifier.backbone(
-            (peak_windows, marker_idxs)
-        )  # (P, F_p)
+        local_features = self.peak_classifier.backbone((peak_windows, marker_idxs))  # (P, F_p)
 
         # Combine
-        if self.combiner_name == "attention":
+        if self.combiner_name == 'attention':
             logits = self.combiner(
-                ae_per_peak, local_features,
+                ae_per_peak,
+                local_features,
                 peak_to_image=peak_to_image,
                 global_signal=ae_encoded,
             )
@@ -288,7 +318,8 @@ class CombinedClassifier(nn.Module):
         # Scatter logits back to image coordinates
         segmented = torch.zeros(
             (N, C, L, self.num_classes),
-            device=logits.device, dtype=logits.dtype,
+            device=logits.device,
+            dtype=logits.dtype,
         )
         segmented[:, :, :, self.default_class_idx] = 8.0
 
@@ -347,7 +378,8 @@ class PeakOnlyClassifier(nn.Module):
 
         segmented = torch.zeros(
             (N, C, L, self.num_classes),
-            device=logits.device, dtype=logits.dtype,
+            device=logits.device,
+            dtype=logits.dtype,
         )
         segmented[:, :, :, self.default_class_idx] = 8.0
 
