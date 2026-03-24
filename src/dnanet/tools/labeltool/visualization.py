@@ -247,6 +247,7 @@ def plot_profile_interactive(
             fig.suptitle(title_string, fontsize=16)
 
         # Activate interactivity — pass canonical dye channel names for CSV I/O
+        interactive_instance = None
         if interactive is not None:
             interactive_instance = interactive(
                 fig, axs, spans, dye_names=DNA_CHANNELS[:n_dyes],
@@ -263,5 +264,10 @@ def plot_profile_interactive(
             )
 
         plt.show()
+
+        # If the user pressed 'q', stop iterating through profiles.
+        if interactive_instance is not None and interactive_instance.quit_requested:
+            logger.info("User requested quit — exiting.")
+            break
 
     return fig

@@ -102,6 +102,9 @@ class LabelTool(Interactivity):
         self._ACTIVE_EDGE = {"color": "blue", "linewidth": 2}
         self._HOVER_EDGE = {"color": "black", "linewidth": 1.5}
 
+        # Set when the user presses 'q' — signals the plot loop to stop.
+        self.quit_requested: bool = False
+
         # Dynamic x-tick updates when zooming
         self.axs[-1].callbacks.connect("xlim_changed", self._on_xlim_changed)
 
@@ -273,9 +276,11 @@ class LabelTool(Interactivity):
         """Key press: delete span, change category, or quit."""
         logger.debug("Key: {}", event.key)
 
-        # Quit
+        # Quit — save annotations, then close the figure and signal exit.
         if event.key == "q":
             import matplotlib.pyplot as plt
+            self.quit_requested = True
+            self._on_close(event)  # save annotations before closing
             plt.close(self.figure)
             return
 
@@ -310,9 +315,12 @@ class LabelTool(Interactivity):
                 return
 
     def _on_close(self, event: Any) -> None:
-        """Window close: save annotations."""
+        """Window close: save annotations (only once)."""
         if self.annotation_store is None:
             return
+        if getattr(self, "_saved", False):
+            return
+        self._saved = True
 
         profile_name = self.figure.get_suptitle().strip()
         self.annotation_store.save_spans(
