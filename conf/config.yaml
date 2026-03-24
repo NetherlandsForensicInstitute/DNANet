@@ -15,12 +15,12 @@ defaults:
   - model: unet
   - training: segmentation
   - evaluation: segmentation
-  - logging: mlflow
+  - logging: csvlogger
   - _self_
 
 # -- Global settings --
 task: train          # One of: train, evaluate, cross_validate
 seed: 42
-output_dir: outputs/${now:%Y-%m-%d_%H-%M-%S}
+output_dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
 verbosity: INFO      # Logging level: DEBUG, INFO, WARNING, ERROR
 checkpoint: null     # Path to checkpoint for resume/evaluation
