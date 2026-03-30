@@ -61,7 +61,6 @@ class MLPCombiner(nn.Module):
         local_features: Tensor,
         **_kwargs,
     ) -> Tensor:
-        # print(f"shape autoencoder_out_per_peak: {autoencoder_out_per_peak.shape}, shape local_features: {local_features.shape}")
         # Concatenate global+local features per peak -> (P, F_a + F_p)
         return self.net(torch.cat((global_features, local_features), dim=1))
 
