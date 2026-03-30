@@ -92,7 +92,7 @@ class Panel:
             dye_index = mapping[hid_idx]
             marker_name = elem.find("MarkerTitle").text
 
-            alleles = tuple(
+            alleles = frozenset(
                 Allele(
                     name=a.attrib["Label"],
                     base_pair=float(a.attrib["Size"]),

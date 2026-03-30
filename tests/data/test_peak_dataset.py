@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.dataset import SimpleDataset
 from dnanet.data.peak_dataset import PeakWindowDataset
 from dnanet.data.extracted_peak import ExtractedPeak
@@ -15,7 +16,7 @@ class MockImage:
         self._raw_data = data
         self._panel = None
         if annotation_image is not None:
-            self.annotation = type("Ann", (), {"image": annotation_image})()
+            self.annotation = ScanpointAnnotation(data=annotation_image)
         else:
             self.annotation = None
 

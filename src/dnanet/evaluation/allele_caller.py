@@ -141,7 +141,7 @@ class NearestBasePairCaller(AlleleCaller):
             Marker(
                 name=marker_name,
                 dye_row=dye_index,
-                alleles=tuple(
+                alleles=frozenset(
                     Allele(name=allele_name, height=rfus[(marker_name, allele_name)])
                     for allele_name in sorted(alleles)
                 ),

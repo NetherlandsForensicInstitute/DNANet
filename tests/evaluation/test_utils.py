@@ -21,7 +21,7 @@ def _marker(name: str, dye: int, alleles: list[tuple[str, int | None]]) -> Marke
     return Marker(
         name=name,
         dye_row=dye,
-        alleles=tuple(Allele(name=n, height=h) for n, h in alleles),
+        alleles=frozenset(Allele(name=n, height=h) for n, h in alleles),
     )
 
 
@@ -114,7 +114,7 @@ class TestFlattenMarkers:
 
     def test_no_height_with_threshold_raises(self):
         markers = [
-            Marker(name="D5S818", dye_row=0, alleles=(Allele(name="13"),)),
+            Marker(name="D5S818", dye_row=0, alleles=frozenset([Allele(name="13"),])),
         ]
         with pytest.raises(ValueError, match="has no height"):
             flatten_markers_to_allele_names(markers, min_rfu=100)

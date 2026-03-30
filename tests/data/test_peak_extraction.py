@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import pytest
 
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.preprocessing.peak_extraction import (
     N_MARKERS,
     MARKER_TO_IDX,
@@ -123,7 +124,7 @@ class TestExtractPeakWindows:
             self._data = data
             self._panel = None
             if annotation_image is not None:
-                self.annotation = type("Ann", (), {"image": annotation_image})()
+                self.annotation = ScanpointAnnotation(data=annotation_image)
             else:
                 self.annotation = None
 
@@ -163,7 +164,7 @@ class TestExtractPeakWindows:
         ann[0, 1990:2010] = 1  # annotate the peak in dye 0
         image = self.MockImage(data, annotation_image=ann)
         peaks = extract_peak_windows(
-            image, threshold=100, window_size=120, use_ground_truth=True,
+            image, threshold=100, window_size=120,
         )
         dye0_peaks = [p for p in peaks if p.dye_index == 0]
         assert len(dye0_peaks) >= 1

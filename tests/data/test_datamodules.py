@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import pytest
 
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.dataset import SimpleDataset
 from dnanet.data.datamodule import (
     PeakDataModule,
@@ -18,22 +19,14 @@ from dnanet.data.extracted_peak import ExtractedPeak
 
 
 # ---------------------------------------------------------------------------
-# Mock objects
-# ---------------------------------------------------------------------------
-
-class MockAnnotation:
-    def __init__(self, image):
-        self.image = image
-
-
 class MockImage:
     """Minimal HIDImage-like."""
 
     def __init__(self, n_dyes=5, length=4096, with_annotation=True):
         self._data = np.random.rand(n_dyes, length, 1).astype(np.float32) * 100
         if with_annotation:
-            self.annotation = MockAnnotation(
-                np.random.randint(0, 2, (n_dyes, length, 1)).astype(np.float32)
+            self.annotation = ScanpointAnnotation(
+                data=np.random.randint(0, 2, (n_dyes, length, 1)).astype(np.float32)
             )
         else:
             self.annotation = None

@@ -32,17 +32,17 @@ from __future__ import annotations
 
 import csv
 import random
-from typing import Any, Generator
 from pathlib import Path
+from typing import Any, Generator
 
 import numpy as np
 from loguru import logger
 
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
+from dnanet.data.dataset import InMemoryDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
-from dnanet.data.dataset import SimpleDataset, InMemoryDataset
 from dnanet.data.parsing.hid import get_peak_data
 from dnanet.data.strategies.registry import StrategyRegistry
 
