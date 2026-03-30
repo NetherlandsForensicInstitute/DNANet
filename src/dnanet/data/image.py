@@ -26,7 +26,7 @@ from typing import Any, MutableMapping
 import numpy as np
 from loguru import logger
 
-from dnanet.core.annotation import Annotation
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
@@ -66,7 +66,7 @@ class HIDImage:
         adjusted_panel: Panel | None = None,
 
         include_size_standard: bool = False,
-        annotation: Annotation | None = None,
+        annotation: ScanpointAnnotation | None = None,
         use_cache: bool = True,
         data_loading_strategy: str = "superior",
         rfu_threshold: float = _DEFAULT_RFU_THRESHOLD,
@@ -106,7 +106,7 @@ class HIDImage:
         return (d.shape[0], d.shape[1]) if d is not None else (0, 0)
 
     @property
-    def annotation(self) -> Annotation | None:
+    def annotation(self) -> ScanpointAnnotation | None:
         return self._annotation
     
     @annotation.setter

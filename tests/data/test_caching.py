@@ -10,7 +10,7 @@ from dnanet.data.image import HIDImage
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.data.caching import write_to_cache, load_from_cache, _reconstruct_image
-from dnanet.core.annotation import Annotation
+from dnanet.core.annotation import ScanpointAnnotation
 
 
 # ---------------------------------------------------------------------------
@@ -24,13 +24,13 @@ def _make_cached_image(
 ) -> HIDImage:
     """Build an HIDImage with all fields needed for caching."""
     adjusted_panel = Panel(markers=[
-        Marker(name="D3S1358", dye_row=0, alleles=(
-            Allele(name="12", base_pair=120.0, left_bin=0.4, right_bin=0.4),
+        Marker(name="D3S1358", dye_row=0, alleles=frozenset(
+            [Allele(name="12", base_pair=120.0, left_bin=0.4, right_bin=0.4),]
         )),
     ])
     called = [
-        Marker(name="D3S1358", dye_row=0, alleles=(
-            Allele(name="12", base_pair=120.0, left_bin=0.4, right_bin=0.4, height=1500.0),
+        Marker(name="D3S1358", dye_row=0, alleles=frozenset(
+            [Allele(name="12", base_pair=120.0, left_bin=0.4, right_bin=0.4, height=1500.0),]
         )),
     ]
     mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
@@ -39,7 +39,7 @@ def _make_cached_image(
     img = HIDImage(path=name, adjusted_panel=adjusted_panel, use_cache=True)
     img._data = (np.random.rand(num_dyes, signal_length, 1) * 1000).astype(np.int16)
     img._scaler = np.linspace(60, 480, signal_length)
-    img._annotation = Annotation(image=mask)
+    img._annotation = ScanpointAnnotation(data=mask)
     img._meta["called_alleles"] = called
     return img
 
@@ -94,7 +94,7 @@ class TestLoadFromCache:
         write_to_cache(cache, cached_images)
         loaded = load_from_cache(cache)
         np.testing.assert_array_equal(
-            loaded[0].annotation.image, cached_images[0].annotation.image
+            loaded[0].annotation.data, cached_images[0].annotation.data
         )
 
     def test_roundtrip_scaler_preserved(self, cached_images, tmp_path):

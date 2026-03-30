@@ -60,9 +60,9 @@ class HIDTorchDataset(Dataset):
         x = torch.tensor(np.transpose(data, (2, 0, 1)), dtype=torch.float32)
 
         # Target: segmentation mask with same shape
-        if image.annotation is not None and image.annotation.image is not None:
+        if image.annotation is not None:
             y = torch.tensor(
-                np.transpose(image.annotation.image, (2, 0, 1)),
+                np.transpose(image.annotation.data, (2, 0, 1)),
                 dtype=torch.float32,
             )
         else:
@@ -294,8 +294,8 @@ class PeakNetTorchDataset(Dataset):
         )
 
         # Target: per-position annotation (D, L)
-        if image.annotation is not None and image.annotation.image is not None:
-            ann = image.annotation.image
+        if image.annotation is not None:
+            ann = image.annotation.data
             if ann.ndim == 3:
                 ann = ann[:, :, 0]
             target = torch.tensor(ann, dtype=torch.long)

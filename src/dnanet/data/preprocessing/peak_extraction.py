@@ -252,7 +252,7 @@ def extract_peak_windows(
     assert n_dyes <= data_2d.shape[0], "Image has fewer dye channels than expected"
     data = data_2d[:n_dyes, :]
 
-    annotation_image = image.annotation.image if image.annotation is not None else None
+    annotation_image = image.annotation.data if image.annotation is not None else None
 
 
     adjusted_panel = getattr(image, "_panel", None)

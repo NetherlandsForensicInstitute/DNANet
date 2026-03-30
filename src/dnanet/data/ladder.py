@@ -223,7 +223,7 @@ class Ladder:
                     Marker(
                         name=marker.name,
                         dye_row=dye_row,
-                        alleles=tuple(adjusted_alleles),
+                        alleles=frozenset(adjusted_alleles),
                     )
                 )
 

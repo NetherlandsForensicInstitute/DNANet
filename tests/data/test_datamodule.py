@@ -6,7 +6,7 @@ import pytest
 
 from dnanet.data.image import HIDImage
 from dnanet.data.dataset import SimpleDataset
-from dnanet.core.annotation import Annotation
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import HIDTorchDataset, DNANetDataModule
 
 
@@ -26,7 +26,7 @@ def _make_fake_image(
     if with_annotation:
         mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
         mask[0, 10:20, 0] = 1  # fake allele region on dye 0
-        img._annotation = Annotation(image=mask)
+        img._annotation = ScanpointAnnotation(data=mask)
     return img
 
 

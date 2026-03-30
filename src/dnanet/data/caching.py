@@ -26,7 +26,7 @@ from datasets import load_from_disk
 from loguru import logger
 from tqdm import tqdm
 
-from dnanet.core.annotation import Annotation
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.core.types import PathLike
 from dnanet.data.image import HIDImage
 
@@ -109,7 +109,7 @@ def write_to_cache(
     for image in images:
         data["images"].append(image.data)
         data["annotations"].append(
-            image.annotation.image if image.annotation else np.zeros_like(image.data, dtype=np.int8)
+            image.annotation.data if image.annotation else np.zeros_like(image.data, dtype=np.int8)
         )
         data["hid_paths"].append(str(image.path))
         data["scalers"].append(image._scaler.tolist())
@@ -170,7 +170,7 @@ def _reconstruct_image(
     from dnanet.core.marker import Marker
     from dnanet.core.panel import Panel
 
-    annotation = Annotation(image=np.asarray(ann_data, dtype="int8"))
+    annotation = ScanpointAnnotation(data=np.asarray(ann_data, dtype="int8"))
 
     # Reconstruct panel from JSON
     panel_dicts = json.loads(panel_json) if isinstance(panel_json, str) else panel_json
@@ -190,7 +190,7 @@ def _reconstruct_image(
     # Reconstruct called alleles
     allele_dicts = json.loads(alleles_json) if isinstance(alleles_json, str) else alleles_json
     if allele_dicts:
-        image._meta["called_alleles"] = [Marker.from_dict(m) for m in allele_dicts]
+        image._meta["called_alleles"] = [Marker.from_dict(m) for m in allele_dicts] # FIXME
 
     # NoC extraction is dataset-specific — done by the DatasetStrategy,
     # not hard-coded here. The caller can set image._meta["noc"] after loading.

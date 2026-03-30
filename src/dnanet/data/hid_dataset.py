@@ -34,6 +34,7 @@ import csv
 import random
 from typing import Any, Generator, List, Tuple
 from pathlib import Path
+from typing import Any, Generator
 
 import numpy as np
 from loguru import logger
@@ -41,9 +42,9 @@ from loguru import logger
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
+from dnanet.data.dataset import InMemoryDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
-from dnanet.data.dataset import SimpleDataset, InMemoryDataset
 from dnanet.data.parsing.hid import get_peak_data
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry

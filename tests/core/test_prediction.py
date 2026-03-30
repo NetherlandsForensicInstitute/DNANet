@@ -34,7 +34,7 @@ class TestPrediction:
         marker = Marker(
             name="D3S1358",
             dye_row=0,
-            alleles=(Allele(name="12", base_pair=120.0),),
+            alleles=frozenset([Allele(name="12", base_pair=120.0)]),
         )
         pred = Prediction.for_segmentation(
             image=segmentation_mask,

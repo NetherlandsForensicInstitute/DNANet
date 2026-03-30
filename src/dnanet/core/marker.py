@@ -18,7 +18,7 @@ Design pattern: **Composite**
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from dnanet.core.allele import Allele
@@ -38,7 +38,8 @@ class Marker:
 
     name: str
     dye_row: int
-    alleles: tuple[Allele, ...] = ()
+    alleles: frozenset[Allele] = field(default_factory=frozenset)
+
 
     @property
     def is_autosomal(self) -> bool:
@@ -79,5 +80,14 @@ class Marker:
         return cls(
             name=data["name"],
             dye_row=data["dye_row"],
-            alleles=tuple(Allele.from_dict(a) for a in data.get("alleles", [])),
+            alleles=frozenset(Allele.from_dict(a) for a in data.get("alleles", [])),
+        )
+
+    def __add__(self, other: Marker) -> Marker:
+        if self.name != other.name or self.dye_row != other.dye_row:
+            raise ValueError("can only merge markers with the same name and dye_row")
+        return Marker(
+            name=self.name,
+            dye_row=self.dye_row,
+            alleles=self.alleles | other.alleles,
         )
