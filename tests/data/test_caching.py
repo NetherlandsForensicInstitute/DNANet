@@ -23,7 +23,7 @@ def _make_cached_image(
     signal_length: int = 100,
 ) -> HIDImage:
     """Build an HIDImage with all fields needed for caching."""
-    panel = Panel(markers=[
+    adjusted_panel = Panel(markers=[
         Marker(name="D3S1358", dye_row=0, alleles=(
             Allele(name="12", base_pair=120.0, left_bin=0.4, right_bin=0.4),
         )),
@@ -36,7 +36,7 @@ def _make_cached_image(
     mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
     mask[0, 10:20, 0] = 1
 
-    img = HIDImage(path=name, panel=panel, use_cache=True)
+    img = HIDImage(path=name, adjusted_panel=adjusted_panel, use_cache=True)
     img._data = (np.random.rand(num_dyes, signal_length, 1) * 1000).astype(np.int16)
     img._scaler = np.linspace(60, 480, signal_length)
     img._annotation = Annotation(image=mask)
@@ -109,8 +109,8 @@ class TestLoadFromCache:
         cache = tmp_path / "cache"
         write_to_cache(cache, cached_images)
         loaded = load_from_cache(cache)
-        assert loaded[0].panel is not None
-        assert loaded[0].panel.markers[0].name == "D3S1358"
+        assert loaded[0].adjusted_panel is not None
+        assert loaded[0].adjusted_panel.markers[0].name == "D3S1358"
 
     def test_roundtrip_called_alleles_preserved(self, cached_images, tmp_path):
         cache = tmp_path / "cache"
@@ -151,7 +151,7 @@ class TestReconstructImage:
         img = _reconstruct_image(img_data, ann_data, "test.hid", scaler, panel_json, alleles_json, False)
         assert isinstance(img, HIDImage)
         assert img.data is not None
-        assert img.panel is not None
+        assert img.adjusted_panel is not None
 
     def test_empty_panel_json(self):
         img = _reconstruct_image(
@@ -163,7 +163,7 @@ class TestReconstructImage:
             "[]",
             False,
         )
-        assert img.panel is None
+        assert img.adjusted_panel is None
 
     def test_empty_alleles_json(self):
         img = _reconstruct_image(

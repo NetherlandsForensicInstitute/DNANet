@@ -321,7 +321,7 @@ def extract_peaks_torch(
     data = image.data
 
     scaling_strategy = StrategyRegistry.get_scaling_strategy()
-    adjusted_panel = image.panel
+    adjusted_panel = image.adjusted_panel
 
     if data is None:
         raise ValueError("Cannot extract peaks from an image with no data.")

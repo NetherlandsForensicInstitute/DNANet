@@ -14,9 +14,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Literal
+from typing import Any, Dict, Generator, List, Literal, Tuple
 
 from dnanet.core.marker import Marker
+from dnanet.core.types import PathLike
 
 FileCategory = Literal["sample", "ladder", "control", "unknown"]
 
@@ -27,7 +28,12 @@ class DatasetStrategy(ABC):
     Each method is a classmethod because dataset strategies are stateless —
     the behavior depends only on the dataset conventions, not on instance state.
     """
-
+    
+    @classmethod
+    @abstractmethod
+    def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, List[Marker] | None, Path | None]]:
+        """Collect the dataset files for this specific dataset strategy."""
+        
     @classmethod
     @abstractmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
@@ -62,11 +68,10 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def load_annotations(
+    def create_annotation_to_markers(
         cls,
         annotation_source: Path,
-        sample_name: str,
-    ) -> list[Marker]:
+    ) -> Dict[str, List[Marker]]:
         """Load called alleles for a single sample.
 
         Args:
@@ -80,7 +85,7 @@ class DatasetStrategy(ABC):
     @classmethod
     @abstractmethod
     def find_ladder_for_sample(
-        cls, sample_path: Path, ladder_mapping: dict[str, Path] | None = None
+        cls, sample_path: Path, ladder_mapping: Dict[str, Path] | None = None
     ) -> Path | None:
         """Find the ladder file corresponding to a sample.
 
@@ -91,3 +96,10 @@ class DatasetStrategy(ABC):
         Returns:
             Path to the ladder file, or ``None`` if not found.
         """
+
+    @classmethod
+    @abstractmethod
+    def find_annotation_for_sample(
+        cls, sample_path: Path, annotation_mapping: Dict[str, Path] | None = None
+    ) -> Path | None:
+        """Find the appropriate annotation for a given sample."""

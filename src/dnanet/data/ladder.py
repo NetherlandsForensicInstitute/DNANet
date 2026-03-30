@@ -30,6 +30,7 @@ from __future__ import annotations
 import csv
 from collections import defaultdict
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -40,6 +41,8 @@ from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
+from dnanet.data.image import HIDImage
+from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.strategies.scaling import ScalingStrategy
 
 
@@ -52,6 +55,9 @@ class LadderAlleleCatalog:
     """Catalog of alleles expected in a ladder, organized by dye row.
 
     Loaded from a CSV file with columns: Marker, Allele, Dye.
+    
+    Note: This is a separate class to prevent multiple I/O operations for reading the 
+    same CSV file and allow the use of the csv's information inside the Ladder class.
     """
 
     alleles_by_dye: dict[int, list[tuple[str, str]]] = field(default_factory=dict)
@@ -93,69 +99,53 @@ class Ladder:
         adjusted_panel: Panel with base-pairs adjusted from ladder peaks.
                         ``None`` if peak detection failed.
     """
-
-    def __init__(
-        self,
-        path: Path,
-        data: np.ndarray,
-        scaler: np.ndarray,
-        catalog: LadderAlleleCatalog,
-        num_dyes: int,
-        peak_indices: list[np.ndarray],
-        adjusted_panel: Panel | None,
-    ) -> None:
-        self.path = path
-        self._data = data
-        self._scaler = scaler
-        self._catalog = catalog
-        self._num_dyes = num_dyes
-        self.peak_indices = peak_indices
-        self.adjusted_panel = adjusted_panel
-
-    @classmethod
-    def from_hid_data(
+    
+    @lru_cache()
+    def create_adjusted_panel(
         cls,
-        path: PathLike,
-        data: np.ndarray,
-        scaler: np.ndarray,
-        catalog: LadderAlleleCatalog,
-        default_panel: Panel,
-        num_dyes: int = 5,
-    ) -> Ladder | None:
-        """Build a Ladder from pre-loaded HID data.
+        ladder_path: PathLike,
+        catalog: LadderAlleleCatalog
+    ) -> Panel | None:
+        """Read in a ladder HID file and create an adjusted panel.
+        
+        This uses the Kit Strategies 'original' Panel to scale.
 
         Args:
-            path: Path to the ladder HID file (for logging).
-            data: Signal array of shape ``(num_dyes+1, signal_length, 1)``.
-            scaler: Base-pair values per pixel, shape ``(signal_length,)``.
-            catalog: Expected alleles per dye row.
-            default_panel: The default (unadjusted) panel.
-            num_dyes: Number of analysis dye channels (excl. size standard).
+            ladder_path: Path to the ladder HID file to use for adjustment
 
         Returns:
-            A ``Ladder`` instance, or ``None`` if peak detection fails.
+            The adjusted panel
         """
-        path = Path(path)
-
-        # Find peaks on each dye
-        peak_indices = cls._find_all_peaks(data, catalog, num_dyes, path)
-        if peak_indices is None:
-            return None
-
-        # Adjust the panel using detected peak positions
-        adjusted = cls._adjust_panel(
-            peak_indices, catalog, scaler, default_panel, num_dyes
+        
+        ladder_image = HIDImage(
+            path=ladder_path,
+            data_loading_strategy="analyzed",
+            include_size_standard=True
         )
-
-        return cls(
-            path=path,
-            data=data,
-            scaler=scaler,
+        if ladder_image.data is None:
+            raise ValueError("Ladder is invalid")
+        
+        scaling_strategy = StrategyRegistry.get_scaling_strategy()
+        num_dyes = scaling_strategy.kit.num_dyes
+        default_panel = scaling_strategy.panel
+        
+        detected_peaks = cls._find_all_peaks(
+            data=ladder_image.data,
             catalog=catalog,
             num_dyes=num_dyes,
-            peak_indices=peak_indices,
-            adjusted_panel=adjusted,
+            path=ladder_image.path
         )
+        if detected_peaks is None:
+            return None
+        
+        adjusted_panel = cls._adjust_panel(
+            detected_peaks,
+            catalog=catalog,
+            scaler=ladder_image.scaler,
+            default_panel=default_panel,
+            num_dyes=num_dyes
+        )
+        return adjusted_panel
 
     # -- Peak detection --------------------------------------------------- #
 
@@ -313,8 +303,3 @@ class Ladder:
             right_bin=allele.right_bin,
         )
 
-    # -- Dunder ----------------------------------------------------------- #
-
-    def __repr__(self) -> str:
-        status = "adjusted" if self.adjusted_panel else "failed"
-        return f"Ladder({self.path.name}, {status})"

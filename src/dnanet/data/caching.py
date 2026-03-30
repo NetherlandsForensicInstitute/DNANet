@@ -114,8 +114,8 @@ def write_to_cache(
         data["hid_paths"].append(str(image.path))
         data["scalers"].append(image._scaler.tolist())
         data["panel_contents"].append(
-            json.dumps([m.to_dict() for m in image._panel.markers])
-            if image._panel else "[]"
+            json.dumps([m.to_dict() for m in image.adjusted_panel.markers])
+            if image.adjusted_panel else "[]"
         )
         called = image.meta.get("called_alleles", [])
         data["called_alleles"].append(
@@ -179,7 +179,7 @@ def _reconstruct_image(
 
     image = HIDImage(
         path=path,
-        panel=panel,
+        adjusted_panel=panel,
         include_size_standard=include_size_standard,
         annotation=annotation,
         use_cache=True,

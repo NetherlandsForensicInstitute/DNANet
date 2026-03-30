@@ -166,6 +166,7 @@ class TestBuildSegmentation:
 # Annotation adjustment
 # ---------------------------------------------------------------------------
 
+# TODO: Do the adjustment with the new appropriate translation
 class TestAnnotationAdjustment:
     @pytest.fixture(autouse=True)
     def setup_kit(self):
@@ -192,7 +193,7 @@ class TestAnnotationAdjustment:
         with pytest.raises(ValueError, match="Unknown adjustment method"):
             img.adjust_annotations("bad_method")
 
-    def test_adjust_top_with_real_data(self):
+    def test_adjust_top_with_real_data(self, nfi_rnd_kit):
         """Load real image with annotation, adjust with 'top' method."""
         path = RD_DIR / "1A2_A01_01.hid"
         panel_path = "resources/kit_panels/SGPanel_PPF6C.xml"
@@ -202,7 +203,7 @@ class TestAnnotationAdjustment:
 
         img = HIDImage(
             path=path,
-            panel=panel,
+            adjusted_panel=panel,
             annotations_file=ann_path,
             meta={"annotations_name": "1_11148_1A2"},
         )
@@ -215,7 +216,7 @@ class TestAnnotationAdjustment:
             # After top adjustment, the mask should be sparser (only peak tops)
             assert img.annotation.image.sum() <= original_sum
 
-    def test_adjust_complete_with_real_data(self):
+    def test_adjust_complete_with_real_data(self, nfi_rnd_kit):
         """Load real image with annotation, adjust with 'complete' method."""
         path = RD_DIR / "1A2_A01_01.hid"
         from dnanet.core.panel import Panel
@@ -224,7 +225,7 @@ class TestAnnotationAdjustment:
 
         img = HIDImage(
             path=path,
-            panel=panel,
+            adjusted_panel=panel,
             annotations_file=ann_path,
             meta={"annotations_name": "1_11148_1A2"},
         )

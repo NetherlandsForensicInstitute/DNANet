@@ -97,7 +97,7 @@ class ProvedItStrategy(DatasetStrategy):
         return xlsx_files[0] if xlsx_files else None
 
     @classmethod
-    def load_annotations(
+    def create_annotation_to_markers(
         cls,
         annotation_source: Path,
         sample_name: str,
