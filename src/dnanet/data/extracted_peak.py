@@ -28,10 +28,6 @@ if TYPE_CHECKING:
     from dnanet.data.image import HIDImage
     from dnanet.core.marker import Marker
 
-# Linear interpolation from scan index (0–4096) to base pair (65–475).
-SCAN_TO_BP = scipy.interpolate.interp1d(
-    [0, 4096], [65, 475], fill_value="extrapolate",
-)
 
 
 class ExtractedPeak:
@@ -72,6 +68,7 @@ class ExtractedPeak:
         peak_height: float,
         label: str | None = None,
         marker_name: str | None = None,
+        peak_basepair: float | None = None,
         marker_index: int = -1,
     ) -> None:
         self.data = data
@@ -82,7 +79,7 @@ class ExtractedPeak:
         self.label = label
         self.marker_name = marker_name
         self.marker_index = marker_index
-        self.peak_basepair: float = float(SCAN_TO_BP(peak_center))
+        self.peak_basepair = peak_basepair
         self.window_start: int = peak_center - window_size // 2
 
     @property
