@@ -80,6 +80,19 @@ class LadderAlleleCatalog:
     def expected_count(self, dye_row: int) -> int:
         """Number of alleles expected on a given dye row."""
         return len(self.alleles_by_dye.get(dye_row, []))
+    
+    def __hash__(self):
+        return hash(
+            tuple(
+                (dye, tuple(alleles))
+                for dye, alleles in sorted(self.alleles_by_dye.items())
+            )
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, LadderAlleleCatalog):
+            return NotImplemented
+        return self.alleles_by_dye == other.alleles_by_dye
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +113,7 @@ class Ladder:
                         ``None`` if peak detection failed.
     """
     
+    @classmethod
     @lru_cache()
     def create_adjusted_panel(
         cls,

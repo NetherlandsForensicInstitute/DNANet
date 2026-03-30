@@ -14,9 +14,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Literal, Tuple
+from typing import Dict, Generator, Literal, Tuple
 
-from dnanet.core.marker import Marker
+from dnanet.core.annotation import Annotation
 from dnanet.core.types import PathLike
 
 FileCategory = Literal["sample", "ladder", "control", "unknown"]
@@ -31,7 +31,7 @@ class DatasetStrategy(ABC):
     
     @classmethod
     @abstractmethod
-    def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, List[Marker] | None, Path | None]]:
+    def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
         """Collect the dataset files for this specific dataset strategy."""
         
     @classmethod
@@ -68,18 +68,18 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def create_annotation_to_markers(
+    def parse_annotations(
         cls,
         annotation_source: Path,
-    ) -> Dict[str, List[Marker]]:
-        """Load called alleles for a single sample.
+    ) -> Dict[str, Annotation]:
+        """Load annotation from annotation sample to Annotation object.
 
         Args:
             annotation_source: Path to annotation file/directory.
             sample_name: The sample identifier (from ``get_sample_id``).
 
         Returns:
-            List of Markers with their called alleles.
+            Annotation object (either AlleleAnnotation or ScanpointAnnotation)
         """
 
     @classmethod

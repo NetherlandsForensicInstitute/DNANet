@@ -122,7 +122,7 @@ class HIDImage:
         """Base-pair values for each pixel position. Shape: ``(1, signal_length)``."""
         if self._scaler is None:
             self._load()
-        return self._scaler[np.newaxis, :]  # type: ignore
+        return self._scaler  # type: ignore
     
     @property
     def adjusted_panel(self) -> Panel | None:

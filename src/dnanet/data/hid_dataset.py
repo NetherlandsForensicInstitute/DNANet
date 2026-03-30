@@ -32,13 +32,14 @@ from __future__ import annotations
 
 import csv
 import random
-from typing import Any, Generator, List, Tuple
+from typing import Any, Generator, List, Optional, Tuple
 from pathlib import Path
 from typing import Any, Generator
 
 import numpy as np
 from loguru import logger
 
+from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
@@ -143,18 +144,10 @@ class HIDDataset(InMemoryDataset):
 
         logger.info("Loaded {} valid HID images", len(self._data))
 
-        # Optional annotation adjustment
-        if adjustment_of_annotations:
-            logger.info("Adjusting annotations (method={})", adjustment_of_annotations)
-            self._data = [
-                img.adjust_annotations(adjustment_of_annotations)
-                for img in self._data
-            ]
-
     # -- Image loading ----------------------------------------------------- #
 
     def _load_images(
-        self, file_entries: List[Tuple[Path, List[Marker] | None, Path | None]]
+        self, file_entries: List[Tuple[Path, Annotation | None, Path | None]]
     ) -> Generator[HIDImage, None, None]:
         """Create HIDImage instances, loading data and filtering invalid ones."""
         ladder_cache: dict[str, Panel | None] = {}
@@ -166,16 +159,17 @@ class HIDDataset(InMemoryDataset):
         for entry in file_entries:
             path: Path = entry[0]
             ladder_path: Path | None = entry[2]
-            allele_annotation = entry[1]  # (name, file) or None
+            annotation = entry[1]  # (name, file) or None
 
             # Build adjusted panel from ladder
-            panel = self._default_panel
+            _current_panel = self._default_panel
             if ladder_path:
                 adjusted = Ladder.create_adjusted_panel(
-                    ladder_path=ladder_path
+                    ladder_path=ladder_path,
+                    catalog=self._ladder_catalog
                 )
                 if adjusted:
-                    panel = adjusted
+                    _current_panel = adjusted
                 elif self.skip_if_invalid_ladder:
                     skipped_ladder += 1
                     continue
@@ -183,7 +177,7 @@ class HIDDataset(InMemoryDataset):
             # Create HIDImage
             image = HIDImage(
                 path=path,
-                adjusted_panel=panel,
+                adjusted_panel=_current_panel,
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,
             )
@@ -194,12 +188,22 @@ class HIDDataset(InMemoryDataset):
                 logger.debug("Skipping {}: no data", path.name)
                 continue
             
-            scanpoint_annotation = self._translate_allele_to_scanpoint_annotation(
-                allele_annotation=allele_annotation,
-                adjusted_panel=panel,
-                scaler=image.scaler
-            )
+            if isinstance(annotation, AlleleAnnotation):
+                scanpoint_annotation = self._translate_allele_to_scanpoint_annotation(
+                    allele_annotation=annotation,
+                    adjusted_panel=_current_panel,
+                    scaler=image.scaler
+                )
+            else:
+                scanpoint_annotation = annotation
             image.annotation = scanpoint_annotation
+            
+            if self.adjustment_of_annotations:
+                scanpoint_annotation = self._adjust_annotations(
+                    [image],
+                    [scanpoint_annotation],
+                    adjustment_type=self.adjustment_of_annotations
+                )
 
             if image.annotation is None:
                 skipped_alleles += 1
@@ -262,6 +266,7 @@ class HIDDataset(InMemoryDataset):
         entire bin. If the type is 'complete', we find the entire peak and label this.
         Note that the original image annotations are overwritten in place.
         """
+        # TODO: This function is now called for single images, remove the loop?
 
         assert len(profiles) == len(annotations)
 
@@ -274,8 +279,7 @@ class HIDDataset(InMemoryDataset):
 
             for dye_idx, dye_data in enumerate(profile.data):
                 # find indices of groups of positive annotations
-                _annotations = np.where(annotation.data[dye_idx] == 1)
-                # FIXME: Which of the above .where returned tuple should be used for .size?
+                _annotations = np.where(annotation.data[dye_idx] == 1)[0]
                 if _annotations.size == 0:  # no annotation present in this dye
                     continue
                 annotation_groups = np.split(_annotations, np.where(np.diff(_annotations) != 1)[0] + 1)

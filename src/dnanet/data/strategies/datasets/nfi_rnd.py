@@ -15,14 +15,13 @@ from itertools import groupby
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterable, List, Tuple
+from typing import Dict, Generator, Iterable, List, Tuple
 
 from loguru import logger
 
 from dnanet.core.allele import Allele
-from dnanet.core.annotation import Annotation
+from dnanet.core.annotation import AlleleAnnotation, Annotation
 from dnanet.core.marker import Marker
-from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
 from dnanet.data.strategies.dataset import DatasetStrategy, FileCategory
 
@@ -37,7 +36,7 @@ class NFIRnDStrategy(DatasetStrategy):
     READ_ANNOTATION_HEIGHTS: bool = False
     
     @classmethod
-    def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, List[Marker] | None, Path | None]]:
+    def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
         """Collect the dataset files for this specific dataset strategy. 
         
         Creates a generator that yields paths to HIDImage's, Annotations (optional),
@@ -69,12 +68,12 @@ class NFIRnDStrategy(DatasetStrategy):
 
         # Allele Report for Annotations
         annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
-        annotation_to_markers: Dict[str, List[Marker]] = {}
+        annotation_name_to_annotation: Dict[str, Annotation] = {}
         for txt_file in annotation_txt_files:
-            _annotation = cls.create_annotation_to_markers(txt_file)
+            _annotation = cls.parse_annotations(txt_file)
 
             if _annotation:
-                annotation_to_markers.update(_annotation)
+                annotation_name_to_annotation.update(_annotation)
 
         # HID to Annotation mapping
         hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
@@ -85,8 +84,8 @@ class NFIRnDStrategy(DatasetStrategy):
             raise RuntimeError(
                 f'Could not infer the analysis treshold type column for annotation mapping: {hta_header}'
             )
-        hid_to_annotation_markers = dict([
-            (v[0].replace('.hid', ''), annotation_to_markers.get(v[analysis_treshold_type_column[0]]))
+        hid_to_annotation = dict([
+            (v[0].replace('.hid', ''), annotation_name_to_annotation.get(v[analysis_treshold_type_column[0]]))
             for v in hta_values
         ])
 
@@ -101,7 +100,7 @@ class NFIRnDStrategy(DatasetStrategy):
         for hid_file in hid_file_samples:
             yield (
                 hid_file,
-                hid_to_annotation_markers.get(str(hid_file)),
+                hid_to_annotation.get(str(hid_file.stem)),
                 hid_to_ladder.get(hid_file.stem)
             )
         
@@ -198,10 +197,10 @@ class NFIRnDStrategy(DatasetStrategy):
         return StrategyRegistry.get_scaling_strategy()
 
     @classmethod
-    def create_annotation_to_markers(
+    def parse_annotations(
         cls,
         annotation_source: PathLike,
-    ) -> Dict[str, list[Marker]]:
+    ) -> Dict[str, Annotation]:
         """Parse manually called alleles from an annotation text file.
 
         The annotation file may contain calls for multiple samples. This function
@@ -217,7 +216,7 @@ class NFIRnDStrategy(DatasetStrategy):
             logger.debug("Empty annotation file: {}", annotation_source)
             raise RuntimeError("Annotations file is emtpy")
 
-        annotation_mapping: Dict[str, List[Marker]] = {}
+        annotation_mapping: Dict[str, Annotation] = {}
         with open(annotation_source, "r") as f:
             try:
                 delimiter, allele_cols, height_cols = cls._parse_csv_header(f)
@@ -228,7 +227,7 @@ class NFIRnDStrategy(DatasetStrategy):
             reader = csv.reader(f, delimiter=delimiter)
             for sample, rows in groupby(reader, lambda row: row[0]):
                 sample_annotation = cls._parse_sample_annotations(rows, allele_cols, height_cols)
-                annotation_mapping[sample] = sample_annotation
+                annotation_mapping[sample] = AlleleAnnotation(sample_annotation)
 
         return annotation_mapping
 
@@ -249,7 +248,7 @@ class NFIRnDStrategy(DatasetStrategy):
             if dye_row is None:
                 continue
 
-            alleles = tuple(
+            alleles = frozenset(
                 Allele(
                     name=allele_name,
                     height=float(row[height_col]) if cls.READ_ANNOTATION_HEIGHTS else None,

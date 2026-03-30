@@ -39,7 +39,7 @@ class ClassAnnotation:
     data: str
 
 
-Annotation = ScanpointAnnotation | AlleleAnnotation | ClassAnnotation
+Annotation = ScanpointAnnotation | AlleleAnnotation
 
 
 def _merge_allele_annotations(ann1: AlleleAnnotation, ann2: AlleleAnnotation) -> AlleleAnnotation:

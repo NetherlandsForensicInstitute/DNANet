@@ -52,7 +52,6 @@ class TestHIDDatasetIntegration:
         """Load from test resources — should find 2 sample HID files."""
         ds = HIDDataset(
             root=RD_DIR,
-            annotations_path=RD_DIR,
             hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
             best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
             ladder_alleles_csv=LADDER_ALLELES_CSV,
@@ -63,7 +62,6 @@ class TestHIDDatasetIntegration:
     def test_images_have_correct_shape(self, nfi_rnd_kit):
         ds = HIDDataset(
             root=RD_DIR,
-            annotations_path=RD_DIR,
             hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
             best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
             ladder_alleles_csv=LADDER_ALLELES_CSV,
@@ -75,7 +73,6 @@ class TestHIDDatasetIntegration:
     def test_limit_parameter(self, nfi_rnd_kit):
         ds = HIDDataset(
             root=RD_DIR,
-            annotations_path=RD_DIR,
             hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
             best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
             ladder_alleles_csv=LADDER_ALLELES_CSV,
@@ -86,7 +83,6 @@ class TestHIDDatasetIntegration:
     def test_repr(self, nfi_rnd_kit):
         ds = HIDDataset(
             root=RD_DIR,
-            annotations_path=RD_DIR,
             hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
             best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
             ladder_alleles_csv=LADDER_ALLELES_CSV,
@@ -98,7 +94,6 @@ class TestHIDDatasetIntegration:
     def test_split_produces_valid_subsets(self, nfi_rnd_kit):
         ds = HIDDataset(
             root=RD_DIR,
-            annotations_path=RD_DIR,
             hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
             best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
             ladder_alleles_csv=LADDER_ALLELES_CSV,
@@ -111,7 +106,6 @@ class TestHIDDatasetIntegration:
         """Images with annotation mapping should have non-None annotations."""
         ds = HIDDataset(
             root=RD_DIR,
-            annotations_path=RD_DIR,
             hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
             best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
             ladder_alleles_csv=LADDER_ALLELES_CSV,
@@ -123,7 +117,6 @@ class TestHIDDatasetIntegration:
         """Loading with annotation adjustment should not crash."""
         ds = HIDDataset(
             root=RD_DIR,
-            annotations_path=RD_DIR,
             hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
             best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
             ladder_alleles_csv=LADDER_ALLELES_CSV,
