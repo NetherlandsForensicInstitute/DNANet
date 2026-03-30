@@ -19,7 +19,7 @@ build/
 outputs/
 
 # Data files
-data/
+/data/*
 
 # Experiment tracking
 mlruns/

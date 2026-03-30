@@ -18,12 +18,18 @@ Usage:
 """
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from pathlib import Path
 
 import hydra
-from omegaconf import DictConfig
+import torch
 
 from dnanet import logging as dnanet_logging
+
+
+if TYPE_CHECKING:
+    from omegaconf import DictConfig
 
 
 WORKSPACE_FOLDER = Path(__file__).parents[2]
@@ -35,6 +41,8 @@ def main(cfg: DictConfig) -> None:
     dnanet_logging.configure(verbosity=cfg.get("verbosity", "INFO"))
 
     task = cfg.get("task", "train")
+    if torch.cuda.is_available():
+        torch.set_float32_matmul_precision('high')
 
     if task == "train":
         from dnanet.tasks.train import run

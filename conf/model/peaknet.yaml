@@ -3,6 +3,33 @@ name: peaknet
 
 architecture:
   _target_: dnanet.models.peaknet.CombinedClassifier
+  _recursive_: true
+
+  # Sub-models are recursively instantiated by Hydra.
+  # Output shapes are auto-inferred from the sub-models via
+  # encoded_shape() and backbone_out_features().
+  autoencoder:
+    _target_: dnanet.models.autoencoder.PerDyeConv1dAutoencoder
+    in_channels: 5
+    hidden_channels: 64
+    depth: 3
+    input_length: 4096
+    kernel_size: 5
+    compression: 8
+    use_sigmoid: true
+
+  peak_classifier:
+    _target_: dnanet.models.peak_classifier.PeakClassificationModel
+    num_classes: 2
+    width: 120
+    n_markers: 28
+    embedding_dim: 8
+    hidden_channels: [32, 64]
+    kernel_size: 7
+    pooling: flat
+    activation: relu
+    downsample: maxpool
+
   hidden_dims: [64, 32]
   num_classes: 2
   default_class: 0
@@ -12,6 +39,6 @@ architecture:
 loss:
   _target_: torch.nn.CrossEntropyLoss
 
-# Peak detection threshold for extracting windows at inference
+# Peak detection settings (used by PeakNetDataModule)
 peak_threshold: 25
 window_size: 120

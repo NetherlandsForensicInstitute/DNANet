@@ -15,7 +15,7 @@ ladder_alleles_csv: null
 # Analysis settings
 analysis_threshold_type: DTH
 data_loading_strategy: superior
-adjustment_of_annotations: null
+adjustment_of_annotations: top
 
 # Limits and options
 limit: null

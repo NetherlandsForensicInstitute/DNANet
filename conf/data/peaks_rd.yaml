@@ -1,0 +1,38 @@
+# Peak window dataset for standalone peak classifier training.
+# Extends dnanet_rd data with peak extraction settings.
+name: peaks_rd
+
+# Inherit all base data settings from dnanet_rd
+kit: PPF6C
+dataset_strategy: NFI_RND
+
+root: data/2p_5p_Dataset_NFI/Raw data .HID files
+annotations_path: data/2p_5p_Dataset_NFI/txt_annotations_2024
+hid_to_annotations_path: data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv
+best_ladder_paths_csv: data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv
+ladder_alleles_csv: data/2p_5p_Dataset_NFI/ladder_alleles.csv
+
+analysis_threshold_type: DTH
+data_loading_strategy: superior
+adjustment_of_annotations: top
+
+limit: null
+skip_if_invalid_ladder: true
+include_size_standard: true
+
+preprocessing:
+  rfu_threshold: 0
+  signal_length: 4096
+  base_pair_range: [65, 475]
+
+# Peak extraction settings
+peak_extraction:
+  threshold: 25
+  window_size: 120
+  include_max_pool_dyes: false
+  preprocess: true
+  smooth_keep_factor: null
+  log_scale: false
+  max_rfu_value: null
+  labels: [noise, allele]
+  use_ground_truth: true
