@@ -110,7 +110,7 @@ def flatten_markers_to_allele_names(
 
     Example::
 
-        >>> markers = [Marker("D5S818", 0, (Allele("13", height=500), Allele("15", height=200)))]
+        >>> markers = [Marker("D5S818", 0, frozenset(Allele("13", height=500), Allele("15", height=200)))]
         >>> flatten_markers_to_allele_names(markers)
         frozenset({'D5S818_13', 'D5S818_15'})
 

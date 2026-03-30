@@ -7,7 +7,7 @@ from tests.conftest import RD_DIR
 from dnanet.data.image import HIDImage
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.core.annotation import Annotation
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.strategies.registry import StrategyRegistry
 
 
@@ -114,8 +114,8 @@ class TestBuildSegmentation:
         marker = Marker(
             name="D3S1358",
             dye_row=0,
-            alleles=(
-                Allele(name="12", base_pair=120.0, left_bin=2.0, right_bin=2.0),
+            alleles=frozenset(
+                [Allele(name="12", base_pair=120.0, left_bin=2.0, right_bin=2.0),]
             ),
         )
         shape = (5, 4096, 1)
@@ -130,11 +130,11 @@ class TestBuildSegmentation:
         scaler = np.linspace(60, 480, 4096)[np.newaxis, :]
         m1 = Marker(
             name="D3S1358", dye_row=0,
-            alleles=(Allele(name="12", base_pair=120.0, left_bin=2.0, right_bin=2.0),),
+            alleles=frozenset([Allele(name="12", base_pair=120.0, left_bin=2.0, right_bin=2.0),]),
         )
         m2 = Marker(
             name="TH01", dye_row=2,
-            alleles=(Allele(name="9", base_pair=200.0, left_bin=2.0, right_bin=2.0),),
+            alleles=frozenset([Allele(name="9", base_pair=200.0, left_bin=2.0, right_bin=2.0),]),
         )
         shape = (5, 4096, 1)
         mask = HIDImage._build_segmentation(scaler, [m1, m2], shape)
@@ -146,7 +146,7 @@ class TestBuildSegmentation:
         scaler = np.linspace(60, 480, 4096)[np.newaxis, :]
         marker = Marker(
             name="D3S1358", dye_row=0,
-            alleles=(Allele(name="OL", base_pair=None, left_bin=0.4, right_bin=0.4),),
+            alleles=frozenset([Allele(name="OL", base_pair=None, left_bin=0.4, right_bin=0.4),]),
         )
         shape = (5, 4096, 1)
         mask = HIDImage._build_segmentation(scaler, [marker], shape)
@@ -156,7 +156,7 @@ class TestBuildSegmentation:
         scaler = np.linspace(60, 480, 4096)[np.newaxis, :]
         marker = Marker(
             name="D3S1358", dye_row=0,
-            alleles=(Allele(name="12", base_pair=120.0, left_bin=2.0, right_bin=2.0),),
+            alleles=frozenset([Allele(name="12", base_pair=120.0, left_bin=2.0, right_bin=2.0),]),
         )
         mask = HIDImage._build_segmentation(scaler, [marker], (5, 4096, 1))
         assert mask.dtype == np.int8
@@ -187,7 +187,7 @@ class TestAnnotationAdjustment:
         img._data = data
         mask = np.zeros((5, 100, 1), dtype=np.int8)
         mask[0, 40:50, 0] = 1
-        img._annotation = Annotation(image=mask)
+        img._annotation = ScanpointAnnotation(data=mask)
 
         with pytest.raises(ValueError, match="Unknown adjustment method"):
             img.adjust_annotations("bad_method")
@@ -209,11 +209,11 @@ class TestAnnotationAdjustment:
         # Trigger load
         assert img.data is not None
         if img.annotation is not None:
-            original_sum = img.annotation.image.sum()
+            original_sum = img.annotation.data.sum()
             result = img.adjust_annotations("top")
             assert result is img
             # After top adjustment, the mask should be sparser (only peak tops)
-            assert img.annotation.image.sum() <= original_sum
+            assert img.annotation.data.sum() <= original_sum
 
     def test_adjust_complete_with_real_data(self):
         """Load real image with annotation, adjust with 'complete' method."""
@@ -233,4 +233,4 @@ class TestAnnotationAdjustment:
             result = img.adjust_annotations("complete")
             assert result is img
             # Complete should have broader regions than top
-            assert img.annotation.image.sum() > 0
+            assert img.annotation.data.sum() > 0

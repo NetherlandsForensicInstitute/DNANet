@@ -162,8 +162,8 @@ def plot_profile_interactive(
             axs[i].set_ylim(0, dyes_max[i])
 
         # Plot ground-truth annotation
-        if image.annotation and image.annotation.image is not None:
-            ann = image.annotation.image
+        if image.annotation is not None:
+            ann = image.annotation.data
             if ann.ndim == 3:
                 ann = ann[:, :, 0]
             for i, (dye_ann, max_val) in enumerate(zip(ann, dyes_max)):

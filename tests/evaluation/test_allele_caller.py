@@ -22,25 +22,25 @@ def simple_panel() -> Panel:
         Marker(
             name="MarkerA",
             dye_row=0,
-            alleles=(
+            alleles=frozenset([
                 Allele(name="10", base_pair=100.0, left_bin=0.5, right_bin=0.5),
                 Allele(name="11", base_pair=110.0, left_bin=0.5, right_bin=0.5),
-                Allele(name="12", base_pair=120.0, left_bin=0.5, right_bin=0.5),
+                Allele(name="12", base_pair=120.0, left_bin=0.5, right_bin=0.5),]
             ),
         ),
         Marker(
             name="MarkerB",
             dye_row=0,
-            alleles=(
+            alleles=frozenset([
                 Allele(name="20", base_pair=200.0, left_bin=0.5, right_bin=0.5),
-                Allele(name="21", base_pair=210.0, left_bin=0.5, right_bin=0.5),
+                Allele(name="21", base_pair=210.0, left_bin=0.5, right_bin=0.5),]
             ),
         ),
         Marker(
             name="MarkerC",
             dye_row=1,
-            alleles=(
-                Allele(name="30", base_pair=150.0, left_bin=0.5, right_bin=0.5),
+            alleles=frozenset(
+                [Allele(name="30", base_pair=150.0, left_bin=0.5, right_bin=0.5),]
             ),
         ),
     ])
@@ -145,15 +145,15 @@ class TestNearestBasePairCaller:
             Marker(
                 name="AMEL",
                 dye_row=0,
-                alleles=(
-                    Allele(name="X", base_pair=100.0, left_bin=0.5, right_bin=0.5),
+                alleles=frozenset(
+                    [Allele(name="X", base_pair=100.0, left_bin=0.5, right_bin=0.5),]
                 ),
             ),
             Marker(
                 name="D5S818",
                 dye_row=0,
-                alleles=(
-                    Allele(name="13", base_pair=200.0, left_bin=0.5, right_bin=0.5),
+                alleles=frozenset(
+                    [Allele(name="13", base_pair=200.0, left_bin=0.5, right_bin=0.5),]
                 ),
             ),
         ])

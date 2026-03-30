@@ -22,7 +22,7 @@ def _marker(name: str, dye: int, alleles: list[tuple[str, int]]) -> Marker:
     return Marker(
         name=name,
         dye_row=dye,
-        alleles=tuple(Allele(name=n, height=h) for n, h in alleles),
+        alleles=frozenset(Allele(name=n, height=h) for n, h in alleles),
     )
 
 
@@ -158,7 +158,7 @@ class TestRfuFiltering:
         assert allele_precision([gt], [pred], min_rfu=100) == pytest.approx(1.0)
 
     def test_rfu_threshold_with_missing_height_raises(self):
-        gt = [Marker(name="D5S818", dye_row=0, alleles=(Allele(name="13"),))]
+        gt = [Marker(name="D5S818", dye_row=0, alleles=frozenset([Allele(name="13"),]))]
         pred = [_marker("D5S818", 0, [("13", 500)])]
         with pytest.raises(ValueError, match="has no height"):
             allele_precision([gt], [pred], min_rfu=100)

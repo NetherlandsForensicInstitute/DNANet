@@ -1,44 +1,56 @@
-"""Tests for the Annotation value object."""
+"""Tests for the annotation value objects."""
 
 import numpy as np
 import pytest
 
-from dnanet.core import Annotation
+from dnanet.core.allele import Allele
+from dnanet.core.annotation import AlleleAnnotation, ClassAnnotation, ScanpointAnnotation
+from dnanet.core.marker import Marker
 
 
-class TestAnnotation:
-    """Test suite for Annotation."""
+class TestClassAnnotation:
+    def test_stores_label(self):
+        ann = ClassAnnotation(data="Allele")
+        assert ann.data == "Allele"
 
-    def test_from_labels_single(self):
-        ann = Annotation.from_labels("Allele")
-        assert ann.label == "Allele"
+    def test_is_immutable(self):
+        ann = ClassAnnotation(data="Allele")
+        with pytest.raises(AttributeError):
+            ann.data = "Stutter"
 
-    def test_from_labels_multiple(self):
-        ann = Annotation.from_labels(["Allele", "Stutter"])
-        assert ann.labels == frozenset({"Allele", "Stutter"})
 
-    def test_single_label_fails_with_multiple(self):
-        ann = Annotation.from_labels(["Allele", "Stutter"])
-        with pytest.raises(ValueError, match="Multiple labels"):
-            _ = ann.label
-
-    def test_single_label_fails_with_none(self):
-        ann = Annotation()
-        with pytest.raises(ValueError, match="No labels"):
-            _ = ann.label
-
-    def test_from_mask(self, segmentation_mask):
-        ann = Annotation.from_mask(segmentation_mask, annotator="alice")
-        assert ann.image is not None
-        assert ann.meta["annotator"] == "alice"
-
+class TestScanpointAnnotation:
     def test_equality_with_image(self):
         img = np.ones((5, 100), dtype=np.float32)
-        a = Annotation(image=img)
-        b = Annotation(image=img.copy())
+        a = ScanpointAnnotation(data=img)
+        b = ScanpointAnnotation(data=img.copy())
         assert a == b
 
     def test_immutability(self):
-        ann = Annotation.from_labels("Allele")
+        ann = ScanpointAnnotation(data=np.zeros((5, 100), dtype=np.int8))
         with pytest.raises(AttributeError):
-            ann.labels = frozenset({"Stutter"})
+            ann.data = np.ones((5, 100), dtype=np.int8)
+
+
+class TestAlleleAnnotation:
+    def test_add_merges_matching_markers(self):
+        marker_a = Marker(
+            name="D3S1358",
+            dye_row=0,
+            alleles=frozenset([
+                Allele(name="12", base_pair=120.0, left_bin=0.4, right_bin=0.4),
+            ]),
+        )
+        marker_b = Marker(
+            name="D3S1358",
+            dye_row=0,
+            alleles=frozenset([
+                Allele(name="13", base_pair=124.0, left_bin=0.4, right_bin=0.4),
+            ]),
+        )
+
+        merged = AlleleAnnotation(data=[marker_a]) + AlleleAnnotation(data=[marker_b])
+
+        assert len(merged.data) == 1
+        assert merged.data[0].name == "D3S1358"
+        assert {allele.name for allele in merged.data[0].alleles} == {"12", "13"}

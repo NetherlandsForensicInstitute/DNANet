@@ -26,7 +26,7 @@ from typing import Any, MutableMapping
 import numpy as np
 from loguru import logger
 
-from dnanet.core.annotation import Annotation
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
@@ -66,7 +66,7 @@ class HIDImage:
         panel: Panel | None = None,
         annotations_file: PathLike | None = None,
         include_size_standard: bool = False,
-        annotation: Annotation | None = None,
+        annotation: ScanpointAnnotation | None = None,
         use_cache: bool = True,
         data_loading_strategy: str = "superior",
         rfu_threshold: float = _DEFAULT_RFU_THRESHOLD,
@@ -107,7 +107,7 @@ class HIDImage:
         return (d.shape[0], d.shape[1]) if d is not None else (0, 0)
 
     @property
-    def annotation(self) -> Annotation | None:
+    def annotation(self) -> ScanpointAnnotation | None:
         return self._annotation
 
     @property
@@ -154,6 +154,7 @@ class HIDImage:
         self._scaler = ss_result.scaler
 
         # Build segmentation annotation from called alleles
+        # FIXME create a annotations with datasetstrategy
         if self.annotations_file and self._panel:
             annotations_name = self._meta.get("annotations_name")
             if annotations_name:
@@ -164,7 +165,7 @@ class HIDImage:
                     mask = self._build_segmentation(
                         self.scaler, called_alleles, data.shape
                     )
-                    self._annotation = Annotation(image=mask)
+                    self._annotation = ScanpointAnnotation(data=mask)
                     self._meta["called_alleles"] = called_alleles
 
         return data
@@ -207,12 +208,12 @@ class HIDImage:
         Returns:
             ``self`` (annotations are modified in-place for efficiency).
         """
-        if self._annotation is None or self._annotation.image is None:
+        if self._annotation is None:
             logger.warning("No annotations to adjust for {}", self.path)
             return self
 
         _ = self.data  # ensure data is loaded
-        annotations = self._annotation.image
+        annotations = self._annotation.data
         profile = self._data
 
         for layer, dye in enumerate(profile):

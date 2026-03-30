@@ -71,7 +71,7 @@ def _parse_sample_annotations(
         if dye_row is None:
             continue
 
-        alleles = tuple(
+        alleles = frozenset(
             Allele(
                 name=allele_name,
                 base_pair=bp,

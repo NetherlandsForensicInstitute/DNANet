@@ -36,7 +36,7 @@ class TestLadder:
                 Marker(
                     name=marker_name,
                     dye_row=dye,
-                    alleles=tuple(
+                    alleles=frozenset(
                         Allele(
                             name=a,
                             base_pair=100.0 + i * 50.0,

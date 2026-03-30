@@ -20,7 +20,7 @@ Design pattern: **Value Object**
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
@@ -37,10 +37,10 @@ class Allele:
     """
 
     name: str
-    base_pair: float | None = None
-    left_bin: float | None = None
-    right_bin: float | None = None
-    height: float | None = None
+    base_pair: float | None = field(default=None, compare=False)
+    left_bin: float | None = field(default=None, compare=False)
+    right_bin: float | None = field(default=None, compare=False)
+    height: float | None = field(default=None, compare=False)
 
     # -- Serialization (Value Object pattern: reconstruct from plain data) --
 

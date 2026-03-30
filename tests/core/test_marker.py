@@ -15,14 +15,14 @@ class TestMarker:
         assert amel_marker.is_autosomal is False
 
     def test_dys_is_not_autosomal(self):
-        marker = Marker(name="DYS391", dye_row=3, alleles=())
+        marker = Marker(name="DYS391", dye_row=3, alleles=frozenset())
         assert marker.is_autosomal is False
 
     def test_min_max_bp(self, sample_marker):
         assert sample_marker.min_bp < sample_marker.max_bp
 
     def test_min_bp_empty_alleles(self):
-        marker = Marker(name="EMPTY", dye_row=0, alleles=())
+        marker = Marker(name="EMPTY", dye_row=0, alleles=frozenset())
         assert marker.min_bp == float("inf")
         assert marker.max_bp == float("-inf")
 
