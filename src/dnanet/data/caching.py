@@ -182,7 +182,7 @@ def _reconstruct_image(
         adjusted_panel=panel,
         include_size_standard=include_size_standard,
         annotation=annotation,
-        use_cache=True,
+        load_in_memory=True,
     )
     image._data = np.asarray(img_data, dtype="int16")
     image._scaler = np.array(scaler)

@@ -67,14 +67,14 @@ class HIDImage:
 
         include_size_standard: bool = False,
         annotation: ScanpointAnnotation | None = None,
-        use_cache: bool = True,
+        load_in_memory: bool = True,
         data_loading_strategy: str = "superior",
         rfu_threshold: float = _DEFAULT_RFU_THRESHOLD,
         meta: MutableMapping[str, Any] | None = None,
     ) -> None:
         self.path = Path(path)
         self.include_size_standard = include_size_standard
-        self.use_cache = use_cache
+        self.load_in_memory = load_in_memory
         self.data_loading_strategy = data_loading_strategy
         self.rfu_threshold = rfu_threshold
 
@@ -93,7 +93,7 @@ class HIDImage:
         Shape: ``(num_dyes, signal_length, 1)`` — the trailing dimension
         is kept for backward compatibility with the segmentation pipeline.
         """
-        if self.use_cache:
+        if self.load_in_memory:
             if self._data is None:
                 self._data = self._load()
             return self._data

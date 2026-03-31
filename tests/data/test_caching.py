@@ -36,7 +36,7 @@ def _make_cached_image(
     mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
     mask[0, 10:20, 0] = 1
 
-    img = HIDImage(path=name, adjusted_panel=adjusted_panel, use_cache=True)
+    img = HIDImage(path=name, adjusted_panel=adjusted_panel, load_in_memory=True)
     img._data = (np.random.rand(num_dyes, signal_length, 1) * 1000).astype(np.int16)
     img._scaler = np.linspace(60, 480, signal_length)
     img._annotation = ScanpointAnnotation(data=mask)
@@ -65,7 +65,7 @@ class TestWriteToCache:
         # Directory may or may not be created
 
     def test_first_image_no_data_raises(self, tmp_path):
-        img = HIDImage(path="bad.hid", use_cache=True)
+        img = HIDImage(path="bad.hid", load_in_memory=True)
         img._data = None  # Explicitly set to None (bypass lazy load)
         # Patch the data property to return None without trying to load
         with pytest.raises((ValueError, FileNotFoundError)):

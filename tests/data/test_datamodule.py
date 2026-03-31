@@ -21,7 +21,7 @@ def _make_fake_image(
     with_annotation: bool = True,
 ) -> HIDImage:
     """Build an HIDImage with pre-populated data (no I/O)."""
-    img = HIDImage(path=name, use_cache=True)
+    img = HIDImage(path=name, load_in_memory=True)
     img._data = np.random.rand(num_dyes, signal_length, 1).astype(np.float32)
     if with_annotation:
         mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)

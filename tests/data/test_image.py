@@ -19,7 +19,7 @@ class TestHIDImageInit:
     def test_default_attributes(self):
         img = HIDImage(path="fake.hid")
         assert img.path.name == "fake.hid"
-        assert img.use_cache is True
+        assert img.load_in_memory is True
         assert img.data_loading_strategy == "superior"
         assert img.rfu_threshold == 40
         assert img._data is None
@@ -74,7 +74,7 @@ class TestHIDImageLazyLoading:
         assert d1 is d2  # same object
 
     def test_data_not_cached_when_disabled(self, sample_path):
-        img = HIDImage(path=sample_path, use_cache=False)
+        img = HIDImage(path=sample_path, load_in_memory=False)
         _ = img.data
         assert img._data is None  # not stored
 
