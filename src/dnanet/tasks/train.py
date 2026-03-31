@@ -214,7 +214,6 @@ def _build_datamodule(
             base_dataset=dataset,
             threshold=peak_cfg.get('threshold', 40),
             window_size=peak_cfg.get('window_size', 120),
-            labels=list(peak_cfg.get('labels', ['noise', 'allele'])),
             include_max_pool_dyes=peak_cfg.get('include_max_pool_dyes', False),
             preprocess=peak_cfg.get('preprocess', True),
             smooth_keep_factor=peak_cfg.get('smooth_keep_factor', 0.4),

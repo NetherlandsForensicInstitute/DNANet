@@ -91,3 +91,12 @@ class DatasetStrategy(ABC):
         Returns:
             Path to the ladder file, or ``None`` if not found.
         """
+
+    @staticmethod
+    @abstractmethod
+    def get_annotation_classes() -> list[str]:
+        """
+        Return the list of annotation classes supported by this dataset.
+        The first class is assumed to be the default (noise) class
+        """
+

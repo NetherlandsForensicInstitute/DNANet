@@ -27,6 +27,7 @@ from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
 from dnanet.data.preprocessing.baseline import fft_lowpass_smooth
 from dnanet.data.preprocessing.peak_extraction import extract_peak_windows
+from dnanet.data.strategies import StrategyRegistry
 
 
 class PeakWindowDataset(InMemoryDataset):
@@ -54,7 +55,6 @@ class PeakWindowDataset(InMemoryDataset):
         base_dataset: HIDDataset | InMemoryDataset,
         threshold: float = 40,
         window_size: int = 120,
-        labels: list[str] | None = None,
         include_max_pool_dyes: bool = False,
         preprocess: bool = True,
         smooth_keep_factor: float | None = 0.4,
@@ -64,14 +64,12 @@ class PeakWindowDataset(InMemoryDataset):
     ) -> None:
         super().__init__(shuffle=False)
 
-        if labels is None:
-            labels = ["noise", "allele"]
 
         self.threshold = threshold
         self.window_size = window_size
-        self.labels = labels
-        self.label_to_idx = {name: idx for idx, name in enumerate(labels)}
-        self.idx_to_label = {idx: name for idx, name in enumerate(labels)}
+        self.labels = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
+        self.label_to_idx = {name: idx for idx, name in enumerate(self.labels)}
+        self.idx_to_label = {idx: name for idx, name in enumerate(self.labels)}
         self.include_max_pool_dyes = include_max_pool_dyes
         self.preprocess = preprocess
         self.smooth_keep_factor = smooth_keep_factor
