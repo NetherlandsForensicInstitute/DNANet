@@ -31,7 +31,7 @@ from loguru import logger
 
 from dnanet.core.types import PathLike
 from dnanet.data.preprocessing.baseline import baseline_superior
-
+from dnanet.data.strategies import StrategyRegistry
 
 # ---------------------------------------------------------------------------
 # Types
@@ -251,16 +251,21 @@ def get_peak_data(path: PathLike, strategy: str = "superior") -> np.ndarray | No
             f"strategy must be 'raw', 'analyzed', or 'superior', got '{strategy}'"
         )
 
+    scaling_strategy = StrategyRegistry.get_scaling_strategy()
+
     data = parse_hid(path)
     if data is None:
         return None
 
     try:
         if strategy in ("raw", "superior"):
-            columns = ["DATA_1", "DATA_2", "DATA_3", "DATA_4", "DATA_106", "DATA_105"]
+            columns = scaling_strategy.kit.hid_file_data_columns_raw
         else:  # analyzed
-            columns = ["DATA_9", "DATA_10", "DATA_11", "DATA_12", "DATA_206", "DATA_205"]
+            columns = scaling_strategy.kit.hid_file_data_columns_analyzed
 
+        if columns is None:
+            raise ValueError(f"Kit {scaling_strategy.kit.name} does not support data loading strategy {strategy}. "
+                             f"Please specify the hid_file_data_columns in the STRKit configuration.")
         dyes = np.array([data[col] for col in columns], dtype=np.int32)
     except KeyError:
         data_keys = [k for k in data if k.startswith("DATA")]

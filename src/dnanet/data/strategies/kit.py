@@ -47,6 +47,8 @@ class STRKit:
     })
     panel_path: Path | None = None
     description: str = ""
+    hid_file_data_columns_analyzed: list[str] | None = None
+    hid_file_data_columns_raw: list[str] | None = None
 
     def dye_row_from_hid_index(self, hid_index: int) -> int:
         """Convert a 1-based HID dye index to a 0-based channel row.
