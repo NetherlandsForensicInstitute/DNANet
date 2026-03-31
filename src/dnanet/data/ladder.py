@@ -30,7 +30,7 @@ from __future__ import annotations
 import csv
 from collections import defaultdict
 from dataclasses import dataclass, field
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 import numpy as np
@@ -43,7 +43,6 @@ from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
 from dnanet.data.image import HIDImage
 from dnanet.data.strategies.registry import StrategyRegistry
-from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +113,7 @@ class Ladder:
     """
     
     @classmethod
-    @lru_cache()
+    @cache
     def create_adjusted_panel(
         cls,
         ladder_path: PathLike,
@@ -126,6 +125,7 @@ class Ladder:
 
         Args:
             ladder_path: Path to the ladder HID file to use for adjustment
+            catalog: The Ladder Catalog that was read from a csv
 
         Returns:
             The adjusted panel

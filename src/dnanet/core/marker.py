@@ -52,7 +52,11 @@ class Marker:
     def min_bp(self) -> float:
         """Leftmost bin edge across all alleles (in base pairs)."""
         return min(
-            (a.base_pair - a.left_bin for a in self.alleles if a.base_pair is not None),
+            (
+                a.base_pair - a.left_bin
+                for a in self.alleles
+                if a.base_pair is not None and a.left_bin is not None
+            ),
             default=float("inf"),
         )
 
@@ -60,7 +64,11 @@ class Marker:
     def max_bp(self) -> float:
         """Rightmost bin edge across all alleles (in base pairs)."""
         return max(
-            (a.base_pair + a.right_bin for a in self.alleles if a.base_pair is not None),
+            (
+                a.base_pair + a.right_bin
+                for a in self.alleles
+                if a.base_pair is not None and a.right_bin is not None
+            ),
             default=float("-inf"),
         )
 

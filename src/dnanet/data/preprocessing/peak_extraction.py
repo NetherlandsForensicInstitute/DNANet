@@ -14,12 +14,13 @@ Two implementations are provided:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Tuple
 
 import numpy as np
 import scipy
 import torch
 
+from dnanet.core.panel import Panel
 from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.strategies import StrategyRegistry
 
@@ -27,28 +28,22 @@ if TYPE_CHECKING:
     from dnanet.data.image import HIDImage
 
 
-# ---------------------------------------------------------------------------
-# Marker-to-index mapping (shared with peak classifier embedding table)
-# ---------------------------------------------------------------------------
+def setup_marker_to_idx() -> Tuple[Dict[str, int], int]:
+    """Generate an index mapping from the kit's loci to an index number.
 
-# Default marker names for PPF6C 6-dye kit (27 markers + out-of-bin = 28).
-# Index 0 is reserved for "out of bin" / unknown marker.
-_DEFAULT_MARKERS: list[str] = [
-    "D3S1358", "TH01", "D21S11", "D18S51",
-    "D10S1248", "D1S1656", "D2S1338", "D16S539",
-    "D22S1045", "vWA", "D8S1179", "FGA",
-    "D2S441", "D12S391", "D19S433", "SE33",
-    "D7S820", "CSF1PO", "D13S317", "D5S818",
-    "D6S1043", "AMEL", "DYS391", "DYS576",
-    "DYS570", "YINDEL", "DYS389II",
-]
-
-MARKER_TO_IDX: dict[str, int] = {
-    name: idx + 1 for idx, name in enumerate(_DEFAULT_MARKERS)
-}
-MARKER_TO_IDX["Out of Bin"] = 0
-
-N_MARKERS: int = len(MARKER_TO_IDX)  # 28 by default
+    Returns:
+        A tuple with the index mapping and the number of markers.
+    """
+    scaling_strategy = StrategyRegistry.get_scaling_strategy()
+    marker_to_dye_idx = scaling_strategy.marker_name_to_dye_idx()
+    
+    _marker_to_idx = {
+        name: idx + 1 for idx, name in
+        enumerate(marker_to_dye_idx.keys())
+    }
+    _marker_to_idx["Out of Bin"] = 0
+    _n_markers = len(_marker_to_idx)
+    return _marker_to_idx, _n_markers
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +132,8 @@ def _build_peak_data(
 def _find_marker_for_peak(
     peak_bp: float,
     dye_index: int,
-    panel,
+    panel: HIDImage | Panel,
+    marker_to_idx: Dict[str, int]
 ) -> tuple[str | None, int]:
     """Find the marker a peak falls within.
 
@@ -153,7 +149,7 @@ def _find_marker_for_peak(
         return None, 0
 
     try:
-        markers = panel._panel if hasattr(panel, "_panel") else panel.markers
+        markers = panel.adjusted_panel if hasattr(panel, "adjusted_panel") else panel.markers
     except AttributeError:
         return None, 0
 
@@ -168,7 +164,7 @@ def _find_marker_for_peak(
             right = max(a.right_bin for a in alleles if hasattr(a, "right_bin"))
             if left <= peak_bp <= right:
                 name = getattr(marker, "name", str(marker))
-                return name, MARKER_TO_IDX.get(name, 0)
+                return name, marker_to_idx.get(name, 0)
 
     return None, 0
 
@@ -205,26 +201,35 @@ def _label_peak_from_annotation(
     else:
         ann = annotation_image[dye_index]
 
-    # ann is shape (L,)
+    return _label_peak_from_annotation_fast(ann, peak_center, padding)
 
-    L = ann.shape[0]
+
+def _label_peak_from_annotation_fast(
+    ann_channel: np.ndarray | None,
+    peak_center: int,
+    padding: int = 1,
+) -> str:
+    """Fast path that operates on a single channel slice.
+
+    Args:
+        ann_channel: 1D binary mask for single dye channel, or None.
+        peak_center: Scan-point index of peak apex.
+        padding: Number of positions around the center to check.
+
+    Returns:
+        ``"allele"`` if any annotated position is within padding of center,
+        ``"noise"`` otherwise.
+    """
+    if ann_channel is None:
+        return "noise"
+
+    L = ann_channel.shape[0]
     start = max(0, peak_center - padding)
     end = min(L, peak_center + padding + 1)
 
-    annotation_slice = ann[start:end]
-
-    if np.any(annotation_slice > 0):
-        unique, counts = np.unique(annotation_slice, return_counts=True)
-
-        # take the most common class in the slice
-        # if there is a tie, take the lowest class index
-        sorted_idx = np.lexsort((unique, -counts))
-        most_common_value = unique[sorted_idx[0]]
-
-        return annotation_classes[most_common_value]
-
-
-    return annotation_classes[0]
+    if np.any(ann_channel[start:end] > 0):
+        return "allele"
+    return "noise"
 
 
 # ---------------------------------------------------------------------------
@@ -252,6 +257,8 @@ def extract_peak_windows(
     Returns:
         List of :class:`ExtractedPeak` objects.
     """
+    if window_size <= 0:
+        raise ValueError("window_size must be a positive integer")
 
     scaling_strategy = StrategyRegistry.get_scaling_strategy()
 
@@ -264,49 +271,88 @@ def extract_peak_windows(
     else:
         data_2d = data
 
-
-    n_dyes = scaling_strategy.kit.num_dyes
-    n_dyes = n_dyes - 1  # exclude size standard
+    n_dyes = scaling_strategy.kit.num_dyes - 1  # exclude size standard
     assert n_dyes <= data_2d.shape[0], "Image has fewer dye channels than expected"
     data = data_2d[:n_dyes, :]
 
+    # Cache marker mapping once (fixes Issue 1)
+    marker_to_idx, _ = setup_marker_to_idx()
+    
     annotation_image = image.annotation.data if image.annotation is not None else None
-
-
     adjusted_panel = getattr(image, "_panel", None)
 
+    # OPTIMIZATION 2: Pre-compute max-pooled signals per dye (fixes Issue 3)
+    max_pool_data = None
+    if include_max_pool_dyes:
+        max_pool_data = np.empty((n_dyes, data.shape[1]), dtype=data.dtype)
+        all_indices = np.arange(n_dyes)
+        for dye_idx in range(n_dyes):
+            mask = all_indices != dye_idx
+            max_pool_data[dye_idx] = np.max(data[mask], axis=0)
+
+    # Pre-pad all channels to eliminate per-peak allocations
+    half_window = window_size // 2
+    pad_left = half_window
+    pad_right = window_size - half_window  # Handles both even/odd window sizes
+    
+    padded_data = np.pad(data, ((0, 0), (pad_left, pad_right)), mode='constant', constant_values=0)
+    if include_max_pool_dyes:
+        padded_max_pool = np.pad(array=max_pool_data, pad_width=((0, 0), (pad_left, pad_right)), mode='constant', constant_values=0)
+
     peaks: list[ExtractedPeak] = []
+    
+    # Flattened loop with faster slice extraction
+    for dye_index in range(n_dyes):
+        dye_data = data[dye_index]
+        
+        # Find all peaks for this dye at once
+        peak_indices, _ = scipy.signal.find_peaks(dye_data, height=threshold)
+        
+        if len(peak_indices) == 0:
+            continue
 
-    for (dye_index, dye_data) in enumerate(data):
-        dye_data = dye_data.squeeze()
+        # Prepare annotation lookup for this dye (avoids repeated ndim checks)
+        if annotation_image is not None:
+            ann_channel = annotation_image[dye_index, :, 0] if annotation_image.ndim == 3 else annotation_image[dye_index]
+        else:
+            ann_channel = None
 
-        if window_size <= 0:
-            raise ValueError("window_size must be a positive integer")
-
-
-
-        peak_idxs = scipy.signal.find_peaks(dye_data, height=threshold)
-
-        for peak_scanpoint in peak_idxs[0]:
+        # Process all peaks for this dye channel
+        for peak_scanpoint in peak_indices:
             peak_height = dye_data[peak_scanpoint]
             peak_basepair = image.scaler[peak_scanpoint]
 
-            peak_data = _build_peak_data(data, dye_index, peak_scanpoint, window_size, include_max_pool_dyes)
-            peak_marker_name, peak_marker_index = _find_marker_for_peak(peak_basepair, dye_index, adjusted_panel)
-            peak_label = _label_peak_from_annotation(annotation_image, dye_index, peak_scanpoint, padding=2)
+            # Fast window extraction on pre-padded array
+            # peak_scanpoint in original maps to peak_scanpoint + pad_left in padded
+            start_padded = peak_scanpoint
+            end_padded = start_padded + window_size
+            
+            if include_max_pool_dyes:
+                peak_data = np.empty((2, window_size), dtype=data.dtype)
+                peak_data[0] = padded_data[dye_index, start_padded:end_padded]
+                peak_data[1] = padded_max_pool[dye_index, start_padded:end_padded]
+            else:
+                peak_data = padded_data[dye_index, start_padded:end_padded]
 
-            peak = ExtractedPeak(data=peak_data,
-                                 dye_index=dye_index,
-                                 peak_center=peak_scanpoint,
-                                 peak_basepair=peak_basepair,
-                                 window_size=window_size,
-                                 peak_height=peak_height,
-                                 label=peak_label,
-                                 marker_name=peak_marker_name,
-                                 marker_index=peak_marker_index)
+            # Use cached marker_to_idx
+            peak_marker_name, peak_marker_index = _find_marker_for_peak(
+                peak_basepair, dye_index, adjusted_panel, marker_to_idx
+            )
+            
+            # Fast annotation check without function call overhead
+            peak_label = _label_peak_from_annotation_fast(ann_channel, peak_scanpoint, padding=2)
 
-            peaks.append(peak)
-
+            peaks.append(ExtractedPeak(
+                data=peak_data,
+                dye_index=dye_index,
+                peak_center=peak_scanpoint,
+                peak_basepair=peak_basepair,
+                window_size=window_size,
+                peak_height=peak_height,
+                label=peak_label,
+                marker_name=peak_marker_name,
+                marker_index=peak_marker_index
+            ))
 
     return peaks
 
