@@ -5,15 +5,16 @@ import torch
 import pytest
 
 from dnanet.core.annotation import ScanpointAnnotation
+from dnanet.core.panel import Panel
 from dnanet.data.preprocessing.peak_extraction import (
-    N_MARKERS,
-    MARKER_TO_IDX,
+    setup_marker_to_idx,
     _build_peak_data,
     _slice_with_padding,
     extract_peaks_torch,
     extract_peak_windows,
     _label_peak_from_annotation,
 )
+from tests.conftest import PANEL_PATH
 
 
 class TestSliceWithPadding:
@@ -54,8 +55,14 @@ class TestBuildPeakData:
 
     def test_single_channel(self):
         arr = np.ones((5, 100))
-        result = _build_peak_data(arr, dye_index=0, start=10, length=20)
-        assert result.shape == (1, 20)
+        result = _build_peak_data(
+            arr,
+            dye_index=0,
+            start=10,
+            length=20,
+            include_max_pool_dyes=False
+        )
+        assert result.shape == (20,)
 
     def test_with_max_pool(self):
         arr = np.ones((5, 100))
@@ -101,17 +108,22 @@ class TestLabelPeakFromAnnotation:
 
 class TestMarkerToIdx:
     """Tests for the marker index mapping."""
+    
+    @pytest.fixture
+    def setup_mti(self, nfi_rnd_kit):
+        mti, n_markers = setup_marker_to_idx()
+        return mti, n_markers
 
-    def test_has_out_of_bin(self):
-        assert MARKER_TO_IDX["Out of Bin"] == 0
+    def test_has_out_of_bin(self, setup_mti):
+        assert setup_mti[0]["Out of Bin"] == 0
 
-    def test_known_markers(self):
-        assert "D3S1358" in MARKER_TO_IDX
-        assert "AMEL" in MARKER_TO_IDX
-        assert MARKER_TO_IDX["D3S1358"] >= 1
+    def test_known_markers(self, setup_mti):
+        assert "D3S1358" in setup_mti[0]
+        assert "AMEL" in setup_mti[0]
+        assert setup_mti[0]["D3S1358"] >= 1
 
-    def test_n_markers(self):
-        assert N_MARKERS == 28
+    def test_n_markers(self, setup_mti):
+        assert setup_mti[1] == 28
 
 
 class TestExtractPeakWindows:
@@ -127,7 +139,11 @@ class TestExtractPeakWindows:
                 self.annotation = ScanpointAnnotation(data=annotation_image)
             else:
                 self.annotation = None
-
+            self._scaler = np.arange(4096)
+        @property
+        def scaler(self):
+            return self._scaler
+        
         @property
         def data(self):
             return self._data
@@ -143,22 +159,22 @@ class TestExtractPeakWindows:
             data[1, 1000 + i] = max(0, 400 - abs(i) * 15)
         return data
 
-    def test_extracts_peaks(self):
+    def test_extracts_peaks(self, nfi_rnd_kit):
         data = self._make_profile_with_peaks()
         image = self.MockImage(data)
         peaks = extract_peak_windows(image, threshold=100, window_size=120)
         assert len(peaks) >= 2  # at least the two peaks we created
 
-    def test_peak_properties(self):
+    def test_peak_properties(self, nfi_rnd_kit):
         data = self._make_profile_with_peaks()
         image = self.MockImage(data)
         peaks = extract_peak_windows(image, threshold=100, window_size=120)
         for peak in peaks:
-            assert peak.data.shape == (1, 120)
+            assert peak.data.shape == (120,)
             assert peak.window_size == 120
             assert 0 <= peak.dye_index < 5
 
-    def test_labels_from_annotation(self):
+    def test_labels_from_annotation(self, nfi_rnd_kit):
         data = self._make_profile_with_peaks()
         ann = np.zeros_like(data)
         ann[0, 1990:2010] = 1  # annotate the peak in dye 0
@@ -170,12 +186,12 @@ class TestExtractPeakWindows:
         assert len(dye0_peaks) >= 1
         assert dye0_peaks[0].label == "allele"
 
-    def test_none_data_returns_empty(self):
+    def test_none_data_returns_empty(self, nfi_rnd_kit):
         image = self.MockImage(None)
         peaks = extract_peak_windows(image, threshold=100, window_size=120)
         assert peaks == []
 
-    def test_include_max_pool_dyes(self):
+    def test_include_max_pool_dyes(self, nfi_rnd_kit):
         data = self._make_profile_with_peaks()
         image = self.MockImage(data)
         peaks = extract_peak_windows(
@@ -183,7 +199,7 @@ class TestExtractPeakWindows:
         )
         assert peaks[0].data.shape == (2, 120)
 
-    def test_excludes_size_standard(self):
+    def test_excludes_size_standard(self, nfi_rnd_kit):
         """Peaks in the 6th channel (size standard) should be excluded."""
         data = np.zeros((6, 4096))
         for i in range(-20, 21):
@@ -199,14 +215,14 @@ class TestExtractPeaksTorch:
     class MockImage:
         def __init__(self, data):
             self._data = data
-            self._panel = None
+            self.adjusted_panel = Panel.from_xml(PANEL_PATH)
             self.annotation = None
 
         @property
         def data(self):
             return self._data
 
-    def test_returns_correct_shapes(self):
+    def test_returns_correct_shapes(self, nfi_rnd_kit):
         data = np.zeros((5, 4096))
         for i in range(-20, 21):
             data[0, 2000 + i] = max(0, 500 - abs(i) * 20)
@@ -220,7 +236,7 @@ class TestExtractPeaksTorch:
         assert markers.dim() == 1  # (P,)
         assert centers.shape[1] == 2  # (P, 2)
 
-    def test_empty_on_no_peaks(self):
+    def test_empty_on_no_peaks(self, nfi_rnd_kit):
         data = np.zeros((5, 4096))
         image = self.MockImage(data)
         windows, markers, centers = extract_peaks_torch(
@@ -230,9 +246,10 @@ class TestExtractPeaksTorch:
         assert markers.shape[0] == 0
         assert centers.shape[0] == 0
 
-    def test_none_data(self):
+    def test_none_data(self, nfi_rnd_kit):
         image = self.MockImage(None)
-        windows, markers, centers = extract_peaks_torch(
-            image, device="cpu", threshold=100, window_size=120,
-        )
-        assert windows.shape[0] == 0
+        with pytest.raises(ValueError):
+            extract_peaks_torch(
+                image, device="cpu", threshold=100, window_size=120,
+            )
+

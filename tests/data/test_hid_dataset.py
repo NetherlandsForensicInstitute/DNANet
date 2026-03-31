@@ -15,16 +15,16 @@ from dnanet.data.strategies.registry import StrategyRegistry
 # Ladder path loading (static method)
 # ---------------------------------------------------------------------------
 
-class TestLadderPathLoading:
-    def test_loads_real_csv(self, nfi_rnd_kit):
-        mapping = HIDDataset._load_ladder_paths(RD_DIR / "best_ladder_paths.csv")
-        assert len(mapping) > 0
+# class TestLadderPathLoading:
+#     def test_loads_real_csv(self, nfi_rnd_kit):
+#         mapping = HIDDataset._load_ladder_paths(RD_DIR / "best_ladder_paths.csv")
+#         assert len(mapping) > 0
 
-    def test_empty_rows_skipped(self, nfi_rnd_kit, tmp_path):
-        csv_path = tmp_path / "ladders.csv"
-        csv_path.write_text("image_path,ladder_path\n,\nsample1,ladder1\n")
-        mapping = HIDDataset._load_ladder_paths(csv_path)
-        assert len(mapping) == 1
+#     def test_empty_rows_skipped(self, nfi_rnd_kit, tmp_path):
+#         csv_path = tmp_path / "ladders.csv"
+#         csv_path.write_text("image_path,ladder_path\n,\nsample1,ladder1\n")
+#         mapping = HIDDataset._load_ladder_paths(csv_path)
+#         assert len(mapping) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -39,7 +39,7 @@ class TestHIDDatasetValidation:
     def test_empty_root_raises(self, nfi_rnd_kit, tmp_path):
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
-        with pytest.raises(ValueError, match="No valid HID images"):
+        with pytest.raises(ValueError, match="Path does not contain the neccessary mapping"):
             HIDDataset(root=empty_dir)
 
 

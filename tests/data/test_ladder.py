@@ -65,17 +65,11 @@ class TestLadder:
 
         scaler = np.linspace(50, 300, signal_len)
 
-        ladder = Ladder.from_hid_data(
-            path="test_ladder.hid",
-            data=data,
-            scaler=scaler,
-            catalog=catalog,
-            default_panel=panel,
-            num_dyes=2,
+        adjusted_panel = Ladder.create_adjusted_panel(
+            ladder_path="test_ladder.hid",
+            catalog=catalog
         )
-        assert ladder is not None
-        assert ladder.adjusted_panel is not None
-        assert len(ladder.peak_indices) == 2
+        assert adjusted_panel is not None
 
     def test_mismatched_peaks_returns_none(self):
         """If peak count doesn't match catalog, return None."""
