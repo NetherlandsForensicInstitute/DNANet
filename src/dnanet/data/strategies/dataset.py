@@ -103,3 +103,12 @@ class DatasetStrategy(ABC):
         cls, sample_path: Path, annotation_mapping: Dict[str, Path] | None = None
     ) -> Path | None:
         """Find the appropriate annotation for a given sample."""
+
+    @staticmethod
+    @abstractmethod
+    def get_annotation_classes() -> list[str]:
+        """
+        Return the list of annotation classes supported by this dataset.
+        The first class is assumed to be the default (noise) class
+        """
+

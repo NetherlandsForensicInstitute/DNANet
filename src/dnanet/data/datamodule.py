@@ -28,6 +28,7 @@ from torch.utils.data import Dataset, DataLoader
 
 from dnanet.data.image import HIDImage
 from dnanet.data.dataset import InMemoryDataset
+from dnanet.data.strategies import StrategyRegistry
 
 
 # ---------------------------------------------------------------------------
@@ -143,10 +144,10 @@ class PeakTorchDataset(Dataset):
     def __init__(
         self,
         peaks: Sequence,
-        label_to_idx: dict[str, int] | None = None,
+        label_to_idx: dict[str, int]
     ) -> None:
         self.peaks = list(peaks)
-        self.label_to_idx = label_to_idx or {'noise': 0, 'allele': 1}
+        self.label_to_idx = label_to_idx
 
     def __len__(self) -> int:
         return len(self.peaks)
@@ -161,7 +162,7 @@ class PeakTorchDataset(Dataset):
         marker_idx = torch.tensor(peak.marker_index, dtype=torch.long)
 
         # Target label
-        label = peak.label or 'noise'
+        label = peak.label
         target = torch.tensor(self.label_to_idx.get(label, 0), dtype=torch.long)
 
         return x, marker_idx, target
@@ -196,12 +197,10 @@ class PeakDataModule(L.LightningDataModule):
         self.num_workers = num_workers
         self.seed = seed
 
-        # Get label mapping from the dataset if available
-        self._label_to_idx = getattr(
-            dataset,
-            'label_to_idx',
-            {'noise': 0, 'allele': 1},
-        )
+
+        self._label_to_idx = {
+            label: idx for idx, label in enumerate(StrategyRegistry.get_dataset_strategy().get_annotation_classes())
+        }
 
         self._train_dataset: PeakTorchDataset | None = None
         self._val_dataset: PeakTorchDataset | None = None

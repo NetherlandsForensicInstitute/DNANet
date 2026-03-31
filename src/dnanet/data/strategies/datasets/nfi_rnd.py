@@ -289,3 +289,7 @@ class NFIRnDStrategy(DatasetStrategy):
             rows = list(reader)
         headers, values = rows[0], filter(lambda r: len(r) > 0, rows[1:])
         return headers, list(values)
+
+    @staticmethod
+    def get_annotation_classes() -> list[str]:
+        return ["noise", "allele"]
