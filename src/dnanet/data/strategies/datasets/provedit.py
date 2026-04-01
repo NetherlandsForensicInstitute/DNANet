@@ -145,3 +145,7 @@ class ProvedItStrategy(DatasetStrategy):
         # Fallback: any ladder in the directory
         ladders = [f for f in parent.glob("*.hid") if "ladder" in f.name.lower()]
         return ladders[0] if ladders else None
+
+    @staticmethod
+    def get_annotation_classes() -> list[str]:
+        return ["noise", "allele"]

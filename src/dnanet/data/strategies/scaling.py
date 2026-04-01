@@ -256,6 +256,8 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
             hid_dye_mapping=self._HID_DYE_MAPPING,
             panel_path=panel_path,
             description="PowerPlex Fusion 6C using WEN ILS size standard.",
+            hid_file_data_columns_raw=["DATA_1", "DATA_2", "DATA_3", "DATA_4", "DATA_106", "DATA_105"],
+            hid_file_data_columns_analyzed=["DATA_9", "DATA_10", "DATA_11", "DATA_12", "DATA_206", "DATA_205"]
         )
         super().__init__(kit, basepair_start=65, basepair_end=475, scanpoint_resolution=4096)
 
@@ -345,6 +347,8 @@ class GlobalFilerStrategy(ScalingStrategy):
             hid_dye_mapping=self._HID_DYE_MAPPING,
             panel_path=panel_path,
             description="GlobalFiler using GeneScan 600 LIZ size standard.",
+            hid_file_data_columns_raw=["DATA_1", "DATA_2", "DATA_3", "DATA_4", "DATA_106", "DATA_105"],
+            hid_file_data_columns_analyzed=["DATA_9", "DATA_10", "DATA_11", "DATA_12", "DATA_206", "DATA_205"]
         )
         super().__init__(kit, basepair_start=60, basepair_end=480, scanpoint_resolution=4096)
         self._max_shrinkages = max_shrinkages

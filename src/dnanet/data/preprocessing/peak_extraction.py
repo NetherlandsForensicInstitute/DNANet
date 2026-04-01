@@ -14,14 +14,13 @@ Two implementations are provided:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy
 import torch
-from scipy.signal import find_peaks
 
-from dnanet.data.extracted_peak import ExtractedPeak, SCAN_TO_BP
+from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.strategies import StrategyRegistry
 
 if TYPE_CHECKING:
@@ -180,7 +179,11 @@ def _label_peak_from_annotation(
     peak_center: int,
     padding: int = 1,
 ) -> str:
-    """Determine peak label from the annotation mask.
+    """Determine peak label from the annotation mask based on the annotation classes specified in the dataset strategy.
+
+    When no annotation is available, we use default class 0.
+    When there are multiple annotation classes, we take the most common class in the slice.
+    If there is a tie, we take the lowest class index.
 
     Args:
         annotation_image: Binary mask ``(D, L)`` or ``(D, L, 1)``, or None.
@@ -189,24 +192,39 @@ def _label_peak_from_annotation(
         padding: Number of positions around the center to check.
 
     Returns:
-        ``"allele"`` if any annotated position is within padding of center,
-        ``"noise"`` otherwise.
+        The annotation class name corresponding to the most common class in the slice.
     """
+
+    annotation_classes = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
+
     if annotation_image is None:
-        return "noise"
+        return annotation_classes[0] # default to first class (e.g. "noise") if no annotation available
 
     if annotation_image.ndim == 3:
         ann = annotation_image[dye_index, :, 0]
     else:
         ann = annotation_image[dye_index]
 
+    # ann is shape (L,)
+
     L = ann.shape[0]
     start = max(0, peak_center - padding)
     end = min(L, peak_center + padding + 1)
 
-    if np.any(ann[start:end] > 0):
-        return "allele"
-    return "noise"
+    annotation_slice = ann[start:end]
+
+    if np.any(annotation_slice > 0):
+        unique, counts = np.unique(annotation_slice, return_counts=True)
+
+        # take the most common class in the slice
+        # if there is a tie, take the lowest class index
+        sorted_idx = np.lexsort((unique, -counts))
+        most_common_value = unique[sorted_idx[0]]
+
+        return annotation_classes[most_common_value]
+
+
+    return annotation_classes[0]
 
 
 # ---------------------------------------------------------------------------

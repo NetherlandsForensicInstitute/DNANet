@@ -103,7 +103,7 @@ class TestPeakTorchDataset:
 
     def test_returns_triplet(self):
         peaks = _make_mock_peaks(5)
-        ds = PeakTorchDataset(peaks)
+        ds = PeakTorchDataset(peaks, label_to_idx={"noise": 0, "allele": 1})
         x, marker, target = ds[0]
         assert x.shape == (1, 120)
         assert marker.dim() == 0  # scalar

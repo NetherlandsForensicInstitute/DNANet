@@ -139,3 +139,7 @@ class NFIRnDStrategy(DatasetStrategy):
         """Get the active panel from the strategy registry."""
         from dnanet.data.strategies.registry import StrategyRegistry
         return StrategyRegistry.get_scaling_strategy().panel
+
+    @staticmethod
+    def get_annotation_classes() -> list[str]:
+        return ["noise", "allele"]
