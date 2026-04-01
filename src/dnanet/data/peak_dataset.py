@@ -126,4 +126,4 @@ class PeakWindowDataset(InMemoryDataset):
                 max_rfu=self.max_rfu_value,
             )
 
-        peak.data = data
+        peak._data = data

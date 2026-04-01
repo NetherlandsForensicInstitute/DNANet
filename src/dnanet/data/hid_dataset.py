@@ -30,28 +30,25 @@ Usage::
 
 from __future__ import annotations
 
-import csv
 import random
-from typing import Any, Generator, List, Optional, Tuple
 from pathlib import Path
-from typing import Any, Generator
+from typing import Generator, Any
+from typing import List, Optional, Tuple
 
 import numpy as np
 from loguru import logger
+from torch.utils.data import Dataset
 
 from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
-from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
-from dnanet.data.dataset import InMemoryDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
-from dnanet.data.parsing.hid import get_peak_data
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
 
 
-class HIDDataset(InMemoryDataset):
+class HIDDataset(Dataset):
     """Load HID files from a directory into an in-memory dataset.
 
     This is the primary dataset class for forensic DNA profiles. It:
@@ -181,13 +178,13 @@ class HIDDataset(InMemoryDataset):
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,
             )
-            
+
             # Trigger lazy load and validate
             if image.data is None:
                 skipped_data += 1
                 logger.debug("Skipping {}: no data", path.name)
                 continue
-            
+
             if isinstance(annotation, AlleleAnnotation):
                 scanpoint_annotation = self._translate_allele_to_scanpoint_annotation(
                     allele_annotation=annotation,
@@ -197,7 +194,7 @@ class HIDDataset(InMemoryDataset):
             else:
                 scanpoint_annotation = annotation
             image.annotation = scanpoint_annotation
-            
+
             if self.adjustment_of_annotations:
                 scanpoint_annotation = self._adjust_annotations(
                     [image],
@@ -313,3 +310,11 @@ class HIDDataset(InMemoryDataset):
 
     def __repr__(self) -> str:
         return f"HIDDataset(root={self.root.name}, n={len(self._data)})"
+
+    def __getitem__(self, index: int) -> Any:
+        item = self._data[index]
+
+        if self.transform:
+            item = self.transform(item)
+
+        return item

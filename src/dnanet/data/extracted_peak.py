@@ -23,14 +23,15 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import scipy.interpolate
 
+from dnanet.core import Annotation, ClassAnnotation
 
 if TYPE_CHECKING:
-    from dnanet.data.image import HIDImage
+    from dnanet.data.image import HIDImage, TrainableElement
     from dnanet.core.marker import Marker
 
 
 
-class ExtractedPeak:
+class ExtractedPeak(TrainableElement):
     """A single extracted peak window from a DNA profile.
 
     Args:
@@ -47,7 +48,7 @@ class ExtractedPeak:
     """
 
     __slots__ = (
-        "data",
+        "_data",
         "dye_index",
         "peak_center",
         "window_size",
@@ -71,7 +72,7 @@ class ExtractedPeak:
         peak_basepair: float | None = None,
         marker_index: int = -1,
     ) -> None:
-        self.data = data
+        self._data = data
         self.dye_index = dye_index
         self.peak_center = peak_center
         self.window_size = window_size
@@ -81,6 +82,16 @@ class ExtractedPeak:
         self.marker_index = marker_index
         self.peak_basepair = peak_basepair
         self.window_start: int = peak_center - window_size // 2
+
+    @property
+    def data(self) -> np.ndarray:
+        return self._data
+
+    @property
+    def annotation(self) -> Annotation | ClassAnnotation | None:
+        if self.label is None:
+            return None
+        return ClassAnnotation(self.label)
 
     @property
     def is_allele(self) -> bool:

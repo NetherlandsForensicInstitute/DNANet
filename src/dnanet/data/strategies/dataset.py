@@ -28,12 +28,12 @@ class DatasetStrategy(ABC):
     Each method is a classmethod because dataset strategies are stateless —
     the behavior depends only on the dataset conventions, not on instance state.
     """
-    
+
     @classmethod
     @abstractmethod
     def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
         """Collect the dataset files for this specific dataset strategy."""
-        
+
     @classmethod
     @abstractmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
@@ -112,3 +112,7 @@ class DatasetStrategy(ABC):
         The first class is assumed to be the default (noise) class
         """
 
+
+    @property
+    def annotation_to_idx(self) -> Dict[str, int]:
+        return {name: idx for idx, name in enumerate(self.get_annotation_classes())}

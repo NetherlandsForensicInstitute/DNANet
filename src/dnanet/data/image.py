@@ -19,6 +19,8 @@ Design pattern: **Null Object** (for annotation)
 
 from __future__ import annotations
 
+import abc
+from abc import abstractmethod
 from functools import cached_property
 from pathlib import Path
 from typing import Any, MutableMapping
@@ -26,7 +28,7 @@ from typing import Any, MutableMapping
 import numpy as np
 from loguru import logger
 
-from dnanet.core.annotation import ScanpointAnnotation
+from dnanet.core.annotation import ScanpointAnnotation, ClassAnnotation, Annotation
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
@@ -38,8 +40,21 @@ from dnanet.data.strategies.registry import StrategyRegistry
 # Default RFU detection threshold
 _DEFAULT_RFU_THRESHOLD = 40
 
+class TrainableElement(abc.ABC):
 
-class HIDImage:
+    @abstractmethod
+    @property
+    def data(self) -> np.ndarray:
+        raise NotImplementedError
+
+    @abstractmethod
+    @property
+    def annotation(self) -> Annotation | ClassAnnotation | None:
+        raise NotImplementedError
+
+
+
+class HIDImage(TrainableElement):
     """A single DNA profile loaded from a HID file.
 
     This is the primary data container in DNANet. Each HIDImage wraps:
@@ -108,7 +123,7 @@ class HIDImage:
     @property
     def annotation(self) -> ScanpointAnnotation | None:
         return self._annotation
-    
+
     @annotation.setter
     def annotation(self, annotation) -> None:
         self._annotation = annotation
@@ -123,7 +138,7 @@ class HIDImage:
         if self._scaler is None:
             self._load()
         return self._scaler  # type: ignore
-    
+
     @property
     def adjusted_panel(self) -> Panel | None:
         return self._adjusted_panel
@@ -141,7 +156,7 @@ class HIDImage:
 
         # Parse size standard and rescale
         scaling = StrategyRegistry.get_scaling_strategy()
-        
+
         ss_lane = np.array(profile[-1])
         try:
             ss_result = scaling.parse_size_standard(ss_lane)

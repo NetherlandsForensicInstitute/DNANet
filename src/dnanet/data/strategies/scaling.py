@@ -25,7 +25,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Dict
 
 import numpy as np
 import scipy.interpolate
@@ -150,6 +150,10 @@ class ScalingStrategy(ABC):
     @property
     def marker_names(self) -> list[str]:
         return list(self.marker_name_to_dye_idx().keys())
+
+    @property
+    def marker_to_idx(self) -> Dict[str, int]:
+        return {name: idx for idx, name in enumerate(self.marker_names)}
 
     @staticmethod
     def basepair_interpolator(
