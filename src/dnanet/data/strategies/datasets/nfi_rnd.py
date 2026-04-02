@@ -324,11 +324,11 @@ class NFIRnDStrategy(DatasetStrategy):
         match (fraction, k_folds):
             case (float(), None) if 0 < fraction < 1:
                 return cls._fractional_split(dataset, fraction, seed, stratify_noc, group_by_replica)
-            case (None, int()) if k_folds >= 2:
+            case (None, int()) if 2 <= k_folds < len(dataset):
                 return cls._kfold_split(dataset, k_folds, seed, stratify_noc, group_by_replica)
             case _:
                 raise ValueError(
-                    f'Provide either a fraction in (0, 1) or k_folds >= 2, not both. Got {fraction=}, {k_folds=}'
+                    f'Provide either a fraction in (0, 1) or 2 <= k_folds < {len(dataset)=}, not both. Got {fraction=}, {k_folds=}'
                 )
 
     # -- Fractional splitting ------
@@ -378,7 +378,12 @@ class NFIRnDStrategy(DatasetStrategy):
 
     @classmethod
     def _kfold_split(
-        cls, dataset: HIDDataset, k_folds: int, seed: int, stratify_noc: bool, group_by_replica: bool
+        cls,
+        dataset: HIDDataset,
+        k_folds: int,
+        seed: int | None,
+        stratify_noc: bool,
+        group_by_replica: bool,
     ) -> SplitResult:
         replica_map = cls._build_replica_map(dataset)
         replica_ids = list(replica_map.keys())
