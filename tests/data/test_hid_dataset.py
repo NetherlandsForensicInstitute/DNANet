@@ -1,14 +1,20 @@
 """Tests for HIDDataset — file discovery, annotation mapping, and loading."""
 
-import csv
-from pathlib import Path
-
-import numpy as np
 import pytest
 
 from tests.conftest import RD_DIR, LADDER_ALLELES_CSV
 from dnanet.data.hid_dataset import HIDDataset
-from dnanet.data.strategies.registry import StrategyRegistry
+
+
+def _make_hid_dataset(**kwargs) -> HIDDataset:
+    """Build an HIDDataset using the current constructor contract."""
+    return HIDDataset(
+        root=RD_DIR,
+        scaling_strategy='PPF6C',
+        dataset_strategy='NFI_RND',
+        ladder_alleles_csv=LADDER_ALLELES_CSV,
+        **kwargs,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -34,13 +40,17 @@ from dnanet.data.strategies.registry import StrategyRegistry
 class TestHIDDatasetValidation:
     def test_invalid_adjustment_raises(self, nfi_rnd_kit):
         with pytest.raises(ValueError, match="adjustment_of_annotations"):
-            HIDDataset(root=RD_DIR, adjustment_of_annotations="bad")
+            _make_hid_dataset(adjustment_of_annotations='bad')
 
     def test_empty_root_raises(self, nfi_rnd_kit, tmp_path):
-        empty_dir = tmp_path / "empty"
+        empty_dir = tmp_path / 'empty'
         empty_dir.mkdir()
         with pytest.raises(ValueError, match="Path does not contain the neccessary mapping"):
-            HIDDataset(root=empty_dir)
+            HIDDataset(
+                root=empty_dir,
+                scaling_strategy='PPF6C',
+                dataset_strategy='NFI_RND',
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -50,76 +60,39 @@ class TestHIDDatasetValidation:
 class TestHIDDatasetIntegration:
     def test_load_from_rd_dir(self, nfi_rnd_kit):
         """Load from test resources — should find 2 sample HID files."""
-        ds = HIDDataset(
-            root=RD_DIR,
-            hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
-            best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
-            ladder_alleles_csv=LADDER_ALLELES_CSV,
-            analysis_threshold_type="DTH",
-        )
+        ds = _make_hid_dataset(analysis_threshold_type='DTH')
         assert len(ds) >= 1  # at least one sample should load
 
     def test_images_have_correct_shape(self, nfi_rnd_kit):
-        ds = HIDDataset(
-            root=RD_DIR,
-            hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
-            best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
-            ladder_alleles_csv=LADDER_ALLELES_CSV,
-        )
+        ds = _make_hid_dataset()
         for img in ds:
             assert img.data is not None
             assert img.data.shape == (5, 4096, 1)
 
     def test_limit_parameter(self, nfi_rnd_kit):
-        ds = HIDDataset(
-            root=RD_DIR,
-            hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
-            best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
-            ladder_alleles_csv=LADDER_ALLELES_CSV,
-            limit=1,
-        )
+        ds = _make_hid_dataset(limit=1)
         assert len(ds) == 1
 
     def test_repr(self, nfi_rnd_kit):
-        ds = HIDDataset(
-            root=RD_DIR,
-            hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
-            best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
-            ladder_alleles_csv=LADDER_ALLELES_CSV,
-        )
+        ds = _make_hid_dataset()
         r = repr(ds)
         assert "HIDDataset" in r
         assert "RD" in r
 
-    def test_split_produces_valid_subsets(self, nfi_rnd_kit):
-        ds = HIDDataset(
-            root=RD_DIR,
-            hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
-            best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
-            ladder_alleles_csv=LADDER_ALLELES_CSV,
-        )
-        if len(ds) >= 2:
-            train, val = ds.split(0.5, seed=42)
-            assert len(train) + len(val) == len(ds)
+    def test_indexing_returns_loaded_image(self, nfi_rnd_kit):
+        ds = _make_hid_dataset()
+        img = ds[0]
+
+        assert img.data is not None
+        assert img.data.shape == (5, 4096, 1)
 
     def test_annotations_populated(self, nfi_rnd_kit):
         """Images with annotation mapping should have non-None annotations."""
-        ds = HIDDataset(
-            root=RD_DIR,
-            hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
-            best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
-            ladder_alleles_csv=LADDER_ALLELES_CSV,
-        )
+        ds = _make_hid_dataset()
         annotated = [img for img in ds if img.annotation is not None]
         assert len(annotated) > 0, "Expected at least one image with annotation"
 
-    def test_adjustment_complete(self, nfi_rnd_kit):
+    def test_adjustment_top(self, nfi_rnd_kit):
         """Loading with annotation adjustment should not crash."""
-        ds = HIDDataset(
-            root=RD_DIR,
-            hid_to_annotations_path=RD_DIR / "2p_5p_hid_to_annotation.csv",
-            best_ladder_paths_csv=RD_DIR / "best_ladder_paths.csv",
-            ladder_alleles_csv=LADDER_ALLELES_CSV,
-            adjustment_of_annotations="complete",
-        )
+        ds = _make_hid_dataset(adjustment_of_annotations='top')
         assert len(ds) >= 1
