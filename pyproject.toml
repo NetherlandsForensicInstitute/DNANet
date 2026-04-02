@@ -111,4 +111,5 @@ lines-after-imports = 2
 convention = "google"
 
 [tool.mypy]
+plugins = "numpy.typing.mypy_plugin"
 disable_error_code = ["import-untyped"]

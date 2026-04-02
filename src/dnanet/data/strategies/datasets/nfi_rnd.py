@@ -10,30 +10,36 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
+from collections import Counter
 import csv
 from itertools import groupby
 import os
 import re
 from pathlib import Path
-from typing import Dict, Generator, Iterable, List, Tuple
+from typing import Dict, Generator, Iterable, List, Sequence, Set, Tuple, overload
 
 from loguru import logger
+
+import numpy as np
+from sklearn.model_selection import GroupKFold, KFold, StratifiedGroupKFold, StratifiedKFold, train_test_split
+import torch
+from torch.utils.data import Dataset, Subset
 
 from dnanet.core.allele import Allele
 from dnanet.core.annotation import AlleleAnnotation, Annotation
 from dnanet.core.marker import Marker
 from dnanet.core.types import PathLike
-from dnanet.data.strategies.dataset import DatasetStrategy, FileCategory
-
-
-# R&D filename pattern: digit + letter + digit (e.g. "1A2")
-_RD_PREFIX_RE = re.compile(r"^\d[A-F]\d")
+from dnanet.data.hid_dataset import HIDDataset
+from dnanet.data.strategies.dataset import DatasetStrategy, FileCategory, SplitResult
+from dnanet.data.strategies.registry import StrategyRegistry
 
 
 class NFIRnDStrategy(DatasetStrategy):
     """Strategy for the NFI R&D mixture dataset."""
     
     READ_ANNOTATION_HEIGHTS: bool = False
+    # R&D filename pattern: digit + letter + digit (e.g. "1A2")
+    _RD_PREFIX_RE = re.compile(r"^\d[A-F]\d")
     
     @classmethod
     def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
@@ -46,22 +52,13 @@ class NFIRnDStrategy(DatasetStrategy):
             root_path: The path to the root of this dataset
         """
         path = Path(root_path)
-        csv_files = list(path.rglob('*.csv'))
-
-        hid_to_annotation_file_pattern = r'.*hid_to_annotation.*'
-        hid_to_annotation_path = None
-        hid_to_ladder_pattern = r'.*best_ladder_paths.*'
-        hid_to_ladder_path = None
 
         analysis_treshold_type: str = kwargs.get('analysis_treshold_type', 'DTH')
         logger.info(f"Using treshold type: {analysis_treshold_type}")
 
-        for csv_file in csv_files:
-            if re.match(hid_to_annotation_file_pattern, csv_file.name):
-                hid_to_annotation_path = csv_file
-            if re.match(hid_to_ladder_pattern, csv_file.name):
-                hid_to_ladder_path = csv_file
-        if hid_to_annotation_path is None or hid_to_ladder_path is None:
+        hid_to_annotation_path = list(path.rglob("*hid_to_annotation*"))
+        hid_to_ladder_path     = list(path.rglob("*best_ladder_paths*"))
+        if not hid_to_annotation_path or not hid_to_ladder_path:
             raise ValueError(
                 'Path does not contain the neccessary mapping files (annotation & ladder)'
             )
@@ -76,7 +73,7 @@ class NFIRnDStrategy(DatasetStrategy):
                 annotation_name_to_annotation.update(_annotation)
 
         # HID to Annotation mapping
-        hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
+        hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path[0])
         analysis_treshold_type_column = [
             i for i, head in enumerate(hta_header) if analysis_treshold_type in head
         ]
@@ -91,8 +88,8 @@ class NFIRnDStrategy(DatasetStrategy):
 
 
         # Hid to Ladder mapping
-        _, htl_values = cls._read_csv_file(hid_to_ladder_path)
-        hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
+        _, htl_values = cls._read_csv_file(hid_to_ladder_path[0])
+        hid_to_ladder = {hid: path /ladder  for hid, ladder in htl_values}
 
         hid_files = list(path.rglob('*.hid'))
         hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == 'sample', hid_files))
@@ -122,23 +119,23 @@ class NFIRnDStrategy(DatasetStrategy):
             return "control"
         if file_name.startswith("A"):
             return "control"
-        if _RD_PREFIX_RE.match(stem):
+        if cls._RD_PREFIX_RE.match(stem):
             return "sample"
         return "unknown"
 
     @classmethod
-    def get_contributors(cls, file_name: str) -> str | None:
+    def get_number_of_contributors(cls, file_name: str) -> int | None:
         """Extract NOC from R&D filename: ``1A2`` → ``"2p"``."""
         stem = Path(file_name).stem
-        if _RD_PREFIX_RE.match(stem):
-            return f"{stem[2]}p"
+        if cls._RD_PREFIX_RE.match(stem):
+            return int(stem[2])
         return None
 
     @classmethod
     def get_sample_id(cls, file_name: str) -> str:
         """Extract profile prefix: ``1A2_A01_01.hid`` → ``"1A2"``."""
         stem = Path(file_name).stem
-        if _RD_PREFIX_RE.match(stem):
+        if cls._RD_PREFIX_RE.match(stem):
             return stem.split("_")[0]
         raise ValueError(f"Cannot extract sample ID from R&D filename: {file_name}")
 
@@ -293,3 +290,147 @@ class NFIRnDStrategy(DatasetStrategy):
     @staticmethod
     def get_annotation_classes() -> list[str]:
         return ["noise", "allele"]
+
+    @classmethod
+    def split(
+        cls,
+        dataset: HIDDataset,
+        fraction: float | None = None,
+        seed: int | None = None,
+        k_folds: int | None = None,
+        stratify_noc: bool = True,
+        group_by_replica: bool = True
+    ):
+        """
+        Replica-aware split that keeps sample prefixes together and balances NoC.
+        
+        Possible options are:
+        1. Simple fractional split
+        2. K-Fold split
+        3. Above splits with optional:
+            - Replica's grouped (to prevent data-leakage)
+            - Number of Contributors balanced over splits
+        """
+        
+        match (fraction, k_folds):
+            case (float(), None) if 0 < fraction < 1:
+                return cls._fractional_split(dataset, fraction, seed, stratify_noc, group_by_replica)
+            case (None, int()) if k_folds >= 2:
+                return cls._kfold_split(dataset, k_folds, seed, stratify_noc, group_by_replica)
+            case _:
+                raise ValueError(f"Provide either a fraction in (0, 1) or k_folds >= 2, not both. Got {fraction=}, {k_folds=}")
+    
+    # -- Fractional splitting ------
+    @classmethod
+    def _fractional_split(cls, dataset: HIDDataset, fraction, seed, stratify_noc, group_by_replica):
+        
+        if not group_by_replica:
+            indices = list(range(len(dataset)))
+            nocs = [
+                v for v in
+                (cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.data)
+                if v is not None
+            ]
+                
+            logger.info(f"Fractional split | {fraction:.0%} train | stratify={'noc' if stratify_noc else 'none'}")
+            train_idx, val_idx = train_test_split(indices, train_size=fraction, random_state=seed, stratify=nocs if stratify_noc else None)
+            return Subset(dataset, train_idx), Subset(dataset, val_idx)
+    
+        # Grouped: approximate via StratifiedGroupKFold / GroupKFold, take first fold
+        replica_map = cls._build_replica_map(dataset)
+        replica_ids = list(replica_map.keys())
+        n_splits = max(2, round(1.0 / (1.0 - fraction)))
+        dummy_X = np.arange(len(replica_ids))
+        noc_labels = cls._replica_noc_labels(dataset, replica_map) if stratify_noc else dummy_X
+        
+        splitter = (
+            StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+            if stratify_noc else GroupKFold(n_splits=n_splits)
+        )
+        logger.info(f'Fractional grouped split | -{fraction:.0%} train | {n_splits=} | stratify={"noc" if stratify_noc else "none"}')
+        train_pos, val_pos = next(splitter.split(dummy_X, noc_labels, groups=replica_ids))
+        return cls._subsets(dataset, replica_map, train_pos, val_pos)
+    
+    # -- K-Fold --------------------
+    
+    @classmethod
+    def _kfold_split(
+        cls,
+        dataset: HIDDataset,
+        k_folds: int,
+        seed: int,
+        stratify_noc: bool,
+        group_by_replica: bool
+    ) -> SplitResult:
+        replica_map = cls._build_replica_map(dataset)
+        replica_ids = list(replica_map.keys())
+        dummy_X = np.arange(len(replica_ids))
+        noc_labels = cls._replica_noc_labels(dataset, replica_map) if stratify_noc else dummy_X
+        
+        if not group_by_replica:
+            indices = [i for indices in replica_map.values() for i in indices]
+            sample_nocs = [cls.get_number_of_contributors(dataset.data[i].path.stem) for i in indices]
+            if any(n is None for n in sample_nocs) and stratify_noc:
+                raise AttributeError("NoC couldn't be inferred for every sample, stratify=noc not possible")
+            splitter = (
+                StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
+                if stratify_noc else KFold(n_splits=k_folds, shuffle=True, random_state=seed)
+            )
+            logger.info(f'K-Fold split | {k_folds} folds | stratify={"noc" if stratify_noc else "none"}')
+            return [
+                (Subset(dataset, [indices[i] for i in train]), Subset(dataset, [indices[i] for i in val]))
+                for train, val in splitter.split(indices, sample_nocs if stratify_noc else indices)
+            ]
+        
+        splitter = StratifiedGroupKFold(n_splits=k_folds, shuffle=True, random_state=seed) if stratify_noc else GroupKFold(n_splits=k_folds)
+        logger.info(f'K-Fold grouped split | {k_folds} folds | stratify={"noc" if stratify_noc else "none"}')
+        return [
+            cls._subsets(dataset, replica_map, train_pos, val_pos)
+            for train_pos, val_pos in splitter.split(dummy_X, noc_labels, groups=replica_ids)
+        ]
+        
+    # -- Splitting helpers ---------
+    
+    @classmethod
+    def _build_replica_map(cls, dataset: HIDDataset) -> Dict[str, List[int]]:
+        """Maps each replica_id to its list of sample indices."""
+        replica_map: Dict[str, List[int]] = {}
+        for i, img in enumerate(dataset.data):
+            replica_id = cls.get_sample_id(img.path.stem)
+            replica_map.setdefault(replica_id, []).append(i)
+        return replica_map
+
+    @classmethod
+    def _replica_noc_labels(cls, dataset: HIDDataset, replica_map: Dict[str, List[int]]) -> List[int]:
+        """Majority-vote NoC label per replica, in replica_map insertion order."""
+        def majority_noc(indices: List[int]) -> int:
+            nocs = [
+                cls.get_number_of_contributors(file_name=dataset.data[i].path.stem)
+                for i in indices
+            ]
+            if any([n is None for n in nocs]):
+                raise ValueError("Could not extract NoC for all samples, stratify on NoC not possible.")
+            return Counter(nocs).most_common(1)[0][0] # type: ignore
+        return [majority_noc(indices) for indices in replica_map.values()]
+    
+    @staticmethod
+    def _subsets(dataset: Dataset, replica_map: dict, train_pos: Sequence[int], val_pos: Sequence[int]) -> Tuple[Subset, Subset]:
+        """Expand replica positions back to flat sample index lists."""
+        replicas = list(replica_map.values())
+        train_idx = [i for pos in train_pos for i in replicas[pos]]
+        val_idx = [i for pos in val_pos for i in replicas[pos]]
+        return Subset(dataset, train_idx), Subset(dataset, val_idx)
+    
+    
+    
+if __name__ == "__main__":
+    StrategyRegistry.configure_dataset(NFIRnDStrategy)
+    StrategyRegistry.configure_kit("PPF6C")
+    dataset = HIDDataset(
+        root="/Users/abel/Documents/Coding/NFI/Antigravity/DNANet-clean/data/2p_5p_Dataset_NFI",
+        ladder_alleles_csv="/Users/abel/Documents/Coding/NFI/Antigravity/DNANet-clean/data/2p_5p_Dataset_NFI/ladder_alleles.csv"
+    )
+    
+    ds_strat = StrategyRegistry.get_dataset_strategy()
+    
+    pass

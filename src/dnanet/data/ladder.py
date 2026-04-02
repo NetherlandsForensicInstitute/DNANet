@@ -62,6 +62,18 @@ class LadderAlleleCatalog:
     alleles_by_dye: dict[int, list[tuple[str, str]]] = field(default_factory=dict)
 
     @classmethod
+    def from_file(cls, path: PathLike) -> LadderAlleleCatalog:
+        """Load ladder allele definitions from a file"""
+        match Path(path).suffix:
+            case ".csv":
+                return cls.from_csv(path)
+            case ".xlsx":
+                return cls.from_xlsx(path)
+            case suffix:
+                raise ValueError(f"Ladder allele mapping file unsupported: {suffix}")
+        
+        
+    @classmethod
     def from_csv(cls, path: PathLike) -> LadderAlleleCatalog:
         """Load ladder allele definitions from a CSV file.
 
@@ -75,6 +87,11 @@ class LadderAlleleCatalog:
                 dye = int(row["Dye"])
                 alleles[dye].append((row["Marker"], row["Allele"]))
         return cls(alleles_by_dye=dict(alleles))
+    
+    @classmethod
+    def from_xlsx(cls, path: PathLike) -> LadderAlleleCatalog:
+        logger.error(f'Cannot load xlsx file yet: {path}')
+        raise NotImplemented
 
     def expected_count(self, dye_row: int) -> int:
         """Number of alleles expected on a given dye row."""
@@ -134,7 +151,8 @@ class Ladder:
         ladder_image = HIDImage(
             path=ladder_path,
             data_loading_strategy="analyzed",
-            include_size_standard=True
+            include_size_standard=True,
+            load_in_memory=False,
         )
         if ladder_image.data is None:
             raise ValueError("Ladder is invalid")

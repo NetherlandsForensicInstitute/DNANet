@@ -16,7 +16,7 @@ from pathlib import Path
 from loguru import logger
 
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.dataset import DatasetStrategy, FileCategory
+from dnanet.data.strategies.dataset import FileCategory, DatasetStrategy
 
 
 # ProvedIt ladder pattern
@@ -44,7 +44,7 @@ class ProvedItStrategy(DatasetStrategy):
         return "sample"
 
     @classmethod
-    def get_contributors(cls, file_name: str) -> str | None:
+    def get_number_of_contributors(cls, file_name: str) -> str | None:
         """Extract contributor count from ProvedIt naming.
 
         ProvedIt encodes contributors in the sample description,

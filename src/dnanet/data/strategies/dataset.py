@@ -14,12 +14,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Generator, Literal, Tuple
+from typing import Dict, Generator, List, Literal, Tuple
+from torch.utils.data import Subset
 
 from dnanet.core.annotation import Annotation
 from dnanet.core.types import PathLike
 
+
 FileCategory = Literal["sample", "ladder", "control", "unknown"]
+SplitResult = Tuple[Subset, Subset] | List[Tuple[Subset, Subset]]
 
 
 class DatasetStrategy(ABC):
@@ -41,10 +44,10 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def get_contributors(cls, file_name: str) -> str | None:
+    def get_number_of_contributors(cls, file_name: str) -> int | None:
         """Extract number-of-contributors info from a filename.
 
-        Returns a string like ``"2p"`` or ``None`` if not determinable.
+        Returns an int for the NoC or ``None`` if not determinable.
         """
 
     @classmethod
@@ -111,4 +114,16 @@ class DatasetStrategy(ABC):
         Return the list of annotation classes supported by this dataset.
         The first class is assumed to be the default (noise) class
         """
+
+    @classmethod
+    @abstractmethod
+    def split(cls, dataset, fraction: float, seed: int | None = None) -> SplitResult:
+        """Default: simple random fraction split.
+
+        Override in strategies that have richer metadata (e.g. replica-aware).
+
+        Returns:
+            ``(train_subset, val_subset)`` as :class:`torch.utils.data.Subset`.
+        """
+        
 

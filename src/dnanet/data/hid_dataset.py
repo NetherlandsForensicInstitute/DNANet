@@ -38,12 +38,12 @@ from typing import Any, Generator
 
 import numpy as np
 from loguru import logger
+from torch.utils.data import Dataset
 
 from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
-from dnanet.data.dataset import InMemoryDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
 from dnanet.data.parsing.hid import get_peak_data
@@ -51,7 +51,7 @@ from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_ne
 from dnanet.data.strategies.registry import StrategyRegistry
 
 
-class HIDDataset(InMemoryDataset):
+class HIDDataset(Dataset):
     """Load HID files from a directory into an in-memory dataset.
 
     This is the primary dataset class for forensic DNA profiles. It:
@@ -83,9 +83,7 @@ class HIDDataset(InMemoryDataset):
     def __init__(
         self,
         root: PathLike,
-        hid_to_annotations_path: PathLike | None = None,
-        best_ladder_paths_csv: PathLike | None = None,
-        ladder_alleles_csv: PathLike | None = None,
+        ladder_alleles_csv: PathLike,
         analysis_threshold_type: str = "DTH",
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
@@ -93,8 +91,9 @@ class HIDDataset(InMemoryDataset):
         skip_if_invalid_ladder: bool = False,
         include_size_standard: bool = False,
         data_loading_strategy: str = "superior",
+        load_in_memory: bool = False,
     ) -> None:
-        super().__init__(shuffle)
+        super().__init__()
 
         self.root = Path(root)
         self.analysis_threshold_type = analysis_threshold_type
@@ -102,6 +101,7 @@ class HIDDataset(InMemoryDataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.include_size_standard = include_size_standard
         self.data_loading_strategy = data_loading_strategy
+        self.load_in_memory = load_in_memory
 
         if adjustment_of_annotations and adjustment_of_annotations not in ("top", "complete"):
             raise ValueError(
@@ -120,10 +120,8 @@ class HIDDataset(InMemoryDataset):
         #     self._ladder_paths = self._load_ladder_paths(Path(best_ladder_paths_csv))
         #     logger.info("Loaded {} ladder path mappings", len(self._ladder_paths))
 
-        # # Load ladder allele catalog
-        self._ladder_catalog: LadderAlleleCatalog | None = None
-        if ladder_alleles_csv:
-            self._ladder_catalog = LadderAlleleCatalog.from_csv(Path(ladder_alleles_csv))
+        # Load ladder allele catalog
+        self._ladder_catalog = LadderAlleleCatalog.from_file(Path(ladder_alleles_csv))
 
         # Collect files, apply limit, load images
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root))
@@ -180,6 +178,7 @@ class HIDDataset(InMemoryDataset):
                 adjusted_panel=_current_panel,
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,
+                load_in_memory=self.load_in_memory
             )
             
             # Trigger lazy load and validate
@@ -308,8 +307,17 @@ class HIDDataset(InMemoryDataset):
                                              " either `top` or `complete`.")
         return annotations
 
+    @property
+    def data(self) -> List[HIDImage]:
+        return self._data
 
     # -- Dunder ----------------------------------------------------------- #
 
+    def __getitem__(self, index) -> HIDImage:
+        return self._data[index]
+    
+    def __len__(self) -> int:
+        return len(self._data)
+    
     def __repr__(self) -> str:
         return f"HIDDataset(root={self.root.name}, n={len(self._data)})"
