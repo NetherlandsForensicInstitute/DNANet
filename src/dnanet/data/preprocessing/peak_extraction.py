@@ -232,6 +232,12 @@ def _label_peak_from_annotation_fast(
 
         # take the most common class in the slice
         # if there is a tie, take the lowest class index
+        # in any case, "noise" should never be the answer here
+        # so we filter the unique and counts below
+        unique, counts = map(
+            np.array, zip(*[(u, c) for u, c in zip(unique, counts, strict=True) if u != 0.0])
+        )
+
         sorted_idx = np.lexsort((unique, -counts))
         most_common_value = int(unique[sorted_idx[0]])
 
