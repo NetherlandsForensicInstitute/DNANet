@@ -122,7 +122,7 @@ class TestPeakTorchDataset:
 
 class TestPeakDataModule:
 
-    def test_setup_and_iterate(self):
+    def test_setup_and_iterate(self, nfi_rnd_kit):
         peaks = _make_mock_peaks(20)
         ds = SimpleDataset(data=peaks)
         dm = PeakDataModule(ds, batch_size=4, val_fraction=0.2, seed=42)

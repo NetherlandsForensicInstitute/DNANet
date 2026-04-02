@@ -2,6 +2,7 @@
 
 import pytest
 from omegaconf import OmegaConf
+from torch.utils.data import Dataset
 
 from tests.conftest import RD_DIR, LADDER_ALLELES_CSV
 from dnanet.data.dataset import InMemoryDataset
@@ -36,10 +37,10 @@ class TestLoadDataset:
         base.update(overrides)
         return OmegaConf.create(base)
 
-    def test_returns_in_memory_dataset(self):
+    def test_returns_pytorch_dataset(self):
         cfg = self._make_cfg()
         ds = load_dataset(cfg)
-        assert isinstance(ds, InMemoryDataset)
+        assert isinstance(ds, Dataset)
 
     def test_configures_registry(self):
         cfg = self._make_cfg()

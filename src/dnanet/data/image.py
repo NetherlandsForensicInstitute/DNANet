@@ -29,26 +29,23 @@ import numpy as np
 from loguru import logger
 
 from dnanet.core.annotation import ScanpointAnnotation, ClassAnnotation, Annotation
-from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
 from dnanet.data.parsing import get_peak_data
-from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
-
 
 # Default RFU detection threshold
 _DEFAULT_RFU_THRESHOLD = 40
 
 class TrainableElement(abc.ABC):
 
-    @abstractmethod
     @property
+    @abstractmethod
     def data(self) -> np.ndarray:
         raise NotImplementedError
 
-    @abstractmethod
     @property
+    @abstractmethod
     def annotation(self) -> Annotation | ClassAnnotation | None:
         raise NotImplementedError
 

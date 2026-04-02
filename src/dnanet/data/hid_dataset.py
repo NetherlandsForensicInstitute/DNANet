@@ -46,6 +46,7 @@ from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.data.transformer import TransformDataCallable
 
 
 class HIDDataset(Dataset):
@@ -90,8 +91,9 @@ class HIDDataset(Dataset):
         skip_if_invalid_ladder: bool = False,
         include_size_standard: bool = False,
         data_loading_strategy: str = "superior",
+        transform: TransformDataCallable | None = None,
     ) -> None:
-        super().__init__(shuffle)
+        super().__init__()
 
         self.root = Path(root)
         self.analysis_threshold_type = analysis_threshold_type
@@ -99,6 +101,7 @@ class HIDDataset(Dataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.include_size_standard = include_size_standard
         self.data_loading_strategy = data_loading_strategy
+        self.transform = transform
 
         if adjustment_of_annotations and adjustment_of_annotations not in ("top", "complete"):
             raise ValueError(
@@ -318,3 +321,7 @@ class HIDDataset(Dataset):
             item = self.transform(item)
 
         return item
+
+    def __len__(self) -> int:
+        return len(self._data)
+

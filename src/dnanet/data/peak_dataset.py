@@ -100,8 +100,7 @@ class PeakWindowDataset(InMemoryDataset):
                 image,
                 threshold=self.threshold,
                 window_size=self.window_size,
-                include_max_pool_dyes=self.include_max_pool_dyes,
-                use_ground_truth=self.use_ground_truth,
+                include_max_pool_dyes=self.include_max_pool_dyes
             )
 
             for peak in peaks:

@@ -70,7 +70,7 @@ class DatasetStrategy(ABC):
     @abstractmethod
     def parse_annotations(
         cls,
-        annotation_source: Path,
+        annotation_source: PathLike,
     ) -> Dict[str, Annotation]:
         """Load annotation from annotation sample to Annotation object.
 

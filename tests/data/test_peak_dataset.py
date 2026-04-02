@@ -19,6 +19,7 @@ class MockImage:
             self.annotation = ScanpointAnnotation(data=annotation_image)
         else:
             self.annotation = None
+        self.scaler = np.arange(4096)
 
     @property
     def data(self):
@@ -45,7 +46,7 @@ class TestPeakWindowDataset:
             images.append(MockImage(data))
         return SimpleDataset(data=images)
 
-    def test_extracts_peaks_from_images(self):
+    def test_extracts_peaks_from_images(self, nfi_rnd_kit):
         base = self._make_base_dataset(n_images=2, n_peaks=3)
         ds = PeakWindowDataset(
             base_dataset=base,
@@ -56,7 +57,7 @@ class TestPeakWindowDataset:
         # Each image has 3 peaks in dye 0
         assert len(ds) >= 6
 
-    def test_items_are_extracted_peaks(self):
+    def test_items_are_extracted_peaks(self, nfi_rnd_kit):
         base = self._make_base_dataset(n_images=1)
         ds = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120, preprocess=False,
@@ -65,18 +66,17 @@ class TestPeakWindowDataset:
             assert isinstance(peak, ExtractedPeak)
             assert peak.data.shape == (1, 120)
 
-    def test_label_mapping(self):
+    def test_label_mapping(self, nfi_rnd_kit):
         base = self._make_base_dataset(n_images=1)
         ds = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120,
-            labels=["noise", "allele"],
             preprocess=False,
         )
         assert ds.label_to_idx["noise"] == 0
         assert ds.label_to_idx["allele"] == 1
         assert ds.idx_to_label[0] == "noise"
 
-    def test_preprocessing_changes_data(self):
+    def test_preprocessing_changes_data(self, nfi_rnd_kit):
         base = self._make_base_dataset(n_images=1)
         ds_raw = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120, preprocess=False,
@@ -99,24 +99,15 @@ class TestPeakWindowDataset:
         train, val = ds.split(fraction=0.8, seed=42)
         assert len(train) + len(val) == total
 
-    def test_custom_labels(self):
-        base = self._make_base_dataset(n_images=1)
-        ds = PeakWindowDataset(
-            base_dataset=base, threshold=100, window_size=120,
-            labels=["noise", "allele", "stutter"],
-            preprocess=False,
-        )
-        assert len(ds.label_to_idx) == 3
-        assert ds.label_to_idx["stutter"] == 2
 
-    def test_empty_base_dataset(self):
+    def test_empty_base_dataset(self, nfi_rnd_kit):
         base = SimpleDataset(data=[])
         ds = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120, preprocess=False,
         )
         assert len(ds) == 0
 
-    def test_include_max_pool_dyes(self):
+    def test_include_max_pool_dyes(self, nfi_rnd_kit):
         base = self._make_base_dataset(n_images=1)
         ds = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120,

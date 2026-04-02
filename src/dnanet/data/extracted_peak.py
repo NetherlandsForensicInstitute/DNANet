@@ -18,17 +18,10 @@ Design pattern: **Value Object**
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
 import numpy as np
-import scipy.interpolate
 
 from dnanet.core import Annotation, ClassAnnotation
-
-if TYPE_CHECKING:
-    from dnanet.data.image import HIDImage, TrainableElement
-    from dnanet.core.marker import Marker
-
+from dnanet.data.image import TrainableElement
 
 
 class ExtractedPeak(TrainableElement):
@@ -98,12 +91,6 @@ class ExtractedPeak(TrainableElement):
         """Whether this peak is labeled as an allele."""
         return self.label == "allele"
 
-    def __repr__(self) -> str:
-        return (
-            f"ExtractedPeak(dye={self.dye_index}, center={self.peak_center}, "
-            f"bp={self.peak_basepair:.1f}, label={self.label!r}, "
-            f"marker={self.marker_name!r})"
-        )
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ExtractedPeak):
