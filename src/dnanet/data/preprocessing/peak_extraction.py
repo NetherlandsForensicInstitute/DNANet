@@ -233,7 +233,7 @@ def _label_peak_from_annotation_fast(
         # take the most common class in the slice
         # if there is a tie, take the lowest class index
         sorted_idx = np.lexsort((unique, -counts))
-        most_common_value = unique[sorted_idx[0]]
+        most_common_value = int(unique[sorted_idx[0]])
 
         return annotation_classes[most_common_value]
     return annotation_classes[0]
