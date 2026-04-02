@@ -28,38 +28,53 @@ How ladder-based panel adjustment works:
 from __future__ import annotations
 
 import csv
-from collections import defaultdict
-from dataclasses import dataclass, field
-from functools import cache
+import typing
 from pathlib import Path
+from functools import cache
+from collections import defaultdict
+from dataclasses import field, dataclass
 
 import numpy as np
 from loguru import logger
 from scipy.signal import find_peaks
 
+from dnanet.core.panel import Panel
+from dnanet.data.image import HIDImage
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.core.panel import Panel
-from dnanet.core.types import PathLike
-from dnanet.data.image import HIDImage
 from dnanet.data.strategies.registry import StrategyRegistry
 
+
+if typing.TYPE_CHECKING:
+    from dnanet.core.types import PathLike
 
 # ---------------------------------------------------------------------------
 # Ladder allele catalog (loaded from CSV once)
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class LadderAlleleCatalog:
     """Catalog of alleles expected in a ladder, organized by dye row.
 
     Loaded from a CSV file with columns: Marker, Allele, Dye.
-    
-    Note: This is a separate class to prevent multiple I/O operations for reading the 
+
+    Note: This is a separate class to prevent multiple I/O operations for reading the
     same CSV file and allow the use of the csv's information inside the Ladder class.
     """
 
     alleles_by_dye: dict[int, list[tuple[str, str]]] = field(default_factory=dict)
+
+    @classmethod
+    def from_file(cls, path: PathLike) -> LadderAlleleCatalog:
+        """Load ladder allele definitions from a file."""
+        match Path(path).suffix:
+            case '.csv':
+                return cls.from_csv(path)
+            case '.xlsx':
+                return cls.from_xlsx(path)
+            case suffix:
+                raise ValueError(f'Ladder allele mapping file unsupported: {suffix}')
 
     @classmethod
     def from_csv(cls, path: PathLike) -> LadderAlleleCatalog:
@@ -69,26 +84,42 @@ class LadderAlleleCatalog:
             path: Path to CSV with columns ``Marker``, ``Allele``, ``Dye``.
         """
         alleles: dict[int, list[tuple[str, str]]] = defaultdict(list)
-        with open(path, newline="", encoding="utf-8") as f:
+        with open(path, newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                dye = int(row["Dye"])
-                alleles[dye].append((row["Marker"], row["Allele"]))
+                dye = int(row['Dye'])
+                alleles[dye].append((row['Marker'], row['Allele']))
         return cls(alleles_by_dye=dict(alleles))
+
+    @classmethod
+    def from_xlsx(cls, path: PathLike) -> LadderAlleleCatalog:
+        # FIXME: This should (maybe) be part of the DStrategy?
+        logger.error(f'Cannot load xlsx file yet: {path}')
+        raise NotImplemented
 
     def expected_count(self, dye_row: int) -> int:
         """Number of alleles expected on a given dye row."""
         return len(self.alleles_by_dye.get(dye_row, []))
-    
+
     def __hash__(self):
+        """Create a hash of the catalog based on the dye and alleles in the catalog.
+
+        Returns:
+            A hash based on the dye and alleles of the alleles_by_dye property.
+        """
         return hash(
-            tuple(
-                (dye, tuple(alleles))
-                for dye, alleles in sorted(self.alleles_by_dye.items())
-            )
+            tuple((dye, tuple(alleles)) for dye, alleles in sorted(self.alleles_by_dye.items()))
         )
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
+        """Compare two catalogs based on the alleles_by_dye.
+
+        Args:
+            other: The other catalog to compare to.
+
+        Returns:
+            Whether both alleles_by_dye properties match.
+        """
         if not isinstance(other, LadderAlleleCatalog):
             return NotImplemented
         return self.alleles_by_dye == other.alleles_by_dye
@@ -97,6 +128,7 @@ class LadderAlleleCatalog:
 # ---------------------------------------------------------------------------
 # Ladder
 # ---------------------------------------------------------------------------
+
 
 class Ladder:
     """Calibration ladder for base-pair panel adjustment.
@@ -111,16 +143,14 @@ class Ladder:
         adjusted_panel: Panel with base-pairs adjusted from ladder peaks.
                         ``None`` if peak detection failed.
     """
-    
+
     @classmethod
     @cache
     def create_adjusted_panel(
-        cls,
-        ladder_path: PathLike,
-        catalog: LadderAlleleCatalog
+        cls, ladder_path: PathLike, catalog: LadderAlleleCatalog
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
-        
+
         This uses the Kit Strategies 'original' Panel to scale.
 
         Args:
@@ -130,34 +160,31 @@ class Ladder:
         Returns:
             The adjusted panel
         """
-        
         ladder_image = HIDImage(
             path=ladder_path,
-            data_loading_strategy="analyzed",
-            include_size_standard=True
+            data_loading_strategy='analyzed',
+            include_size_standard=True,
+            load_in_memory=False,
         )
         if ladder_image.data is None:
-            raise ValueError("Ladder is invalid")
-        
+            raise ValueError('Ladder is invalid')
+
         scaling_strategy = StrategyRegistry.get_scaling_strategy()
         num_dyes = scaling_strategy.kit.num_dyes
         default_panel = scaling_strategy.panel
-        
+
         detected_peaks = cls._find_all_peaks(
-            data=ladder_image.data,
-            catalog=catalog,
-            num_dyes=num_dyes,
-            path=ladder_image.path
+            data=ladder_image.data, catalog=catalog, num_dyes=num_dyes, path=ladder_image.path
         )
         if detected_peaks is None:
             return None
-        
+
         adjusted_panel = cls._adjust_panel(
             detected_peaks,
             catalog=catalog,
             scaler=ladder_image.scaler,
             default_panel=default_panel,
-            num_dyes=num_dyes
+            num_dyes=num_dyes,
         )
         return adjusted_panel
 
@@ -186,8 +213,11 @@ class Ladder:
             expected = catalog.expected_count(dye_row)
             if len(peaks) != expected:
                 logger.warning(
-                    "Ladder {}: dye {} expected {} peaks, found {}",
-                    path.name, dye_row, expected, len(peaks),
+                    'Ladder {}: dye {} expected {} peaks, found {}',
+                    path.name,
+                    dye_row,
+                    expected,
+                    len(peaks),
                 )
                 return None
 
@@ -216,23 +246,17 @@ class Ladder:
 
         for dye_row in range(num_dyes):
             catalog_alleles = catalog.alleles_by_dye.get(dye_row, [])
-            panel_markers = [
-                m for m in default_panel.markers if m.dye_row == dye_row
-            ]
+            panel_markers = [m for m in default_panel.markers if m.dye_row == dye_row]
 
             # Build mapping: (marker_name, allele_name) → base_pair from ladder
             marker_allele_to_bp: dict[tuple[str, str], float] = {}
             for (marker_name, allele_name), peak_idx in zip(
-                catalog_alleles, peak_indices[dye_row]
+                catalog_alleles, peak_indices[dye_row], strict=True
             ):
-                marker_allele_to_bp[(marker_name, allele_name)] = float(
-                    scaler[peak_idx]
-                )
+                marker_allele_to_bp[(marker_name, allele_name)] = float(scaler[peak_idx])
 
             for marker in panel_markers:
-                adjusted_alleles = cls._adjust_marker_alleles(
-                    marker, marker_allele_to_bp
-                )
+                adjusted_alleles = cls._adjust_marker_alleles(marker, marker_allele_to_bp)
                 adjusted_markers.append(
                     Marker(
                         name=marker.name,
@@ -272,9 +296,7 @@ class Ladder:
                 )
             else:
                 # Inter/extrapolate from neighboring alleles
-                extrapolated = cls._extrapolate_allele(
-                    marker, allele, idx, marker_allele_to_bp
-                )
+                extrapolated = cls._extrapolate_allele(marker, allele, idx, marker_allele_to_bp)
                 adjusted.append(extrapolated)
 
         return adjusted
@@ -316,4 +338,3 @@ class Ladder:
             left_bin=allele.left_bin,
             right_bin=allele.right_bin,
         )
-

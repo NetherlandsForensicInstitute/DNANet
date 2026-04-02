@@ -31,22 +31,25 @@ Usage::
 from __future__ import annotations
 
 import random
+import typing
+from typing import List, Tuple, Optional, Generator, Any
 from pathlib import Path
-from typing import Generator, Any
-from typing import List, Optional, Tuple
 
 import numpy as np
 from loguru import logger
 from torch.utils.data import Dataset
 
-from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
-from dnanet.core.panel import Panel
-from dnanet.core.types import PathLike
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
+from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.transformer import TransformDataCallable
+
+
+if typing.TYPE_CHECKING:
+    from dnanet.core.panel import Panel
+    from dnanet.core.types import PathLike
 
 
 class HIDDataset(Dataset):
@@ -80,13 +83,14 @@ class HIDDataset(Dataset):
         scaling_strategy: str,
         dataset_strategy: str,
         ladder_alleles_csv: PathLike | None = None,
-        analysis_threshold_type: str = "DTH",
+        analysis_threshold_type: str = 'DTH',
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
         skip_if_invalid_ladder: bool = False,
         include_size_standard: bool = False,
         data_loading_strategy: str = "superior",
         transform: TransformDataCallable | None = None,
+        load_in_memory: bool = False,
     ) -> None:
         super().__init__()
 
@@ -99,12 +103,13 @@ class HIDDataset(Dataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.include_size_standard = include_size_standard
         self.data_loading_strategy = data_loading_strategy
+        self.load_in_memory = load_in_memory
         self.transform = transform
 
-        if adjustment_of_annotations and adjustment_of_annotations not in ("top", "complete"):
+        if adjustment_of_annotations and adjustment_of_annotations not in ('top', 'complete'):
             raise ValueError(
                 f"adjustment_of_annotations must be 'top' or 'complete', "
-                f"got {adjustment_of_annotations!r}"
+                f'got {adjustment_of_annotations!r}'
             )
 
         # Get strategies from registry
@@ -118,14 +123,12 @@ class HIDDataset(Dataset):
         #     self._ladder_paths = self._load_ladder_paths(Path(best_ladder_paths_csv))
         #     logger.info("Loaded {} ladder path mappings", len(self._ladder_paths))
 
-        # # Load ladder allele catalog
-        self._ladder_catalog: LadderAlleleCatalog | None = None
-        if ladder_alleles_csv:
-            self._ladder_catalog = LadderAlleleCatalog.from_csv(Path(ladder_alleles_csv))
+        # Load ladder allele catalog
+        self._ladder_catalog = LadderAlleleCatalog.from_file(Path(ladder_alleles_csv))
 
         # Collect files, apply limit, load images
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root))
-        logger.info("Found {} sample files to process", len(file_entries))
+        logger.info('Found {} sample files to process', len(file_entries))
 
 
         self._data: List[HIDImage] = list(self._load_images(file_entries))
@@ -136,11 +139,11 @@ class HIDDataset(Dataset):
 
         if len(self._data) == 0:
             raise ValueError(
-                f"No valid HID images found in {self.root}. "
-                f"Check paths and StrategyRegistry configuration."
+                f'No valid HID images found in {self.root}. '
+                f'Check paths and StrategyRegistry configuration.'
             )
 
-        logger.info("Loaded {} valid HID images", len(self._data))
+        logger.info('Loaded {} valid HID images', len(self._data))
 
     # -- Image loading ----------------------------------------------------- #
 
@@ -163,8 +166,7 @@ class HIDDataset(Dataset):
             _current_panel = self._default_panel
             if ladder_path:
                 adjusted = Ladder.create_adjusted_panel(
-                    ladder_path=ladder_path,
-                    catalog=self._ladder_catalog
+                    ladder_path=ladder_path, catalog=self._ladder_catalog
                 )
                 if adjusted:
                     _current_panel = adjusted
@@ -178,19 +180,18 @@ class HIDDataset(Dataset):
                 adjusted_panel=_current_panel,
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,
+                load_in_memory=self.load_in_memory,
             )
 
             # Trigger lazy load and validate
             if image.data is None:
                 skipped_data += 1
-                logger.debug("Skipping {}: no data", path.name)
+                logger.debug('Skipping {}: no data', path.name)
                 continue
 
             if isinstance(annotation, AlleleAnnotation):
                 scanpoint_annotation = self._translate_allele_to_scanpoint_annotation(
-                    allele_annotation=annotation,
-                    adjusted_panel=_current_panel,
-                    scaler=image.scaler
+                    allele_annotation=annotation, adjusted_panel=_current_panel, scaler=image.scaler
                 )
             else:
                 scanpoint_annotation = annotation
@@ -198,37 +199,35 @@ class HIDDataset(Dataset):
 
             if self.adjustment_of_annotations:
                 scanpoint_annotation = self._adjust_annotations(
-                    [image],
-                    [scanpoint_annotation],
-                    adjustment_type=self.adjustment_of_annotations
+                    [image], [scanpoint_annotation], adjustment_type=self.adjustment_of_annotations
                 )
 
             image.annotation = scanpoint_annotation
 
             if image.annotation is None:
                 skipped_alleles += 1
-                logger.debug("{}: no annotation/called alleles", path.name)
+                logger.debug('{}: no annotation/called alleles', path.name)
 
             loaded += 1
             if loaded % 50 == 0:
-                logger.info("Loaded {}/{} images...", loaded, len(file_entries))
+                logger.info('Loaded {}/{} images...', loaded, len(file_entries))
 
             yield image
 
         if skipped_data:
-            logger.warning("Skipped {} images with missing data", skipped_data)
+            logger.warning('Skipped {} images with missing data', skipped_data)
         if skipped_alleles:
-            logger.warning("Skipped {} images with missing annotations", skipped_alleles)
+            logger.warning('Skipped {} images with missing annotations', skipped_alleles)
         if skipped_ladder:
-            logger.warning("Skipped {} images with invalid ladders", skipped_ladder)
+            logger.warning('Skipped {} images with invalid ladders', skipped_ladder)
 
     @staticmethod
     def _translate_allele_to_scanpoint_annotation(
-        allele_annotation: AlleleAnnotation,
-        adjusted_panel: Panel, scaler: np.ndarray
+        allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray
     ) -> ScanpointAnnotation:
-        """
-        Translates allele annotation to scanpoint annotation by finding the closest scanpoint indices for the left and right bins
+        """Translates allele annotation to scanpoint annotation.
+
+        Achieves this by finding the closest scanpoint indices for the left and right bins
         of each allele using the provided scaler and adjusted panel. The entire allelic bin is annotated as 1.
 
         All non-annotated scanpoints are labeled as 0, while annotated scanpoints are labeled as 1.
@@ -239,29 +238,37 @@ class HIDDataset(Dataset):
             :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
             :return: ScanpointAnnotation object containing the translated scanpoint annotation.
         """
-        scanpoint_annotation = np.zeros((StrategyRegistry.get_scaling_strategy().kit.num_dyes,
-                                         StrategyRegistry.get_scaling_strategy().scanpoint_resolution), dtype=np.int8)
+        scanpoint_annotation = np.zeros(
+            (
+                StrategyRegistry.get_scaling_strategy().kit.num_dyes,
+                StrategyRegistry.get_scaling_strategy().scanpoint_resolution,
+            ),
+            dtype=np.int8,
+        )
         for locus in allele_annotation.data:
             for allele in locus.alleles:
                 # for each allele, find the left and right bin of the allele using the panel that has been adjusted by the corresponding ladder.
-                _, left_bin, right_bin = adjusted_panel.get_allele_basepair_and_bins(locus.name, allele.name)
+                _, left_bin, right_bin = adjusted_panel.get_allele_basepair_and_bins(
+                    locus.name, allele.name
+                )
 
                 # use the scaler to find the closest scanpoint indices for the left and right bins of the allele
                 left_scanpoint = np.argmin(np.abs(scaler - left_bin))
                 right_scanpoint = np.argmin(np.abs(scaler - right_bin))
 
-                scanpoint_annotation[locus.dye_row, left_scanpoint : right_scanpoint] = 1
+                scanpoint_annotation[locus.dye_row, left_scanpoint:right_scanpoint] = 1
 
         return ScanpointAnnotation(data=scanpoint_annotation)
 
     @staticmethod
-    def _adjust_annotations(profiles: List[HIDImage],
-                            annotations: List[Optional[ScanpointAnnotation]],
-                            adjustment_type: str = 'top',
-                            threshold: int = 40
-                            ) -> List[Optional[ScanpointAnnotation]]:
-        """
-        Adjust the annotation of the image.
+    def _adjust_annotations(
+        profiles: List[HIDImage],
+        annotations: List[Optional[ScanpointAnnotation]],
+        adjustment_type: str = 'top',
+        threshold: int = 40,
+    ) -> List[Optional[ScanpointAnnotation]]:
+        """Adjust the annotation of the image.
+
         If `adjustment_type` is 'top', (by default) we label the top of the peak, instead of the
         entire bin. If the type is 'complete', we find the entire peak and label this.
         Note that the original image annotations are overwritten in place.
@@ -270,49 +277,66 @@ class HIDDataset(Dataset):
 
         assert len(profiles) == len(annotations)
 
-        for profile, annotation in zip(profiles, annotations):
+        for profile, annotation in zip(profiles, annotations, strict=True):
             if annotation is None:
                 continue
             if profile.data is None:
                 continue
-
 
             for dye_idx, dye_data in enumerate(profile.data):
                 # find indices of groups of positive annotations
                 _annotations = np.where(annotation.data[dye_idx] == 1)[0]
                 if _annotations.size == 0:  # no annotation present in this dye
                     continue
-                annotation_groups = np.split(_annotations, np.where(np.diff(_annotations) != 1)[0] + 1)
+                annotation_groups = np.split(
+                    _annotations, np.where(np.diff(_annotations) != 1)[0] + 1
+                )
                 for ann_group in annotation_groups:
-                    annotation.data[dye_idx, ann_group] = 0.
+                    annotation.data[dye_idx, ann_group] = 0.0
                     peak_idx = find_peak_idx_near_or_in_range(dye_data, ann_group, threshold)
 
                     if peak_idx.size == 0:
-                        logger.warning(f"No peak found above {threshold}rfu. "
-                                       f"Original annotation is removed "
-                                       "and no adjustment is applied "
-                                       f"(dye {dye_idx}, bin {ann_group}, "
-                                       f"rfus {dye_data[ann_group].flatten()}).")
+                        logger.warning(
+                            f'No peak found above {threshold}rfu. '
+                            f'Original annotation is removed '
+                            'and no adjustment is applied '
+                            f'(dye {dye_idx}, bin {ann_group}, '
+                            f'rfus {dye_data[ann_group].flatten()}).'
+                        )
                     else:
                         if adjustment_type == 'complete':
                             # find the boundary of the peak and annotate the range
-                            start, end = find_peak_boundary(dye_data, int(peak_idx),
-                                                            threshold)
-                            annotation.data[dye_idx, np.arange(start, end + 1)] = 1.
+                            start, end = find_peak_boundary(dye_data, int(peak_idx), threshold)
+                            annotation.data[dye_idx, np.arange(start, end + 1)] = 1.0
                         elif adjustment_type == 'top':
                             # label only the top of the peak
-                            annotation.data[dye_idx, peak_idx] = 1.
+                            annotation.data[dye_idx, peak_idx] = 1.0
                         else:
-                            raise ValueError("Unknown adjustment type found: "
-                                             f"{adjustment_type}. Please provide"
-                                             " either `top` or `complete`.")
+                            raise ValueError(
+                                'Unknown adjustment type found: '
+                                f'{adjustment_type}. Please provide'
+                                ' either `top` or `complete`.'
+                            )
         return annotations
 
+    @property
+    def data(self) -> List[HIDImage]:
+        """Protected property list of HIDImages in the dataset."""
+        return self._data
 
     # -- Dunder ----------------------------------------------------------- #
 
+    def __getitem__(self, index) -> HIDImage:
+        """Itemgetter for the dataset."""
+        return self._data[index]
+
+    def __len__(self) -> int:
+        """Length of the dataset."""
+        return len(self._data)
+
     def __repr__(self) -> str:
-        return f"HIDDataset(root={self.root.name}, n={len(self._data)})"
+        """String representation of the dataset, containing the root path and length."""
+        return f'HIDDataset(root={self.root.name}, n={len(self._data)})'
 
     def __getitem__(self, index: int) -> Any:
         item = self._data[index]
