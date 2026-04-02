@@ -144,7 +144,6 @@ class ReconstructionTransformer(TransformDataCallable):
 @dataclass
 class PeakClassificationTransformer(TransformDataCallable):
     include_marker: bool = True
-    label_to_idx: dict = None
 
     def __call__(self, peak: ExtractedPeak) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = peak.data

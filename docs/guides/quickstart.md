@@ -1,3 +1,5 @@
+from dnanet.data import HIDDataset
+
 # Quick Start
 
 This guide walks through training your first model with DNANet.
@@ -67,8 +69,7 @@ For notebooks or custom scripts:
 
 ```python
 from hydra import compose, initialize
-from dnanet.data.loading import load_dataset
-from dnanet.tasks.train import run_with_data
+from dnanet.tasks.train import run
 
 # Compose config
 with initialize(config_path="../conf"):
@@ -80,10 +81,10 @@ with initialize(config_path="../conf"):
     ])
 
 # Load dataset
-dataset = load_dataset(cfg.data)
+dataset = HIDDataset(...)
 print(f"Loaded {len(dataset)} images")
 print(f"Shape: {dataset[0].data.shape}")  # (5, 4096, 1)
 
 # Train
-trainer, module = run_with_data(cfg, dataset)
+trainer, module = run(cfg, dataset)
 ```

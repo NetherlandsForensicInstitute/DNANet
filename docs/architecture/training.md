@@ -1,3 +1,5 @@
+from dnanet.data import HIDDataset
+
 # Training
 
 Training is orchestrated by PyTorch Lightning via the `dnanet/tasks/train.py`
@@ -82,14 +84,14 @@ evaluation:
 ## Programmatic API
 
 ```python
-from dnanet.data.loading import load_dataset
-from dnanet.tasks.train import run_with_data
+
+from dnanet.tasks.train import run
 
 # Load data
-dataset = load_dataset(cfg.data)
+dataset = HIDDataset(...)
 
 # Train (returns trainer + module for further use)
-trainer, module = run_with_data(cfg, dataset)
+trainer, module = run(cfg, dataset)
 
 # Access best checkpoint
 best_ckpt = trainer.checkpoint_callback.best_model_path

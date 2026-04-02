@@ -24,13 +24,13 @@ from __future__ import annotations
 from pathlib import Path
 
 import lightning as L
-from loguru import logger
-from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
+from loguru import logger
+from omegaconf import OmegaConf, DictConfig
+from torch.utils.data import Dataset
 
-from dnanet.data.dataset import InMemoryDataset
-
+from dnanet.data.datamodule import DNANetDataModule
 
 # ---------------------------------------------------------------------------
 # Module registry: maps training type to Lightning module class
@@ -164,85 +164,6 @@ def _build_module(
     return ModuleClass(**kwargs)
 
 
-def _build_datamodule(
-    cfg: DictConfig,
-    dataset: InMemoryDataset,
-) -> L.LightningDataModule:
-    """Build the appropriate DataModule for the training type.
-
-    Automatically selects the right DataModule based on the training type:
-    - ``segmentation`` → :class:`DNANetDataModule` (full images)
-    - ``classification`` → :class:`PeakDataModule` (peak windows)
-    - ``peaknet`` → :class:`PeakNetDataModule` (full images + peaks)
-    - ``reconstruction`` → :class:`ReconstructionDataModule` (preprocessed)
-    """
-    training_type = cfg.training.get('type', 'segmentation')
-
-    common_kwargs = dict(
-        batch_size=cfg.training.batch_size,
-        val_fraction=cfg.training.get('val_fraction', 0.2),
-        num_workers=cfg.training.get('num_workers', 0),
-        seed=cfg.seed,
-    )
-
-    if training_type == 'peaknet':
-        from dnanet.data.datamodule import PeakNetDataModule
-
-        return PeakNetDataModule(
-            dataset=dataset,
-            peak_threshold=cfg.model.get('peak_threshold', 25),
-            window_size=cfg.model.get('window_size', 120),
-            include_max_pool_dyes=cfg.model.architecture.get(
-                'peak_classifier',
-                {},
-            ).get('include_max_pool_dyes', False),
-            **common_kwargs,
-        )
-
-    elif training_type == 'classification':
-        # Check if we have a pre-extracted PeakWindowDataset
-        from dnanet.data.peak_dataset import PeakWindowDataset
-
-        if isinstance(dataset, PeakWindowDataset):
-            from dnanet.data.datamodule import PeakDataModule
-
-            return PeakDataModule(dataset=dataset, **common_kwargs)
-
-        # Otherwise create PeakWindowDataset on the fly from HID profiles
-        peak_cfg = cfg.data.get('peak_extraction', {})
-        peak_dataset = PeakWindowDataset(
-            base_dataset=dataset,
-            threshold=peak_cfg.get('threshold', 40),
-            window_size=peak_cfg.get('window_size', 120),
-            include_max_pool_dyes=peak_cfg.get('include_max_pool_dyes', False),
-            preprocess=peak_cfg.get('preprocess', True),
-            smooth_keep_factor=peak_cfg.get('smooth_keep_factor', 0.4),
-            log_scale=peak_cfg.get('log_scale', True),
-            max_rfu_value=peak_cfg.get('max_rfu_value', 32768),
-            use_ground_truth=peak_cfg.get('use_ground_truth', True),
-        )
-        from dnanet.data.datamodule import PeakDataModule
-
-        return PeakDataModule(dataset=peak_dataset, **common_kwargs)
-
-    elif training_type == 'reconstruction':
-        from dnanet.data.datamodule import ReconstructionDataModule
-
-        preprocessing = cfg.data.get('preprocessing', {})
-        return ReconstructionDataModule(
-            dataset=dataset,
-            log_scale=True,
-            max_rfu=preprocessing.get('max_rfu_value', None),
-            n_dyes=cfg.model.architecture.get('in_channels', 5),
-            **common_kwargs,
-        )
-
-    else:
-        # Default: segmentation
-        from dnanet.data.datamodule import DNANetDataModule
-
-        return DNANetDataModule(dataset=dataset, **common_kwargs)
-
 
 def _load_pretrained_weights(network, cfg: DictConfig) -> None:
     """Load pre-trained sub-model weights if checkpoint paths are given.
@@ -295,12 +216,17 @@ def _save_config(cfg: DictConfig, output_dir: str) -> None:
     logger.info('Config saved to {}', config_path)
 
 
-def run(cfg: DictConfig) -> tuple[L.Trainer, L.LightningModule]:
+def run(
+        cfg: DictConfig,
+        dataset: Dataset | None = None,
+        ) -> tuple[L.Trainer, L.LightningModule]:
     """Run model training.
 
     Args:
         cfg: Composed Hydra config with sections: model, training, data,
             logging, seed, output_dir.
+        dataset: The dataset to use, when none is specified, the dataset
+            is loaded from the config.
 
     Returns:
         Tuple of (trainer, module) for programmatic access.
@@ -330,13 +256,19 @@ def run(cfg: DictConfig) -> tuple[L.Trainer, L.LightningModule]:
         logger.info('Will resume training from checkpoint: {}', ckpt_path)
 
     # -- Data --------------------------------------------------------------
-    datamodule = None
-    data_cfg = cfg.get('data')
-    if data_cfg and data_cfg.get('root'):
-        from dnanet.data.loading import load_dataset
 
-        dataset = load_dataset(data_cfg)
-        datamodule = _build_datamodule(cfg, dataset)
+
+    if not dataset:
+        data_cfg = cfg.get('data')
+        dataset = instantiate(data_cfg.dataset)
+
+    datamodule = DNANetDataModule(
+        dataset=dataset,
+        batch_size=cfg.training.get("batch_size", 16),
+        val_fraction=cfg.training.get("val_fraction", 0.2),
+        num_workers=cfg.training.get("num_workers", 0),
+        seed=cfg.get("seed", 42),
+    )
 
     logger.info(
         'Training config: {} epochs, lr={}, batch_size={}',
@@ -351,7 +283,7 @@ def run(cfg: DictConfig) -> tuple[L.Trainer, L.LightningModule]:
         callbacks=_build_callbacks(cfg),
         logger=_build_logger(cfg),
         default_root_dir=cfg.output_dir,
-        deterministic=True,
+        deterministic=False,
         enable_progress_bar=True,
         log_every_n_steps=10,
     )
@@ -366,61 +298,5 @@ def run(cfg: DictConfig) -> tuple[L.Trainer, L.LightningModule]:
             'No data config found. Use run_with_data() or '
             'pass a data config group (e.g. data=dnanet_rd).'
         )
-
-    return trainer, module
-
-
-def run_with_data(
-    cfg: DictConfig,
-    dataset: InMemoryDataset,
-) -> tuple[L.Trainer, L.LightningModule]:
-    """Run training with a pre-loaded dataset.
-
-    This is the primary programmatic entry point. It builds the full
-    training pipeline and actually trains the model.
-
-    Args:
-        cfg: Composed Hydra config.
-        dataset: A loaded :class:`~dnanet.data.dataset.InMemoryDataset`.
-
-    Returns:
-        Tuple of (trainer, module) after training completes.
-    """
-    L.seed_everything(cfg.seed, workers=True)
-
-    # -- Model architecture + loss -----------------------------------------
-    model_cfg = cfg.model
-    network = instantiate(model_cfg.architecture)
-    loss_fn = instantiate(model_cfg.loss)
-
-    _load_pretrained_weights(network, cfg)
-
-    logger.info('Model: {}', type(network).__name__)
-    logger.info(
-        'Parameters: {:,}',
-        sum(p.numel() for p in network.parameters()),
-    )
-
-    # -- Lightning module --------------------------------------------------
-    module = _build_module(cfg, network, loss_fn)
-
-    # -- Data --------------------------------------------------------------
-    datamodule = _build_datamodule(cfg, dataset)
-
-    # -- Trainer -----------------------------------------------------------
-    trainer = L.Trainer(
-        max_epochs=cfg.training.max_epochs,
-        callbacks=_build_callbacks(cfg),
-        logger=_build_logger(cfg),
-        default_root_dir=cfg.output_dir,
-        deterministic=True,
-        enable_progress_bar=True,
-        log_every_n_steps=10,
-    )
-
-    ckpt_path = cfg.get('checkpoint')
-    trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
-    logger.info('Training complete!')
-    _save_config(cfg, cfg.output_dir)
 
     return trainer, module

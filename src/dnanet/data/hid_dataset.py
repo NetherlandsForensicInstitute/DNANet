@@ -64,15 +64,11 @@ class HIDDataset(Dataset):
 
     Args:
         root: Root directory containing HID files (searched recursively).
-        annotations_path: Directory containing annotation TXT files.
-        hid_to_annotations_path: CSV mapping HID filenames to annotation names.
-        best_ladder_paths_csv: CSV mapping sample stems to best ladder paths.
         ladder_alleles_csv: CSV with expected ladder alleles per dye.
         analysis_threshold_type: ``"DTH"`` (high) or ``"DTL"`` (low).
         adjustment_of_annotations: ``"top"`` or ``"complete"`` peak adjustment,
             or ``None`` to skip.
         limit: Maximum number of images to load.
-        shuffle: Randomize iteration order.
         skip_if_invalid_ladder: Skip images whose ladder fails to parse.
         include_size_standard: Include the 6th dye channel in the data.
         data_loading_strategy: ``"raw"``, ``"analyzed"``, or ``"superior"``.
@@ -81,19 +77,21 @@ class HIDDataset(Dataset):
     def __init__(
         self,
         root: PathLike,
-        hid_to_annotations_path: PathLike | None = None,
-        best_ladder_paths_csv: PathLike | None = None,
+        scaling_strategy: str,
+        dataset_strategy: str,
         ladder_alleles_csv: PathLike | None = None,
         analysis_threshold_type: str = "DTH",
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
-        shuffle: bool = False,
         skip_if_invalid_ladder: bool = False,
         include_size_standard: bool = False,
         data_loading_strategy: str = "superior",
         transform: TransformDataCallable | None = None,
     ) -> None:
         super().__init__()
+
+        StrategyRegistry.configure_kit(scaling_strategy)
+        StrategyRegistry.configure_dataset(dataset_strategy)
 
         self.root = Path(root)
         self.analysis_threshold_type = analysis_threshold_type
@@ -129,12 +127,12 @@ class HIDDataset(Dataset):
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root))
         logger.info("Found {} sample files to process", len(file_entries))
 
-        if limit and shuffle:
-            file_entries = random.sample(file_entries, min(limit, len(file_entries)))
-        elif limit:
-            file_entries = file_entries[:limit]
 
         self._data: List[HIDImage] = list(self._load_images(file_entries))
+
+        if limit:
+            self._data = random.sample(self._data, min(limit, len(self._data)))
+            logger.info("Limiting to {} files (random sample)", len(self._data))
 
         if len(self._data) == 0:
             raise ValueError(
@@ -196,7 +194,7 @@ class HIDDataset(Dataset):
                 )
             else:
                 scanpoint_annotation = annotation
-            image.annotation = scanpoint_annotation
+
 
             if self.adjustment_of_annotations:
                 scanpoint_annotation = self._adjust_annotations(
@@ -204,6 +202,8 @@ class HIDDataset(Dataset):
                     [scanpoint_annotation],
                     adjustment_type=self.adjustment_of_annotations
                 )
+
+            image.annotation = scanpoint_annotation
 
             if image.annotation is None:
                 skipped_alleles += 1

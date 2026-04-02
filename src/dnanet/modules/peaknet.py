@@ -19,12 +19,13 @@ from __future__ import annotations
 from typing import Any
 
 import torch
-import lightning as L
 import torchmetrics
 from torch import Tensor, nn
 
+from dnanet.modules.base import BaseTaskModule
 
-class PeakNetModule(L.LightningModule):
+
+class PeakNetModule(BaseTaskModule):
     """PyTorch Lightning module for combined PeakNet.
 
     Handles:
@@ -51,13 +52,18 @@ class PeakNetModule(L.LightningModule):
         weight_decay: float = 5e-4,
         scheduler_gamma: float = 1.0,
     ) -> None:
-        super().__init__()
-        self.save_hyperparameters(ignore=['model', 'loss_fn'])
+        super().__init__(model=model, loss_fn=loss_fn)
+        self.save_hyperparameters({
+            "num_classes": num_classes,
+            "learning_rate": learning_rate,
+            "weight_decay": weight_decay,
+            "scheduler_gamma": scheduler_gamma,
+        })
+        self.initialize_metrics()
 
-        self.model = model
-        self.loss_fn = loss_fn
-
-        metrics = torchmetrics.MetricCollection(
+    def build_metrics(self) -> torchmetrics.MetricCollection:
+        num_classes = int(self.hparams.num_classes)
+        return torchmetrics.MetricCollection(
             {
                 'accuracy': torchmetrics.classification.MulticlassAccuracy(
                     num_classes=num_classes,
@@ -69,36 +75,25 @@ class PeakNetModule(L.LightningModule):
                 ),
             }
         )
-        self.train_metrics = metrics.clone(prefix='train/')
-        self.val_metrics = metrics.clone(prefix='val/')
 
-    def forward(
+    def compute_step_outputs(
         self,
-        full_image: Tensor,
-        peak_windows: Tensor,
-        marker_idxs: Tensor,
-        peak_centers: Tensor,
-        peak_counts: Tensor,
-    ) -> Tensor:
-        return self.model(
-            full_image,
+        batch: tuple[Tensor, ...],
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """Compute per-position loss and metric inputs.
+
+        Accepts either the nested output of
+        :meth:`dnanet.data.transformer.CombinedTransformer.collate_fn`,
+        ``((full_images, peak_windows, marker_idxs, peak_centers, peak_counts), targets)``,
+        or the equivalent flattened 6-item tuple.
+        """
+        (
+            full_images,
             peak_windows,
             marker_idxs,
             peak_centers,
             peak_counts,
-        )
-
-    def _shared_step(
-        self,
-        batch: tuple[Tensor, ...],
-        stage: str,
-    ) -> Tensor:
-        """Compute per-position loss and update metrics.
-
-        Expects batch from :func:`~dnanet.data.datamodule.peaknet_collate_fn`:
-        ``(full_images, peak_windows, marker_idxs, peak_centers, peak_counts, targets)``
-        """
-        full_images, peak_windows, marker_idxs, peak_centers, peak_counts, targets = batch
+        ), targets = self._split_batch(batch, require_targets=True)
 
         # Forward: (N, K, C, L)
         logits = self.model(
@@ -112,57 +107,61 @@ class PeakNetModule(L.LightningModule):
         # Loss: CrossEntropyLoss expects (N, K, ...) logits and (N, ...) targets
         # logits: (N, K, C, L) → reshape to (N*C*L, K)
         # targets: (N, C, L) → reshape to (N*C*L,)
-        N, K, C, L_dim = logits.shape
-        logits_flat = logits.permute(0, 2, 3, 1).reshape(-1, K)
+        num_classes = logits.shape[1]
+        logits_flat = logits.permute(0, 2, 3, 1).reshape(-1, num_classes)
         targets_flat = targets.reshape(-1)
 
         loss = self.loss_fn(logits_flat, targets_flat)
-        self.log(f'{stage}/loss', loss, prog_bar=True, on_step=False, on_epoch=True)
-
-        # Metrics on argmax predictions
         preds_flat = logits_flat.argmax(dim=1).detach()
-        metrics = self.train_metrics if stage == 'train' else self.val_metrics
-        metrics.update(preds_flat, targets_flat)
+        return loss, preds_flat, targets_flat
 
-        return loss
+    @staticmethod
+    def _split_batch(
+        batch: Any,
+        *,
+        require_targets: bool,
+    ) -> tuple[tuple[Tensor, Tensor, Tensor, Tensor, Tensor], Tensor | None]:
+        if not isinstance(batch, (tuple, list)):
+            raise TypeError("PeakNetModule expects batches to be tuples or lists.")
 
-    def training_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> Tensor:
-        return self._shared_step(batch, 'train')
-
-    def validation_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> None:
-        self._shared_step(batch, 'val')
-
-    def on_train_epoch_end(self) -> None:
-        self.log_dict(self.train_metrics.compute(), prog_bar=False)
-        self.train_metrics.reset()
-
-    def on_validation_epoch_end(self) -> None:
-        self.log_dict(self.val_metrics.compute(), prog_bar=False)
-        self.val_metrics.reset()
-
-    def configure_optimizers(self) -> dict[str, Any]:
-        optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.hparams.learning_rate,
-            weight_decay=self.hparams.weight_decay,
-        )
-
-        config: dict[str, Any] = {'optimizer': optimizer}
-
-        if self.hparams.scheduler_gamma < 1.0:
-            scheduler = torch.optim.lr_scheduler.ExponentialLR(
-                optimizer,
-                gamma=self.hparams.scheduler_gamma,
+        if len(batch) == 2 and isinstance(batch[0], (tuple, list)):
+            inputs = tuple(batch[0])
+            targets = batch[1]
+        elif len(batch) == 6:
+            inputs = tuple(batch[:5])
+            targets = batch[5]
+        elif len(batch) == 5:
+            inputs = tuple(batch)
+            targets = None
+        else:
+            raise ValueError(
+                "PeakNetModule expects a nested (inputs, targets) batch, a flat "
+                "6-item batch, or a 5-item input-only batch.",
             )
-            config['lr_scheduler'] = {
-                'scheduler': scheduler,
-                'interval': 'epoch',
-            }
 
-        return config
+        if len(inputs) != 5:
+            raise ValueError("PeakNetModule requires five input tensors per batch.")
+        if require_targets and targets is None:
+            raise ValueError("PeakNetModule training and validation batches must include targets.")
+
+        full_images, peak_windows, marker_idxs, peak_centers, peak_counts = inputs
+        return (
+            full_images,
+            peak_windows,
+            marker_idxs,
+            peak_centers,
+            peak_counts,
+        ), targets
 
     def predict_step(self, batch: Any, batch_idx: int) -> Tensor:
-        full_images, peak_windows, marker_idxs, peak_centers, peak_counts, _ = batch
+        del batch_idx
+        (
+            full_images,
+            peak_windows,
+            marker_idxs,
+            peak_centers,
+            peak_counts,
+        ), _targets = self._split_batch(batch, require_targets=False)
         logits = self.model(
             full_images,
             peak_windows,

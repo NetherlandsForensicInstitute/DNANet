@@ -15,15 +15,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import lightning as L
-import torch
 import torchmetrics
 from torch import Tensor, nn
 
-from loguru import logger
+from dnanet.modules.base import BaseTaskModule
 
 
-class ReconstructionModule(L.LightningModule):
+class ReconstructionModule(BaseTaskModule):
     """PyTorch Lightning module for autoencoder reconstruction.
 
     Args:
@@ -42,23 +40,23 @@ class ReconstructionModule(L.LightningModule):
         weight_decay: float = 0.0,
         scheduler_gamma: float = 1.0,
     ) -> None:
-        super().__init__()
-        self.save_hyperparameters(ignore=["model", "loss_fn"])
+        super().__init__(model=model, loss_fn=loss_fn or nn.MSELoss())
+        self.save_hyperparameters({
+            "learning_rate": learning_rate,
+            "weight_decay": weight_decay,
+            "scheduler_gamma": scheduler_gamma,
+        })
+        self.initialize_metrics()
 
-        self.model = model
-        self.loss_fn = loss_fn or nn.MSELoss()
-
-        metrics = torchmetrics.MetricCollection({
+    def build_metrics(self) -> torchmetrics.MetricCollection:
+        return torchmetrics.MetricCollection({
             "mse": torchmetrics.regression.MeanSquaredError(),
         })
-        self.train_metrics = metrics.clone(prefix="train/")
-        self.val_metrics = metrics.clone(prefix="val/")
 
-    def forward(self, x: Tensor) -> Tensor:
-        return self.model(x)
-
-    def _shared_step(self, batch: tuple[Tensor, ...], stage: str) -> Tensor:
-        """Compute reconstruction loss.
+    def compute_step_outputs(
+        self, batch: Tensor | tuple[Tensor, ...],
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """Compute reconstruction loss and metric inputs.
 
         Expects batch as ``(input_tensor,)`` or ``(input_tensor, target_tensor)``.
         For autoencoders the target is typically the input itself.
@@ -78,48 +76,9 @@ class ReconstructionModule(L.LightningModule):
             target = target.squeeze(-1)
 
         loss = self.loss_fn(reconstruction, target)
-        self.log(f"{stage}/loss", loss, prog_bar=True, on_step=False, on_epoch=True)
-
-        # Update metrics
-        metrics = self.train_metrics if stage == "train" else self.val_metrics
-        metrics.update(reconstruction.detach().reshape(-1), target.reshape(-1))
-
-        return loss
-
-    def training_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> Tensor:
-        return self._shared_step(batch, "train")
-
-    def validation_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> None:
-        self._shared_step(batch, "val")
-
-    def on_train_epoch_end(self) -> None:
-        self.log_dict(self.train_metrics.compute(), prog_bar=False)
-        self.train_metrics.reset()
-
-    def on_validation_epoch_end(self) -> None:
-        self.log_dict(self.val_metrics.compute(), prog_bar=False)
-        self.val_metrics.reset()
-
-    def configure_optimizers(self) -> dict[str, Any]:
-        optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.hparams.learning_rate,
-            weight_decay=self.hparams.weight_decay,
-        )
-
-        config: dict[str, Any] = {"optimizer": optimizer}
-
-        if self.hparams.scheduler_gamma < 1.0:
-            scheduler = torch.optim.lr_scheduler.ExponentialLR(
-                optimizer, gamma=self.hparams.scheduler_gamma,
-            )
-            config["lr_scheduler"] = {
-                "scheduler": scheduler,
-                "interval": "epoch",
-            }
-
-        return config
+        return loss, reconstruction.detach().reshape(-1), target.reshape(-1)
 
     def predict_step(self, batch: Any, batch_idx: int) -> Tensor:
+        del batch_idx
         x = batch[0] if isinstance(batch, (tuple, list)) else batch
         return self.model(x)

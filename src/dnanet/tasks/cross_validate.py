@@ -24,7 +24,7 @@ from omegaconf import DictConfig, OmegaConf
 from dnanet.data.splitting import split_data_in_k_folds
 from dnanet.tasks.train import _build_callbacks, _build_logger, _build_module
 
-
+# FIXME: implement changes from train.run
 def run(cfg: DictConfig) -> dict[str, dict[str, float]]:
     """Run k-fold cross-validation.
 
@@ -73,7 +73,6 @@ def run_with_data(
         metric results.
     """
     from dnanet.data.datamodule import HIDTorchDataset
-    from dnanet.data.dataset import InMemoryDataset
     from torch.utils.data import DataLoader
 
     L.seed_everything(cfg.seed, workers=True)

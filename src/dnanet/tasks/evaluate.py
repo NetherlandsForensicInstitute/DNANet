@@ -18,7 +18,6 @@ from pathlib import Path
 
 import lightning as L
 import numpy as np
-import torch
 from hydra.utils import instantiate
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
@@ -32,7 +31,6 @@ from dnanet.evaluation.metrics import (
     pixel_precision,
     pixel_recall,
 )
-
 
 # Metric name -> callable mapping
 _METRIC_REGISTRY: dict[str, callable] = {
@@ -77,7 +75,7 @@ def _save_results(
     metrics_path.write_text(json.dumps(results, indent=2))
     return metrics_path
 
-
+# FIXME: implement changes from train.py
 def run(cfg: DictConfig) -> dict[str, float]:
     """Run model evaluation.
 
@@ -106,7 +104,7 @@ def run(cfg: DictConfig) -> dict[str, float]:
     # Determine module type from training config
     training_type = cfg.training.get("type", "segmentation")
 
-    from dnanet.tasks.train import _resolve_module_class, _build_module
+    from dnanet.tasks.train import _resolve_module_class
     ModuleClass = _resolve_module_class(training_type)
 
     # Load from checkpoint
@@ -149,7 +147,6 @@ def run_with_data(
         Dictionary of metric name -> value.
     """
     from dnanet.data.datamodule import DNANetDataModule
-    from dnanet.data.dataset import InMemoryDataset
 
     L.seed_everything(cfg.seed, workers=True)
 
