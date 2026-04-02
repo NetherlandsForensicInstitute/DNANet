@@ -15,22 +15,20 @@ Design pattern: **Decorator**
 
 from __future__ import annotations
 
-import logging
-from typing import Iterator, Sequence
+from typing import Iterator
 
-from tqdm import tqdm
-from loguru import logger
+from torch.utils.data import IterableDataset
 
-from dnanet.data.dataset import SimpleDataset, InMemoryDataset
-from dnanet.data.hid_dataset import HIDDataset
 from dnanet.data.extracted_peak import ExtractedPeak
-from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
+from dnanet.data.hid_dataset import HIDDataset
+from dnanet.data.image import HIDImage
 from dnanet.data.preprocessing.baseline import fft_lowpass_smooth
 from dnanet.data.preprocessing.peak_extraction import extract_peak_windows
+from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
 from dnanet.data.strategies import StrategyRegistry
 
 
-class PeakWindowDataset(InMemoryDataset):
+class PeakWindowDataset(IterableDataset):
     """Dataset of extracted peak windows from DNA profiles.
 
     Takes a base :class:`HIDDataset`, extracts peaks from every loaded
@@ -52,7 +50,7 @@ class PeakWindowDataset(InMemoryDataset):
 
     def __init__(
         self,
-        base_dataset: HIDDataset | InMemoryDataset,
+        base_dataset: HIDDataset,
         threshold: float = 40,
         window_size: int = 120,
         include_max_pool_dyes: bool = False,
@@ -62,9 +60,9 @@ class PeakWindowDataset(InMemoryDataset):
         max_rfu_value: int | None = RFU_MAX_VALUE,
         use_ground_truth: bool = True,
     ) -> None:
-        super().__init__(shuffle=False)
+        super().__init__()
 
-
+        self.base_dataset = base_dataset
         self.threshold = threshold
         self.window_size = window_size
         self.labels = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
@@ -77,25 +75,14 @@ class PeakWindowDataset(InMemoryDataset):
         self.max_rfu_value = max_rfu_value
         self.use_ground_truth = use_ground_truth
 
-        # Extract peaks from all images
-        self._data = list(tqdm(
-            self._iterate_peaks(base_dataset),
-            desc="Extracting peak windows",
-            unit="peaks",
-        ))
 
-        logger.info(
-            "PeakWindowDataset: extracted {} peaks from {} profiles "
-            "(threshold={}, window={})",
-            len(self._data), len(base_dataset),
-            threshold, window_size,
-        )
 
     def _iterate_peaks(
-        self, base_dataset: InMemoryDataset,
+        self, base_dataset: HIDDataset,
     ) -> Iterator[ExtractedPeak]:
         """Extract and optionally preprocess peaks from all images."""
         for image in base_dataset:
+            image: HIDImage
             peaks = extract_peak_windows(
                 image,
                 threshold=self.threshold,
@@ -126,3 +113,6 @@ class PeakWindowDataset(InMemoryDataset):
             )
 
         peak._data = data
+
+    def __iter__(self) -> Iterator[ExtractedPeak]:
+        return self._iterate_peaks(self.base_dataset)
