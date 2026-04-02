@@ -158,7 +158,11 @@ class PeakClassificationTransformer(TransformDataCallable):
             marker_tensor = torch.full(size=(1,), fill_value=-1, dtype=torch.long)
 
         ann_label: str = peak.annotation.data
-        annotation_idx = StrategyRegistry.get_dataset_strategy().annotation_to_idx[ann_label]
+        dataset_strategy = StrategyRegistry.get_dataset_strategy()
+        annotation_to_idx = {
+            name: idx for idx, name in enumerate(dataset_strategy.get_annotation_classes())
+        }
+        annotation_idx = annotation_to_idx[ann_label]
         target = torch.tensor(annotation_idx, dtype=torch.long)
 
         inputs = (peak_tensor, marker_tensor)
