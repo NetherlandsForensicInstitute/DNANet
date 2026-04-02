@@ -220,16 +220,24 @@ def _label_peak_from_annotation_fast(
         ``"allele"`` if any annotated position is within padding of center,
         ``"noise"`` otherwise.
     """
+    annotation_classes = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
     if ann_channel is None:
-        return "noise"
+        return annotation_classes[0]
 
     L = ann_channel.shape[0]
     start = max(0, peak_center - padding)
     end = min(L, peak_center + padding + 1)
+    annotation_slice = ann_channel[start:end]
+    if np.any(annotation_slice > 0):
+        unique, counts = np.unique(annotation_slice, return_counts=True)
 
-    if np.any(ann_channel[start:end] > 0):
-        return "allele"
-    return "noise"
+        # take the most common class in the slice
+        # if there is a tie, take the lowest class index
+        sorted_idx = np.lexsort((unique, -counts))
+        most_common_value = unique[sorted_idx[0]]
+
+        return annotation_classes[most_common_value]
+    return annotation_classes[0]
 
 
 # ---------------------------------------------------------------------------
