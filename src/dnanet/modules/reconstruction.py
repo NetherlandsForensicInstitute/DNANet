@@ -18,6 +18,7 @@ from typing import Any
 import torchmetrics
 from torch import Tensor, nn
 
+from dnanet.data.preprocessing.scaling import inverse_scale_rfu_torch
 from dnanet.modules.base import BaseTaskModule
 
 
@@ -74,6 +75,11 @@ class ReconstructionModule(BaseTaskModule):
             reconstruction = reconstruction.squeeze(-1)
         if target.dim() == 4 and target.shape[-1] == 1:
             target = target.squeeze(-1)
+
+        # denormalize
+        log_scale = True
+        max_rfu = 33000 ## TODO do not hardcode values
+        reconstruction = inverse_scale_rfu_torch(reconstruction, log_scale, max_rfu)
 
         loss = self.loss_fn(reconstruction, target)
         return loss, reconstruction.detach().reshape(-1), target.reshape(-1)

@@ -8,6 +8,7 @@ from typing import Any
 import lightning as L
 import torch
 import torchmetrics
+from lightning import Callback
 from torch import Tensor, nn
 
 
@@ -51,8 +52,25 @@ class BaseTaskModule(L.LightningModule, ABC):
 
     def _shared_step(self, batch: Any, stage: str) -> Tensor:
         loss, preds, targets = self.compute_step_outputs(batch)
-        self.log(f"{stage}/loss", loss, prog_bar=True, on_step=False, on_epoch=True)
-        self._metrics_for_stage(stage).update(preds, targets)
+
+        metrics = self._metrics_for_stage(stage)
+        metrics.update(preds, targets)
+
+        self.log(
+            f"{stage}/loss",
+            loss,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+            logger=True,
+        )
+        self.log_dict(
+            metrics,
+            prog_bar=False,
+            on_step=False,
+            on_epoch=True,
+            logger=True,
+        )
         return loss
 
     def training_step(self, batch: Any, batch_idx: int) -> Tensor:
@@ -63,16 +81,7 @@ class BaseTaskModule(L.LightningModule, ABC):
         del batch_idx
         self._shared_step(batch, "val")
 
-    def _log_and_reset_metrics(self, stage: str) -> None:
-        metrics = self._metrics_for_stage(stage)
-        self.log_dict(metrics.compute(), prog_bar=False)
-        metrics.reset()
 
-    def on_train_epoch_end(self) -> None:
-        self._log_and_reset_metrics("train")
-
-    def on_validation_epoch_end(self) -> None:
-        self._log_and_reset_metrics("val")
 
     def configure_optimizers(self) -> dict[str, Any]:
         optimizer = torch.optim.Adam(
@@ -94,3 +103,46 @@ class BaseTaskModule(L.LightningModule, ABC):
             }
 
         return config
+
+
+
+class EpochConsoleLogger(Callback):
+    @staticmethod
+    def _format(metrics: dict[str, object]) -> str:
+        parts = []
+        for key, value in sorted(metrics.items()):
+            if hasattr(value, "item"):
+                value = value.item()
+            if isinstance(value, float):
+                parts.append(f"{key}={value:.4f}")
+            else:
+                parts.append(f"{key}={value}")
+        return ", ".join(parts)
+
+    def on_train_epoch_end(self, trainer, pl_module) -> None:
+        if trainer.sanity_checking:
+            return
+        metrics = {
+            k: v for k, v in trainer.callback_metrics.items()
+            if k.startswith("train/")
+        }
+        if metrics:
+            logger.info(
+                "epoch={} train {}",
+                trainer.current_epoch,
+                self._format(metrics),
+            )
+
+    def on_validation_epoch_end(self, trainer, pl_module) -> None:
+        if trainer.sanity_checking:
+            return
+        metrics = {
+            k: v for k, v in trainer.callback_metrics.items()
+            if k.startswith("val/")
+        }
+        if metrics:
+            logger.info(
+                "epoch={} val {}",
+                trainer.current_epoch,
+                self._format(metrics),
+            )

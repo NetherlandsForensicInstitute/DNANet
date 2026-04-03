@@ -315,7 +315,7 @@ class NFIRnDStrategy(DatasetStrategy):
         k_folds: int | None = None,
         stratify_noc: bool = True,
         group_by_replica: bool = True,
-    ):
+    ) -> SplitResult:
         """Replica-aware split that keeps sample prefixes together and balances NoC.
 
         Possible options are:

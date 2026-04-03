@@ -38,6 +38,7 @@ from pathlib import Path
 import numpy as np
 from loguru import logger
 from torch.utils.data import Dataset
+from tqdm import tqdm
 
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
@@ -152,12 +153,12 @@ class HIDDataset(Dataset):
     ) -> Generator[HIDImage, None, None]:
         """Create HIDImage instances, loading data and filtering invalid ones."""
         ladder_cache: dict[str, Panel | None] = {}
-        loaded = 0
+
         skipped_data = 0
         skipped_alleles = 0
         skipped_ladder = 0
 
-        for entry in file_entries:
+        for entry in tqdm(file_entries, desc='Loading images', total=len(file_entries), ):
             path: Path = entry[0]
             ladder_path: Path | None = entry[2]
             annotation = entry[1]  # (name, file) or None
@@ -184,6 +185,7 @@ class HIDDataset(Dataset):
             )
 
             # Trigger lazy load and validate
+            # TODO: should we always force data to be loaded from disk?
             if image.data is None:
                 skipped_data += 1
                 logger.debug('Skipping {}: no data', path.name)
@@ -207,10 +209,6 @@ class HIDDataset(Dataset):
             if image.annotation is None:
                 skipped_alleles += 1
                 logger.debug('{}: no annotation/called alleles', path.name)
-
-            loaded += 1
-            if loaded % 50 == 0:
-                logger.info('Loaded {}/{} images...', loaded, len(file_entries))
 
             yield image
 

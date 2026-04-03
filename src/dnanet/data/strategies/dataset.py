@@ -122,7 +122,7 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def split(cls, dataset, fraction: float, seed: int | None = None) -> SplitResult:
+    def split(cls, dataset, fraction: float, seed: int | None = None, **kwargs) -> SplitResult:
         """Default: simple random fraction split.
 
         Override in strategies that have richer metadata (e.g. replica-aware).

@@ -31,6 +31,7 @@ from omegaconf import OmegaConf, DictConfig
 from torch.utils.data import Dataset
 
 from dnanet.data.datamodule import DNANetDataModule
+from dnanet.modules.base import EpochConsoleLogger
 
 # ---------------------------------------------------------------------------
 # Module registry: maps training type to Lightning module class
@@ -70,7 +71,7 @@ def _resolve_module_class(training_type: str):
 
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
-    callbacks: list[L.Callback] = []
+    callbacks: list[L.Callback] = [EpochConsoleLogger()]
 
     # Early stopping
     es_cfg = cfg.training.get('early_stopping')
@@ -266,7 +267,7 @@ def run(
         dataset=dataset,
         batch_size=cfg.training.get("batch_size", 16),
         val_fraction=cfg.training.get("val_fraction", 0.2),
-        num_workers=cfg.training.get("num_workers", 0),
+        num_workers=cfg.training.get("num_workers", 1),
         seed=cfg.get("seed", 42),
     )
 
@@ -285,11 +286,13 @@ def run(
         default_root_dir=cfg.output_dir,
         deterministic=False,
         enable_progress_bar=True,
-        log_every_n_steps=10,
+        log_every_n_steps=1,
+        check_val_every_n_epoch=1,
     )
 
     if datamodule is not None:
         ckpt_path = cfg.get('checkpoint')
+        logger.info('Starting training...')
         trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
         logger.info('Training complete!')
         _save_config(cfg, cfg.output_dir)
