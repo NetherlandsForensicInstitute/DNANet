@@ -10,6 +10,26 @@ from dnanet.models.peak_classifier import PeakClassificationModel
 from dnanet.modules.classification import ClassificationModule
 
 
+class MarkerAwarePredictModel(nn.Module):
+    """Tiny model that requires marker indices during prediction."""
+
+    def __init__(self, num_classes: int = 3) -> None:
+        super().__init__()
+        self.use_embedding = True
+        self.num_classes = num_classes
+        self.offset = nn.Parameter(torch.tensor(0.0))
+
+    def forward(self, x):
+        if not isinstance(x, tuple):
+            raise AssertionError("Expected marker-aware tuple input.")
+
+        peak_data, marker_idx = x
+        logits = peak_data.new_zeros((peak_data.shape[0], self.num_classes))
+        logits[:, 0] = marker_idx.float() + self.offset
+        logits[:, 1] = 1.0 + self.offset
+        return logits
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -105,6 +125,20 @@ class TestClassificationModule:
         )
         probs = mod.predict_step(batch_with_marker, batch_idx=0)
         assert probs.shape == (8, 3)
+
+    def test_predict_step_marker_batch_without_targets(self):
+        peak_data = torch.randn(4, 1, 120)
+        marker_idx = torch.tensor([0, 1, 2, 1], dtype=torch.long)
+        mod = ClassificationModule(
+            model=MarkerAwarePredictModel(),
+            loss_fn=nn.CrossEntropyLoss(),
+            num_classes=3,
+        )
+
+        probs = mod.predict_step((peak_data, marker_idx), batch_idx=0)
+        expected = torch.softmax(mod.model((peak_data, marker_idx)), dim=1)
+
+        assert torch.allclose(probs, expected)
 
     def test_metrics_update_and_reset(self, module, batch_no_marker):
         module.training_step(batch_no_marker, batch_idx=0)

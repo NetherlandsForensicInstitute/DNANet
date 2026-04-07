@@ -12,15 +12,14 @@ from __future__ import annotations
 
 from typing import Any
 
-import lightning as L
 import torch
 import torchmetrics
 from torch import Tensor, nn
 
-from loguru import logger
+from dnanet.modules.base import BaseTaskModule
 
 
-class ClassificationModule(L.LightningModule):
+class ClassificationModule(BaseTaskModule):
     """PyTorch Lightning module for peak classification.
 
     Handles:
@@ -46,13 +45,18 @@ class ClassificationModule(L.LightningModule):
         weight_decay: float = 5e-4,
         scheduler_gamma: float = 1.0,
     ) -> None:
-        super().__init__()
-        self.save_hyperparameters(ignore=["model", "loss_fn"])
+        super().__init__(model=model, loss_fn=loss_fn)
+        self.save_hyperparameters({
+            "num_classes": num_classes,
+            "learning_rate": learning_rate,
+            "weight_decay": weight_decay,
+            "scheduler_gamma": scheduler_gamma,
+        })
+        self.initialize_metrics()
 
-        self.model = model
-        self.loss_fn = loss_fn
-
-        metrics = torchmetrics.MetricCollection({
+    def build_metrics(self) -> torchmetrics.MetricCollection:
+        num_classes = int(self.hparams.num_classes)
+        return torchmetrics.MetricCollection({
             "accuracy": torchmetrics.classification.MulticlassAccuracy(
                 num_classes=num_classes, average="micro",
             ),
@@ -66,16 +70,11 @@ class ClassificationModule(L.LightningModule):
                 num_classes=num_classes, average="macro",
             ),
         })
-        self.train_metrics = metrics.clone(prefix="train/")
-        self.val_metrics = metrics.clone(prefix="val/")
 
-    def forward(self, x: Tensor | tuple[Tensor, ...]) -> Tensor:
-        return self.model(x)
-
-    def _shared_step(
-        self, batch: tuple[Tensor, ...], stage: str,
-    ) -> Tensor:
-        """Compute loss and update metrics.
+    def compute_step_outputs(
+        self, batch: tuple[Tensor, ...],
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """Compute loss and metric inputs.
 
         Expects batch to be ``(peak_data, marker_idx, targets)`` or
         ``(peak_data, targets)`` (without marker embeddings).
@@ -88,55 +87,29 @@ class ClassificationModule(L.LightningModule):
             logits = self.model(peak_data)
 
         loss = self.loss_fn(logits, targets)
-        self.log(f"{stage}/loss", loss, prog_bar=True, on_step=False, on_epoch=True)
-
         preds = logits.argmax(dim=1).detach()
-        metrics = self.train_metrics if stage == "train" else self.val_metrics
-        metrics.update(preds, targets)
+        return loss, preds, targets
 
-        return loss
+    def _extract_predict_inputs(self, batch: Any) -> Tensor | tuple[Tensor, Tensor]:
+        if not isinstance(batch, (tuple, list)):
+            return batch
+        if len(batch) == 0:
+            raise ValueError("ClassificationModule.predict_step received an empty batch.")
+        if len(batch) == 3:
+            peak_data, marker_idx, _ = batch
+            return peak_data, marker_idx
 
-    def training_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> Tensor:
-        return self._shared_step(batch, "train")
+        first = batch[0]
+        if isinstance(first, (tuple, list)):
+            return first[0], first[1]
 
-    def validation_step(self, batch: tuple[Tensor, ...], batch_idx: int) -> None:
-        self._shared_step(batch, "val")
+        if len(batch) == 2 and getattr(self.model, "use_embedding", False):
+            peak_data, marker_idx = batch
+            return peak_data, marker_idx
 
-    def on_train_epoch_end(self) -> None:
-        self.log_dict(self.train_metrics.compute(), prog_bar=False)
-        self.train_metrics.reset()
-
-    def on_validation_epoch_end(self) -> None:
-        self.log_dict(self.val_metrics.compute(), prog_bar=False)
-        self.val_metrics.reset()
-
-    def configure_optimizers(self) -> dict[str, Any]:
-        optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.hparams.learning_rate,
-            weight_decay=self.hparams.weight_decay,
-        )
-
-        config: dict[str, Any] = {"optimizer": optimizer}
-
-        if self.hparams.scheduler_gamma < 1.0:
-            scheduler = torch.optim.lr_scheduler.ExponentialLR(
-                optimizer, gamma=self.hparams.scheduler_gamma,
-            )
-            config["lr_scheduler"] = {
-                "scheduler": scheduler,
-                "interval": "epoch",
-            }
-
-        return config
+        return first
 
     def predict_step(self, batch: Any, batch_idx: int) -> Tensor:
-        if isinstance(batch, (tuple, list)):
-            if len(batch) == 3:
-                peak_data, marker_idx, _ = batch
-                logits = self.model((peak_data, marker_idx))
-            else:
-                logits = self.model(batch[0])
-        else:
-            logits = self.model(batch)
+        del batch_idx
+        logits = self.model(self._extract_predict_inputs(batch))
         return torch.softmax(logits, dim=1)

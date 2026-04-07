@@ -18,10 +18,10 @@ from pathlib import Path
 
 import lightning as L
 import numpy as np
-import torch
 from hydra.utils import instantiate
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
+from torch.utils.data import Dataset
 
 from dnanet.evaluation.metrics import (
     allele_f1_score,
@@ -32,7 +32,6 @@ from dnanet.evaluation.metrics import (
     pixel_precision,
     pixel_recall,
 )
-
 
 # Metric name -> callable mapping
 _METRIC_REGISTRY: dict[str, callable] = {
@@ -78,63 +77,9 @@ def _save_results(
     return metrics_path
 
 
-def run(cfg: DictConfig) -> dict[str, float]:
-    """Run model evaluation.
-
-    Args:
-        cfg: Composed Hydra config. Must include ``checkpoint`` path.
-
-    Returns:
-        Dictionary of metric name -> value.
-    """
-    L.seed_everything(cfg.seed, workers=True)
-
-    # -- Validate config ---------------------------------------------------
-    checkpoint_path = cfg.get("checkpoint")
-    if not checkpoint_path:
-        raise ValueError(
-            "Evaluation requires a checkpoint path. "
-            "Set it via: dnanet task=evaluate checkpoint=/path/to/model.ckpt"
-        )
-    logger.info("Loading checkpoint: {}", checkpoint_path)
-
-    # -- Build model and load checkpoint -----------------------------------
-    model_cfg = cfg.model
-    network = instantiate(model_cfg.architecture)
-    loss_fn = instantiate(model_cfg.loss)
-
-    # Determine module type from training config
-    training_type = cfg.training.get("type", "segmentation")
-
-    from dnanet.tasks.train import _resolve_module_class, _build_module
-    ModuleClass = _resolve_module_class(training_type)
-
-    # Load from checkpoint
-    module = ModuleClass.load_from_checkpoint(
-        checkpoint_path,
-        model=network,
-        loss_fn=loss_fn,
-    )
-    module.eval()
-    logger.info("Model loaded: {}", type(network).__name__)
-
-    # -- Data --------------------------------------------------------------
-    data_cfg = cfg.get("data")
-    if data_cfg and data_cfg.get("root"):
-        from dnanet.data.loading import load_dataset
-        dataset = load_dataset(data_cfg)
-        return run_with_data(cfg, dataset)
-
-    logger.warning(
-        "No data config found. Use run_with_data(cfg, dataset) or "
-        "pass a data config group (e.g. data=dnanet_rd)."
-    )
-    return {}
-
-
-def run_with_data(
+def run(
     cfg: DictConfig,
-    dataset: "InMemoryDataset",
+    dataset: Dataset | None = None,
 ) -> dict[str, float]:
     """Run evaluation with a pre-loaded dataset.
 
@@ -143,13 +88,13 @@ def run_with_data(
 
     Args:
         cfg: Composed Hydra config. Must include ``checkpoint`` path.
-        dataset: A loaded :class:`~dnanet.data.dataset.InMemoryDataset`.
+        dataset: The dataset to use, when none is specified, the dataset
+            is loaded from the config.
 
     Returns:
         Dictionary of metric name -> value.
     """
     from dnanet.data.datamodule import DNANetDataModule
-    from dnanet.data.dataset import InMemoryDataset
 
     L.seed_everything(cfg.seed, workers=True)
 
@@ -180,6 +125,10 @@ def run_with_data(
     logger.info("Model loaded: {}", type(network).__name__)
 
     # -- Data --------------------------------------------------------------
+    if not dataset:
+        data_cfg = cfg.get('data')
+        dataset = instantiate(data_cfg.dataset)
+
     datamodule = DNANetDataModule(
         dataset=dataset,
         batch_size=cfg.training.batch_size,

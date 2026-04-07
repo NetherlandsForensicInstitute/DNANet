@@ -1,191 +1,197 @@
-"""Tests for DataModule variants."""
+"""Tests for current DNANetDataModule transformer integrations."""
+
+from __future__ import annotations
+
+import random
+from types import SimpleNamespace
 
 import numpy as np
-import torch
 import pytest
+import torch
 
+import dnanet.data.transformer as transformer_module
 from dnanet.core.annotation import ScanpointAnnotation
-from dnanet.data.dataset import SimpleDataset
-from dnanet.data.datamodule import (
-    PeakDataModule,
-    HIDTorchDataset,
-    DNANetDataModule,
-    PeakTorchDataset,
-    ReconstructionDataModule,
-    ReconstructionTorchDataset,
-    peaknet_collate_fn,
-)
+from dnanet.data.datamodule import DNANetDataModule
 from dnanet.data.extracted_peak import ExtractedPeak
+from dnanet.data.image import HIDImage
+from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.data.transformer import (
+    CombinedTransformer,
+    PeakClassificationTransformer,
+    ReconstructionTransformer,
+)
 
 
-# ---------------------------------------------------------------------------
-class MockImage:
-    """Minimal HIDImage-like."""
+class SplitPreservingDataset:
+    """Test-local dataset double that keeps transforms across splits."""
 
-    def __init__(self, n_dyes=5, length=4096, with_annotation=True):
-        self._data = np.random.rand(n_dyes, length, 1).astype(np.float32) * 100
-        if with_annotation:
-            self.annotation = ScanpointAnnotation(
-                data=np.random.randint(0, 2, (n_dyes, length, 1)).astype(np.float32)
-            )
-        else:
-            self.annotation = None
-        self.path = type("P", (), {"stem": "test_profile"})()
-        self._panel = None
+    def __init__(self, data, transform=None) -> None:
+        self._data = list(data)
+        self.transform = transform
 
-    @property
-    def data(self):
-        return self._data
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __getitem__(self, index: int):
+        item = self._data[index]
+        if self.transform is not None:
+            return self.transform(item)
+        return item
+
+    def split(
+        self,
+        fraction: float,
+        seed: int | None = None,
+    ) -> tuple["SplitPreservingDataset", "SplitPreservingDataset"]:
+        shuffled = random.Random(seed).sample(self._data, len(self._data))
+        split_idx = int(len(shuffled) * fraction)
+        return (
+            SplitPreservingDataset(shuffled[:split_idx], transform=self.transform),
+            SplitPreservingDataset(shuffled[split_idx:], transform=self.transform),
+        )
 
 
-def _make_mock_dataset(n=5, **kwargs) -> SimpleDataset:
-    return SimpleDataset(data=[MockImage(**kwargs) for _ in range(n)])
+def _make_fake_image(
+    name: str = "fake.hid",
+    num_dyes: int = 5,
+    signal_length: int = 100,
+    with_annotation: bool = True,
+    peak_count: int = 3,
+) -> HIDImage:
+    img = HIDImage(path=name, load_in_memory=True, meta={"peak_count": peak_count})
+    img._data = (np.random.rand(num_dyes, signal_length, 1) * 100).astype(np.float32)
+    if with_annotation:
+        mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
+        mask[0, 5:15, 0] = 1
+        img.annotation = ScanpointAnnotation(data=mask)
+    return img
 
 
-def _make_mock_peaks(n=20) -> list[ExtractedPeak]:
+def _make_mock_peaks(n: int = 8) -> list[ExtractedPeak]:
     return [
         ExtractedPeak(
             data=np.random.rand(1, 120).astype(np.float32),
             dye_index=i % 5,
-            peak_center=1000 + i * 50,
+            peak_center=1000 + i * 25,
             window_size=120,
             peak_height=float(200 + i * 10),
             label="allele" if i % 2 == 0 else "noise",
+            marker_name="D3S1358",
             marker_index=i % 28,
         )
         for i in range(n)
     ]
 
 
-# ---------------------------------------------------------------------------
-# HIDTorchDataset + DNANetDataModule (segmentation)
-# ---------------------------------------------------------------------------
-
-class TestHIDTorchDataset:
-
-    def test_returns_correct_shapes(self):
-        images = [MockImage(n_dyes=5, length=100)]
-        ds = HIDTorchDataset(images)
-        x, y = ds[0]
-        assert x.shape == (1, 5, 100)
-        assert y.shape == (1, 5, 100)
-
-    def test_no_annotation_gives_zeros(self):
-        images = [MockImage(with_annotation=False, length=100)]
-        ds = HIDTorchDataset(images)
-        x, y = ds[0]
-        assert y.sum() == 0
+@pytest.fixture
+def configured_peak_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        StrategyRegistry,
+        "_scaling_strategy",
+        SimpleNamespace(marker_to_idx={"D3S1358": 7}),
+    )
+    monkeypatch.setattr(
+        StrategyRegistry,
+        "_dataset_strategy",
+        SimpleNamespace(get_annotation_classes=lambda: ["noise", "allele"]),
+    )
 
 
-class TestDNANetDataModule:
+@pytest.fixture
+def fake_peak_extractor(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _extract_peaks_torch(image, device, threshold, window_size, include_max_pool_dyes):
+        del device, threshold
+        peak_count = image.meta["peak_count"]
+        channels = 2 if include_max_pool_dyes else 1
+        peak_windows = torch.randn(peak_count, channels, window_size)
+        marker_idxs = torch.arange(peak_count, dtype=torch.long)
+        peak_centers = torch.stack([
+            torch.zeros(peak_count, dtype=torch.long),
+            torch.arange(peak_count, dtype=torch.long),
+        ], dim=1)
+        return peak_windows, marker_idxs, peak_centers
 
-    def test_setup_creates_splits(self):
-        dataset = _make_mock_dataset(10, length=100)
-        dm = DNANetDataModule(dataset, batch_size=2, val_fraction=0.2, seed=42)
-        dm.setup()
-        assert dm._train_dataset is not None
-        assert dm._val_dataset is not None
-        assert len(dm._train_dataset) + len(dm._val_dataset) == 10
-
-    def test_dataloaders_iterate(self):
-        dataset = _make_mock_dataset(10, length=100)
-        dm = DNANetDataModule(dataset, batch_size=4, val_fraction=0.2, seed=42)
-        dm.setup()
-        batch = next(iter(dm.train_dataloader()))
-        assert len(batch) == 2  # (x, y)
-
-
-# ---------------------------------------------------------------------------
-# PeakTorchDataset + PeakDataModule (classification)
-# ---------------------------------------------------------------------------
-
-class TestPeakTorchDataset:
-
-    def test_returns_triplet(self):
-        peaks = _make_mock_peaks(5)
-        ds = PeakTorchDataset(peaks, label_to_idx={"noise": 0, "allele": 1})
-        x, marker, target = ds[0]
-        assert x.shape == (1, 120)
-        assert marker.dim() == 0  # scalar
-        assert target.dim() == 0
-
-    def test_label_mapping(self):
-        peaks = _make_mock_peaks(4)
-        peaks[0].label = "allele"
-        peaks[1].label = "noise"
-        ds = PeakTorchDataset(peaks, label_to_idx={"noise": 0, "allele": 1})
-        _, _, t0 = ds[0]
-        _, _, t1 = ds[1]
-        assert t0.item() == 1  # allele
-        assert t1.item() == 0  # noise
+    monkeypatch.setattr(transformer_module, "extract_peaks_torch", _extract_peaks_torch)
 
 
-class TestPeakDataModule:
-
-    def test_setup_and_iterate(self):
-        peaks = _make_mock_peaks(20)
-        ds = SimpleDataset(data=peaks)
-        dm = PeakDataModule(ds, batch_size=4, val_fraction=0.2, seed=42)
-        dm.setup()
-        batch = next(iter(dm.train_dataloader()))
-        assert len(batch) == 3  # (x, marker, target)
-
-
-# ---------------------------------------------------------------------------
-# PeakNet collate function
-# ---------------------------------------------------------------------------
-
-class TestPeakNetCollation:
-
-    def test_collate_fn_shapes(self):
-        batch = [
-            {
-                "full_image": torch.randn(5, 100),
-                "peak_windows": torch.randn(3, 1, 120),
-                "marker_idxs": torch.zeros(3, dtype=torch.long),
-                "peak_centers": torch.zeros(3, 2, dtype=torch.long),
-                "target": torch.zeros(5, 100, dtype=torch.long),
-                "n_peaks": 3,
-            },
-            {
-                "full_image": torch.randn(5, 100),
-                "peak_windows": torch.randn(5, 1, 120),
-                "marker_idxs": torch.zeros(5, dtype=torch.long),
-                "peak_centers": torch.zeros(5, 2, dtype=torch.long),
-                "target": torch.zeros(5, 100, dtype=torch.long),
-                "n_peaks": 5,
-            },
-        ]
-
-        full, windows, markers, centers, counts, targets = peaknet_collate_fn(batch)
-
-        assert full.shape == (2, 5, 100)
-        assert windows.shape == (8, 1, 120)  # 3 + 5
-        assert markers.shape == (8,)
-        assert centers.shape == (8, 2)
-        assert counts.tolist() == [3, 5]
-        assert targets.shape == (2, 5, 100)
-
-
-# ---------------------------------------------------------------------------
-# Reconstruction DataModule
-# ---------------------------------------------------------------------------
-
-class TestReconstructionDataModule:
-
-    def test_returns_preprocessed_pairs(self):
-        images = [MockImage(n_dyes=5, length=100)]
-        ds = ReconstructionTorchDataset(images, log_scale=True, n_dyes=5)
-        x, target = ds[0]
-        assert x.shape == (5, 100)
-        assert target.shape == (5, 100)
-        assert (x >= 0).all()
-
-    def test_setup_and_iterate(self):
-        dataset = _make_mock_dataset(10, length=100)
-        dm = ReconstructionDataModule(
-            dataset, batch_size=4, val_fraction=0.2, seed=42, n_dyes=5,
+class TestPeakClassificationTransformer:
+    @pytest.mark.usefixtures("configured_peak_registry")
+    def test_datamodule_batches_marker_and_target_tensors(
+        self,
+    ) -> None:
+        peaks = _make_mock_peaks(10)
+        dataset = SplitPreservingDataset(
+            peaks,
+            transform=PeakClassificationTransformer(include_marker=True),
         )
-        dm.setup()
-        batch = next(iter(dm.train_dataloader()))
-        assert len(batch) == 2
+        dm = DNANetDataModule(dataset, batch_size=4, val_fraction=0.2, seed=42)
+        dm.setup("fit")
+
+        inputs, targets = next(iter(dm.train_dataloader()))
+        peak_data, marker_idx = inputs
+
+        assert peak_data.shape[0] <= 4
+        assert peak_data.shape[1:] == (1, 120)
+        assert marker_idx.shape[0] == peak_data.shape[0]
+        assert targets.shape[0] == peak_data.shape[0]
+        assert targets.dtype == torch.long
+
+    @pytest.mark.usefixtures("configured_peak_registry")
+    def test_datamodule_batches_negative_marker_when_disabled(
+        self,
+    ) -> None:
+        peaks = _make_mock_peaks(10)
+        dataset = SplitPreservingDataset(
+            peaks,
+            transform=PeakClassificationTransformer(include_marker=False),
+        )
+        dm = DNANetDataModule(dataset, batch_size=4, val_fraction=0.2, seed=42)
+        dm.setup("fit")
+
+        inputs, _targets = next(iter(dm.train_dataloader()))
+        _peak_data, marker_idx = inputs
+        assert torch.all(marker_idx == -1)
+
+
+class TestReconstructionTransformer:
+    def test_datamodule_returns_preprocessed_pairs(self) -> None:
+        images = [_make_fake_image(f"reconstruction_{i}.hid") for i in range(10)]
+        dataset = SplitPreservingDataset(
+            images,
+            transform=ReconstructionTransformer(log_scale=True, n_dyes=5),
+        )
+        dm = DNANetDataModule(dataset, batch_size=4, val_fraction=0.2, seed=42)
+        dm.setup("fit")
+
+        x, target = next(iter(dm.train_dataloader()))
+        assert x.shape[0] <= 4
+        assert x.shape[1:] == (5, 100)
+        assert target.shape == x.shape
+        assert torch.all(x >= 0)
+
+
+class TestCombinedTransformer:
+    @pytest.mark.usefixtures("fake_peak_extractor")
+    def test_datamodule_returns_nested_peaknet_batch(
+        self,
+    ) -> None:
+        images = [
+            _make_fake_image(f"combined_{i}.hid", peak_count=3)
+            for i in range(10)
+        ]
+        dataset = SplitPreservingDataset(
+            images,
+            transform=CombinedTransformer(device="cpu", window_size=120),
+        )
+        dm = DNANetDataModule(dataset, batch_size=2, val_fraction=0.2, seed=42)
+        dm.setup("fit")
+
+        inputs, targets = next(iter(dm.train_dataloader()))
+        full_images, peak_windows, marker_idxs, peak_centers, peak_counts = inputs
+
+        assert full_images.shape == (2, 5, 100)
+        assert peak_windows.shape == (6, 1, 120)
+        assert marker_idxs.shape == (6,)
+        assert peak_centers.shape == (6, 2)
+        assert peak_counts.tolist() == [3, 3]
+        assert targets.shape == (2, 5, 100)

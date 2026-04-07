@@ -19,3 +19,7 @@ architecture:
 
 loss:
   _target_: torch.nn.CrossEntropyLoss
+
+transform:
+  _target_: dnanet.data.transformer.PeakClassificationTransformer
+  include_marker: false

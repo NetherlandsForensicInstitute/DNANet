@@ -126,8 +126,8 @@ dnanet task=evaluate \
 ## Programmatic API
 
 ```python
-from dnanet.tasks.evaluate import run_with_data
+from dnanet.tasks.evaluate import run
 
-results = run_with_data(cfg, dataset)
+results = run(cfg, dataset)
 # {'pixel_precision': 0.92, 'pixel_recall': 0.88, ...}
 ```

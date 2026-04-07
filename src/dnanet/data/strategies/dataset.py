@@ -78,7 +78,7 @@ class DatasetStrategy(ABC):
     @abstractmethod
     def parse_annotations(
         cls,
-        annotation_source: Path,
+        annotation_source: PathLike,
     ) -> Dict[str, Annotation]:
         """Load annotation from annotation sample to Annotation object.
 
@@ -130,3 +130,7 @@ class DatasetStrategy(ABC):
         Returns:
             ``(train_subset, val_subset)`` as :class:`torch.utils.data.Subset`.
         """
+
+    @property
+    def annotation_to_idx(self) -> Dict[str, int]:
+        return {name: idx for idx, name in enumerate(self.get_annotation_classes())}

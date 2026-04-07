@@ -34,6 +34,9 @@ import random
 import typing
 from typing import List, Tuple, Optional, Generator
 from pathlib import Path
+from pathlib import Path
+from typing import Generator, Any
+from typing import List, Optional, Tuple
 
 import numpy as np
 from loguru import logger
@@ -42,8 +45,15 @@ from torch.utils.data import Dataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
+from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
+from dnanet.core.panel import Panel
+from dnanet.core.types import PathLike
+from dnanet.data.dataset import TransformableDataset
+from dnanet.data.image import HIDImage
+from dnanet.data.ladder import Ladder, LadderAlleleCatalog
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.data.transformer import TransformDataCallable
 
 
 if typing.TYPE_CHECKING:
@@ -51,7 +61,7 @@ if typing.TYPE_CHECKING:
     from dnanet.core.types import PathLike
 
 
-class HIDDataset(Dataset):
+class HIDDataset(Dataset, TransformableDataset):
     """Load HID files from a directory into an in-memory dataset.
 
     This is the primary dataset class for forensic DNA profiles. It:
@@ -66,15 +76,11 @@ class HIDDataset(Dataset):
 
     Args:
         root: Root directory containing HID files (searched recursively).
-        annotations_path: Directory containing annotation TXT files.
-        hid_to_annotations_path: CSV mapping HID filenames to annotation names.
-        best_ladder_paths_csv: CSV mapping sample stems to best ladder paths.
         ladder_alleles_csv: CSV with expected ladder alleles per dye.
         analysis_threshold_type: ``"DTH"`` (high) or ``"DTL"`` (low).
         adjustment_of_annotations: ``"top"`` or ``"complete"`` peak adjustment,
             or ``None`` to skip.
         limit: Maximum number of images to load.
-        shuffle: Randomize iteration order.
         skip_if_invalid_ladder: Skip images whose ladder fails to parse.
         include_size_standard: Include the 6th dye channel in the data.
         data_loading_strategy: ``"raw"``, ``"analyzed"``, or ``"superior"``.
@@ -83,17 +89,21 @@ class HIDDataset(Dataset):
     def __init__(
         self,
         root: PathLike,
-        ladder_alleles_csv: PathLike,
-        analysis_threshold_type: str = 'DTH',
+        scaling_strategy: str,
+        dataset_strategy: str,
+        ladder_alleles_csv: PathLike | None = None,
+        analysis_threshold_type: str = "DTH",
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
-        shuffle: bool = False,
         skip_if_invalid_ladder: bool = False,
         include_size_standard: bool = False,
-        data_loading_strategy: str = 'superior',
-        load_in_memory: bool = False,
+        data_loading_strategy: str = "superior",
+        transform: TransformDataCallable | None = None,
     ) -> None:
         super().__init__()
+
+        StrategyRegistry.configure_kit(scaling_strategy)
+        StrategyRegistry.configure_dataset(dataset_strategy)
 
         self.root = Path(root)
         self.analysis_threshold_type = analysis_threshold_type
@@ -101,7 +111,7 @@ class HIDDataset(Dataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.include_size_standard = include_size_standard
         self.data_loading_strategy = data_loading_strategy
-        self.load_in_memory = load_in_memory
+        self._transform = transform
 
         if adjustment_of_annotations and adjustment_of_annotations not in ('top', 'complete'):
             raise ValueError(
@@ -127,12 +137,12 @@ class HIDDataset(Dataset):
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root))
         logger.info('Found {} sample files to process', len(file_entries))
 
-        if limit and shuffle:
-            file_entries = random.sample(file_entries, min(limit, len(file_entries)))
-        elif limit:
-            file_entries = file_entries[:limit]
 
         self._data: List[HIDImage] = list(self._load_images(file_entries))
+
+        if limit:
+            self._data = random.sample(self._data, min(limit, len(self._data)))
+            logger.info("Limiting to {} files (random sample)", len(self._data))
 
         if len(self._data) == 0:
             raise ValueError(
@@ -140,7 +150,9 @@ class HIDDataset(Dataset):
                 f'Check paths and StrategyRegistry configuration.'
             )
 
-        logger.info('Loaded {} valid HID images', len(self._data))
+        logger.info(f"Transforming all samples with {self.transform.__class__}" if self.transform else "No transform applied to samples")
+
+        logger.info("Loaded {} valid HID images", len(self._data))
 
     # -- Image loading ----------------------------------------------------- #
 
@@ -195,12 +207,13 @@ class HIDDataset(Dataset):
                 )
             else:
                 scanpoint_annotation = annotation
-            image.annotation = scanpoint_annotation
 
             if self.adjustment_of_annotations:
                 scanpoint_annotation = self._adjust_annotations(
                     [image], [scanpoint_annotation], adjustment_type=self.adjustment_of_annotations
                 )
+
+            image.annotation = scanpoint_annotation
 
             if image.annotation is None:
                 skipped_alleles += 1
@@ -322,16 +335,23 @@ class HIDDataset(Dataset):
         """Protected property list of HIDImages in the dataset."""
         return self._data
 
+    def transform(self) -> TransformDataCallable | None:
+        return self._transform
+
+
     # -- Dunder ----------------------------------------------------------- #
 
-    def __getitem__(self, index) -> HIDImage:
-        """Itemgetter for the dataset."""
-        return self._data[index]
+    def __repr__(self) -> str:
+        return f"HIDDataset(root={self.root.name}, n={len(self._data)})"
+
+    def __getitem__(self, index: int) -> Any:
+        item = self._data[index]
+
+        if self._transform:
+            item = self._transform(item)
+
+        return item
 
     def __len__(self) -> int:
-        """Length of the dataset."""
         return len(self._data)
 
-    def __repr__(self) -> str:
-        """String representation of the dataset, containing the root path and length."""
-        return f'HIDDataset(root={self.root.name}, n={len(self._data)})'

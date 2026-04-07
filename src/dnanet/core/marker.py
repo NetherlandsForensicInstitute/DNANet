@@ -79,7 +79,7 @@ class Marker:
         return {
             "name": self.name,
             "dye_row": self.dye_row,
-            "alleles": [a.to_dict() for a in self.alleles],
+            "alleles": [a.to_dict() for a in sorted(self.alleles, key=lambda a: a.name)],
         }
 
     @classmethod
