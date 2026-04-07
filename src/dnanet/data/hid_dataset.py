@@ -40,6 +40,10 @@ from loguru import logger
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
+from dnanet.core.panel import Panel
+from dnanet.core.types import PathLike
+from dnanet.data.dataset import TransformableDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
@@ -53,7 +57,7 @@ if typing.TYPE_CHECKING:
     from dnanet.core.types import PathLike
 
 
-class HIDDataset(Dataset):
+class HIDDataset(Dataset, TransformableDataset):
     """Load HID files from a directory into an in-memory dataset.
 
     This is the primary dataset class for forensic DNA profiles. It:
@@ -104,8 +108,8 @@ class HIDDataset(Dataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.include_size_standard = include_size_standard
         self.data_loading_strategy = data_loading_strategy
+        self._transform = transform
         self.load_in_memory = load_in_memory
-        self.transform = transform
 
         if adjustment_of_annotations and adjustment_of_annotations not in ('top', 'complete'):
             raise ValueError(
@@ -143,6 +147,8 @@ class HIDDataset(Dataset):
                 f'No valid HID images found in {self.root}. '
                 f'Check paths and StrategyRegistry configuration.'
             )
+
+        logger.info(f'Transforming all samples with {self.transform.__class__}' if self.transform else 'No transform applied to samples')
 
         logger.info('Loaded {} valid HID images', len(self._data))
 
@@ -318,6 +324,10 @@ class HIDDataset(Dataset):
         return annotations
 
     @property
+    def transform(self) -> TransformDataCallable | None:
+        return self._transform
+
+    @property
     def data(self) -> List[HIDImage]:
         """Protected property list of HIDImages in the dataset."""
         return self._data
@@ -336,8 +346,8 @@ class HIDDataset(Dataset):
     def __getitem__(self, index: int) -> Any:
         item = self._data[index]
 
-        if self.transform:
-            item = self.transform(item)
+        if self._transform:
+            item = self._transform(item)
 
         return item
 

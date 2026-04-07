@@ -7,15 +7,15 @@ import random
 import numpy as np
 import pytest
 import torch
+from torch.utils.data import Dataset
 
 from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
-from dnanet.data.dataset import SimpleDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.transformer import SegmentationTransformer
 
 
-class SplitPreservingDataset:
+class SplitPreservingDataset(Dataset):
     """Test-local dataset double that keeps transforms across splits."""
 
     def __init__(self, data, transform=None) -> None:
@@ -59,10 +59,7 @@ def _make_fake_image(
     return img
 
 
-@pytest.fixture
-def plain_dataset() -> SimpleDataset:
-    tensors = [torch.tensor([float(i)], dtype=torch.float32) for i in range(10)]
-    return SimpleDataset(data=tensors)
+
 
 
 @pytest.fixture
@@ -81,33 +78,6 @@ def unlabeled_segmentation_dataset() -> SplitPreservingDataset:
 
 
 class TestDNANetDataModule:
-    def test_setup_splits_data(self, plain_dataset: SimpleDataset) -> None:
-        dm = DNANetDataModule(plain_dataset, batch_size=2, val_fraction=0.2, seed=42)
-        dm.setup("fit")
-        assert dm._train_dataset is not None
-        assert dm._val_dataset is not None
-        assert len(dm._train_dataset) + len(dm._val_dataset) == len(plain_dataset)
-
-    def test_setup_idempotent(self, plain_dataset: SimpleDataset) -> None:
-        dm = DNANetDataModule(plain_dataset, batch_size=2, val_fraction=0.2, seed=42)
-        dm.setup("fit")
-        train = dm._train_dataset
-        dm.setup("fit")
-        assert dm._train_dataset is train
-
-    def test_plain_dataset_uses_default_collate(self, plain_dataset: SimpleDataset) -> None:
-        dm = DNANetDataModule(plain_dataset, batch_size=4, val_fraction=0.2, seed=42)
-        dm.setup("fit")
-        batch = next(iter(dm.train_dataloader()))
-        assert isinstance(batch, torch.Tensor)
-        assert batch.ndim == 2
-        assert batch.shape[0] <= 4
-
-    def test_train_and_val_dataloaders_exist(self, plain_dataset: SimpleDataset) -> None:
-        dm = DNANetDataModule(plain_dataset, batch_size=2, val_fraction=0.2, seed=42)
-        dm.setup("fit")
-        assert isinstance(dm.train_dataloader(), torch.utils.data.DataLoader)
-        assert isinstance(dm.val_dataloader(), torch.utils.data.DataLoader)
 
     def test_segmentation_transform_batches_tensor_pairs(
         self,

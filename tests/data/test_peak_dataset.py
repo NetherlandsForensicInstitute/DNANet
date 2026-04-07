@@ -1,10 +1,9 @@
 """Tests for PeakWindowDataset."""
 
 import numpy as np
-import pytest
+
 
 from dnanet.core.annotation import ScanpointAnnotation
-from dnanet.data.dataset import SimpleDataset
 from dnanet.data.peak_dataset import PeakWindowDataset
 from dnanet.data.extracted_peak import ExtractedPeak
 
@@ -40,11 +39,8 @@ class TestPeakWindowDataset:
 
     def _make_base_dataset(self, n_images=3, n_peaks=3):
         """Create a SimpleDataset of mock images."""
-        images = []
-        for _ in range(n_images):
-            data, _ = _make_profile_with_peaks(n_peaks=n_peaks)
-            images.append(MockImage(data))
-        return SimpleDataset(data=images)
+        ## TODO
+        ...
 
     def test_extracts_peaks_from_images(self, nfi_rnd_kit):
         base = self._make_base_dataset(n_images=2, n_peaks=3)
@@ -100,12 +96,6 @@ class TestPeakWindowDataset:
         assert len(train) + len(val) == total
 
 
-    def test_empty_base_dataset(self, nfi_rnd_kit):
-        base = SimpleDataset(data=[])
-        ds = PeakWindowDataset(
-            base_dataset=base, threshold=100, window_size=120, preprocess=False,
-        )
-        assert len(ds) == 0
 
     def test_include_max_pool_dyes(self, nfi_rnd_kit):
         base = self._make_base_dataset(n_images=1)

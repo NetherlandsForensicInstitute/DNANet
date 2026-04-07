@@ -260,7 +260,12 @@ def run(
 
 
     if not dataset:
-        data_cfg = cfg.get('data')
+        if (data_cfg := cfg.get('data')) is None:
+            raise ValueError(
+                "Training requires a dataset. "
+                "Set it via: dnanet task=train data=your_dataset"
+            )
+
         dataset = instantiate(data_cfg.dataset)
 
     datamodule = DNANetDataModule(

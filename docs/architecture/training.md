@@ -1,4 +1,3 @@
-from dnanet.data import HIDDataset
 
 # Training
 
@@ -86,6 +85,7 @@ evaluation:
 ```python
 
 from dnanet.tasks.train import run
+from dnanet.data import HIDDataset
 
 # Load data
 dataset = HIDDataset(...)

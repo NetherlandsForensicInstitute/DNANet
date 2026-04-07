@@ -7,6 +7,8 @@ from __future__ import annotations
 import lightning as L
 from torch.utils.data import Dataset, DataLoader, default_collate
 
+from dnanet.data.dataset import TransformableDataset
+
 from dnanet.data.strategies import StrategyRegistry
 
 
@@ -23,7 +25,7 @@ class DNANetDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        dataset: Dataset,
+        dataset: TransformableDataset,
         batch_size: int = 16,
         val_fraction: float = 0.8,
         num_workers: int = 0,
