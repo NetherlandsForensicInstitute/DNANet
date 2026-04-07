@@ -66,19 +66,19 @@ class TestUNet:
 
     def test_output_shape_matches_input(self, unet):
         """Output spatial dims should match input."""
-        x = torch.randn(2, 1, 5, 256)
+        x = torch.randn(2, 5, 256)
         out = unet(x)
-        assert out.shape == (2, 1, 5, 256)
+        assert out.shape == (2, 5, 256)
 
     def test_default_config(self):
         """Default UNet should work with typical EPG dimensions."""
         unet = UNet()  # depth=4, kernel_size=(3,5), num_filters=32
-        x = torch.randn(1, 1, 5, 4096)
+        x = torch.randn(1, 5, 4096)
         out = unet(x)
-        assert out.shape == (1, 1, 5, 4096)
+        assert out.shape == (1, 5, 4096)
 
-    def test_custom_channels(self):
-        """Should support custom in/out channels."""
+    def test_custom_channels_legacy_4d_input(self):
+        """Legacy 4D inputs should still support custom in/out channels."""
         unet = UNet(depth=2, kernel_size=(3, 3), num_filters=8,
                      in_channels=3, out_channels=5)
         x = torch.randn(1, 3, 5, 128)
@@ -88,20 +88,20 @@ class TestUNet:
     def test_kernel_size_as_list(self):
         """Hydra passes kernel_size as a list — should work."""
         unet = UNet(depth=2, kernel_size=[3, 5], num_filters=8)
-        x = torch.randn(1, 1, 5, 256)
+        x = torch.randn(1, 5, 256)
         out = unet(x)
-        assert out.shape == (1, 1, 5, 256)
+        assert out.shape == (1, 5, 256)
 
     def test_single_depth(self):
         """Depth=1 should still produce valid output."""
         unet = UNet(depth=1, kernel_size=(3, 3), num_filters=8)
-        x = torch.randn(1, 1, 5, 64)
+        x = torch.randn(1, 5, 64)
         out = unet(x)
-        assert out.shape == (1, 1, 5, 64)
+        assert out.shape == (1, 5, 64)
 
     def test_gradients_flow(self, unet):
         """Gradients should flow through the entire network."""
-        x = torch.randn(1, 1, 5, 256, requires_grad=True)
+        x = torch.randn(1, 5, 256, requires_grad=True)
         out = unet(x)
         out.sum().backward()
         assert x.grad is not None
@@ -117,8 +117,8 @@ class TestUNet:
 
     def test_batch_independence(self, unet):
         """Each sample in a batch should be processed independently."""
-        x1 = torch.randn(1, 1, 5, 256)
-        x2 = torch.randn(1, 1, 5, 256)
+        x1 = torch.randn(1, 5, 256)
+        x2 = torch.randn(1, 5, 256)
         unet.eval()
         with torch.no_grad():
             out1 = unet(x1)
@@ -140,6 +140,20 @@ class TestUNet:
         })
         unet = instantiate(cfg)
         assert isinstance(unet, UNet)
-        x = torch.randn(1, 1, 5, 128)
+        x = torch.randn(1, 5, 128)
         out = unet(x)
         assert out.shape == x.shape
+
+    def test_legacy_single_channel_input_preserves_4d_output(self):
+        """Legacy 4D single-channel inputs should keep the channel dimension."""
+        unet = UNet(depth=2, kernel_size=(3, 5), num_filters=8)
+        x = torch.randn(2, 1, 5, 256)
+        out = unet(x)
+        assert out.shape == x.shape
+
+    def test_channel_less_input_requires_single_input_channel(self):
+        """3D input is only valid when the network expects one input channel."""
+        unet = UNet(depth=1, kernel_size=(3, 3), num_filters=8, in_channels=2)
+        x = torch.randn(1, 5, 64)
+        with pytest.raises(ValueError, match="in_channels=1"):
+            unet(x)

@@ -28,14 +28,13 @@ class TransformDataCallable(abc.ABC):
 @dataclass
 class SegmentationTransformer(TransformDataCallable):
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
-        # Input: (dyes, signal_length, 1) -> (1, dyes, signal_length)
         data = image.data
-        x = torch.tensor(np.transpose(data, (2, 0, 1)), dtype=torch.float32)
+        x = torch.tensor(data, dtype=torch.float32)
 
         # Target: segmentation mask with same shape
         if image.annotation is not None:
             y = torch.tensor(
-                np.transpose(image.annotation.data, (2, 0, 1)),
+                image.annotation.data,
                 dtype=torch.float32,
             )
         else:

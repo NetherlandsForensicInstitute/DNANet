@@ -9,6 +9,7 @@ import lightning as L
 import torch
 import torchmetrics
 from lightning import Callback
+from loguru import logger
 from torch import Tensor, nn
 
 

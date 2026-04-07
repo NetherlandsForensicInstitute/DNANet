@@ -204,7 +204,7 @@ class HIDDataset(Dataset):
                     [image], [scanpoint_annotation], adjustment_type=self.adjustment_of_annotations
                 )
 
-            image.annotation = scanpoint_annotation
+            image.annotation = scanpoint_annotation[0]
 
             if image.annotation is None:
                 skipped_alleles += 1
@@ -324,9 +324,6 @@ class HIDDataset(Dataset):
 
     # -- Dunder ----------------------------------------------------------- #
 
-    def __getitem__(self, index) -> HIDImage:
-        """Itemgetter for the dataset."""
-        return self._data[index]
 
     def __len__(self) -> int:
         """Length of the dataset."""
@@ -344,6 +341,4 @@ class HIDDataset(Dataset):
 
         return item
 
-    def __len__(self) -> int:
-        return len(self._data)
 

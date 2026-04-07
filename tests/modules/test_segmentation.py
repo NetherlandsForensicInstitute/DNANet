@@ -30,8 +30,8 @@ def module(small_model) -> SegmentationModule:
 @pytest.fixture
 def dummy_batch() -> tuple[torch.Tensor, torch.Tensor]:
     """A small batch of random data."""
-    x = torch.randn(2, 1, 5, 64)
-    y = torch.randint(0, 2, (2, 1, 5, 64)).float()
+    x = torch.randn(2, 5, 64)
+    y = torch.randint(0, 2, (2, 5, 64)).float()
     return x, y
 
 
@@ -90,8 +90,8 @@ class TestSegmentationModule:
         import lightning as L
 
         # Create a tiny dataset
-        x = torch.randn(8, 1, 5, 64)
-        y = torch.randint(0, 2, (8, 1, 5, 64)).float()
+        x = torch.randn(8, 5, 64)
+        y = torch.randint(0, 2, (8, 5, 64)).float()
         ds = TensorDataset(x, y)
         dl = DataLoader(ds, batch_size=4)
 
@@ -109,8 +109,8 @@ class TestSegmentationModule:
         """Should handle both training and validation."""
         import lightning as L
 
-        x = torch.randn(8, 1, 5, 64)
-        y = torch.randint(0, 2, (8, 1, 5, 64)).float()
+        x = torch.randn(8, 5, 64)
+        y = torch.randint(0, 2, (8, 5, 64)).float()
         ds = TensorDataset(x, y)
         train_dl = DataLoader(ds, batch_size=4)
         val_dl = DataLoader(ds, batch_size=4)
@@ -145,9 +145,9 @@ class TestSegmentationModule:
 
         # Deterministic tiny dataset
         torch.manual_seed(42)
-        x = torch.randn(4, 1, 5, 64)
-        y = torch.zeros(4, 1, 5, 64)
-        y[:, :, :, 20:30] = 1.0  # simple target pattern
+        x = torch.randn(4, 5, 64)
+        y = torch.zeros(4, 5, 64)
+        y[:, :, 20:30] = 1.0  # simple target pattern
 
         ds = TensorDataset(x, y)
         dl = DataLoader(ds, batch_size=4)
