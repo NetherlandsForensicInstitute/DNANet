@@ -2,15 +2,14 @@
 
 import numpy as np
 import pytest
-from numpy.testing import assert_array_equal
 
-from tests.conftest import RD_DIR, PROVEDIT_DIR
+from tests.conftest import PROVEDIT_DIR
 from dnanet.data.parsing.hid import get_peak_data
-from dnanet.data.strategies.scaling import (
-    GlobalFilerStrategy,
-    PowerPlexFusion6CStrategy,
+from dnanet.data.strategies.scaling.scaling import (
     get_scaling_strategy,
 )
+from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
+from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
 from dnanet.data.strategies.registry import StrategyRegistry
 
 

@@ -54,8 +54,8 @@ class LadderAlleleCatalog:
     """Catalog of alleles expected in a ladder, organized by dye row.
 
     Loaded from a CSV file with columns: Marker, Allele, Dye.
-    
-    Note: This is a separate class to prevent multiple I/O operations for reading the 
+
+    Note: This is a separate class to prevent multiple I/O operations for reading the
     same CSV file and allow the use of the csv's information inside the Ladder class.
     """
 
@@ -79,7 +79,7 @@ class LadderAlleleCatalog:
     def expected_count(self, dye_row: int) -> int:
         """Number of alleles expected on a given dye row."""
         return len(self.alleles_by_dye.get(dye_row, []))
-    
+
     def __hash__(self):
         return hash(
             tuple(
@@ -111,7 +111,7 @@ class Ladder:
         adjusted_panel: Panel with base-pairs adjusted from ladder peaks.
                         ``None`` if peak detection failed.
     """
-    
+
     @classmethod
     @cache
     def create_adjusted_panel(
@@ -120,7 +120,7 @@ class Ladder:
         catalog: LadderAlleleCatalog
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
-        
+
         This uses the Kit Strategies 'original' Panel to scale.
 
         Args:
@@ -130,7 +130,7 @@ class Ladder:
         Returns:
             The adjusted panel
         """
-        
+
         ladder_image = HIDImage(
             path=ladder_path,
             data_loading_strategy="analyzed",
@@ -138,11 +138,11 @@ class Ladder:
         )
         if ladder_image.data is None:
             raise ValueError("Ladder is invalid")
-        
+
         scaling_strategy = StrategyRegistry.get_scaling_strategy()
-        num_dyes = scaling_strategy.kit.num_dyes
+        num_dyes = scaling_strategy.kit.num_dyes - 1 # exclude size standard
         default_panel = scaling_strategy.panel
-        
+
         detected_peaks = cls._find_all_peaks(
             data=ladder_image.data,
             catalog=catalog,
@@ -151,7 +151,7 @@ class Ladder:
         )
         if detected_peaks is None:
             return None
-        
+
         adjusted_panel = cls._adjust_panel(
             detected_peaks,
             catalog=catalog,

@@ -1,4 +1,4 @@
-"""Kit and dataset strategies for handling different forensic DNA kits and datasets.
+"""Dataset and scaling strategy exports.
 
 Design pattern: **Strategy**
     Different forensic DNA kits (PowerPlex Fusion 6C, GlobalFiler) and datasets
@@ -21,11 +21,38 @@ Design pattern: **Registry**
     This replaces scattered global state and makes dependencies explicit.
 """
 
-from dnanet.data.strategies.scaling import ScalingStrategy, SizeStandardParseResult
+from dnanet.data.strategies.datasets import (
+    DATASET_STRATEGIES,
+    DatasetStrategy,
+    FileCategory,
+    NFIRnDStrategy,
+    ProvedItStrategy,
+    get_dataset_strategy,
+)
 from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.data.strategies.scaling import (
+    SCALING_STRATEGIES,
+    GlobalFilerStrategy,
+    PowerPlexFusion6CStrategy,
+    PowerplexY23,
+    ScalingStrategy,
+    SizeStandardParseResult,
+    get_scaling_strategy,
+)
 
 __all__ = [
+    "DATASET_STRATEGIES",
+    "DatasetStrategy",
+    "FileCategory",
+    "NFIRnDStrategy",
+    "ProvedItStrategy",
+    "get_dataset_strategy",
+    "SCALING_STRATEGIES",
+    "GlobalFilerStrategy",
+    "PowerPlexFusion6CStrategy",
+    "PowerplexY23",
     "ScalingStrategy",
     "SizeStandardParseResult",
+    "get_scaling_strategy",
     "StrategyRegistry",
 ]

@@ -28,9 +28,7 @@ class STRKit:
         name: Kit identifier (e.g. "PPF6C", "GlobalFiler").
         size_standard: The internal size standard used by this kit.
         panel: The allele/marker panel for this kit.
-        num_dyes: Number of fluorescence channels (excl. size standard).
-                  PPF6C = 5 analysis dyes, GlobalFiler = 5 analysis dyes.
-                  The size standard is always an additional channel.
+        num_dyes: Number of fluorescence channels (including size standard).
         hid_dye_mapping: Maps 1-based HID dye indices to 0-based channel rows.
                          Kit-specific because some kits skip dye numbers
                          (e.g. PPF6C skips dye 5, mapping {1:0, 2:1, 3:2, 4:3, 6:4}).

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from dnanet.data.strategies.registry import StrategyRegistry
-from dnanet.data.strategies.scaling import (
+from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
     get_scaling_strategy,
 )

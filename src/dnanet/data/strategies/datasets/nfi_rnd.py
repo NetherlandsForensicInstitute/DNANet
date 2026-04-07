@@ -23,7 +23,7 @@ from dnanet.core.allele import Allele
 from dnanet.core.annotation import AlleleAnnotation, Annotation
 from dnanet.core.marker import Marker
 from dnanet.core.types import PathLike
-from dnanet.data.strategies.dataset import DatasetStrategy, FileCategory
+from dnanet.data.strategies.datasets.dataset import DatasetStrategy, FileCategory
 
 
 # R&D filename pattern: digit + letter + digit (e.g. "1A2")
@@ -32,13 +32,13 @@ _RD_PREFIX_RE = re.compile(r"^\d[A-F]\d")
 
 class NFIRnDStrategy(DatasetStrategy):
     """Strategy for the NFI R&D mixture dataset."""
-    
+
     READ_ANNOTATION_HEIGHTS: bool = False
-    
+
     @classmethod
     def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
-        """Collect the dataset files for this specific dataset strategy. 
-        
+        """Collect the dataset files for this specific dataset strategy.
+
         Creates a generator that yields paths to HIDImage's, Annotations (optional),
         and corresponding Ladder file (optional).
 
@@ -103,7 +103,7 @@ class NFIRnDStrategy(DatasetStrategy):
                 hid_to_annotation.get(str(hid_file.stem)),
                 hid_to_ladder.get(hid_file.stem)
             )
-        
+
 
     @classmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
@@ -273,7 +273,7 @@ class NFIRnDStrategy(DatasetStrategy):
                 return delimiter, allele_cols, height_cols
 
         raise TypeError(f"No valid delimiter found in header: {header!r}")
-    
+
     @classmethod
     def _read_csv_file(cls, csv_file: str | Path) -> Tuple[List[str], List[List[str]]]:
         """Read a csv file with a header row.
