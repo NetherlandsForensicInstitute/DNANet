@@ -337,7 +337,10 @@ class HIDDataset(Dataset, TransformableDataset):
 
     def transform(self) -> TransformDataCallable | None:
         return self._transform
-
+    
+    @property
+    def images(self) -> List[HIDImage]:
+        return self._data
 
     # -- Dunder ----------------------------------------------------------- #
 
