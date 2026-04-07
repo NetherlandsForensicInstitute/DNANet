@@ -33,13 +33,12 @@ from sklearn.model_selection import (
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.annotation import Annotation, AlleleAnnotation
-from dnanet.data.hid_dataset import HIDDataset
 from dnanet.data.strategies.dataset import SplitResult, FileCategory, DatasetStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
 
 
 if typing.TYPE_CHECKING:
     from dnanet.core.types import PathLike
+    from dnanet.data.hid_dataset import HIDDataset
 
 
 class NFIRnDStrategy(DatasetStrategy):
@@ -466,16 +465,3 @@ class NFIRnDStrategy(DatasetStrategy):
         train_idx = [i for pos in train_pos for i in replicas[pos]]
         val_idx = [i for pos in val_pos for i in replicas[pos]]
         return Subset(dataset, train_idx), Subset(dataset, val_idx)
-
-
-if __name__ == '__main__':
-    StrategyRegistry.configure_dataset(NFIRnDStrategy)
-    StrategyRegistry.configure_kit('PPF6C')
-    dataset = HIDDataset(
-        root='/Users/abel/Documents/Coding/NFI/Antigravity/DNANet-clean/data/2p_5p_Dataset_NFI',
-        ladder_alleles_csv='/Users/abel/Documents/Coding/NFI/Antigravity/DNANet-clean/data/2p_5p_Dataset_NFI/ladder_alleles.csv',
-    )
-
-    ds_strat = StrategyRegistry.get_dataset_strategy()
-
-    pass

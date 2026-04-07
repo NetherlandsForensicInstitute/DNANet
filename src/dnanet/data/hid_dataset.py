@@ -163,7 +163,10 @@ class HIDDataset(Dataset):
             _current_panel = self._default_panel
             if ladder_path:
                 adjusted = Ladder.create_adjusted_panel(
-                    ladder_path=ladder_path, catalog=self._ladder_catalog
+                    ladder_path=ladder_path,
+                    catalog=self._ladder_catalog,
+                    data_loading_strategy=self.data_loading_strategy,
+                    include_size_standard=self.include_size_standard,
                 )
                 if adjusted:
                     _current_panel = adjusted
