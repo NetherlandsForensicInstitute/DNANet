@@ -8,7 +8,7 @@ from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
     get_scaling_strategy,
 )
-from dnanet.data.strategies.size_standard import GENESCAN_600_LIZ, WEN_ILS
+from dnanet.data.strategies.scaling.size_standard import GENESCAN_600_LIZ, WEN_ILS
 
 
 class TestSizeStandard:

@@ -7,12 +7,12 @@ from loguru import logger
 
 from dnanet.core import Panel
 from dnanet.data.preprocessing.peaks import find_peaks_above_threshold
-from dnanet.data.strategies.kit import STRKit
+from dnanet.data.strategies.scaling.kit import STRKit
 from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
     SizeStandardParseResult,
 )
-from dnanet.data.strategies.size_standard import GENESCAN_600_LIZ
+from dnanet.data.strategies.scaling.size_standard import GENESCAN_600_LIZ
 
 _GLOBALFILER_PANEL_PATH = Path("resources/kit_panels/SGPanel_Globalfiler_Panel.xml")
 
@@ -145,5 +145,4 @@ class GlobalFilerStrategy(ScalingStrategy):
             best_diff, max_shrinkages, threshold,
         )
         return best_trimmed, best_bps, best_diff
-
 

@@ -6,12 +6,12 @@ import numpy as np
 
 from dnanet.core import Panel
 from dnanet.data.preprocessing.peaks import find_peaks_above_threshold
-from dnanet.data.strategies.kit import STRKit
+from dnanet.data.strategies.scaling.kit import STRKit
 from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
     SizeStandardParseResult,
 )
-from dnanet.data.strategies.size_standard import WEN_ILS
+from dnanet.data.strategies.scaling.size_standard import WEN_ILS
 
 _PPF6C_PANEL_PATH = Path("resources/kit_panels/SGPanel_PPF6C.xml")
 

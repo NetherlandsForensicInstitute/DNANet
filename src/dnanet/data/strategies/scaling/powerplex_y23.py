@@ -1,8 +1,9 @@
-from dnanet.data.strategies.kit import STRKit
+from dnanet.data.strategies.scaling.kit import STRKit
 from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
-from dnanet.data.strategies.size_standard import WEN_ILS
+from dnanet.data.strategies.scaling.size_standard import WEN_ILS
 
 
+# TODO: should this be a child of PowerPlexFusion6CStrategy?
 class PowerplexY23(PowerPlexFusion6CStrategy):
     def __init__(self, panel_path: str = None):
         kit = STRKit(

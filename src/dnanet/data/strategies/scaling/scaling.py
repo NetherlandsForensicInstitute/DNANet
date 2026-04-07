@@ -30,7 +30,8 @@ import numpy as np
 import scipy.interpolate
 import scipy.ndimage
 
-from dnanet.data.strategies.kit import STRKit
+from dnanet.data.strategies import PowerplexY23
+from dnanet.data.strategies.scaling.kit import STRKit
 
 
 # ---------------------------------------------------------------------------
@@ -230,6 +231,7 @@ from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6C
 SCALING_STRATEGIES: dict[str, type[ScalingStrategy]] = {
     "PPF6C": PowerPlexFusion6CStrategy,
     "GLOBALFILER": GlobalFilerStrategy,
+    "Y23": PowerplexY23,
 }
 
 

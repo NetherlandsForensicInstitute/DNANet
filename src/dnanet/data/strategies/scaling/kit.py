@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from dnanet.core.panel import Panel
-from dnanet.data.strategies.size_standard import SizeStandard
+from dnanet.data.strategies.scaling.size_standard import SizeStandard
 
 
 @dataclass(frozen=True)

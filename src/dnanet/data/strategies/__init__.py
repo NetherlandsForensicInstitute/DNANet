@@ -31,12 +31,17 @@ from dnanet.data.strategies.datasets import (
 )
 from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.strategies.scaling import (
+    GENESCAN_600_LIZ,
     SCALING_STRATEGIES,
     GlobalFilerStrategy,
     PowerPlexFusion6CStrategy,
     PowerplexY23,
     ScalingStrategy,
+    STRKit,
+    SYNTHETIC_GENESCAN_600_LIZ,
+    SizeStandard,
     SizeStandardParseResult,
+    WEN_ILS,
     get_scaling_strategy,
 )
 
@@ -48,6 +53,11 @@ __all__ = [
     "ProvedItStrategy",
     "get_dataset_strategy",
     "SCALING_STRATEGIES",
+    "STRKit",
+    "SizeStandard",
+    "WEN_ILS",
+    "GENESCAN_600_LIZ",
+    "SYNTHETIC_GENESCAN_600_LIZ",
     "GlobalFilerStrategy",
     "PowerPlexFusion6CStrategy",
     "PowerplexY23",
