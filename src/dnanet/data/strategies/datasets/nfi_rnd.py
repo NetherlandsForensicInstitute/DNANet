@@ -336,13 +336,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
         if not group_by_replica:
             indices = list(range(len(dataset)))
-            nocs = [
-                v
-                for v in (
-                    cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.data
-                )
-                if v is not None
-            ]
+            nocs = [cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.images]
 
             logger.info(
                 f'Fractional split | {fraction:.0%} train | stratify={"noc" if stratify_noc else "none"}'
@@ -371,7 +365,7 @@ class NFIRnDStrategy(DatasetStrategy):
             f'Fractional grouped split | -{fraction:.0%} train | {n_splits=} | stratify={"noc" if stratify_noc else "none"}'
         )
         train_pos, val_pos = next(splitter.split(dummy_X, noc_labels, groups=replica_ids))
-        return cls._subsets(dataset, replica_map, train_pos, val_pos)
+        return cls._subsets(dataset, replica_map, train_pos, val_pos) # type: ignore
 
     # -- K-Fold --------------------
 
@@ -392,7 +386,7 @@ class NFIRnDStrategy(DatasetStrategy):
         if not group_by_replica:
             indices = [i for indices in replica_map.values() for i in indices]
             sample_nocs = [
-                cls.get_number_of_contributors(dataset.data[i].path.stem) for i in indices
+                cls.get_number_of_contributors(dataset.images[i].path.stem) for i in indices
             ]
             if any(n is None for n in sample_nocs) and stratify_noc:
                 raise AttributeError(
@@ -411,7 +405,7 @@ class NFIRnDStrategy(DatasetStrategy):
                     Subset(dataset, [indices[i] for i in train]),
                     Subset(dataset, [indices[i] for i in val]),
                 )
-                for train, val in splitter.split(indices, sample_nocs if stratify_noc else indices)
+                for train, val in splitter.split(indices, sample_nocs if stratify_noc else indices) # type: ignore
             ]
 
         splitter = (
@@ -423,7 +417,7 @@ class NFIRnDStrategy(DatasetStrategy):
             f'K-Fold grouped split | {k_folds} folds | stratify={"noc" if stratify_noc else "none"}'
         )
         return [
-            cls._subsets(dataset, replica_map, train_pos, val_pos)
+            cls._subsets(dataset, replica_map, train_pos, val_pos) # type: ignore
             for train_pos, val_pos in splitter.split(dummy_X, noc_labels, groups=replica_ids)
         ]
 
@@ -433,7 +427,7 @@ class NFIRnDStrategy(DatasetStrategy):
     def _build_replica_map(cls, dataset: HIDDataset) -> Dict[str, List[int]]:
         """Maps each replica_id to its list of sample indices."""
         replica_map: Dict[str, List[int]] = {}
-        for i, img in enumerate(dataset.data):
+        for i, img in enumerate(dataset.images):
             replica_id = cls.get_sample_id(img.path.stem)
             replica_map.setdefault(replica_id, []).append(i)
         return replica_map
@@ -446,7 +440,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
         def majority_noc(indices: List[int]) -> int:
             nocs = [
-                cls.get_number_of_contributors(file_name=dataset.data[i].path.stem) for i in indices
+                cls.get_number_of_contributors(file_name=dataset.images[i].path.stem) for i in indices
             ]
             if any([n is None for n in nocs]):
                 raise ValueError(
