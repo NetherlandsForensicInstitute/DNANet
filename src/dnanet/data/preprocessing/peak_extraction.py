@@ -36,7 +36,7 @@ def setup_marker_to_idx() -> Tuple[Dict[str, int], int]:
     """
     scaling_strategy = StrategyRegistry.get_scaling_strategy()
     marker_to_dye_idx = scaling_strategy.marker_name_to_dye_idx()
-    
+
     _marker_to_idx = {
         name: idx + 1 for idx, name in
         enumerate(marker_to_dye_idx.keys())
@@ -277,7 +277,7 @@ def extract_peak_windows(
 
     # Cache marker mapping once (fixes Issue 1)
     marker_to_idx, _ = setup_marker_to_idx()
-    
+
     annotation_image = image.annotation.data if image.annotation is not None else None
     adjusted_panel = getattr(image, "_panel", None)
 
@@ -294,20 +294,20 @@ def extract_peak_windows(
     half_window = window_size // 2
     pad_left = half_window
     pad_right = window_size - half_window  # Handles both even/odd window sizes
-    
+
     padded_data = np.pad(data, ((0, 0), (pad_left, pad_right)), mode='constant', constant_values=0)
     if include_max_pool_dyes:
         padded_max_pool = np.pad(array=max_pool_data, pad_width=((0, 0), (pad_left, pad_right)), mode='constant', constant_values=0)
 
     peaks: list[ExtractedPeak] = []
-    
+
     # Flattened loop with faster slice extraction
     for dye_index in range(n_dyes):
         dye_data = data[dye_index]
-        
+
         # Find all peaks for this dye at once
         peak_indices, _ = scipy.signal.find_peaks(dye_data, height=threshold)
-        
+
         if len(peak_indices) == 0:
             continue
 
@@ -326,7 +326,7 @@ def extract_peak_windows(
             # peak_scanpoint in original maps to peak_scanpoint + pad_left in padded
             start_padded = peak_scanpoint
             end_padded = start_padded + window_size
-            
+
             if include_max_pool_dyes:
                 peak_data = np.empty((2, window_size), dtype=data.dtype)
                 peak_data[0] = padded_data[dye_index, start_padded:end_padded]
@@ -338,7 +338,7 @@ def extract_peak_windows(
             peak_marker_name, peak_marker_index = _find_marker_for_peak(
                 peak_basepair, dye_index, adjusted_panel, marker_to_idx
             )
-            
+
             # Fast annotation check without function call overhead
             peak_label = _label_peak_from_annotation_fast(ann_channel, peak_scanpoint, padding=2)
 
@@ -359,7 +359,6 @@ def extract_peak_windows(
 
 def extract_peaks_torch(
     image: HIDImage,
-    device: torch.device | str,
     threshold: float,
     window_size: int,
     include_max_pool_dyes: bool = False,
@@ -395,7 +394,7 @@ def extract_peaks_torch(
     else:
         data_2d = data # (D, L)
 
-    x = torch.from_numpy(data_2d.astype(np.float32)).to(device)
+    x = torch.from_numpy(data_2d.astype(np.float32))
     n_dyes = scaling_strategy.kit.num_dyes
     n_dyes = n_dyes - 1  # exclude size standard
     x = x[:n_dyes, :]
@@ -407,7 +406,7 @@ def extract_peaks_torch(
     marker_to_idx = scaling_strategy.marker_name_to_dye_idx()
 
     marker_idxs = [marker_to_idx.get(adjusted_panel.get_marker_name_by_dye_and_bp(dye, bp), len(marker_to_idx)) for dye, bp in peak_centers.tolist()]
-    marker_idxs = torch.tensor(marker_idxs, dtype=torch.long, device=device)
+    marker_idxs = torch.tensor(marker_idxs, dtype=torch.long)
 
     return peak_windows, marker_idxs, peak_centers
 
