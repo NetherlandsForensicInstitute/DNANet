@@ -44,7 +44,7 @@ class ProvedItStrategy(DatasetStrategy):
         return "sample"
 
     @classmethod
-    def get_number_of_contributors(cls, file_name: str) -> str | None:
+    def get_number_of_contributors(cls, file_name: str) -> int:
         """Extract contributor count from ProvedIt naming.
 
         ProvedIt encodes contributors in the sample description,
@@ -55,20 +55,21 @@ class ProvedItStrategy(DatasetStrategy):
             String like ``"2p"`` or ``None`` if not determinable.
         """
         stem = Path(file_name).stem
-        # ProvedIt samples have format: well_description_time
-        parts = stem.split("_")
+        # Example filename:
+        # A02_RD14-0003-31_32-1;1-M2c-0.03GF-Q2.0_01.5sec
+        # We want to extract the 31_32 here to conclude 2 contributors (with 1:1 mixture prop.)
+        parts = stem.split("-")
         if len(parts) < 2:
-            return None
+            raise ValueError(f'Could not extract NoC from {file_name=}')
 
-        description = parts[1]
-        # Count unique contributor digits in the ratio section
-        # e.g. "RD14-0003-34d1" has "34" → 2 contributors
-        # e.g. "RD14-0003-1d1" has "1" → 1 contributor
-        ratio_match = re.search(r"-(\d+)d\d", description)
-        if ratio_match:
-            ratio_str = ratio_match.group(1)
-            return f"{len(ratio_str)}p"
-        return None
+        # We check each of the file's parts
+        for p in parts:
+            # And if it matches the pattern of:
+            # contributor 1 + (underscore + contributer{i}) * i_contributors (i ranging from 1 to 4)
+            if re.match(rf'(\d{1,2})(_\d{1,2})+', p):
+                # We return the number of distinct contributor ID's
+                return len(p.split('_'))
+        raise ValueError(f'Could not extract NoC from {file_name=}')
 
     @classmethod
     def get_sample_id(cls, file_name: str) -> str:
