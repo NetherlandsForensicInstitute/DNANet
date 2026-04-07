@@ -20,6 +20,7 @@ import numpy as np
 from hydra.utils import instantiate
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
+from torch.utils.data import Dataset
 
 from dnanet.data.splitting import split_data_in_k_folds
 from dnanet.tasks.train import _build_callbacks, _build_logger, _build_module
@@ -42,9 +43,8 @@ def run(cfg: DictConfig) -> dict[str, dict[str, float]]:
     L.seed_everything(cfg.seed, workers=True)
 
     data_cfg = cfg.get("data")
-    if data_cfg and data_cfg.get("root"):
-        from dnanet.data.loading import load_dataset
-        dataset = load_dataset(data_cfg)
+    if data_cfg and data_cfg.get("dataset"):
+        dataset = instantiate(data_cfg.dataset)
         return run_with_data(cfg, dataset)
 
     logger.warning(
@@ -56,7 +56,7 @@ def run(cfg: DictConfig) -> dict[str, dict[str, float]]:
 
 def run_with_data(
     cfg: DictConfig,
-    dataset: "InMemoryDataset",
+    dataset: Dataset,
 ) -> dict[str, dict[str, float]]:
     """Run k-fold cross-validation with a pre-loaded dataset.
 
@@ -72,8 +72,7 @@ def run_with_data(
         Dictionary with ``"per_fold"`` and ``"aggregate"`` keys containing
         metric results.
     """
-    from dnanet.data.datamodule import HIDTorchDataset
-    from dnanet.data.dataset import InMemoryDataset
+
     from torch.utils.data import DataLoader
 
     L.seed_everything(cfg.seed, workers=True)
@@ -82,7 +81,7 @@ def run_with_data(
     logger.info("Starting {}-fold cross-validation", n_folds)
 
     # -- Split into folds --------------------------------------------------
-    all_items = list(dataset)
+    all_items = list(dataset) # TODO splitting
     folds = split_data_in_k_folds(all_items, n_folds, seed=cfg.seed)
     logger.info("Dataset: {} samples, split into {} folds: sizes = {}",
                 len(all_items), n_folds, [len(f) for f in folds])
@@ -120,7 +119,7 @@ def run_with_data(
             split_idx = int(len(train_items) * (1 - val_fraction))
             val_items = train_items[split_idx:]
             train_items = train_items[:split_idx]
-            val_loader = DataLoader(
+            val_loader = DataLoader( # FIXME
                 HIDTorchDataset(val_items),
                 batch_size=cfg.training.batch_size,
                 shuffle=False,
@@ -129,7 +128,7 @@ def run_with_data(
         else:
             val_loader = None
 
-        train_loader = DataLoader(
+        train_loader = DataLoader( # FIXME
             HIDTorchDataset(train_items),
             batch_size=cfg.training.batch_size,
             shuffle=True,
@@ -161,7 +160,7 @@ def run_with_data(
             break
 
         # Evaluate on test fold
-        test_dataset = HIDTorchDataset(test_items)
+        test_dataset = HIDTorchDataset(test_items) # FIXME
         test_loader = DataLoader(
             test_dataset,
             batch_size=cfg.training.batch_size,

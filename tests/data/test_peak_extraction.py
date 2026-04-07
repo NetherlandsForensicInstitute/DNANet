@@ -78,35 +78,28 @@ class TestBuildPeakData:
 class TestLabelPeakFromAnnotation:
     """Tests for _label_peak_from_annotation."""
 
-    @pytest.fixture(autouse=True)
-    def setup_dataset_strategy(self):
-        StrategyRegistry.configure_dataset(NFIRnDStrategy)
-        StrategyRegistry.configure_kit('PPF6C')
-        yield
-        StrategyRegistry.reset()
-
-    def test_none_annotation_returns_noise(self):
+    def test_none_annotation_returns_noise(self, nfi_rnd_kit):
         label = _label_peak_from_annotation(None, 0, 50)
         assert label == 'noise'
 
-    def test_annotated_peak_returns_allele(self):
+    def test_annotated_peak_returns_allele(self, nfi_rnd_kit):
         ann = np.zeros((5, 100))
         ann[0, 49:52] = 1  # annotated around position 50
         label = _label_peak_from_annotation(ann, 0, 50)
         assert label == 'allele'
 
-    def test_unannotated_peak_returns_noise(self):
+    def test_unannotated_peak_returns_noise(self, nfi_rnd_kit):
         ann = np.zeros((5, 100))
         label = _label_peak_from_annotation(ann, 0, 50)
         assert label == 'noise'
 
-    def test_3d_annotation(self):
+    def test_3d_annotation(self, nfi_rnd_kit):
         ann = np.zeros((5, 100, 1))
         ann[2, 30, 0] = 1
         label = _label_peak_from_annotation(ann, 2, 30)
         assert label == 'allele'
 
-    def test_padding_extends_check_range(self):
+    def test_padding_extends_check_range(self, nfi_rnd_kit):
         ann = np.zeros((5, 100))
         ann[0, 52] = 1  # just outside default padding of 1
         label = _label_peak_from_annotation(ann, 0, 50, padding=2)

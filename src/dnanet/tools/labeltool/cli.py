@@ -143,7 +143,7 @@ def _load_dataset_from_config_name(data_config: str):
     """
     from hydra import compose, initialize_config_dir
 
-    from dnanet.data.loading import load_dataset
+    from dnanet.data.loading import load_dataset # FIXME
 
     # Locate the conf/ directory relative to the workspace root.
     # dnanet.cli uses Path(__file__).parents[2] from src/dnanet/cli.py;

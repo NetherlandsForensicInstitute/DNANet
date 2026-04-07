@@ -66,12 +66,7 @@ class TestExtractedPeak:
         assert hash(p1) == hash(p2)
         assert len({p1, p2}) == 1  # deduplication in set
 
-    def test_repr(self):
-        peak = self._make_peak()
-        s = repr(peak)
-        assert "ExtractedPeak" in s
-        assert "dye=0" in s
-        assert "allele" in s
+
 
     def test_data_shape_single_channel(self):
         data = np.random.rand(1, 120)

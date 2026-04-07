@@ -33,7 +33,4 @@ class TestMarker:
     def test_roundtrip_serialization(self, sample_marker):
         restored = Marker.from_dict(sample_marker.to_dict())
         assert restored == sample_marker
-        assert all(
-            r == o
-            for r, o in zip(restored.alleles, sample_marker.alleles)
-        )
+        assert restored.to_dict() == sample_marker.to_dict()
