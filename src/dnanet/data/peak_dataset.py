@@ -15,10 +15,11 @@ Design pattern: **Decorator**
 
 from __future__ import annotations
 
-from typing import Iterator
+from typing import Iterator, Any
 
 from torch.utils.data import IterableDataset
 
+from dnanet.data.dataset import TransformableDataset
 from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.hid_dataset import HIDDataset
 from dnanet.data.image import HIDImage
@@ -26,9 +27,10 @@ from dnanet.data.preprocessing.baseline import fft_lowpass_smooth
 from dnanet.data.preprocessing.peak_extraction import extract_peak_windows
 from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
 from dnanet.data.strategies import StrategyRegistry
+from dnanet.data.transformer import TransformDataCallable
 
 
-class PeakWindowDataset(IterableDataset):
+class PeakWindowDataset(IterableDataset, TransformableDataset):
     """Dataset of extracted peak windows from DNA profiles.
 
     Takes a base :class:`HIDDataset`, extracts peaks from every loaded
@@ -114,5 +116,16 @@ class PeakWindowDataset(IterableDataset):
 
         peak._data = data
 
-    def __iter__(self) -> Iterator[ExtractedPeak]:
-        return self._iterate_peaks(self.base_dataset)
+    @property
+    def transform(self) -> TransformDataCallable | None:
+        return self.base_dataset.transform
+
+
+    def __iter__(self) -> Iterator[Any]:
+        for peak in self._iterate_peaks(self.base_dataset):
+
+            if self.transform:
+                yield self.transform(peak)
+            else:
+                yield peak
+

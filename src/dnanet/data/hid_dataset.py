@@ -42,6 +42,7 @@ from torch.utils.data import Dataset
 from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
+from dnanet.data.dataset import TransformableDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
@@ -49,7 +50,7 @@ from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.transformer import TransformDataCallable
 
 
-class HIDDataset(Dataset):
+class HIDDataset(Dataset, TransformableDataset):
     """Load HID files from a directory into an in-memory dataset.
 
     This is the primary dataset class for forensic DNA profiles. It:
@@ -99,7 +100,7 @@ class HIDDataset(Dataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.include_size_standard = include_size_standard
         self.data_loading_strategy = data_loading_strategy
-        self.transform = transform
+        self._transform = transform
 
         if adjustment_of_annotations and adjustment_of_annotations not in ("top", "complete"):
             raise ValueError(
@@ -139,6 +140,8 @@ class HIDDataset(Dataset):
                 f"No valid HID images found in {self.root}. "
                 f"Check paths and StrategyRegistry configuration."
             )
+
+        logger.info(f"Transforming all samples with {self.transform.__class__}" if self.transform else "No transform applied to samples")
 
         logger.info("Loaded {} valid HID images", len(self._data))
 
@@ -308,6 +311,10 @@ class HIDDataset(Dataset):
                                              " either `top` or `complete`.")
         return annotations
 
+    @property
+    def transform(self) -> TransformDataCallable | None:
+        return self._transform
+
 
     # -- Dunder ----------------------------------------------------------- #
 
@@ -317,8 +324,8 @@ class HIDDataset(Dataset):
     def __getitem__(self, index: int) -> Any:
         item = self._data[index]
 
-        if self.transform:
-            item = self.transform(item)
+        if self._transform:
+            item = self._transform(item)
 
         return item
 

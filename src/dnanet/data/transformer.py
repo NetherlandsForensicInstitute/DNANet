@@ -2,7 +2,7 @@ import abc
 from abc import abstractmethod
 from dataclasses import dataclass
 
-from typing import Any, Tuple
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -15,9 +15,14 @@ from dnanet.data.preprocessing.scaling import scale_rfu_torch
 from dnanet.data.strategies import StrategyRegistry
 
 
-class TransformDataCallable(abc.ABC):
+from typing import Generic, TypeVar
+
+TrainableT = TypeVar('TrainableT', bound=TrainableElement)
+
+class TransformDataCallable(abc.ABC, Generic[TrainableT]):
+
     @abstractmethod
-    def __call__(self, image: TrainableElement) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
+    def __call__(self, image: TrainableT) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         raise NotImplementedError
 
     @staticmethod
@@ -26,7 +31,7 @@ class TransformDataCallable(abc.ABC):
 
 
 @dataclass
-class SegmentationTransformer(TransformDataCallable):
+class SegmentationTransformer(TransformDataCallable[HIDImage]):
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         # Input: (dyes, signal_length, 1) -> (1, dyes, signal_length)
         data = image.data
@@ -45,7 +50,7 @@ class SegmentationTransformer(TransformDataCallable):
 
 
 @dataclass
-class CombinedTransformer(TransformDataCallable):
+class CombinedTransformer(TransformDataCallable[HIDImage]):
     threshold: int = 25
     window_size: int = 120
     include_max_pool_dyes: bool = False
@@ -117,7 +122,7 @@ class CombinedTransformer(TransformDataCallable):
         return new_inputs, targets
 
 @dataclass
-class ReconstructionTransformer(TransformDataCallable):
+class ReconstructionTransformer(TransformDataCallable[HIDImage]):
     n_dyes: int = 5
     log_scale: bool = True
     max_rfu: int | None = None
@@ -142,7 +147,7 @@ class ReconstructionTransformer(TransformDataCallable):
         return preprocessed, raw
 
 @dataclass
-class PeakClassificationTransformer(TransformDataCallable):
+class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
     include_marker: bool = True
 
     def __call__(self, peak: ExtractedPeak) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
