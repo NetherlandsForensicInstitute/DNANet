@@ -56,7 +56,6 @@ def load_dataset(data_cfg: DictConfig) -> InMemoryDataset:
     # Build HIDDataset
     dataset = HIDDataset(
         root=data_cfg.root,
-        annotations_path=data_cfg.get("annotations_path"),
         hid_to_annotations_path=data_cfg.get("hid_to_annotations_path"),
         best_ladder_paths_csv=data_cfg.get("best_ladder_paths_csv"),
         ladder_alleles_csv=data_cfg.get("ladder_alleles_csv"),

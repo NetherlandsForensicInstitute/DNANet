@@ -14,46 +14,41 @@ Two implementations are provided:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import typing
+from typing import TYPE_CHECKING, Dict, Tuple
 
 import numpy as np
 import scipy
 import torch
 
-from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.strategies import StrategyRegistry
+from dnanet.data.extracted_peak import ExtractedPeak
+
 
 if TYPE_CHECKING:
+    from dnanet.core.panel import Panel
     from dnanet.data.image import HIDImage
 
 
-# ---------------------------------------------------------------------------
-# Marker-to-index mapping (shared with peak classifier embedding table)
-# ---------------------------------------------------------------------------
+def setup_marker_to_idx() -> Tuple[Dict[str, int], int]:
+    """Generate an index mapping from the kit's loci to an index number.
 
-# Default marker names for PPF6C 6-dye kit (27 markers + out-of-bin = 28).
-# Index 0 is reserved for "out of bin" / unknown marker.
-_DEFAULT_MARKERS: list[str] = [
-    "D3S1358", "TH01", "D21S11", "D18S51",
-    "D10S1248", "D1S1656", "D2S1338", "D16S539",
-    "D22S1045", "vWA", "D8S1179", "FGA",
-    "D2S441", "D12S391", "D19S433", "SE33",
-    "D7S820", "CSF1PO", "D13S317", "D5S818",
-    "D6S1043", "AMEL", "DYS391", "DYS576",
-    "DYS570", "YINDEL", "DYS389II",
-]
+    Returns:
+        A tuple with the index mapping and the number of markers.
+    """
+    scaling_strategy = StrategyRegistry.get_scaling_strategy()
+    marker_to_dye_idx = scaling_strategy.marker_name_to_dye_idx()
 
-MARKER_TO_IDX: dict[str, int] = {
-    name: idx + 1 for idx, name in enumerate(_DEFAULT_MARKERS)
-}
-MARKER_TO_IDX["Out of Bin"] = 0
-
-N_MARKERS: int = len(MARKER_TO_IDX)  # 28 by default
+    _marker_to_idx = {name: idx + 1 for idx, name in enumerate(marker_to_dye_idx.keys())}
+    _marker_to_idx['Out of Bin'] = 0
+    _n_markers = len(_marker_to_idx)
+    return _marker_to_idx, _n_markers
 
 
 # ---------------------------------------------------------------------------
 # NumPy helpers
 # ---------------------------------------------------------------------------
+
 
 def _slice_with_padding(
     arr: np.ndarray,
@@ -94,14 +89,14 @@ def _slice_with_padding(
 
 
 def _build_peak_data(
-        img_data: np.ndarray,
-        dye_index: int,
-        start: int,
-        length: int,
-        include_max_pool_dyes: bool,
-        pad_value: int = 0) -> np.ndarray:
-    """
-    Creates a 2D array of shape (2, length) if include_max_pool_dyes is True,
+    img_data: np.ndarray,
+    dye_index: int,
+    start: int,
+    length: int,
+    include_max_pool_dyes: bool,
+    pad_value: int = 0,
+) -> np.ndarray:
+    """Creates a 2D array of shape (2, length) if include_max_pool_dyes is True,
     otherwise a 1D array of shape (length,).
     The first row is the slice of the specified dye_index, and the second row
     is the max-pooled slice of all other dyes.
@@ -109,6 +104,7 @@ def _build_peak_data(
     is returned.
     The slice is taken from img_data[dye_index, start:start+length], with padding
     if the window falls outside the valid range.
+
     Args:
         img_data: The image data array of shape (num_dyes, num_scans).
         dye_index: The index of the dye to extract.
@@ -135,9 +131,7 @@ def _build_peak_data(
 
 
 def _find_marker_for_peak(
-    peak_bp: float,
-    dye_index: int,
-    panel,
+    peak_bp: float, dye_index: int, panel: HIDImage | Panel, marker_to_idx: Dict[str, int]
 ) -> tuple[str | None, int]:
     """Find the marker a peak falls within.
 
@@ -153,22 +147,22 @@ def _find_marker_for_peak(
         return None, 0
 
     try:
-        markers = panel._panel if hasattr(panel, "_panel") else panel.markers
+        markers = panel.adjusted_panel if hasattr(panel, 'adjusted_panel') else panel.markers
     except AttributeError:
         return None, 0
 
     for marker in markers:
-        if getattr(marker, "dye_row", None) != dye_index:
+        if getattr(marker, 'dye_row', None) != dye_index:
             continue
 
         # Check if peak falls within marker bin
-        alleles = getattr(marker, "alleles", [])
+        alleles = getattr(marker, 'alleles', [])
         if alleles:
-            left = min(a.left_bin for a in alleles if hasattr(a, "left_bin"))
-            right = max(a.right_bin for a in alleles if hasattr(a, "right_bin"))
+            left = min(a.left_bin for a in alleles if hasattr(a, 'left_bin'))
+            right = max(a.right_bin for a in alleles if hasattr(a, 'right_bin'))
             if left <= peak_bp <= right:
-                name = getattr(marker, "name", str(marker))
-                return name, MARKER_TO_IDX.get(name, 0)
+                name = getattr(marker, 'name', str(marker))
+                return name, marker_to_idx.get(name, 0)
 
     return None, 0
 
@@ -194,36 +188,60 @@ def _label_peak_from_annotation(
     Returns:
         The annotation class name corresponding to the most common class in the slice.
     """
-
     annotation_classes = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
 
     if annotation_image is None:
-        return annotation_classes[0] # default to first class (e.g. "noise") if no annotation available
+        return annotation_classes[
+            0
+        ]  # default to first class (e.g. "noise") if no annotation available
 
     if annotation_image.ndim == 3:
         ann = annotation_image[dye_index, :, 0]
     else:
         ann = annotation_image[dye_index]
 
-    # ann is shape (L,)
+    return _label_peak_from_annotation_fast(ann, peak_center, padding)
 
-    L = ann.shape[0]
+
+def _label_peak_from_annotation_fast(
+    ann_channel: np.ndarray | None,
+    peak_center: int,
+    padding: int = 1,
+) -> str:
+    """Fast path that operates on a single channel slice.
+
+    Args:
+        ann_channel: 1D binary mask for single dye channel, or None.
+        peak_center: Scan-point index of peak apex.
+        padding: Number of positions around the center to check.
+
+    Returns:
+        ``"allele"`` if any annotated position is within padding of center,
+        ``"noise"`` otherwise.
+    """
+    annotation_classes = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
+    if ann_channel is None:
+        return annotation_classes[0]
+
+    L = ann_channel.shape[0]
     start = max(0, peak_center - padding)
     end = min(L, peak_center + padding + 1)
-
-    annotation_slice = ann[start:end]
-
+    annotation_slice = ann_channel[start:end]
     if np.any(annotation_slice > 0):
         unique, counts = np.unique(annotation_slice, return_counts=True)
 
         # take the most common class in the slice
         # if there is a tie, take the lowest class index
+        # in any case, "noise" should never be the answer here
+        # so we filter the unique and counts below
+        unique, counts = map(
+            np.array, zip(*[(u, c) for u, c in zip(unique, counts, strict=True) if u != 0.0])
+        )
+
         sorted_idx = np.lexsort((unique, -counts))
-        most_common_value = unique[sorted_idx[0]]
+        most_common_value = int(unique[sorted_idx[0]])
 
         return annotation_classes[most_common_value]
-
-
     return annotation_classes[0]
 
 
@@ -231,11 +249,9 @@ def _label_peak_from_annotation(
 # Main extraction functions
 # ---------------------------------------------------------------------------
 
+
 def extract_peak_windows(
-    image: HIDImage,
-    threshold: float,
-    window_size: int,
-    include_max_pool_dyes: bool = False
+    image: HIDImage, threshold: float, window_size: int, include_max_pool_dyes: bool = False
 ) -> list[ExtractedPeak]:
     """Extract peak windows from a HIDImage using NumPy.
 
@@ -252,6 +268,8 @@ def extract_peak_windows(
     Returns:
         List of :class:`ExtractedPeak` objects.
     """
+    if window_size <= 0:
+        raise ValueError('window_size must be a positive integer')
 
     scaling_strategy = StrategyRegistry.get_scaling_strategy()
 
@@ -264,49 +282,99 @@ def extract_peak_windows(
     else:
         data_2d = data
 
-
-    n_dyes = scaling_strategy.kit.num_dyes
-    n_dyes = n_dyes - 1  # exclude size standard
-    assert n_dyes <= data_2d.shape[0], "Image has fewer dye channels than expected"
+    n_dyes = scaling_strategy.kit.num_dyes - 1  # exclude size standard
+    assert n_dyes <= data_2d.shape[0], 'Image has fewer dye channels than expected'
     data = data_2d[:n_dyes, :]
 
+    # Cache marker mapping once (fixes Issue 1)
+    marker_to_idx, _ = setup_marker_to_idx()
+
     annotation_image = image.annotation.data if image.annotation is not None else None
+    adjusted_panel = getattr(image, '_panel', None)
 
+    # OPTIMIZATION 2: Pre-compute max-pooled signals per dye (fixes Issue 3)
+    max_pool_data = None
+    if include_max_pool_dyes:
+        max_pool_data = np.empty((n_dyes, data.shape[1]), dtype=data.dtype)
+        all_indices = np.arange(n_dyes)
+        for dye_idx in range(n_dyes):
+            mask = all_indices != dye_idx
+            max_pool_data[dye_idx] = np.max(data[mask], axis=0)
 
-    adjusted_panel = getattr(image, "_panel", None)
+    # Pre-pad all channels to eliminate per-peak allocations
+    half_window = window_size // 2
+    pad_left = half_window
+    pad_right = window_size - half_window  # Handles both even/odd window sizes
+
+    padded_data = np.pad(data, ((0, 0), (pad_left, pad_right)), mode='constant', constant_values=0)
+    if include_max_pool_dyes:
+        padded_max_pool = np.pad(
+            array=max_pool_data,
+            pad_width=((0, 0), (pad_left, pad_right)),
+            mode='constant',
+            constant_values=0,
+        )
 
     peaks: list[ExtractedPeak] = []
 
-    for (dye_index, dye_data) in enumerate(data):
-        dye_data = dye_data.squeeze()
+    # Flattened loop with faster slice extraction
+    for dye_index in range(n_dyes):
+        dye_data = data[dye_index]
 
-        if window_size <= 0:
-            raise ValueError("window_size must be a positive integer")
+        # Find all peaks for this dye at once
+        peak_indices, _ = scipy.signal.find_peaks(dye_data, height=threshold)
 
+        if len(peak_indices) == 0:
+            continue
 
+        # Prepare annotation lookup for this dye (avoids repeated ndim checks)
+        if annotation_image is not None:
+            ann_channel = (
+                annotation_image[dye_index, :, 0]
+                if annotation_image.ndim == 3
+                else annotation_image[dye_index]
+            )
+        else:
+            ann_channel = None
 
-        peak_idxs = scipy.signal.find_peaks(dye_data, height=threshold)
-
-        for peak_scanpoint in peak_idxs[0]:
+        # Process all peaks for this dye channel
+        for peak_scanpoint in peak_indices:
             peak_height = dye_data[peak_scanpoint]
             peak_basepair = image.scaler[peak_scanpoint]
 
-            peak_data = _build_peak_data(data, dye_index, peak_scanpoint, window_size, include_max_pool_dyes)
-            peak_marker_name, peak_marker_index = _find_marker_for_peak(peak_basepair, dye_index, adjusted_panel)
-            peak_label = _label_peak_from_annotation(annotation_image, dye_index, peak_scanpoint, padding=2)
+            # Fast window extraction on pre-padded array
+            # peak_scanpoint in original maps to peak_scanpoint + pad_left in padded
+            start_padded = peak_scanpoint
+            end_padded = start_padded + window_size
 
-            peak = ExtractedPeak(data=peak_data,
-                                 dye_index=dye_index,
-                                 peak_center=peak_scanpoint,
-                                 peak_basepair=peak_basepair,
-                                 window_size=window_size,
-                                 peak_height=peak_height,
-                                 label=peak_label,
-                                 marker_name=peak_marker_name,
-                                 marker_index=peak_marker_index)
+            if include_max_pool_dyes:
+                peak_data = np.empty((2, window_size), dtype=data.dtype)
+                peak_data[0] = padded_data[dye_index, start_padded:end_padded]
+                peak_data[1] = padded_max_pool[dye_index, start_padded:end_padded]
+            else:
+                peak_data = padded_data[dye_index, start_padded:end_padded]
 
-            peaks.append(peak)
+            # Use cached marker_to_idx
+            peak_marker_name, peak_marker_index = _find_marker_for_peak(
+                peak_basepair, dye_index, adjusted_panel, marker_to_idx
+            )
 
+            # Fast annotation check without function call overhead
+            peak_label = _label_peak_from_annotation_fast(ann_channel, peak_scanpoint, padding=2)
+
+            peaks.append(
+                ExtractedPeak(
+                    data=peak_data,
+                    dye_index=dye_index,
+                    peak_center=peak_scanpoint,
+                    peak_basepair=peak_basepair,
+                    window_size=window_size,
+                    peak_height=peak_height,
+                    label=peak_label,
+                    marker_name=peak_marker_name,
+                    marker_index=peak_marker_index,
+                )
+            )
 
     return peaks
 
@@ -339,15 +407,15 @@ def extract_peaks_torch(
     data = image.data
 
     scaling_strategy = StrategyRegistry.get_scaling_strategy()
-    adjusted_panel = image.panel
+    adjusted_panel = image.adjusted_panel
 
     if data is None:
-        raise ValueError("Cannot extract peaks from an image with no data.")
+        raise ValueError('Cannot extract peaks from an image with no data.')
 
-    if data.ndim == 3: # (D, L, 1)
-        data_2d = data[:, :, 0] # (D, L)
+    if data.ndim == 3:  # (D, L, 1)
+        data_2d = data[:, :, 0]  # (D, L)
     else:
-        data_2d = data # (D, L)
+        data_2d = data  # (D, L)
 
     x = torch.from_numpy(data_2d.astype(np.float32)).to(device)
     n_dyes = scaling_strategy.kit.num_dyes
@@ -360,19 +428,21 @@ def extract_peaks_torch(
 
     marker_to_idx = scaling_strategy.marker_name_to_dye_idx()
 
-    marker_idxs = [marker_to_idx.get(adjusted_panel.get_marker_name_by_dye_and_bp(dye, bp), len(marker_to_idx)) for dye, bp in peak_centers.tolist()]
+    marker_idxs = [
+        marker_to_idx.get(adjusted_panel.get_marker_name_by_dye_and_bp(dye, bp), len(marker_to_idx))
+        for dye, bp in peak_centers.tolist()
+    ]
     marker_idxs = torch.tensor(marker_idxs, dtype=torch.long, device=device)
 
     return peak_windows, marker_idxs, peak_centers
 
 
 def _find_peaks_torch_indices(
-        x: torch.Tensor,
-        threshold: float,
-        dim: int = -1,
+    x: torch.Tensor,
+    threshold: float,
+    dim: int = -1,
 ) -> torch.Tensor:
-    """
-    Plateau-aware peak finder matching SciPy `signal.find_peaks(x, height=threshold)`-style local-max logic:
+    """Plateau-aware peak finder matching SciPy `signal.find_peaks(x, height=threshold)`-style local-max logic:
     - A peak is a local maximum.
     - Flat peaks (plateaus) count as one peak.
     - For a plateau peak, return the middle index (rounded down if even).
@@ -386,7 +456,9 @@ def _find_peaks_torch_indices(
 
     dim = dim % x.ndim
     if dim != x.ndim - 1:
-        raise ValueError("Plateau-aware peak detection currently supports `dim` as the last dimension only.")
+        raise ValueError(
+            'Plateau-aware peak detection currently supports `dim` as the last dimension only.'
+        )
 
     x_moved = x.movedim(dim, -1)  # (..., n)
     n = x_moved.size(-1)
@@ -398,23 +470,25 @@ def _find_peaks_torch_indices(
     B = s.size(0)
 
     # 1) Assign a run id per position (run = maximal contiguous region of equal values).
-    change = s[:, 1:] != s[:, :-1]                          # (B, n-1)
+    change = s[:, 1:] != s[:, :-1]  # (B, n-1)
     run_id = torch.cat(
-        [torch.zeros((B, 1), device=x.device, dtype=torch.long),
-         change.long().cumsum(dim=1)],
-        dim=1
-    )                                                       # (B, n), values in [0, n-1]
+        [torch.zeros((B, 1), device=x.device, dtype=torch.long), change.long().cumsum(dim=1)], dim=1
+    )  # (B, n), values in [0, n-1]
 
     # 2) Make run ids unique across batch by offsetting with b*n.
-    gid = (run_id + (torch.arange(B, device=x.device, dtype=torch.long).view(B, 1) * n)).reshape(-1)  # (B*n,)
-    pos = torch.arange(n, device=x.device, dtype=torch.long).view(1, n).expand(B, n).reshape(-1)      # (B*n,)
+    gid = (run_id + (torch.arange(B, device=x.device, dtype=torch.long).view(B, 1) * n)).reshape(
+        -1
+    )  # (B*n,)
+    pos = (
+        torch.arange(n, device=x.device, dtype=torch.long).view(1, n).expand(B, n).reshape(-1)
+    )  # (B*n,)
 
     # 3) For each (batch, run), compute run start=min(pos) and run end=max(pos) using scatter_reduce.
     # scatter_reduce_ supports reductions like 'amin'/'amax' with include_self.
     start = torch.full((B * n,), n, device=x.device, dtype=torch.long)
     end = torch.full((B * n,), -1, device=x.device, dtype=torch.long)
-    start.scatter_reduce_(0, gid, pos, reduce="amin", include_self=True)
-    end.scatter_reduce_(0, gid, pos, reduce="amax", include_self=True)
+    start.scatter_reduce_(0, gid, pos, reduce='amin', include_self=True)
+    end.scatter_reduce_(0, gid, pos, reduce='amax', include_self=True)
 
     exists = start < n
     if not bool(exists.any()):
@@ -437,7 +511,7 @@ def _find_peaks_torch_indices(
     rs_i = rs[interior]
     re_i = re[interior]
 
-    height = s[b_i, rs_i]          # constant over the run
+    height = s[b_i, rs_i]  # constant over the run
     left = s[b_i, rs_i - 1]
     right = s[b_i, re_i + 1]
 
@@ -463,13 +537,12 @@ def _find_peaks_torch_indices(
 
 
 def _extract_windows_torch(
-        x: torch.Tensor,
-        indices: torch.Tensor,
-        window_size: int,
-        include_maxpool_dyes: bool,
+    x: torch.Tensor,
+    indices: torch.Tensor,
+    window_size: int,
+    include_maxpool_dyes: bool,
 ) -> torch.Tensor:
-    """
-    Extract windows from 2D tensor x centered at specified indices.
+    """Extract windows from 2D tensor x centered at specified indices.
     Pads with zeros when out of bounds.
 
     x:        (D, L) tensor, e.g. (5 or 6, 4096)
@@ -478,25 +551,25 @@ def _extract_windows_torch(
               where C=1 or 2 depending on include_maxpool_dyes.
     """
     if x.ndim != 2:
-        raise ValueError(f"x must be 2D (C, L), got {tuple(x.shape)}")
+        raise ValueError(f'x must be 2D (C, L), got {tuple(x.shape)}')
     if indices.ndim != 2 or indices.shape[1] != 2:
-        raise ValueError(f"indices must be shape (p, 2), got {tuple(indices.shape)}")
+        raise ValueError(f'indices must be shape (p, 2), got {tuple(indices.shape)}')
     if window_size <= 0:
-        raise ValueError("window_size must be > 0")
+        raise ValueError('window_size must be > 0')
 
     C, L = x.shape
     idx = indices.to(device=x.device, dtype=torch.long)
-    rows = idx[:, 0]            # (p,)
-    centers = idx[:, 1]         # (p,)
+    rows = idx[:, 0]  # (p,)
+    centers = idx[:, 1]  # (p,)
 
     if torch.any(rows < 0) or torch.any(rows >= C):
-        raise IndexError("Row indices out of range")
+        raise IndexError('Row indices out of range')
 
     half = window_size // 2
     starts = centers - half
 
     offsets = torch.arange(window_size, device=x.device, dtype=torch.long)  # (window_size,)
-    pos = starts[:, None] + offsets[None, :]                                # (p, window_size)
+    pos = starts[:, None] + offsets[None, :]  # (p, window_size)
 
     mask = (pos >= 0) & (pos < L)
     pos_clamped = pos.clamp(0, L - 1)
@@ -505,19 +578,19 @@ def _extract_windows_torch(
     windows = windows * mask.to(dtype=torch.float32)
 
     if not include_maxpool_dyes:
-        return windows.unsqueeze(1)          # (p, 1, window_size)
+        return windows.unsqueeze(1)  # (p, 1, window_size)
 
     # Max-pool over OTHER dyes for the same centered window positions.
-    all_dye_windows = x[:, pos_clamped]      # (C, p, window_size)
+    all_dye_windows = x[:, pos_clamped]  # (C, p, window_size)
 
     row_indices = torch.arange(C, device=x.device)[:, None]
     target_rows = rows[None, :]
     keep_mask = (row_indices != target_rows).unsqueeze(-1)  # (C, p, 1)
 
-    neg_inf = torch.tensor(float("-inf"), device=x.device, dtype=x.dtype)
+    neg_inf = torch.tensor(float('-inf'), device=x.device, dtype=x.dtype)
     masked_windows = torch.where(keep_mask, all_dye_windows, neg_inf)
 
-    other_dyes_max, _ = masked_windows.max(dim=0)            # (p, window_size)
+    other_dyes_max, _ = masked_windows.max(dim=0)  # (p, window_size)
     other_dyes_max = other_dyes_max * mask.to(dtype=x.dtype)
 
-    return torch.stack([windows, other_dyes_max], dim=1)     # (p, 2, window_size)
+    return torch.stack([windows, other_dyes_max], dim=1)  # (p, 2, window_size)

@@ -30,7 +30,7 @@ from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
-from dnanet.data.parsing import get_peak_data, parse_called_alleles
+from dnanet.data.parsing import get_peak_data
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
 
@@ -63,23 +63,22 @@ class HIDImage:
     def __init__(
         self,
         path: PathLike,
-        panel: Panel | None = None,
-        annotations_file: PathLike | None = None,
+        adjusted_panel: Panel | None = None,
+
         include_size_standard: bool = False,
         annotation: ScanpointAnnotation | None = None,
-        use_cache: bool = True,
+        load_in_memory: bool = True,
         data_loading_strategy: str = "superior",
         rfu_threshold: float = _DEFAULT_RFU_THRESHOLD,
         meta: MutableMapping[str, Any] | None = None,
     ) -> None:
         self.path = Path(path)
-        self.annotations_file = annotations_file
         self.include_size_standard = include_size_standard
-        self.use_cache = use_cache
+        self.load_in_memory = load_in_memory
         self.data_loading_strategy = data_loading_strategy
         self.rfu_threshold = rfu_threshold
 
-        self._panel = panel
+        self._adjusted_panel = adjusted_panel
         self._data: np.ndarray | None = None
         self._annotation = annotation
         self._meta: MutableMapping[str, Any] = meta or {}
@@ -94,7 +93,7 @@ class HIDImage:
         Shape: ``(num_dyes, signal_length, 1)`` — the trailing dimension
         is kept for backward compatibility with the segmentation pipeline.
         """
-        if self.use_cache:
+        if self.load_in_memory:
             if self._data is None:
                 self._data = self._load()
             return self._data
@@ -109,6 +108,10 @@ class HIDImage:
     @property
     def annotation(self) -> ScanpointAnnotation | None:
         return self._annotation
+    
+    @annotation.setter
+    def annotation(self, annotation) -> None:
+        self._annotation = annotation
 
     @property
     def meta(self) -> MutableMapping[str, Any]:
@@ -119,11 +122,11 @@ class HIDImage:
         """Base-pair values for each pixel position. Shape: ``(1, signal_length)``."""
         if self._scaler is None:
             self._load()
-        return self._scaler[np.newaxis, :]
-
+        return self._scaler  # type: ignore
+    
     @property
-    def panel(self) -> Panel | None:
-        return self._panel
+    def adjusted_panel(self) -> Panel | None:
+        return self._adjusted_panel
 
     # -- Data loading ----------------------------------------------------- #
 
@@ -138,6 +141,7 @@ class HIDImage:
 
         # Parse size standard and rescale
         scaling = StrategyRegistry.get_scaling_strategy()
+        
         ss_lane = np.array(profile[-1])
         try:
             ss_result = scaling.parse_size_standard(ss_lane)
@@ -153,98 +157,7 @@ class HIDImage:
         data = selected[:, ss_result.rescaled_indices][..., np.newaxis]
         self._scaler = ss_result.scaler
 
-        # Build segmentation annotation from called alleles
-        # FIXME create a annotations with datasetstrategy
-        if self.annotations_file and self._panel:
-            annotations_name = self._meta.get("annotations_name")
-            if annotations_name:
-                called_alleles = parse_called_alleles(
-                    self.annotations_file, self._panel, annotations_name
-                )
-                if called_alleles and self._annotation is None:
-                    mask = self._build_segmentation(
-                        self.scaler, called_alleles, data.shape
-                    )
-                    self._annotation = ScanpointAnnotation(data=mask)
-                    self._meta["called_alleles"] = called_alleles
-
         return data
-
-    # -- Segmentation ----------------------------------------------------- #
-
-    @staticmethod
-    def _build_segmentation(
-        scaler: np.ndarray,
-        called_alleles: list[Marker],
-        shape: tuple[int, ...],
-    ) -> np.ndarray:
-        """Create a binary mask from called alleles using the scaler.
-
-        For each allele, the pixels between its left and right bin edges
-        (mapped through the scaler) are set to 1.
-        """
-        mask = np.zeros(shape, dtype=np.int8)
-        for marker in called_alleles:
-            for allele in marker.alleles:
-                if allele.base_pair is None or allele.left_bin is None:
-                    continue
-                bin_edges = np.array(
-                    [allele.base_pair - allele.left_bin,
-                     allele.base_pair + allele.right_bin]
-                )[:, np.newaxis]
-                pixel_range = np.argmin(np.abs(scaler - bin_edges), axis=1)
-                mask[marker.dye_row, pixel_range[0] : pixel_range[1], 0] = 1
-        return mask
-
-    # -- Annotation adjustment -------------------------------------------- #
-
-    def adjust_annotations(self, method: str = "top") -> HIDImage:
-        """Refine the annotation by snapping to actual peak positions.
-
-        Args:
-            method: ``"top"`` to label only the peak apex, or ``"complete"``
-                to label the entire peak from boundary to boundary.
-
-        Returns:
-            ``self`` (annotations are modified in-place for efficiency).
-        """
-        if self._annotation is None:
-            logger.warning("No annotations to adjust for {}", self.path)
-            return self
-
-        _ = self.data  # ensure data is loaded
-        annotations = self._annotation.data
-        profile = self._data
-
-        for layer, dye in enumerate(profile):
-            ann_indices = np.where(annotations[layer] == 1)[0]
-            if ann_indices.size == 0:
-                continue
-
-            # Split into contiguous groups
-            groups = np.split(ann_indices, np.where(np.diff(ann_indices) != 1)[0] + 1)
-            for group in groups:
-                annotations[layer, group, 0] = 0.0
-                peak_idx = find_peak_idx_near_or_in_range(
-                    dye, group, self.rfu_threshold
-                )
-
-                if peak_idx.size == 0:
-                    logger.warning(
-                        "No peak above {}rfu in {} (dye {}, bin {})",
-                        self.rfu_threshold, self.path, layer, group,
-                    )
-                elif method == "complete":
-                    start, end = find_peak_boundary(
-                        dye, int(peak_idx.flat[0]), self.rfu_threshold
-                    )
-                    annotations[layer, np.arange(start, end + 1), 0] = 1.0
-                elif method == "top":
-                    annotations[layer, peak_idx, 0] = 1.0
-                else:
-                    raise ValueError(f"Unknown adjustment method: {method!r}")
-
-        return self
 
     # -- Dunder ----------------------------------------------------------- #
 

@@ -14,9 +14,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Literal
+from typing import Dict, Generator, Literal, Tuple
 
-from dnanet.core.marker import Marker
+from dnanet.core.annotation import Annotation
+from dnanet.core.types import PathLike
 
 FileCategory = Literal["sample", "ladder", "control", "unknown"]
 
@@ -27,7 +28,12 @@ class DatasetStrategy(ABC):
     Each method is a classmethod because dataset strategies are stateless —
     the behavior depends only on the dataset conventions, not on instance state.
     """
-
+    
+    @classmethod
+    @abstractmethod
+    def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
+        """Collect the dataset files for this specific dataset strategy."""
+        
     @classmethod
     @abstractmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
@@ -62,25 +68,24 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def load_annotations(
+    def parse_annotations(
         cls,
         annotation_source: Path,
-        sample_name: str,
-    ) -> list[Marker]:
-        """Load called alleles for a single sample.
+    ) -> Dict[str, Annotation]:
+        """Load annotation from annotation sample to Annotation object.
 
         Args:
             annotation_source: Path to annotation file/directory.
             sample_name: The sample identifier (from ``get_sample_id``).
 
         Returns:
-            List of Markers with their called alleles.
+            Annotation object (either AlleleAnnotation or ScanpointAnnotation)
         """
 
     @classmethod
     @abstractmethod
     def find_ladder_for_sample(
-        cls, sample_path: Path, ladder_mapping: dict[str, Path] | None = None
+        cls, sample_path: Path, ladder_mapping: Dict[str, Path] | None = None
     ) -> Path | None:
         """Find the ladder file corresponding to a sample.
 
@@ -91,6 +96,13 @@ class DatasetStrategy(ABC):
         Returns:
             Path to the ladder file, or ``None`` if not found.
         """
+
+    @classmethod
+    @abstractmethod
+    def find_annotation_for_sample(
+        cls, sample_path: Path, annotation_mapping: Dict[str, Path] | None = None
+    ) -> Path | None:
+        """Find the appropriate annotation for a given sample."""
 
     @staticmethod
     @abstractmethod

@@ -90,6 +90,28 @@ def globalfiler_kit():
 
 
 # ---------------------------------------------------------------------------
+# Dataset fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def nfi_rnd_kit():
+    """Configure PPF6C kit + NFI_RND dataset strategy."""
+    StrategyRegistry.configure_kit("PPF6C")
+    StrategyRegistry.configure_dataset("NFI_RND")
+    yield
+    StrategyRegistry.reset()
+
+
+@pytest.fixture
+def globalfiler_provedit():
+    """Configure GlobalFiler kit + PROVEDIT dataset strategy."""
+    StrategyRegistry.configure_kit("GLOBALFILER")
+    StrategyRegistry.configure_dataset("PROVEDIT")
+    yield
+    StrategyRegistry.reset()
+
+
+# ---------------------------------------------------------------------------
 # Real-data fixtures (from test resources)
 # ---------------------------------------------------------------------------
 

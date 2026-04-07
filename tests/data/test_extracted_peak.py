@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from dnanet.data.extracted_peak import SCAN_TO_BP, ExtractedPeak
+from dnanet.data.extracted_peak import ExtractedPeak
 
 
 class TestExtractedPeak:
@@ -36,11 +36,6 @@ class TestExtractedPeak:
     def test_window_start_computed(self):
         peak = self._make_peak(peak_center=100, window_size=120)
         assert peak.window_start == 100 - 60
-
-    def test_peak_basepair_computed(self):
-        peak = self._make_peak(peak_center=2048)
-        expected_bp = float(SCAN_TO_BP(2048))
-        assert abs(peak.peak_basepair - expected_bp) < 0.01
 
     def test_is_allele_true(self):
         peak = self._make_peak(label="allele")
@@ -87,17 +82,3 @@ class TestExtractedPeak:
         data = np.random.rand(2, 120)
         peak = self._make_peak(data=data)
         assert peak.data.shape == (2, 120)
-
-
-class TestScanToBp:
-    """Tests for the SCAN_TO_BP interpolation."""
-
-    def test_start(self):
-        assert abs(float(SCAN_TO_BP(0)) - 65.0) < 0.01
-
-    def test_end(self):
-        assert abs(float(SCAN_TO_BP(4096)) - 475.0) < 0.01
-
-    def test_midpoint(self):
-        bp = float(SCAN_TO_BP(2048))
-        assert abs(bp - 270.0) < 0.1

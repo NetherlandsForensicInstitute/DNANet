@@ -83,15 +83,16 @@ class Panel:
         for _event, elem in ET.iterparse(str(path), events=("end",)):
             if elem.tag != "Locus":
                 continue
-
-            hid_idx = int(elem.find("DyeIndex").text)
+            
+            hid_idx = int(elem.find("DyeIndex").text) # type: ignore
             if hid_idx not in mapping:
                 # Skip dye channels not in the mapping (e.g. size standard)
                 elem.clear()
                 continue
             dye_index = mapping[hid_idx]
-            marker_name = elem.find("MarkerTitle").text
-
+            marker_name = elem.find("MarkerTitle").text # type: ignore
+            if marker_name is None:
+                continue
             alleles = frozenset(
                 Allele(
                     name=a.attrib["Label"],
@@ -137,6 +138,12 @@ class Panel:
             if marker.name != marker_name:
                 continue
             for allele in marker.alleles:
+                if (
+                    allele.base_pair is None or
+                    allele.left_bin is None or
+                    allele.right_bin is None
+                ):
+                    raise AttributeError(f'Allele does not contain basepair/bin information: {allele}')
                 if allele.name == allele_name:
                     return (
                         allele.base_pair,
@@ -175,7 +182,9 @@ class Panel:
         index = int(round(base_pair * self._LUT_SCALE)) + offset
         if index < 0 or index >= len(lut) or lut[index] is None:
             return "Out of Bin"
-        return lut[index]
+        if (marker_name := lut[index]) is None:
+            raise ValueError(f'Did not catch OOB: {lut}')
+        return marker_name
 
     @cached_property
     def dye_bp_to_allele_mapping(self) -> dict[int, dict[float, tuple[str, str]]]:
@@ -183,6 +192,9 @@ class Panel:
         result: dict[int, dict[float, tuple[str, str]]] = defaultdict(dict)
         for marker in self._markers:
             for allele in marker.alleles:
+                if allele.base_pair is None:
+                    logger.warning(f'Allele has no base_pair: {marker=}, {allele=}')
+                    continue
                 result[marker.dye_row][allele.base_pair] = (marker.name, allele.name)
         return dict(result)
 

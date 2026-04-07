@@ -11,12 +11,18 @@ Handles the NFI Research & Development dataset conventions:
 from __future__ import annotations
 
 import csv
+from itertools import groupby
+import os
 import re
 from pathlib import Path
+from typing import Dict, Generator, Iterable, List, Tuple
 
 from loguru import logger
 
+from dnanet.core.allele import Allele
+from dnanet.core.annotation import AlleleAnnotation, Annotation
 from dnanet.core.marker import Marker
+from dnanet.core.types import PathLike
 from dnanet.data.strategies.dataset import DatasetStrategy, FileCategory
 
 
@@ -26,6 +32,78 @@ _RD_PREFIX_RE = re.compile(r"^\d[A-F]\d")
 
 class NFIRnDStrategy(DatasetStrategy):
     """Strategy for the NFI R&D mixture dataset."""
+    
+    READ_ANNOTATION_HEIGHTS: bool = False
+    
+    @classmethod
+    def collect_dataset_files(cls, root_path: PathLike, **kwargs) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
+        """Collect the dataset files for this specific dataset strategy. 
+        
+        Creates a generator that yields paths to HIDImage's, Annotations (optional),
+        and corresponding Ladder file (optional).
+
+        Args:
+            root_path: The path to the root of this dataset
+        """
+        path = Path(root_path)
+        csv_files = list(path.rglob('*.csv'))
+
+        hid_to_annotation_file_pattern = r'.*hid_to_annotation.*'
+        hid_to_annotation_path = None
+        hid_to_ladder_pattern = r'.*best_ladder_paths.*'
+        hid_to_ladder_path = None
+
+        analysis_treshold_type: str = kwargs.get('analysis_treshold_type', 'DTH')
+        logger.info(f"Using treshold type: {analysis_treshold_type}")
+
+        for csv_file in csv_files:
+            if re.match(hid_to_annotation_file_pattern, csv_file.name):
+                hid_to_annotation_path = csv_file
+            if re.match(hid_to_ladder_pattern, csv_file.name):
+                hid_to_ladder_path = csv_file
+        if hid_to_annotation_path is None or hid_to_ladder_path is None:
+            raise ValueError(
+                'Path does not contain the neccessary mapping files (annotation & ladder)'
+            )
+
+        # Allele Report for Annotations
+        annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
+        annotation_name_to_annotation: Dict[str, Annotation] = {}
+        for txt_file in annotation_txt_files:
+            _annotation = cls.parse_annotations(txt_file)
+
+            if _annotation:
+                annotation_name_to_annotation.update(_annotation)
+
+        # HID to Annotation mapping
+        hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
+        analysis_treshold_type_column = [
+            i for i, head in enumerate(hta_header) if analysis_treshold_type in head
+        ]
+        if len(analysis_treshold_type_column) != 1:
+            raise RuntimeError(
+                f'Could not infer the analysis treshold type column for annotation mapping: {hta_header}'
+            )
+        hid_to_annotation = dict([
+            (v[0].replace('.hid', ''), annotation_name_to_annotation.get(v[analysis_treshold_type_column[0]]))
+            for v in hta_values
+        ])
+
+
+        # Hid to Ladder mapping
+        _, htl_values = cls._read_csv_file(hid_to_ladder_path)
+        hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
+
+        hid_files = list(path.rglob('*.hid'))
+        hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == 'sample', hid_files))
+
+        for hid_file in hid_file_samples:
+            yield (
+                hid_file,
+                hid_to_annotation.get(str(hid_file.stem)),
+                hid_to_ladder.get(hid_file.stem)
+            )
+        
 
     @classmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
@@ -81,28 +159,6 @@ class NFIRnDStrategy(DatasetStrategy):
         return txt_files[0] if txt_files else None
 
     @classmethod
-    def load_annotations(
-        cls,
-        annotation_source: Path,
-        sample_name: str,
-    ) -> list[Marker]:
-        """Load called alleles from a tab-separated AlleleReport TXT file.
-
-        This delegates to the annotation parser for the actual parsing.
-        The R&D format has columns: Sample Name, Marker, Allele 1, Allele 2, ...
-        """
-        # Defer to the existing annotation parser
-        from dnanet.data.parsing.annotations import parse_called_alleles
-
-        try:
-            panel = cls._get_active_panel()
-        except RuntimeError:
-            logger.warning("No panel configured; cannot load annotations")
-            return []
-
-        return parse_called_alleles(annotation_source, panel, sample_name)
-
-    @classmethod
     def find_ladder_for_sample(
         cls, sample_path: Path, ladder_mapping: dict[str, Path] | None = None
     ) -> Path | None:
@@ -135,10 +191,104 @@ class NFIRnDStrategy(DatasetStrategy):
         return mapping
 
     @staticmethod
-    def _get_active_panel():
+    def _get_scaling_strategy():
         """Get the active panel from the strategy registry."""
         from dnanet.data.strategies.registry import StrategyRegistry
-        return StrategyRegistry.get_scaling_strategy().panel
+        return StrategyRegistry.get_scaling_strategy()
+
+    @classmethod
+    def parse_annotations(
+        cls,
+        annotation_source: PathLike,
+    ) -> Dict[str, Annotation]:
+        """Parse manually called alleles from an annotation text file.
+
+        The annotation file may contain calls for multiple samples. This function
+        finds the rows matching ``sample_name`` and returns the parsed markers.
+
+        Args:
+            annotation_file: Path to the annotation CSV/TSV/TXT file.
+
+        Returns:
+            List of Markers with their alleles, or ``None`` if not found.
+        """
+        if os.stat(annotation_source).st_size == 0:
+            logger.debug("Empty annotation file: {}", annotation_source)
+            raise RuntimeError("Annotations file is emtpy")
+
+        annotation_mapping: Dict[str, Annotation] = {}
+        with open(annotation_source, "r") as f:
+            try:
+                delimiter, allele_cols, height_cols = cls._parse_csv_header(f)
+            except TypeError as e:
+                logger.debug("Could not parse header of {}: {}", annotation_source, e)
+                raise e
+
+            reader = csv.reader(f, delimiter=delimiter)
+            for sample, rows in groupby(reader, lambda row: row[0]):
+                sample_annotation = cls._parse_sample_annotations(rows, allele_cols, height_cols)
+                annotation_mapping[sample] = AlleleAnnotation(sample_annotation)
+
+        return annotation_mapping
+
+    @classmethod
+    def _parse_sample_annotations(
+        cls,
+        rows,
+        allele_cols: Iterable[int],
+        height_cols: Iterable[int],
+    ) -> list[Marker]:
+        """Parse annotation rows for a single sample into Markers."""
+        markers: list[Marker] = []
+
+        marker_2_dye = cls._get_scaling_strategy().marker_name_to_dye_idx()
+        for row in rows:
+            marker_name = row[1]
+            dye_row = marker_2_dye[marker_name]
+            if dye_row is None:
+                continue
+
+            alleles = frozenset(
+                Allele(
+                    name=allele_name,
+                    height=float(row[height_col]) if cls.READ_ANNOTATION_HEIGHTS else None,
+                )
+                for allele_col, height_col in zip(allele_cols, height_cols)
+                if (allele_name := row[allele_col].strip("OB_"))
+            )
+            markers.append(Marker(name=marker_name, dye_row=dye_row, alleles=alleles))
+
+        return markers
+
+    @classmethod
+    def _parse_csv_header(cls, file) -> tuple[str, list[int], list[int]]:
+        """Detect delimiter and locate Allele/Height columns in the header."""
+        header = next(file)
+
+        for delimiter in [",", ";", "\t"]:
+            columns = header.split(delimiter)
+            allele_cols = [i for i, col in enumerate(columns) if col.startswith("Allele")]
+            if allele_cols:
+                height_cols = [i for i, col in enumerate(columns) if col.startswith("Height")]
+                return delimiter, allele_cols, height_cols
+
+        raise TypeError(f"No valid delimiter found in header: {header!r}")
+    
+    @classmethod
+    def _read_csv_file(cls, csv_file: str | Path) -> Tuple[List[str], List[List[str]]]:
+        """Read a csv file with a header row.
+
+        Args:
+            csv_file: The path to the csv file to be read
+
+        Returns:
+            Tuple with the header row and (filtered on empty) value rows.
+        """
+        with open(csv_file, 'r') as htap:
+            reader = csv.reader(htap)
+            rows = list(reader)
+        headers, values = rows[0], filter(lambda r: len(r) > 0, rows[1:])
+        return headers, list(values)
 
     @staticmethod
     def get_annotation_classes() -> list[str]:
