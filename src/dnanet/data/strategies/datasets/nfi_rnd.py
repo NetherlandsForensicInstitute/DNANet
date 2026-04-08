@@ -10,20 +10,20 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
-import csv
-from itertools import groupby
 import os
 import re
+import csv
+from typing import Dict, List, Tuple, Iterable, Generator
 from pathlib import Path
-from typing import Dict, Generator, Iterable, List, Tuple
+from itertools import groupby
 
 from loguru import logger
 
-from dnanet.core.allele import Allele
-from dnanet.core.annotation import AlleleAnnotation, Annotation
-from dnanet.core.marker import Marker
 from dnanet.core.types import PathLike
-from dnanet.data.strategies.datasets.dataset import DatasetStrategy, FileCategory
+from dnanet.core.allele import Allele
+from dnanet.core.marker import Marker
+from dnanet.core.annotation import Annotation, AlleleAnnotation
+from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 
 
 # R&D filename pattern: digit + letter + digit (e.g. "1A2")
@@ -58,9 +58,9 @@ class NFIRnDStrategy(DatasetStrategy):
 
         for csv_file in csv_files:
             if re.match(hid_to_annotation_file_pattern, csv_file.name):
-                hid_to_annotation_path = csv_file
+                hid_to_annotation_path = csv_file.absolute()
             if re.match(hid_to_ladder_pattern, csv_file.name):
-                hid_to_ladder_path = csv_file
+                hid_to_ladder_path = csv_file.absolute()
         if hid_to_annotation_path is None or hid_to_ladder_path is None:
             raise ValueError(
                 'Path does not contain the neccessary mapping files (annotation & ladder)'
@@ -92,7 +92,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
         # Hid to Ladder mapping
         _, htl_values = cls._read_csv_file(hid_to_ladder_path)
-        hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
+        hid_to_ladder = {hid: path / ladder for hid, ladder in htl_values}
 
         hid_files = list(path.rglob('*.hid'))
         hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == 'sample', hid_files))

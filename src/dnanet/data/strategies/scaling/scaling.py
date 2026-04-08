@@ -23,11 +23,12 @@ Design pattern: **Template Method**
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 from dataclasses import dataclass
 
 import numpy as np
 import scipy.interpolate
+
 
 if TYPE_CHECKING:
     from dnanet.data.strategies.scaling.kit import STRKit
@@ -219,33 +220,3 @@ class ScalingStrategy(ABC):
             sort_order[left_idx],
             sort_order[right_idx],
         )
-
-
-from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
-from dnanet.data.strategies.scaling.powerplex_y23 import PowerplexY23
-from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
-
-
-SCALING_STRATEGIES: dict[str, type[ScalingStrategy]] = {
-    'PPF6C': PowerPlexFusion6CStrategy,
-    'GLOBALFILER': GlobalFilerStrategy,
-    'Y23': PowerplexY23,
-}
-
-
-def get_scaling_strategy(name: str, **kwargs) -> ScalingStrategy:
-    """Instantiate a scaling strategy by name.
-
-    Args:
-        name: Strategy name (e.g. "PPF6C", "GLOBALFILER").
-        **kwargs: Additional arguments passed to the strategy constructor.
-
-    Raises:
-        ValueError: If the name is not recognized.
-    """
-    cls = SCALING_STRATEGIES.get(name.upper())
-    if cls is None:
-        raise ValueError(
-            f"Unknown scaling strategy '{name}'. Available: {list(SCALING_STRATEGIES.keys())}"
-        )
-    return cls(**kwargs)

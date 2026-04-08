@@ -14,11 +14,12 @@ Design pattern: **Service Locator**
 
 from __future__ import annotations
 
-from loguru import logger
-
 from typing import TYPE_CHECKING
 
-from dnanet.data.strategies.scaling.scaling import ScalingStrategy, get_scaling_strategy
+from loguru import logger
+
+from dnanet.data.strategies.scaling import ScalingStrategy, get_scaling_strategy
+
 
 if TYPE_CHECKING:
     from dnanet.data.strategies.datasets.dataset import DatasetStrategy
