@@ -52,7 +52,7 @@ class DNANetDataModule(L.LightningDataModule):
             return  # already set up
 
         dataset_strategy = StrategyRegistry.get_dataset_strategy()
-        train_data, val_data = dataset_strategy.split(self._dataset, self.val_fraction, self.seed, stratify_noc=self.stratify_noc, group_by_replica=self.group_by_replica)
+        train_data, val_data = dataset_strategy.split(self._dataset, 1 - self.val_fraction, self.seed, stratify_noc=self.stratify_noc, group_by_replica=self.group_by_replica)
 
         self._train_dataset = train_data
         self._val_dataset = val_data

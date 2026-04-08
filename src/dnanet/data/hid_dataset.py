@@ -148,7 +148,7 @@ class HIDDataset(Dataset, TransformableDataset):
                 f'Check paths and StrategyRegistry configuration.'
             )
 
-        logger.info(f'Transforming all samples with {self.transform.__class__}' if self.transform else 'No transform applied to samples')
+        logger.info(f'Transforming all samples with {self.transform.__class__.__name__}' if self.transform else 'No transform applied to samples')
 
         logger.info('Loaded {} valid HID images', len(self._data))
 
