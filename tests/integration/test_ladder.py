@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from dnanet.core.panel import Panel
-from dnanet.data.ladder import Ladder, LadderAlleleCatalog
+from dnanet.data.ladders.ladder import Ladder, LadderAlleleCatalog
 from dnanet.data.parsing.hid import get_peak_data
 from dnanet.data.strategies.registry import StrategyRegistry
 

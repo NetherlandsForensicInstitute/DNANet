@@ -30,23 +30,19 @@ Usage::
 
 from __future__ import annotations
 
-import csv
 import random
-from typing import Any, Generator, List, Optional, Tuple
+from typing import Generator, List, Optional, Tuple
 from pathlib import Path
-from typing import Any, Generator
 
 import numpy as np
 from loguru import logger
 
 from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
-from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
 from dnanet.data.dataset import InMemoryDataset
 from dnanet.data.image import HIDImage
-from dnanet.data.ladder import Ladder, LadderAlleleCatalog
-from dnanet.data.parsing.hid import get_peak_data
+from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
 
@@ -83,9 +79,6 @@ class HIDDataset(InMemoryDataset):
     def __init__(
         self,
         root: PathLike,
-        hid_to_annotations_path: PathLike | None = None,
-        best_ladder_paths_csv: PathLike | None = None,
-        ladder_alleles_csv: PathLike | None = None,
         analysis_threshold_type: str = "DTH",
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
@@ -119,11 +112,6 @@ class HIDDataset(InMemoryDataset):
         # if best_ladder_paths_csv:
         #     self._ladder_paths = self._load_ladder_paths(Path(best_ladder_paths_csv))
         #     logger.info("Loaded {} ladder path mappings", len(self._ladder_paths))
-
-        # # Load ladder allele catalog
-        self._ladder_catalog: LadderAlleleCatalog | None = None
-        if ladder_alleles_csv:
-            self._ladder_catalog = LadderAlleleCatalog.from_csv(Path(ladder_alleles_csv))
 
         # Collect files, apply limit, load images
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root))
@@ -166,7 +154,7 @@ class HIDDataset(InMemoryDataset):
             if ladder_path:
                 adjusted = Ladder.create_adjusted_panel(
                     ladder_path=ladder_path,
-                    catalog=self._ladder_catalog
+                    catalog=self._scaling.kit.ladder_alleles
                 )
                 if adjusted:
                     _current_panel = adjusted

@@ -27,76 +27,24 @@ How ladder-based panel adjustment works:
 
 from __future__ import annotations
 
-import csv
-from collections import defaultdict
-from dataclasses import dataclass, field
-from functools import cache
+from typing import TYPE_CHECKING
 from pathlib import Path
+from functools import cache
 
 import numpy as np
 from loguru import logger
 from scipy.signal import find_peaks
 
-from dnanet.core.allele import Allele
-from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
 from dnanet.data.image import HIDImage
+from dnanet.core.allele import Allele
+from dnanet.core.marker import Marker
 from dnanet.data.strategies.registry import StrategyRegistry
 
 
-# ---------------------------------------------------------------------------
-# Ladder allele catalog (loaded from CSV once)
-# ---------------------------------------------------------------------------
-
-@dataclass(frozen=True)
-class LadderAlleleCatalog:
-    """Catalog of alleles expected in a ladder, organized by dye row.
-
-    Loaded from a CSV file with columns: Marker, Allele, Dye.
-
-    Note: This is a separate class to prevent multiple I/O operations for reading the
-    same CSV file and allow the use of the csv's information inside the Ladder class.
-    """
-
-    alleles_by_dye: dict[int, list[tuple[str, str]]] = field(default_factory=dict)
-
-    @classmethod
-    def from_csv(cls, path: PathLike) -> LadderAlleleCatalog:
-        """Load ladder allele definitions from a CSV file.
-
-        Args:
-            path: Path to CSV with columns ``Marker``, ``Allele``, ``Dye``.
-        """
-        alleles: dict[int, list[tuple[str, str]]] = defaultdict(list)
-        with open(path, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                dye = int(row["Dye"])
-                alleles[dye].append((row["Marker"], row["Allele"]))
-        return cls(alleles_by_dye=dict(alleles))
-
-    def expected_count(self, dye_row: int) -> int:
-        """Number of alleles expected on a given dye row."""
-        return len(self.alleles_by_dye.get(dye_row, []))
-
-    def __hash__(self):
-        return hash(
-            tuple(
-                (dye, tuple(alleles))
-                for dye, alleles in sorted(self.alleles_by_dye.items())
-            )
-        )
-
-    def __eq__(self, other):
-        if not isinstance(other, LadderAlleleCatalog):
-            return NotImplemented
-        return self.alleles_by_dye == other.alleles_by_dye
-
-
-# ---------------------------------------------------------------------------
-# Ladder
-# ---------------------------------------------------------------------------
+if TYPE_CHECKING:
+    from .ladder_allele_catalog import LadderAlleleCatalog
 
 class Ladder:
     """Calibration ladder for base-pair panel adjustment.
@@ -130,7 +78,6 @@ class Ladder:
         Returns:
             The adjusted panel
         """
-
         ladder_image = HIDImage(
             path=ladder_path,
             data_loading_strategy="analyzed",

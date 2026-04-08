@@ -14,9 +14,12 @@ Note:
 from __future__ import annotations
 
 from dataclasses import field, dataclass
+from functools import cached_property
 
 from dnanet.core.panel import Panel
+from dnanet.core.types import PathLike
 from dnanet.data.strategies.scaling.size_standard import WEN_ILS, GENESCAN_600_LIZ, SizeStandard
+from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 
 
 @dataclass(frozen=True)
@@ -27,6 +30,7 @@ class STRKit:
         name: Kit identifier (e.g. "PPF6C", "GlobalFiler").
         size_standard: The internal size standard used by this kit.
         panel: The allele/marker panel for this kit.
+        ladder_alleles: The alleles expected in the Ladder used for this Kit.
         num_dyes: Number of fluorescence channels (including size standard).
         hid_dye_mapping: Maps 1-based HID dye indices to 0-based channel rows.
                          Kit-specific because some kits skip dye numbers
@@ -37,7 +41,8 @@ class STRKit:
 
     name: str
     size_standard: SizeStandard
-    panel: Panel
+    panel_path: PathLike
+    ladder_alleles: LadderAlleleCatalog
     num_dyes: int = 5
     hid_dye_mapping: dict[int, int] = field(
         default_factory=lambda: {
@@ -50,6 +55,10 @@ class STRKit:
     )
     hid_file_data_columns_analyzed: list[str] | None = None
     hid_file_data_columns_raw: list[str] | None = None
+    
+    @cached_property
+    def panel(self) -> Panel:
+        return Panel.from_xml(self.panel_path)
 
     def dye_row_from_hid_index(self, hid_index: int) -> int:
         """Convert a 1-based HID dye index to a 0-based channel row.
@@ -69,7 +78,8 @@ class STRKit:
 PPF6C_KIT = STRKit(
     name='PPF6C',
     size_standard=WEN_ILS,
-    panel=Panel.from_xml('resources/kit_panels/SGPanel_PPF6C.xml'),
+    panel_path='resources/kits/SGPanel_PPF6C.xml',
+    ladder_alleles=LadderAlleleCatalog.from_csv("resources/kits/PPF6C_ladder_alleles.csv"),
     num_dyes=6,
     hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_106', 'DATA_105'],
     hid_file_data_columns_analyzed=[
@@ -85,7 +95,8 @@ PPF6C_KIT = STRKit(
 PPY23_KIT = STRKit(
     name='POWERPLEX_Y23',
     size_standard=WEN_ILS,
-    panel=None,  ## TODO: add panel
+    panel_path=None,  ## TODO: add panel
+    ladder_alleles=LadderAlleleCatalog(),
     num_dyes=5,
     hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_105'],
     hid_file_data_columns_analyzed=['DATA_9', 'DATA_10', 'DATA_11', 'DATA_12', 'DATA_205'],
@@ -94,7 +105,8 @@ PPY23_KIT = STRKit(
 GLOBALFILER_KIT = STRKit(
     name='GlobalFiler',
     size_standard=GENESCAN_600_LIZ,
-    panel=Panel.from_xml('resources/kit_panels/SGPanel_Globalfiler_Panel.xml'),
+    panel_path='resources/kits/SGPanel_Globalfiler_Panel.xml',
+    ladder_alleles=LadderAlleleCatalog(),
     num_dyes=6,
     hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_106', 'DATA_105'],
     hid_file_data_columns_analyzed=[

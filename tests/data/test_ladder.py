@@ -6,7 +6,7 @@ import pytest
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
-from dnanet.data.ladder import Ladder, LadderAlleleCatalog
+from dnanet.data.ladders.ladder import Ladder, LadderAlleleCatalog
 
 
 class TestLadderAlleleCatalog:
