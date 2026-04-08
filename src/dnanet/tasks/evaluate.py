@@ -14,54 +14,110 @@ Usage::
 from __future__ import annotations
 
 import json
+from typing import Any
 from pathlib import Path
 
-import lightning as L
 import numpy as np
-from hydra.utils import instantiate
+import lightning as L
 from loguru import logger
-from omegaconf import DictConfig, OmegaConf
-from torch.utils.data import Dataset
+from omegaconf import OmegaConf, DictConfig
+from hydra.utils import instantiate
+from torch.utils.data import Subset, Dataset
 
-from dnanet.evaluation.metrics import (
-    allele_f1_score,
-    allele_precision,
-    allele_recall,
-    average_binary_iou,
-    pixel_f1_score,
-    pixel_precision,
-    pixel_recall,
-)
+from dnanet.metric_factory import build_metric_functions
 
-# Metric name -> callable mapping
-_METRIC_REGISTRY: dict[str, callable] = {
-    "pixel_precision": pixel_precision,
-    "pixel_recall": pixel_recall,
-    "pixel_f1_score": pixel_f1_score,
-    "average_binary_iou": average_binary_iou,
-}
 
-# Allele metrics require a different interface (marker sequences)
-_ALLELE_METRIC_REGISTRY: dict[str, callable] = {
-    "allele_precision": allele_precision,
-    "allele_recall": allele_recall,
-    "allele_f1_score": allele_f1_score,
-}
+def _compute_metrics(
+    metric_cfg: dict[str, Any] | DictConfig | None,
+    *metric_args: Any,
+) -> dict[str, float]:
+    """Compute Hydra-configured metrics over the supplied arguments."""
+    results: dict[str, float] = {}
+    for name, metric_fn in build_metric_functions(metric_cfg).items():
+        value = metric_fn(*metric_args)
+        results[name] = float(value)
+        logger.info("  {}: {:.4f}", name, value)
+    return results
 
 
 def _compute_pixel_metrics(
     ground_truths: list[np.ndarray],
     predictions: list[np.ndarray],
-    metric_names: list[str],
+    metric_cfg: dict[str, Any] | DictConfig | None,
 ) -> dict[str, float]:
-    """Compute pixel-level metrics."""
-    results = {}
-    for name in metric_names:
-        if name in _METRIC_REGISTRY:
-            value = _METRIC_REGISTRY[name](ground_truths, predictions)
-            results[name] = float(value)
-            logger.info("  {}: {:.4f}", name, value)
-    return results
+    """Compute configured pixel-level metrics."""
+    return _compute_metrics(metric_cfg, ground_truths, predictions)
+
+
+def _raw_eval_items(dataset: Dataset) -> list[Any]:
+    """Return untransformed validation items when the dataset exposes them."""
+    if isinstance(dataset, Subset):
+        base_dataset = dataset.dataset
+        if hasattr(base_dataset, "data"):
+            return [base_dataset.data[i] for i in dataset.indices]
+        return [base_dataset[i] for i in dataset.indices]
+
+    if hasattr(dataset, "data"):
+        return list(dataset.data)
+
+    return [dataset[i] for i in range(len(dataset))]
+
+
+def _as_2d_array(array: np.ndarray) -> np.ndarray:
+    if array.ndim == 3 and array.shape[-1] == 1:
+        return array[..., 0]
+    return array
+
+
+def _compute_allele_metrics(
+    raw_items: list[Any],
+    predictions: list[np.ndarray],
+    metric_cfg: dict[str, Any] | DictConfig | None,
+    allele_caller_cfg: dict[str, Any] | DictConfig | None,
+) -> dict[str, float]:
+    """Compute configured allele metrics when raw caller inputs are available."""
+    if allele_caller_cfg is None:
+        logger.warning(
+            "Allele metrics are configured, but evaluation.allele_caller is missing.",
+        )
+        return {}
+
+    allele_caller = instantiate(allele_caller_cfg)
+    ground_truth_markers = []
+    predicted_markers = []
+    skipped_items = 0
+
+    for raw_item, prediction in zip(raw_items, predictions, strict=True):
+        meta = getattr(raw_item, "meta", None)
+        called_alleles = meta.get("called_alleles") if hasattr(meta, "get") else None
+        panel = getattr(raw_item, "adjusted_panel", None)
+        signal_image = getattr(raw_item, "data", None)
+
+        if called_alleles is None or panel is None or signal_image is None:
+            skipped_items += 1
+            continue
+
+        predicted_markers.append(
+            allele_caller.call_alleles(
+                prediction_image=_as_2d_array(prediction),
+                signal_image=_as_2d_array(signal_image),
+                scaler=raw_item.scaler,
+                panel=panel,
+            )
+        )
+        ground_truth_markers.append(tuple(called_alleles))
+
+    if skipped_items:
+        logger.warning(
+            "Skipped allele metrics for {} validation samples without raw allele metadata.",
+            skipped_items,
+        )
+
+    if not ground_truth_markers:
+        logger.warning("No allele-call annotations were available for evaluation.")
+        return {}
+
+    return _compute_metrics(metric_cfg, ground_truth_markers, predicted_markers)
 
 
 def _save_results(
@@ -120,6 +176,7 @@ def run(
         checkpoint_path,
         model=network,
         loss_fn=loss_fn,
+        metrics_cfg=cfg.training.get("metrics"),
     )
     module.eval()
     logger.info("Model loaded: {}", type(network).__name__)
@@ -164,13 +221,30 @@ def run(
 
     # -- Compute metrics ---------------------------------------------------
     eval_cfg = cfg.get("evaluation", {})
-    metric_names = list(eval_cfg.get("metrics", []))
+    pixel_metric_cfg = eval_cfg.get("pixel_metrics")
+    allele_metric_cfg = eval_cfg.get("allele_metrics")
     results: dict[str, float] = {}
 
-    if metric_names:
-        logger.info("Computing metrics...")
-        results = _compute_pixel_metrics(gt_arrays, pred_arrays, metric_names)
-    else:
+    has_pixel_metrics = pixel_metric_cfg is not None and len(pixel_metric_cfg) > 0
+    has_allele_metrics = allele_metric_cfg is not None and len(allele_metric_cfg) > 0
+
+    if has_pixel_metrics:
+        logger.info("Computing pixel metrics...")
+        results.update(_compute_pixel_metrics(gt_arrays, pred_arrays, pixel_metric_cfg))
+
+    if has_allele_metrics:
+        logger.info("Computing allele metrics...")
+        raw_items = _raw_eval_items(datamodule._val_dataset)
+        results.update(
+            _compute_allele_metrics(
+                raw_items,
+                pred_arrays,
+                allele_metric_cfg,
+                eval_cfg.get("allele_caller"),
+            )
+        )
+
+    if not has_pixel_metrics and not has_allele_metrics:
         logger.warning("No metrics configured in evaluation config.")
 
     # -- Save results ------------------------------------------------------

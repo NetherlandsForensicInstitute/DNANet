@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
 import torch
+import pytest
 from torch import nn
 
 from dnanet.models.autoencoder import Conv1dAutoencoder
@@ -23,9 +23,10 @@ def autoencoder():
 
 
 @pytest.fixture
-def module(autoencoder):
+def module(autoencoder, reconstruction_metrics_cfg):
     return ReconstructionModule(
         model=autoencoder,
+        metrics_cfg=reconstruction_metrics_cfg,
         learning_rate=1e-3,
     )
 
@@ -71,14 +72,15 @@ class TestReconstructionModule:
         out = module(x)
         assert out.shape == x.shape
 
-    def test_default_loss_is_mse(self, autoencoder):
-        mod = ReconstructionModule(model=autoencoder)
+    def test_default_loss_is_mse(self, autoencoder, reconstruction_metrics_cfg):
+        mod = ReconstructionModule(model=autoencoder, metrics_cfg=reconstruction_metrics_cfg)
         assert isinstance(mod.loss_fn, nn.MSELoss)
 
-    def test_custom_loss(self, autoencoder):
+    def test_custom_loss(self, autoencoder, reconstruction_metrics_cfg):
         mod = ReconstructionModule(
             model=autoencoder,
             loss_fn=nn.L1Loss(),
+            metrics_cfg=reconstruction_metrics_cfg,
         )
         x = torch.randn(2, 1, 512)
         loss = mod.training_step((x,), batch_idx=0)
@@ -89,9 +91,11 @@ class TestReconstructionModule:
         assert "optimizer" in config
         assert "lr_scheduler" not in config
 
-    def test_configure_optimizers_with_scheduler(self, autoencoder):
+    def test_configure_optimizers_with_scheduler(self, autoencoder, reconstruction_metrics_cfg):
         mod = ReconstructionModule(
-            model=autoencoder, scheduler_gamma=0.95,
+            model=autoencoder,
+            metrics_cfg=reconstruction_metrics_cfg,
+            scheduler_gamma=0.95,
         )
         config = mod.configure_optimizers()
         assert "lr_scheduler" in config
@@ -107,11 +111,11 @@ class TestReconstructionModule:
         assert "train/mse" in computed
         module.train_metrics.reset()
 
-    def test_handles_trailing_singleton(self):
+    def test_handles_trailing_singleton(self, reconstruction_metrics_cfg):
         """Should squeeze trailing dim from 4D output/target via FourierAutoencoder."""
         from dnanet.models.autoencoder import FourierAutoencoder
         ae = FourierAutoencoder(in_channels=1, signal_length=512, latent_coeffs=64)
-        mod = ReconstructionModule(model=ae)
+        mod = ReconstructionModule(model=ae, metrics_cfg=reconstruction_metrics_cfg)
         x = torch.randn(2, 1, 512)
         loss = mod.training_step((x,), batch_idx=0)
         assert loss.dim() == 0

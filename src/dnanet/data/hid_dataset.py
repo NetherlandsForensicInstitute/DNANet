@@ -32,29 +32,25 @@ from __future__ import annotations
 
 import random
 import typing
-from typing import List, Tuple, Optional, Generator, Any
+from typing import Any, List, Tuple, Optional, Generator
 from pathlib import Path
 
 import numpy as np
+from tqdm import tqdm
 from loguru import logger
 from torch.utils.data import Dataset
-from tqdm import tqdm
-
-from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
-from dnanet.core.panel import Panel
-from dnanet.core.types import PathLike
-from dnanet.data.dataset import TransformableDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladder import Ladder, LadderAlleleCatalog
+from dnanet.data.dataset import TransformableDataset
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
-from dnanet.data.transformer import TransformDataCallable
 
 
 if typing.TYPE_CHECKING:
     from dnanet.core.panel import Panel
     from dnanet.core.types import PathLike
+    from dnanet.data.transformer import TransformDataCallable
 
 
 class HIDDataset(Dataset, TransformableDataset):
@@ -350,5 +346,3 @@ class HIDDataset(Dataset, TransformableDataset):
             item = self._transform(item)
 
         return item
-
-

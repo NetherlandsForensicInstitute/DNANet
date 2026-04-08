@@ -4,7 +4,12 @@ max_epochs: 150
 batch_size: 16
 learning_rate: 0.001
 weight_decay: 0.0
-num_workers: 0
+num_workers: 7
+val_fraction: 0.2
+
+metrics:
+  mse:
+    _target_: torchmetrics.regression.MeanSquaredError
 
 # No LR scheduler by default for reconstruction
 scheduler:

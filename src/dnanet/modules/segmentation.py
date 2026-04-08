@@ -30,7 +30,6 @@ from __future__ import annotations
 from typing import Any
 
 import torch
-import torchmetrics
 from torch import Tensor, nn
 
 from dnanet.modules.base import BaseTaskModule
@@ -64,24 +63,14 @@ class SegmentationModule(BaseTaskModule):
         weight_decay: float = 5e-4,
         scheduler_gamma: float = 0.8,
         threshold: float = 0.5,
+        metrics_cfg: Any = None,
     ) -> None:
-        super().__init__(model=model, loss_fn=loss_fn)
+        super().__init__(model=model, loss_fn=loss_fn, metrics_cfg=metrics_cfg)
         self.save_hyperparameters({
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
             "scheduler_gamma": scheduler_gamma,
             "threshold": threshold,
-        })
-        self.initialize_metrics()
-
-    def build_metrics(self) -> torchmetrics.MetricCollection:
-        threshold = float(self.hparams.threshold)
-        return torchmetrics.MetricCollection({
-            "accuracy": torchmetrics.classification.BinaryAccuracy(threshold=threshold),
-            "precision": torchmetrics.classification.BinaryPrecision(threshold=threshold),
-            "recall": torchmetrics.classification.BinaryRecall(threshold=threshold),
-            "f1": torchmetrics.classification.BinaryF1Score(threshold=threshold),
-            "iou": torchmetrics.classification.BinaryJaccardIndex(threshold=threshold),
         })
 
     def compute_step_outputs(

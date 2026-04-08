@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import lightning as L
 import torch
-import torchmetrics
-from lightning import Callback
-from loguru import logger
+import lightning as L
 from torch import Tensor, nn
+from loguru import logger
+from lightning import Callback
+
+from dnanet.metric_factory import build_metric_collection
+
+
+if TYPE_CHECKING:
+    import torchmetrics
 
 
 class BaseTaskModule(L.LightningModule, ABC):
@@ -21,20 +26,23 @@ class BaseTaskModule(L.LightningModule, ABC):
     and optimizer configuration.
     """
 
-    def __init__(self, model: nn.Module, loss_fn: nn.Module) -> None:
+    def __init__(
+        self,
+        model: nn.Module,
+        loss_fn: nn.Module,
+        metrics_cfg: Any = None,
+    ) -> None:
         super().__init__()
         self.model = model
         self.loss_fn = loss_fn
+        self.metrics_cfg = metrics_cfg
+        self.initialize_metrics()
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.model(*args, **kwargs)
 
-    @abstractmethod
-    def build_metrics(self) -> torchmetrics.MetricCollection:
-        """Return the unprefixed metric collection for this task."""
-
     def initialize_metrics(self) -> None:
-        metrics = self.build_metrics()
+        metrics = build_metric_collection(self.metrics_cfg)
         self.train_metrics = metrics.clone(prefix="train/")
         self.val_metrics = metrics.clone(prefix="val/")
 
@@ -55,7 +63,8 @@ class BaseTaskModule(L.LightningModule, ABC):
         loss, preds, targets = self.compute_step_outputs(batch)
 
         metrics = self._metrics_for_stage(stage)
-        metrics.update(preds, targets)
+        if len(metrics) > 0:
+            metrics.update(preds, targets)
 
         self.log(
             f"{stage}/loss",
@@ -65,13 +74,14 @@ class BaseTaskModule(L.LightningModule, ABC):
             on_epoch=True,
             logger=True,
         )
-        self.log_dict(
-            metrics,
-            prog_bar=False,
-            on_step=False,
-            on_epoch=True,
-            logger=True,
-        )
+        if len(metrics) > 0:
+            self.log_dict(
+                metrics,
+                prog_bar=False,
+                on_step=False,
+                on_epoch=True,
+                logger=True,
+            )
         return loss
 
     def training_step(self, batch: Any, batch_idx: int) -> Tensor:

@@ -15,11 +15,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import torchmetrics
 from torch import Tensor, nn
 
-from dnanet.data.preprocessing.scaling import inverse_scale_rfu_torch
 from dnanet.modules.base import BaseTaskModule
+from dnanet.data.preprocessing.scaling import inverse_scale_rfu_torch
 
 
 class ReconstructionModule(BaseTaskModule):
@@ -40,18 +39,17 @@ class ReconstructionModule(BaseTaskModule):
         learning_rate: float = 1e-3,
         weight_decay: float = 0.0,
         scheduler_gamma: float = 1.0,
+        metrics_cfg: Any = None,
     ) -> None:
-        super().__init__(model=model, loss_fn=loss_fn or nn.MSELoss())
+        super().__init__(
+            model=model,
+            loss_fn=loss_fn or nn.MSELoss(),
+            metrics_cfg=metrics_cfg,
+        )
         self.save_hyperparameters({
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
             "scheduler_gamma": scheduler_gamma,
-        })
-        self.initialize_metrics()
-
-    def build_metrics(self) -> torchmetrics.MetricCollection:
-        return torchmetrics.MetricCollection({
-            "mse": torchmetrics.regression.MeanSquaredError(),
         })
 
     def compute_step_outputs(

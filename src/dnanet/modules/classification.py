@@ -13,7 +13,6 @@ from __future__ import annotations
 from typing import Any
 
 import torch
-import torchmetrics
 from torch import Tensor, nn
 
 from dnanet.modules.base import BaseTaskModule
@@ -44,31 +43,14 @@ class ClassificationModule(BaseTaskModule):
         learning_rate: float = 1e-4,
         weight_decay: float = 5e-4,
         scheduler_gamma: float = 1.0,
+        metrics_cfg: Any = None,
     ) -> None:
-        super().__init__(model=model, loss_fn=loss_fn)
+        super().__init__(model=model, loss_fn=loss_fn, metrics_cfg=metrics_cfg)
         self.save_hyperparameters({
             "num_classes": num_classes,
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
             "scheduler_gamma": scheduler_gamma,
-        })
-        self.initialize_metrics()
-
-    def build_metrics(self) -> torchmetrics.MetricCollection:
-        num_classes = int(self.hparams.num_classes)
-        return torchmetrics.MetricCollection({
-            "accuracy": torchmetrics.classification.MulticlassAccuracy(
-                num_classes=num_classes, average="micro",
-            ),
-            "precision": torchmetrics.classification.MulticlassPrecision(
-                num_classes=num_classes, average="macro",
-            ),
-            "recall": torchmetrics.classification.MulticlassRecall(
-                num_classes=num_classes, average="macro",
-            ),
-            "f1": torchmetrics.classification.MulticlassF1Score(
-                num_classes=num_classes, average="macro",
-            ),
         })
 
     def compute_step_outputs(

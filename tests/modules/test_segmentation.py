@@ -1,7 +1,7 @@
 """Tests for the SegmentationModule Lightning module."""
 
-import pytest
 import torch
+import pytest
 from torch.utils.data import DataLoader, TensorDataset
 
 from dnanet.models.loss import DiceLoss
@@ -16,11 +16,12 @@ def small_model() -> UNet:
 
 
 @pytest.fixture
-def module(small_model) -> SegmentationModule:
+def module(small_model, segmentation_metrics_cfg) -> SegmentationModule:
     """A SegmentationModule with small UNet."""
     return SegmentationModule(
         model=small_model,
         loss_fn=DiceLoss(),
+        metrics_cfg=segmentation_metrics_cfg,
         learning_rate=1e-3,
         weight_decay=0.0,
         scheduler_gamma=0.9,
@@ -62,11 +63,12 @@ class TestSegmentationModule:
         assert "lr_scheduler" in config
         assert isinstance(config["optimizer"], torch.optim.Adam)
 
-    def test_configure_optimizers_without_scheduler(self, small_model):
+    def test_configure_optimizers_without_scheduler(self, small_model, segmentation_metrics_cfg):
         """When gamma=1.0, no scheduler should be returned."""
         module = SegmentationModule(
             model=small_model,
             loss_fn=DiceLoss(),
+            metrics_cfg=segmentation_metrics_cfg,
             scheduler_gamma=1.0,
         )
         config = module.configure_optimizers()
@@ -134,11 +136,12 @@ class TestSegmentationModule:
         assert "train/iou" in metrics
         module.train_metrics.reset()
 
-    def test_loss_decreases_on_overfit(self, small_model):
+    def test_loss_decreases_on_overfit(self, small_model, segmentation_metrics_cfg):
         """On a tiny dataset, loss should decrease after a few epochs."""
         module = SegmentationModule(
             model=small_model,
             loss_fn=DiceLoss(),
+            metrics_cfg=segmentation_metrics_cfg,
             learning_rate=1e-2,  # high LR for fast convergence
             scheduler_gamma=1.0,
         )

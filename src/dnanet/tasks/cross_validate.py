@@ -12,18 +12,22 @@ Usage::
 from __future__ import annotations
 
 import json
-from collections import defaultdict
+from typing import TYPE_CHECKING
 from pathlib import Path
+from collections import defaultdict
 
-import lightning as L
 import numpy as np
-from hydra.utils import instantiate
+import lightning as L
 from loguru import logger
-from omegaconf import DictConfig, OmegaConf
-from torch.utils.data import Dataset
+from omegaconf import OmegaConf, DictConfig
+from hydra.utils import instantiate
 
+from dnanet.tasks.train import _build_logger, _build_module, _build_callbacks
 from dnanet.data.splitting import split_data_in_k_folds
-from dnanet.tasks.train import _build_callbacks, _build_logger, _build_module
+
+
+if TYPE_CHECKING:
+    from torch.utils.data import Dataset
 
 
 def run(cfg: DictConfig) -> dict[str, dict[str, float]]:
@@ -72,7 +76,6 @@ def run_with_data(
         Dictionary with ``"per_fold"`` and ``"aggregate"`` keys containing
         metric results.
     """
-
     from torch.utils.data import DataLoader
 
     L.seed_everything(cfg.seed, workers=True)
@@ -91,7 +94,8 @@ def run_with_data(
     agg_metrics: dict[str, list[float]] = defaultdict(list)
 
     eval_cfg = cfg.get("evaluation", {})
-    metric_names = list(eval_cfg.get("metrics", []))
+    pixel_metric_cfg = eval_cfg.get("pixel_metrics")
+    has_pixel_metrics = pixel_metric_cfg is not None and len(pixel_metric_cfg) > 0
 
     for fold_idx in range(n_folds):
         logger.info("=" * 60)
@@ -181,9 +185,9 @@ def run_with_data(
 
         # Compute metrics
         fold_results: dict[str, float] = {}
-        if metric_names:
+        if has_pixel_metrics:
             from dnanet.tasks.evaluate import _compute_pixel_metrics
-            fold_results = _compute_pixel_metrics(gt_arrays, pred_arrays, metric_names)
+            fold_results = _compute_pixel_metrics(gt_arrays, pred_arrays, pixel_metric_cfg)
 
         all_fold_results.append(fold_results)
         for name, value in fold_results.items():

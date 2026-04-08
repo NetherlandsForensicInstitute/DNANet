@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
 import torch
+import pytest
 from torch import nn
 
 from dnanet.models.peak_classifier import PeakClassificationModel
@@ -42,10 +42,11 @@ def model():
 
 
 @pytest.fixture
-def module(model):
+def module(model, classification_metrics_cfg):
     return ClassificationModule(
         model=model,
         loss_fn=nn.CrossEntropyLoss(),
+        metrics_cfg=classification_metrics_cfg,
         num_classes=3,
         learning_rate=1e-3,
     )
@@ -78,12 +79,15 @@ class TestClassificationModule:
         assert loss.dim() == 0
         assert loss.requires_grad
 
-    def test_training_step_with_marker(self, batch_with_marker):
+    def test_training_step_with_marker(self, batch_with_marker, classification_metrics_cfg):
         model = PeakClassificationModel(
             num_classes=3, width=120, embedding_dim=8, hidden_channels=[16],
         )
         mod = ClassificationModule(
-            model=model, loss_fn=nn.CrossEntropyLoss(), num_classes=3,
+            model=model,
+            loss_fn=nn.CrossEntropyLoss(),
+            metrics_cfg=classification_metrics_cfg,
+            num_classes=3,
         )
         loss = mod.training_step(batch_with_marker, batch_idx=0)
         assert loss.dim() == 0
@@ -102,9 +106,10 @@ class TestClassificationModule:
         assert "optimizer" in config
         assert "lr_scheduler" not in config
 
-    def test_configure_optimizers_with_scheduler(self, model):
+    def test_configure_optimizers_with_scheduler(self, model, classification_metrics_cfg):
         mod = ClassificationModule(
             model=model, loss_fn=nn.CrossEntropyLoss(),
+            metrics_cfg=classification_metrics_cfg,
             num_classes=3, scheduler_gamma=0.95,
         )
         config = mod.configure_optimizers()
@@ -116,22 +121,26 @@ class TestClassificationModule:
         # Should be valid probabilities
         assert torch.allclose(probs.sum(dim=1), torch.ones(8), atol=1e-5)
 
-    def test_predict_step_with_marker(self, batch_with_marker):
+    def test_predict_step_with_marker(self, batch_with_marker, classification_metrics_cfg):
         model = PeakClassificationModel(
             num_classes=3, width=120, embedding_dim=8, hidden_channels=[16],
         )
         mod = ClassificationModule(
-            model=model, loss_fn=nn.CrossEntropyLoss(), num_classes=3,
+            model=model,
+            loss_fn=nn.CrossEntropyLoss(),
+            metrics_cfg=classification_metrics_cfg,
+            num_classes=3,
         )
         probs = mod.predict_step(batch_with_marker, batch_idx=0)
         assert probs.shape == (8, 3)
 
-    def test_predict_step_marker_batch_without_targets(self):
+    def test_predict_step_marker_batch_without_targets(self, classification_metrics_cfg):
         peak_data = torch.randn(4, 1, 120)
         marker_idx = torch.tensor([0, 1, 2, 1], dtype=torch.long)
         mod = ClassificationModule(
             model=MarkerAwarePredictModel(),
             loss_fn=nn.CrossEntropyLoss(),
+            metrics_cfg=classification_metrics_cfg,
             num_classes=3,
         )
 
