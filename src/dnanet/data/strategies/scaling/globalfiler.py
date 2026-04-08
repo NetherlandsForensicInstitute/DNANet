@@ -5,16 +5,13 @@ from pathlib import Path
 import numpy as np
 from loguru import logger
 
-from dnanet.core import Panel
 from dnanet.data.preprocessing.peaks import find_peaks_above_threshold
-from dnanet.data.strategies.scaling.kit import STRKit
+from dnanet.data.strategies.scaling.kit import GLOBALFILER_KIT
 from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
     SizeStandardParseResult,
 )
-from dnanet.data.strategies.scaling.size_standard import GENESCAN_600_LIZ
 
-_GLOBALFILER_PANEL_PATH = Path("resources/kit_panels/SGPanel_Globalfiler_Panel.xml")
 
 class GlobalFilerStrategy(ScalingStrategy):
     """Scaling strategy for the GlobalFiler kit.
@@ -23,53 +20,59 @@ class GlobalFilerStrategy(ScalingStrategy):
     HID dye indices: 1,2,3,4,6 (5 is skipped, same as PPF6C).
     """
 
-
-
     def __init__(
         self,
-        panel_path: Path = _GLOBALFILER_PANEL_PATH,
         max_shrinkages: int = 10,
         validation_threshold: float = 5.0,
         **kwargs,
     ) -> None:
-        kit = STRKit(
-            name="GlobalFiler",
-            size_standard=GENESCAN_600_LIZ,
-            panel=Panel.from_xml(panel_path, hid_dye_mapping=self._HID_DYE_MAPPING),
-            num_dyes=6,
-            hid_dye_mapping=self._HID_DYE_MAPPING,
-            panel_path=panel_path,
-            description="GlobalFiler using GeneScan 600 LIZ size standard.",
-            hid_file_data_columns_raw=["DATA_1", "DATA_2", "DATA_3", "DATA_4", "DATA_106", "DATA_105"],
-            hid_file_data_columns_analyzed=["DATA_9", "DATA_10", "DATA_11", "DATA_12", "DATA_206", "DATA_205"]
-        )
+        kit = GLOBALFILER_KIT
         super().__init__(kit, basepair_start=60, basepair_end=480, scanpoint_resolution=4096)
         self._max_shrinkages = max_shrinkages
         self._validation_threshold = validation_threshold
 
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         return {
-            "D3S1358": 0, "vWA": 0, "D16S539": 0, "CSF1PO": 0, "TPOX": 0,
-            "Y-Indel": 1, "AMEL": 1, "D8S1179": 1, "D21S11": 1, "D18S51": 1, "DYS391": 1,
-            "D2S441": 2, "D19S433": 2, "TH01": 2, "FGA": 2,
-            "D22S1045": 3, "D5S818": 3, "D13S317": 3, "D7S820": 3, "SE33": 3,
-            "D10S1248": 4, "D1S1656": 4, "D12S391": 4, "D2S1338": 4,
+            'D3S1358': 0,
+            'vWA': 0,
+            'D16S539': 0,
+            'CSF1PO': 0,
+            'TPOX': 0,
+            'Y-Indel': 1,
+            'AMEL': 1,
+            'D8S1179': 1,
+            'D21S11': 1,
+            'D18S51': 1,
+            'DYS391': 1,
+            'D2S441': 2,
+            'D19S433': 2,
+            'TH01': 2,
+            'FGA': 2,
+            'D22S1045': 3,
+            'D5S818': 3,
+            'D13S317': 3,
+            'D7S820': 3,
+            'SE33': 3,
+            'D10S1248': 4,
+            'D1S1656': 4,
+            'D12S391': 4,
+            'D2S1338': 4,
         }
 
     def dye_channel_colors(self) -> list[str]:
-        return ["blue", "green", "black", "red", "purple", "orange"]
+        return ['blue', 'green', 'black', 'red', 'purple', 'orange']
 
-    def parse_size_standard(
-        self, size_standard_lane: np.ndarray
-    ) -> SizeStandardParseResult | None:
+    def parse_size_standard(self, size_standard_lane: np.ndarray) -> SizeStandardParseResult | None:
         """Parse GeneScan 600 LIZ with iterative fit shrinking."""
         lane = np.asarray(size_standard_lane).reshape(-1)
         expected_bps = self.kit.size_standard.expected_bps
 
         peak_idxs = self._extract_ss_peaks(lane)
         peak_idxs, bps, diff = self._attempt_fit(
-            peak_idxs, expected_bps,
-            self._validation_threshold, self._max_shrinkages,
+            peak_idxs,
+            expected_bps,
+            self._validation_threshold,
+            self._max_shrinkages,
         )
 
         rescaled_indices, scaler = self.interpolate(peak_idxs, bps, lane)
@@ -102,22 +105,22 @@ class GlobalFilerStrategy(ScalingStrategy):
             Tuple of ``(trimmed_peak_idxs, trimmed_bps, max_deviation)``.
         """
         bps = expected_bps
-        best_trimmed, best_bps, best_diff = None, None, float("inf")
+        best_trimmed, best_bps, best_diff = None, None, float('inf')
 
         # Need at least 3 peaks for a degree-2 polynomial fit
         if len(peak_idxs) < 3:
             logger.warning(
-                "Too few size standard peaks ({}) for polynomial fit",
+                'Too few size standard peaks ({}) for polynomial fit',
                 len(peak_idxs),
             )
-            return peak_idxs, bps[:len(peak_idxs)], float("inf")
+            return peak_idxs, bps[: len(peak_idxs)], float('inf')
 
         shrinkages = 0
         while shrinkages < max_shrinkages:
-            trimmed = peak_idxs[-len(bps):]
+            trimmed = peak_idxs[-len(bps) :]
             # If fewer peaks than expected bps, trim bps to match
             if len(trimmed) < len(bps):
-                bps = bps[-len(trimmed):]
+                bps = bps[-len(trimmed) :]
             if len(trimmed) < 3:
                 break
             coeffs = np.polyfit(trimmed, bps, 2)
@@ -131,8 +134,9 @@ class GlobalFilerStrategy(ScalingStrategy):
             if diff < threshold:
                 if shrinkages > 0:
                     logger.info(
-                        "Size standard shrunk {} times; max diff {:.2f} bp",
-                        shrinkages, diff,
+                        'Size standard shrunk {} times; max diff {:.2f} bp',
+                        shrinkages,
+                        diff,
                     )
                 return trimmed, bps, diff
 
@@ -140,9 +144,7 @@ class GlobalFilerStrategy(ScalingStrategy):
             shrinkages += 1
 
         logger.warning(
-            "Size standard fit did not converge: {:.2f} bp deviation after "
-            "{} shrinkages (threshold={:.1f}). Using best fit found.",
-            best_diff, max_shrinkages, threshold,
+            f'Size standard fit did not converge: {best_diff:.2f} bp deviation after '
+            f'{max_shrinkages} shrinkages (threshold={threshold:.1f}). Using best fit found.'
         )
         return best_trimmed, best_bps, best_diff
-

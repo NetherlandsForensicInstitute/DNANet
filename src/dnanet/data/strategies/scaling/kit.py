@@ -13,11 +13,10 @@ Note:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from pathlib import Path
+from dataclasses import field, dataclass
 
 from dnanet.core.panel import Panel
-from dnanet.data.strategies.scaling.size_standard import SizeStandard
+from dnanet.data.strategies.scaling.size_standard import WEN_ILS, GENESCAN_600_LIZ, SizeStandard
 
 
 @dataclass(frozen=True)
@@ -40,11 +39,15 @@ class STRKit:
     size_standard: SizeStandard
     panel: Panel
     num_dyes: int = 5
-    hid_dye_mapping: dict[int, int] = field(default_factory=lambda: {
-        1: 0, 2: 1, 3: 2, 4: 3, 6: 4,
-    })
-    panel_path: Path | None = None
-    description: str = ""
+    hid_dye_mapping: dict[int, int] = field(
+        default_factory=lambda: {
+            1: 0,
+            2: 1,
+            3: 2,
+            4: 3,
+            6: 4,
+        }
+    )
     hid_file_data_columns_analyzed: list[str] | None = None
     hid_file_data_columns_raw: list[str] | None = None
 
@@ -57,7 +60,49 @@ class STRKit:
         row = self.hid_dye_mapping.get(hid_index)
         if row is None:
             raise ValueError(
-                f"Unknown HID dye index {hid_index} for kit {self.name}. "
-                f"Valid indices: {list(self.hid_dye_mapping.keys())}"
+                f'Unknown HID dye index {hid_index} for kit {self.name}. '
+                f'Valid indices: {list(self.hid_dye_mapping.keys())}'
             )
         return row
+
+
+PPF6C_KIT = STRKit(
+    name='PPF6C',
+    size_standard=WEN_ILS,
+    panel=Panel.from_xml('resources/kit_panels/SGPanel_PPF6C.xml'),
+    num_dyes=6,
+    hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_106', 'DATA_105'],
+    hid_file_data_columns_analyzed=[
+        'DATA_9',
+        'DATA_10',
+        'DATA_11',
+        'DATA_12',
+        'DATA_206',
+        'DATA_205',
+    ],
+)
+
+PPY23_KIT = STRKit(
+    name='POWERPLEX_Y23',
+    size_standard=WEN_ILS,
+    panel=None,  ## TODO: add panel
+    num_dyes=5,
+    hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_105'],
+    hid_file_data_columns_analyzed=['DATA_9', 'DATA_10', 'DATA_11', 'DATA_12', 'DATA_205'],
+)
+
+GLOBALFILER_KIT = STRKit(
+    name='GlobalFiler',
+    size_standard=GENESCAN_600_LIZ,
+    panel=Panel.from_xml('resources/kit_panels/SGPanel_Globalfiler_Panel.xml'),
+    num_dyes=6,
+    hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_106', 'DATA_105'],
+    hid_file_data_columns_analyzed=[
+        'DATA_9',
+        'DATA_10',
+        'DATA_11',
+        'DATA_12',
+        'DATA_206',
+        'DATA_205',
+    ],
+)

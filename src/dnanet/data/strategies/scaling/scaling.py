@@ -23,19 +23,20 @@ Design pattern: **Template Method**
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Callable, TYPE_CHECKING
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 import scipy.interpolate
-import scipy.ndimage
 
-from dnanet.data.strategies.scaling.kit import STRKit
+if TYPE_CHECKING:
+    from dnanet.data.strategies.scaling.kit import STRKit
 
 
 # ---------------------------------------------------------------------------
 # Result container
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class SizeStandardParseResult:
@@ -56,6 +57,7 @@ class SizeStandardParseResult:
 # Abstract base
 # ---------------------------------------------------------------------------
 
+
 class ScalingStrategy(ABC):
     """Base class for kit-specific profile scaling.
 
@@ -65,8 +67,6 @@ class ScalingStrategy(ABC):
         basepair_end: End of the target base-pair range.
         scanpoint_resolution: Number of scan points in the rescaled profile.
     """
-
-    _HID_DYE_MAPPING = {1: 0, 2: 1, 3: 2, 4: 3, 6: 4}
 
     def __init__(
         self,
@@ -96,9 +96,7 @@ class ScalingStrategy(ABC):
     # -- Abstract interface (overridden by each kit) ---------------------- #
 
     @abstractmethod
-    def parse_size_standard(
-        self, size_standard_lane: np.ndarray
-    ) -> SizeStandardParseResult | None:
+    def parse_size_standard(self, size_standard_lane: np.ndarray) -> SizeStandardParseResult | None:
         """Parse the size-standard dye lane into calibration data."""
 
     @abstractmethod
@@ -164,16 +162,16 @@ class ScalingStrategy(ABC):
         original_x_values = np.asarray(original_x_values)
 
         if indices.ndim != 1 or original_x_values.ndim != 1:
-            raise ValueError("indices and original_x_values must be 1D")
+            raise ValueError('indices and original_x_values must be 1D')
         if indices.size != original_x_values.size:
-            raise ValueError("indices and original_x_values must have equal length")
+            raise ValueError('indices and original_x_values must have equal length')
 
         order = np.argsort(indices)
         sorted_idx = indices[order]
         sorted_bp = original_x_values[order]
 
         spline = scipy.interpolate.CubicSpline(
-            sorted_idx, sorted_bp, bc_type="natural", extrapolate=True
+            sorted_idx, sorted_bp, bc_type='natural', extrapolate=True
         )
         lo, hi = sorted_idx[0], sorted_idx[-1]
 
@@ -208,7 +206,7 @@ class ScalingStrategy(ABC):
         sort_order = np.argsort(basepairs)
         sorted_bp = basepairs[sort_order]
 
-        insertion = np.searchsorted(sorted_bp, target, side="left")
+        insertion = np.searchsorted(sorted_bp, target, side='left')
         insertion = np.clip(insertion, 1, len(sorted_bp) - 1)
 
         left_idx = insertion - 1
@@ -224,14 +222,14 @@ class ScalingStrategy(ABC):
 
 
 from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
-from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
 from dnanet.data.strategies.scaling.powerplex_y23 import PowerplexY23
+from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
 
 
 SCALING_STRATEGIES: dict[str, type[ScalingStrategy]] = {
-    "PPF6C": PowerPlexFusion6CStrategy,
-    "GLOBALFILER": GlobalFilerStrategy,
-    "Y23": PowerplexY23,
+    'PPF6C': PowerPlexFusion6CStrategy,
+    'GLOBALFILER': GlobalFilerStrategy,
+    'Y23': PowerplexY23,
 }
 
 
@@ -248,7 +246,6 @@ def get_scaling_strategy(name: str, **kwargs) -> ScalingStrategy:
     cls = SCALING_STRATEGIES.get(name.upper())
     if cls is None:
         raise ValueError(
-            f"Unknown scaling strategy '{name}'. "
-            f"Available: {list(SCALING_STRATEGIES.keys())}"
+            f"Unknown scaling strategy '{name}'. Available: {list(SCALING_STRATEGIES.keys())}"
         )
     return cls(**kwargs)

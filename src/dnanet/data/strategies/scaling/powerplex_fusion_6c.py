@@ -6,14 +6,16 @@ import numpy as np
 
 from dnanet.core import Panel
 from dnanet.data.preprocessing.peaks import find_peaks_above_threshold
-from dnanet.data.strategies.scaling.kit import STRKit
+from dnanet.data.strategies.scaling.kit import PPF6C_KIT, STRKit
 from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
     SizeStandardParseResult,
 )
 from dnanet.data.strategies.scaling.size_standard import WEN_ILS
 
-_PPF6C_PANEL_PATH = Path("resources/kit_panels/SGPanel_PPF6C.xml")
+
+_PPF6C_PANEL_PATH = Path('resources/kit_panels/SGPanel_PPF6C.xml')
+
 
 class PowerPlexFusion6CStrategy(ScalingStrategy):
     """Scaling strategy for the PowerPlex Fusion 6C kit.
@@ -22,38 +24,48 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
     HID dye indices: 1,2,3,4,6 (5 is skipped).
     """
 
-
-    def __init__(self, panel_path: Path = _PPF6C_PANEL_PATH, kit: STRKit | None = None, **kwargs) -> None:
+    def __init__(
+        self, panel_path: Path = _PPF6C_PANEL_PATH, kit: STRKit | None = None, **kwargs
+    ) -> None:
         if kit is None:
-            kit = STRKit(
-                name="PPF6C",
-                size_standard=WEN_ILS,
-                panel=Panel.from_xml(panel_path, hid_dye_mapping=self._HID_DYE_MAPPING),
-                num_dyes=6,
-                hid_dye_mapping=self._HID_DYE_MAPPING,
-                panel_path=panel_path,
-                description="PowerPlex Fusion 6C using WEN ILS size standard.",
-                hid_file_data_columns_raw=["DATA_1", "DATA_2", "DATA_3", "DATA_4", "DATA_106", "DATA_105"],
-                hid_file_data_columns_analyzed=["DATA_9", "DATA_10", "DATA_11", "DATA_12", "DATA_206", "DATA_205"]
-            )
+            kit = PPF6C_KIT
         super().__init__(kit, basepair_start=65, basepair_end=475, scanpoint_resolution=4096)
 
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         return {
-            "AMEL": 0, "D3S1358": 0, "D1S1656": 0, "D2S441": 0,
-            "D10S1248": 0, "D13S317": 0, "Penta E": 0,
-            "D16S539": 1, "D18S51": 1, "D2S1338": 1, "CSF1PO": 1, "Penta D": 1,
-            "TH01": 2, "vWA": 2, "D21S11": 2, "D7S820": 2, "D5S818": 2, "TPOX": 2,
-            "D8S1179": 3, "D12S391": 3, "D19S433": 3, "SE33": 3, "D22S1045": 3,
-            "DYS391": 4, "FGA": 4, "DYS576": 4, "DYS570": 4,
+            'AMEL': 0,
+            'D3S1358': 0,
+            'D1S1656': 0,
+            'D2S441': 0,
+            'D10S1248': 0,
+            'D13S317': 0,
+            'Penta E': 0,
+            'D16S539': 1,
+            'D18S51': 1,
+            'D2S1338': 1,
+            'CSF1PO': 1,
+            'Penta D': 1,
+            'TH01': 2,
+            'vWA': 2,
+            'D21S11': 2,
+            'D7S820': 2,
+            'D5S818': 2,
+            'TPOX': 2,
+            'D8S1179': 3,
+            'D12S391': 3,
+            'D19S433': 3,
+            'SE33': 3,
+            'D22S1045': 3,
+            'DYS391': 4,
+            'FGA': 4,
+            'DYS576': 4,
+            'DYS570': 4,
         }
 
     def dye_channel_colors(self) -> list[str]:
-        return ["blue", "green", "black", "red", "purple", "orange"]
+        return ['blue', 'green', 'black', 'red', 'purple', 'orange']
 
-    def parse_size_standard(
-        self, size_standard_lane: np.ndarray
-    ) -> SizeStandardParseResult | None:
+    def parse_size_standard(self, size_standard_lane: np.ndarray) -> SizeStandardParseResult | None:
         """Parse WEN ILS size standard from the PPF6C kit."""
         lane = np.asarray(size_standard_lane).reshape(-1)
         expected_bps = self.kit.size_standard.expected_bps
@@ -85,9 +97,7 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
         return np.delete(peak_idxs, close)
 
     @staticmethod
-    def _validate_ss_peaks(
-        peak_idxs: np.ndarray, expected_bps: np.ndarray
-    ) -> bool:
+    def _validate_ss_peaks(peak_idxs: np.ndarray, expected_bps: np.ndarray) -> bool:
         """Validate that detected peaks match expected size standard pattern."""
         if len(peak_idxs) != 19:
             return False
@@ -98,5 +108,3 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
 
         # Pixels-per-basepair should be between 7 and 13
         return bool(np.all((relative <= 13) & (relative >= 7)))
-
-
