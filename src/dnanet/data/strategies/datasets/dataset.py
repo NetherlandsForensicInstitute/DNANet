@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Generator, Literal, Tuple
+from typing import Dict, Generator, Literal, Mapping, Tuple
 
 from dnanet.core.annotation import Annotation
 from dnanet.core.types import PathLike
@@ -58,20 +58,10 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def find_annotation_file(
-        cls, sample_path: Path, annotation_dir: Path
-    ) -> Path | None:
-        """Locate the annotation file for a given sample.
-
-        Returns ``None`` if no annotation is available.
-        """
-
-    @classmethod
-    @abstractmethod
     def parse_annotations(
         cls,
         annotation_source: PathLike,
-    ) -> Dict[str, Annotation]:
+    ) -> Mapping[str, Annotation]:
         """Load annotation from annotation sample to Annotation object.
 
         Args:

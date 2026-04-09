@@ -10,10 +10,14 @@ task-specific value objects:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Dict
 from dataclasses import dataclass
+
 import numpy as np
 
-from dnanet.core.marker import Marker
+
+if TYPE_CHECKING:
+    from dnanet.core.marker import Marker
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,25 +46,35 @@ class ClassAnnotation:
 Annotation = ScanpointAnnotation | AlleleAnnotation
 
 
+# TODO: Test logic here
 def _merge_allele_annotations(ann1: AlleleAnnotation, ann2: AlleleAnnotation) -> AlleleAnnotation:
-    """
-    Merges two allele annotations by combining markers with matching names from both annotations.
+    """Merges two allele annotations by combining markers with matching names.
 
-    Arguments:
+    For each unique marker name across both annotations:
+      - If the name exists in both, the markers are combined using the ``+`` operator.
+      - If the name exists in only one, that marker is taken as-is.
+
+    Args:
         ann1 (AlleleAnnotation): The first allele annotation containing a list of markers.
         ann2 (AlleleAnnotation): The second allele annotation containing a list of markers.
 
     Returns:
-        AlleleAnnotation: A new allele annotation containing combined markers with matching names
-        from both input annotations.
+        AlleleAnnotation: A new allele annotation whose markers are the union of both inputs,
+        with matching markers merged. Order is not guaranteed.
     """
-    ann2_by_name = {marker.name: marker for marker in ann2.data}
-    out_ann = []
+    # Create dictionaries with marker name to markers
+    ann1_by_name: Dict[str, Marker] = {marker.name: marker for marker in ann1.data}
+    ann2_by_name: Dict[str, Marker] = {marker.name: marker for marker in ann2.data}
 
-    for marker1 in ann1.data:
-        marker2 = ann2_by_name.get(marker1.name)
-        if marker2 is not None:
-            new_marker = marker1 + marker2
-            out_ann.append(new_marker)
+    merged = {
+        # When a name is in both annotations, add the annotations together
+        name: ann1_by_name[name] + ann2_by_name[name]
+        if name in ann1_by_name and name in ann2_by_name
+        # otherwise retrieve it from annotation 1
+        else ann1_by_name.get(name)
+        # or if it's not there, from annotation 2
+        or ann2_by_name.get(name)
+        for name in ann1_by_name.keys() | ann2_by_name.keys()  # we loop over all marker names
+    }
 
-    return AlleleAnnotation(data=out_ann)
+    return AlleleAnnotation(data=list(merged.values()))  # type: ignore
