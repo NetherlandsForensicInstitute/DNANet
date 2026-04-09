@@ -27,15 +27,16 @@ from __future__ import annotations
 
 import math
 import xml.etree.ElementTree as ET
-from collections import defaultdict
-from functools import cached_property
 from typing import Sequence
+from functools import cached_property
+from collections import defaultdict
 
 from loguru import logger
 
+from dnanet.core.types import PathLike
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.core.types import PathLike
+
 
 # Default dye mapping: PPF6C style (1-based HID indices, skipping dye 5)
 _DEFAULT_HID_DYE_MAPPING: dict[int, int] = {1: 0, 2: 1, 3: 2, 4: 3, 6: 4}
@@ -83,7 +84,7 @@ class Panel:
         for _event, elem in ET.iterparse(str(path), events=("end",)):
             if elem.tag != "Locus":
                 continue
-            
+
             hid_idx = int(elem.find("DyeIndex").text) # type: ignore
             if hid_idx not in mapping:
                 # Skip dye channels not in the mapping (e.g. size standard)
@@ -93,17 +94,28 @@ class Panel:
             marker_name = elem.find("MarkerTitle").text # type: ignore
             if marker_name is None:
                 continue
+            lower_boundary = float(elem.find("LowerBoundary").text) # type: ignore
+            upper_boundary = float(elem.find("UpperBoundary").text) # type: ignore
+            n_nucleotide_repeats = int(elem.find("n_NucleotideRepeats").text) # type: ignore
             alleles = frozenset(
                 Allele(
                     name=a.attrib["Label"],
                     base_pair=float(a.attrib["Size"]),
                     left_bin=float(a.attrib["Left_Binning"]),
                     right_bin=float(a.attrib["Right_Binning"]),
+                    in_ladder=bool(int(a.attrib["Control"]))
                 )
                 for a in elem.findall("Allele")
             )
 
-            markers.append(Marker(name=marker_name, dye_row=dye_index, alleles=alleles))
+            markers.append(Marker(
+                name=marker_name,
+                dye_row=dye_index,
+                alleles=alleles,
+                lower_boundary=lower_boundary,
+                upper_boundary=upper_boundary,
+                n_nucleotide_repeats=n_nucleotide_repeats,
+            ))
             elem.clear()
 
         logger.debug("Parsed panel from {}: {} markers", path, len(markers))

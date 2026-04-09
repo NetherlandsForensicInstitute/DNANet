@@ -41,9 +41,9 @@ class STRKit:
 
     name: str
     size_standard: SizeStandard
-    panel_path: PathLike
-    ladder_alleles: LadderAlleleCatalog
-    num_dyes: int = 5
+    panel: Panel | None = None
+    ladder_alleles: LadderAlleleCatalog | None = None
+    num_dyes: int = 6
     hid_dye_mapping: dict[int, int] = field(
         default_factory=lambda: {
             1: 0,
@@ -55,10 +55,9 @@ class STRKit:
     )
     hid_file_data_columns_analyzed: list[str] | None = None
     hid_file_data_columns_raw: list[str] | None = None
-    
-    @cached_property
-    def panel(self) -> Panel:
-        return Panel.from_xml(self.panel_path)
+
+
+
 
     def dye_row_from_hid_index(self, hid_index: int) -> int:
         """Convert a 1-based HID dye index to a 0-based channel row.
@@ -75,11 +74,12 @@ class STRKit:
         return row
 
 
+_PPF6C_PANEL = Panel.from_xml('resources/kits/SGPanel_PPF6C_REF_V2.xml')
 PPF6C_KIT = STRKit(
     name='PPF6C',
     size_standard=WEN_ILS,
-    panel_path='resources/kits/SGPanel_PPF6C.xml',
-    ladder_alleles=LadderAlleleCatalog.from_csv("resources/kits/PPF6C_ladder_alleles.csv"),
+    panel=_PPF6C_PANEL,
+    ladder_alleles=LadderAlleleCatalog.from_panel(_PPF6C_PANEL),
     num_dyes=6,
     hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_106', 'DATA_105'],
     hid_file_data_columns_analyzed=[
@@ -92,21 +92,23 @@ PPF6C_KIT = STRKit(
     ],
 )
 
+_PPY23_Panel = Panel.from_xml('resources/kits/SGPanel_PPY23_REF.xml')
 PPY23_KIT = STRKit(
     name='POWERPLEX_Y23',
     size_standard=WEN_ILS,
-    panel_path=None,  ## TODO: add panel
-    ladder_alleles=LadderAlleleCatalog(),
+    panel=_PPY23_Panel,
+    ladder_alleles=LadderAlleleCatalog.from_panel(_PPY23_Panel),
     num_dyes=5,
     hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_105'],
     hid_file_data_columns_analyzed=['DATA_9', 'DATA_10', 'DATA_11', 'DATA_12', 'DATA_205'],
 )
 
+_GLOBALFILER_PANEL = Panel.from_xml('resources/kits/SGPanel_Globalfiler_Panel.xml')
 GLOBALFILER_KIT = STRKit(
     name='GlobalFiler',
     size_standard=GENESCAN_600_LIZ,
-    panel_path='resources/kits/SGPanel_Globalfiler_Panel.xml',
-    ladder_alleles=LadderAlleleCatalog.from_csv("resources/kits/GLOBALFILER_ladder_alleles.csv"),
+    panel=_GLOBALFILER_PANEL,
+    ladder_alleles=LadderAlleleCatalog.from_panel(_GLOBALFILER_PANEL),
     num_dyes=6,
     hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_106', 'DATA_105'],
     hid_file_data_columns_analyzed=[

@@ -20,8 +20,8 @@ Design pattern: **Value Object**
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
 from typing import Any
+from dataclasses import field, asdict, dataclass
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +41,7 @@ class Allele:
     left_bin: float | None = field(default=None, compare=False)
     right_bin: float | None = field(default=None, compare=False)
     height: float | None = field(default=None, compare=False)
+    in_ladder: bool | None = field(default=None, compare=False)
 
     # -- Serialization (Value Object pattern: reconstruct from plain data) --
 
@@ -57,4 +58,5 @@ class Allele:
             left_bin=data.get("left_bin"),
             right_bin=data.get("right_bin"),
             height=data.get("height"),
+            in_ladder=data.get("in_ladder"),
         )

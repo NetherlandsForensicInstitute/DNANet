@@ -92,7 +92,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
         # Hid to Ladder mapping
         _, htl_values = cls._read_csv_file(hid_to_ladder_path)
-        hid_to_ladder = {hid: path / ladder for hid, ladder in htl_values}
+        hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
 
         hid_files = list(path.rglob('*.hid'))
         hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == 'sample', hid_files))

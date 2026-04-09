@@ -16,7 +16,7 @@ class TestLadderAlleleCatalogCSV:
 
     @pytest.fixture
     def catalog(self) -> LadderAlleleCatalog:
-        return LadderAlleleCatalog.from_csv(LADDER_ALLELES_CSV)
+        return LadderAlleleCatalog.from_panel(Panel.from_xml(PANEL_PATH))
 
     def test_loads_successfully(self, catalog):
         assert len(catalog.alleles_by_dye) > 0
@@ -52,7 +52,7 @@ class TestLadderWithRealData:
 
     @pytest.fixture
     def catalog(self) -> LadderAlleleCatalog:
-        return LadderAlleleCatalog.from_csv(LADDER_ALLELES_CSV)
+        return LadderAlleleCatalog.from_panel(Panel.from_xml(PANEL_PATH))
 
     @pytest.fixture
     def default_panel(self) -> Panel:

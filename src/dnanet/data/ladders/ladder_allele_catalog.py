@@ -2,6 +2,7 @@ import csv
 from collections import defaultdict
 from dataclasses import field, dataclass
 
+from dnanet.core import Panel, Allele
 from dnanet.core.types import PathLike
 
 
@@ -17,24 +18,20 @@ class LadderAlleleCatalog:
 
     alleles_by_dye: dict[int, list[tuple[str, str]]] = field(default_factory=dict)
 
-    @classmethod
-    def from_csv(cls, path: PathLike) -> "LadderAlleleCatalog":
-        """Load ladder allele definitions from a CSV file.
-
-        Args:
-            path: Path to CSV with columns ``Marker``, ``Allele``, ``Dye``.
-        """
-        alleles: dict[int, list[tuple[str, str]]] = defaultdict(list)
-        with open(path, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                dye = int(row["Dye"])
-                alleles[dye].append((row["Marker"], row["Allele"]))
-        return cls(alleles_by_dye=dict(alleles))
-
     def expected_count(self, dye_row: int) -> int:
         """Number of alleles expected on a given dye row."""
         return len(self.alleles_by_dye.get(dye_row, []))
+
+    @classmethod
+    def from_panel(cls, panel: Panel) -> "LadderAlleleCatalog":
+        """Create a catalog from a panel."""
+        alleles: dict[int, list[tuple[str, str]]] = defaultdict(list)
+        for marker in panel.markers:
+            for allele in marker.alleles:
+                if allele.in_ladder:
+                    alleles[marker.dye_row].append((marker.name, allele.name))
+
+        return cls(alleles_by_dye=dict(alleles))
 
     def __hash__(self):
         return hash(
