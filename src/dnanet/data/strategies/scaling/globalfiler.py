@@ -70,6 +70,7 @@ class GlobalFilerStrategy(ScalingStrategy):
         close = np.where(np.diff(peak_idxs) <= 15)[0]
         return np.delete(peak_idxs, close)
 
+    # TODO: Can we use this function for other STR kits as well?
     @staticmethod
     def _attempt_fit(
         peak_idxs: np.ndarray,
