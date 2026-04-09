@@ -18,8 +18,8 @@ Design pattern: **Composite**
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any
+from dataclasses import field, dataclass
 
 from dnanet.core.allele import Allele
 from dnanet.core.constants import NON_AUTOSOMAL_MARKERS, NON_AUTOSOMAL_PREFIXES
@@ -39,6 +39,9 @@ class Marker:
     name: str
     dye_row: int
     alleles: frozenset[Allele] = field(default_factory=frozenset)
+    lower_boundary: float | None = None
+    upper_boundary: float | None = None
+    n_nucleotide_repeats: int | None = None
 
 
     @property
@@ -51,6 +54,8 @@ class Marker:
     @property
     def min_bp(self) -> float:
         """Leftmost bin edge across all alleles (in base pairs)."""
+        if self.lower_boundary is not None:
+            return self.lower_boundary
         return min(
             (
                 a.base_pair - a.left_bin
@@ -63,6 +68,8 @@ class Marker:
     @property
     def max_bp(self) -> float:
         """Rightmost bin edge across all alleles (in base pairs)."""
+        if self.upper_boundary is not None:
+            return self.upper_boundary
         return max(
             (
                 a.base_pair + a.right_bin
@@ -80,6 +87,9 @@ class Marker:
             "name": self.name,
             "dye_row": self.dye_row,
             "alleles": [a.to_dict() for a in sorted(self.alleles, key=lambda a: a.name)],
+            "lower_boundary": self.lower_boundary,
+            "upper_boundary": self.upper_boundary,
+            "n_nucleotide_repeats": self.n_nucleotide_repeats,
         }
 
     @classmethod
@@ -89,6 +99,9 @@ class Marker:
             name=data["name"],
             dye_row=data["dye_row"],
             alleles=frozenset(Allele.from_dict(a) for a in data.get("alleles", [])),
+            lower_boundary=data.get("lower_boundary"),
+            upper_boundary=data.get("upper_boundary"),
+            n_nucleotide_repeats=data.get("n_nucleotide_repeats"),
         )
 
     def __add__(self, other: Marker) -> Marker:
@@ -98,4 +111,7 @@ class Marker:
             name=self.name,
             dye_row=self.dye_row,
             alleles=self.alleles | other.alleles,
+            lower_boundary=self.lower_boundary,
+            upper_boundary=self.upper_boundary,
+            n_nucleotide_repeats=self.n_nucleotide_repeats,
         )

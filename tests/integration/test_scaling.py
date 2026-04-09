@@ -6,11 +6,11 @@ from numpy.testing import assert_array_equal
 
 from dnanet.data.parsing.hid import get_peak_data
 from dnanet.data.strategies.registry import StrategyRegistry
-from dnanet.data.strategies.scaling import (
-    GlobalFilerStrategy,
-    PowerPlexFusion6CStrategy,
+from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
 )
+from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
+from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
 
 from tests.conftest import RD_DIR
 

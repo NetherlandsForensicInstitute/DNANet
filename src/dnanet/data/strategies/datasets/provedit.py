@@ -16,7 +16,7 @@ from pathlib import Path
 from loguru import logger
 
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.dataset import DatasetStrategy, FileCategory
+from dnanet.data.strategies.datasets.dataset import DatasetStrategy, FileCategory
 
 
 # ProvedIt ladder pattern
