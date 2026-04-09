@@ -7,7 +7,6 @@ dataset:
   root: data/2p_5p_Dataset_NFI
   scaling_strategy: PPF6C
   dataset_strategy: NFI_RND
-  ladder_alleles_csv: data/2p_5p_Dataset_NFI/ladder_alleles.csv
   analysis_threshold_type: DTH  # DTH (high) or DTL (low)
   limit: null  # Set to integer to limit number of loaded images
   skip_if_invalid_ladder: false
@@ -17,6 +16,8 @@ dataset:
   transform: ${oc.select:model.transform,null} # get transform from model, or null if not defined
   load_in_memory: true
 
+stratify_noc: false
+group_by_replica: false
 
 
 # Preprocessing parameters

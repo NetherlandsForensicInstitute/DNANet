@@ -25,9 +25,11 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 
 import lightning as L
+from torch import nn
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
+from torch.optim import AdamW
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
 from dnanet.modules.base import EpochConsoleLogger
@@ -38,40 +40,6 @@ if TYPE_CHECKING:
     from torch.utils.data import Dataset
 
 
-# ---------------------------------------------------------------------------
-# Module registry: maps training type to Lightning module class
-# ---------------------------------------------------------------------------
-
-_MODULE_REGISTRY: dict[str, str] = {
-    'segmentation': 'dnanet.modules.segmentation.SegmentationModule',
-    'classification': 'dnanet.modules.classification.ClassificationModule',
-    'reconstruction': 'dnanet.modules.reconstruction.ReconstructionModule',
-    'peaknet': 'dnanet.modules.peaknet.PeakNetModule',
-}
-
-
-def _resolve_module_class(training_type: str):
-    """Import and return the Lightning module class for the given training type."""
-    if training_type == 'segmentation':
-        from dnanet.modules.segmentation import SegmentationModule
-
-        return SegmentationModule
-    elif training_type == 'classification':
-        from dnanet.modules.classification import ClassificationModule
-
-        return ClassificationModule
-    elif training_type == 'reconstruction':
-        from dnanet.modules.reconstruction import ReconstructionModule
-
-        return ReconstructionModule
-    elif training_type == 'peaknet':
-        from dnanet.modules.peaknet import PeakNetModule
-
-        return PeakNetModule
-    else:
-        raise ValueError(
-            f'Unknown training type: {training_type!r}. Choose from: {list(_MODULE_REGISTRY.keys())}'
-        )
 
 
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
@@ -141,36 +109,6 @@ def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
         return instantiate(target_cfg)
 
     return None
-
-
-def _build_module(
-    cfg: DictConfig,
-    network,
-    loss_fn,
-) -> L.LightningModule:
-    """Build the appropriate Lightning module for the training type."""
-    training_type = cfg.training.get('type', 'segmentation')
-    ModuleClass = _resolve_module_class(training_type)
-
-    # Common kwargs
-    kwargs = {
-        'model': network,
-        'loss_fn': loss_fn,
-        'metrics_cfg': cfg.training.get('metrics'),
-        'learning_rate': cfg.training.learning_rate,
-        'weight_decay': cfg.training.get('weight_decay', 0.0),
-        'scheduler_gamma': cfg.training.get('scheduler', {}).get('gamma', 1.0),
-    }
-
-    # Module-specific kwargs
-    if training_type == 'classification':
-        kwargs['num_classes'] = cfg.model.architecture.get('num_classes', 2)
-    elif training_type == 'peaknet':
-        kwargs['num_classes'] = cfg.model.architecture.get('num_classes', 2)
-    elif training_type == 'segmentation':
-        kwargs['threshold'] = cfg.training.get('threshold', 0.5)
-
-    return ModuleClass(**kwargs)
 
 
 
@@ -245,7 +183,6 @@ def run(
     # -- Model architecture + loss -----------------------------------------
     model_cfg = cfg.model
     network = instantiate(model_cfg.architecture)
-    loss_fn = instantiate(model_cfg.loss)
 
     # Load pre-trained sub-model weights (e.g. autoencoder, peak classifier)
     _load_pretrained_weights(network, cfg)
@@ -256,17 +193,32 @@ def run(
         sum(p.numel() for p in network.parameters()),
     )
 
+    # -- Optimizer and scheduler -------------------------------------------
+    optimizer = instantiate(cfg.training.optimizer, params=network.parameters())
+
+    if cfg.training.get('scheduler'):
+        scheduler = instantiate(cfg.training.scheduler, optimizer=optimizer)
+    else:
+        scheduler = None
+
+
     # -- Lightning module --------------------------------------------------
-    module = _build_module(cfg, network, loss_fn)
+    module = instantiate(
+        cfg.training.lightning_module,
+        model=network,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        _convert_='partial' # convert OmegaDict to standard dict since this is not a supported type for instantiating
+    )
+
 
     # -- Resume from checkpoint if provided --------------------------------
     ckpt_path = cfg.get('checkpoint')
     if ckpt_path:
         logger.info('Will resume training from checkpoint: {}', ckpt_path)
 
+
     # -- Data --------------------------------------------------------------
-
-
     if not dataset:
         if (data_cfg := cfg.get('data')) is None:
             raise ValueError(
@@ -276,13 +228,7 @@ def run(
 
         dataset = instantiate(data_cfg.dataset)
 
-    datamodule = DNANetDataModule(
-        dataset=dataset,
-        batch_size=cfg.training.get("batch_size", 16),
-        val_fraction=cfg.training.get("val_fraction", 0.2),
-        num_workers=cfg.training.get("num_workers", 1),
-        seed=cfg.get("seed", 42),
-    )
+    datamodule = instantiate(cfg.training.data_module, dataset=dataset)
 
     logger.info(
         'Training config: {} epochs, lr={}, batch_size={}',

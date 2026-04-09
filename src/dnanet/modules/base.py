@@ -10,8 +10,7 @@ import lightning as L
 from torch import Tensor, nn
 from loguru import logger
 from lightning import Callback
-
-from dnanet.metric_factory import build_metric_collection
+from torchmetrics import MetricCollection
 
 
 if TYPE_CHECKING:
@@ -30,21 +29,23 @@ class BaseTaskModule(L.LightningModule, ABC):
         self,
         model: nn.Module,
         loss_fn: nn.Module,
-        metrics_cfg: Any = None,
+        optimizer: torch.optim.Optimizer,
+        metrics: torchmetrics.MetricCollection | None = None,
+        lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ) -> None:
         super().__init__()
         self.model = model
         self.loss_fn = loss_fn
-        self.metrics_cfg = metrics_cfg
-        self.initialize_metrics()
+        self.lr_scheduler = lr_scheduler
+        self.optimizer = optimizer
+        if metrics is None:
+            metrics = MetricCollection([])
+        self.train_metrics = metrics.clone(prefix="train/")
+        self.val_metrics = metrics.clone(prefix="val/")
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.model(*args, **kwargs)
 
-    def initialize_metrics(self) -> None:
-        metrics = build_metric_collection(self.metrics_cfg)
-        self.train_metrics = metrics.clone(prefix="train/")
-        self.val_metrics = metrics.clone(prefix="val/")
 
     @abstractmethod
     def compute_step_outputs(
@@ -95,23 +96,14 @@ class BaseTaskModule(L.LightningModule, ABC):
 
 
     def configure_optimizers(self) -> dict[str, Any]:
-        optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.hparams.learning_rate,
-            weight_decay=self.hparams.weight_decay,
-        )
+        config: dict[str, Any] = {"optimizer": self.optimizer}
 
-        config: dict[str, Any] = {"optimizer": optimizer}
-
-        if self.hparams.scheduler_gamma < 1.0:
-            scheduler = torch.optim.lr_scheduler.ExponentialLR(
-                optimizer,
-                gamma=self.hparams.scheduler_gamma,
-            )
+        if self.lr_scheduler is not None:
             config["lr_scheduler"] = {
-                "scheduler": scheduler,
-                "interval": "epoch",
+                "scheduler": self.lr_scheduler,
+                "interval": "epoch"
             }
+
 
         return config
 

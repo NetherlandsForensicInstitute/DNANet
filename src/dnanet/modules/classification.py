@@ -14,6 +14,7 @@ from typing import Any
 
 import torch
 from torch import Tensor, nn
+from torchmetrics import MetricCollection
 
 from dnanet.modules.base import BaseTaskModule
 
@@ -32,25 +33,27 @@ class ClassificationModule(BaseTaskModule):
         num_classes: Number of output classes.
         learning_rate: Initial learning rate.
         weight_decay: L2 regularization.
-        scheduler_gamma: Exponential LR decay factor. Set to 1.0 to disable.
+        optimizer: Optimizer instance for training.
+        lr_scheduler: Optional learning-rate scheduler.
+        metrics: Metric collection used for train/validation logging.
     """
 
     def __init__(
         self,
         model: nn.Module,
         loss_fn: nn.Module,
+        optimizer: torch.optim.Optimizer,
         num_classes: int = 2,
         learning_rate: float = 1e-4,
         weight_decay: float = 5e-4,
-        scheduler_gamma: float = 1.0,
-        metrics_cfg: Any = None,
+        lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        metrics: MetricCollection | None = None,
     ) -> None:
-        super().__init__(model=model, loss_fn=loss_fn, metrics_cfg=metrics_cfg)
+        super().__init__(model=model, loss_fn=loss_fn, metrics=metrics, optimizer=optimizer, lr_scheduler=lr_scheduler)
         self.save_hyperparameters({
             "num_classes": num_classes,
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
-            "scheduler_gamma": scheduler_gamma,
         })
 
     def compute_step_outputs(

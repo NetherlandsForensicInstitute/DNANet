@@ -2,6 +2,8 @@
 
 import torch
 import pytest
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader, TensorDataset
 
 from dnanet.models.loss import DiceLoss
@@ -18,13 +20,16 @@ def small_model() -> UNet:
 @pytest.fixture
 def module(small_model, segmentation_metrics_cfg) -> SegmentationModule:
     """A SegmentationModule with small UNet."""
+    optimizer = AdamW(small_model.parameters(), lr=1e-3, weight_decay=0.0)
+    scheduler = ExponentialLR(optimizer, gamma=0.9)
     return SegmentationModule(
         model=small_model,
         loss_fn=DiceLoss(),
-        metrics_cfg=segmentation_metrics_cfg,
+        optimizer=optimizer,
+        metrics=segmentation_metrics_cfg,
         learning_rate=1e-3,
         weight_decay=0.0,
-        scheduler_gamma=0.9,
+        scheduler=scheduler,
     )
 
 
@@ -57,22 +62,23 @@ class TestSegmentationModule:
         assert result is None
 
     def test_configure_optimizers_with_scheduler(self, module):
-        """Should return optimizer + scheduler when gamma < 1."""
         config = module.configure_optimizers()
         assert "optimizer" in config
         assert "lr_scheduler" in config
-        assert isinstance(config["optimizer"], torch.optim.Adam)
+        assert config["optimizer"] is module.optimizer
+        assert config["lr_scheduler"]["scheduler"] is module.lr_scheduler
 
     def test_configure_optimizers_without_scheduler(self, small_model, segmentation_metrics_cfg):
-        """When gamma=1.0, no scheduler should be returned."""
+        optimizer = AdamW(small_model.parameters(), lr=1e-3)
         module = SegmentationModule(
             model=small_model,
             loss_fn=DiceLoss(),
-            metrics_cfg=segmentation_metrics_cfg,
-            scheduler_gamma=1.0,
+            optimizer=optimizer,
+            metrics=segmentation_metrics_cfg,
         )
         config = module.configure_optimizers()
         assert "optimizer" in config
+        assert config["optimizer"] is optimizer
         assert "lr_scheduler" not in config
 
     def test_predict_step(self, module, dummy_batch):
@@ -85,7 +91,7 @@ class TestSegmentationModule:
     def test_hyperparameters_saved(self, module):
         """Hyperparameters should be saved for reproducibility."""
         assert module.hparams.learning_rate == 1e-3
-        assert module.hparams.scheduler_gamma == 0.9
+        assert module.hparams.threshold == 0.5
 
     def test_single_training_epoch(self, module):
         """Should survive a full training epoch with Lightning Trainer."""
@@ -138,12 +144,13 @@ class TestSegmentationModule:
 
     def test_loss_decreases_on_overfit(self, small_model, segmentation_metrics_cfg):
         """On a tiny dataset, loss should decrease after a few epochs."""
+        optimizer = AdamW(small_model.parameters(), lr=1e-2, weight_decay=0.0)
         module = SegmentationModule(
             model=small_model,
             loss_fn=DiceLoss(),
-            metrics_cfg=segmentation_metrics_cfg,
+            optimizer=optimizer,
+            metrics=segmentation_metrics_cfg,
             learning_rate=1e-2,  # high LR for fast convergence
-            scheduler_gamma=1.0,
         )
 
         # Deterministic tiny dataset

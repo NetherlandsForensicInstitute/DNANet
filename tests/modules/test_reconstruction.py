@@ -5,6 +5,8 @@ from __future__ import annotations
 import torch
 import pytest
 from torch import nn
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import ExponentialLR
 
 from dnanet.models.autoencoder import Conv1dAutoencoder
 from dnanet.modules.reconstruction import ReconstructionModule
@@ -24,9 +26,11 @@ def autoencoder():
 
 @pytest.fixture
 def module(autoencoder, reconstruction_metrics_cfg):
+    optimizer = AdamW(autoencoder.parameters(), lr=1e-3)
     return ReconstructionModule(
         model=autoencoder,
-        metrics_cfg=reconstruction_metrics_cfg,
+        optimizer=optimizer,
+        metrics=reconstruction_metrics_cfg,
         learning_rate=1e-3,
     )
 
@@ -73,14 +77,19 @@ class TestReconstructionModule:
         assert out.shape == x.shape
 
     def test_default_loss_is_mse(self, autoencoder, reconstruction_metrics_cfg):
-        mod = ReconstructionModule(model=autoencoder, metrics_cfg=reconstruction_metrics_cfg)
+        mod = ReconstructionModule(
+            model=autoencoder,
+            optimizer=AdamW(autoencoder.parameters(), lr=1e-3),
+            metrics=reconstruction_metrics_cfg,
+        )
         assert isinstance(mod.loss_fn, nn.MSELoss)
 
     def test_custom_loss(self, autoencoder, reconstruction_metrics_cfg):
         mod = ReconstructionModule(
             model=autoencoder,
             loss_fn=nn.L1Loss(),
-            metrics_cfg=reconstruction_metrics_cfg,
+            optimizer=AdamW(autoencoder.parameters(), lr=1e-3),
+            metrics=reconstruction_metrics_cfg,
         )
         x = torch.randn(2, 1, 512)
         loss = mod.training_step((x,), batch_idx=0)
@@ -89,16 +98,21 @@ class TestReconstructionModule:
     def test_configure_optimizers_no_scheduler(self, module):
         config = module.configure_optimizers()
         assert "optimizer" in config
+        assert config["optimizer"] is module.optimizer
         assert "lr_scheduler" not in config
 
     def test_configure_optimizers_with_scheduler(self, autoencoder, reconstruction_metrics_cfg):
+        optimizer = AdamW(autoencoder.parameters(), lr=1e-3)
+        scheduler = ExponentialLR(optimizer, gamma=0.95)
         mod = ReconstructionModule(
             model=autoencoder,
-            metrics_cfg=reconstruction_metrics_cfg,
-            scheduler_gamma=0.95,
+            optimizer=optimizer,
+            metrics=reconstruction_metrics_cfg,
+            scheduler=scheduler,
         )
         config = mod.configure_optimizers()
         assert "lr_scheduler" in config
+        assert config["lr_scheduler"]["scheduler"] is scheduler
 
     def test_predict_step(self, module):
         x = torch.randn(2, 1, 512)
@@ -115,11 +129,15 @@ class TestReconstructionModule:
         """Should squeeze trailing dim from 4D output/target via FourierAutoencoder."""
         from dnanet.models.autoencoder import FourierAutoencoder
         ae = FourierAutoencoder(in_channels=1, signal_length=512, latent_coeffs=64)
-        mod = ReconstructionModule(model=ae, metrics_cfg=reconstruction_metrics_cfg)
+        mod = ReconstructionModule(
+            model=ae,
+            optimizer=AdamW(ae.parameters(), lr=1e-3),
+            metrics=reconstruction_metrics_cfg,
+        )
         x = torch.randn(2, 1, 512)
         loss = mod.training_step((x,), batch_idx=0)
         assert loss.dim() == 0
 
     def test_hparams_saved(self, module):
         assert module.hparams.learning_rate == 1e-3
-        assert module.hparams.scheduler_gamma == 1.0
+        assert not hasattr(module.hparams, "scheduler_gamma")

@@ -1,33 +1,41 @@
 # Training hyperparameters for classification models
 type: classification
+
 max_epochs: 15
 batch_size: 16
 learning_rate: 0.0001
 weight_decay: 0.0005
-num_workers: 0
+val_fraction: 0.2
+num_workers: 7
+seed: 42
 
+# Train and validation metrics
 metrics:
-  accuracy:
-    _target_: torchmetrics.classification.MulticlassAccuracy
-    num_classes: ${model.architecture.num_classes}
-    average: micro
-  precision:
-    _target_: torchmetrics.classification.MulticlassPrecision
-    num_classes: ${model.architecture.num_classes}
-    average: macro
-  recall:
-    _target_: torchmetrics.classification.MulticlassRecall
-    num_classes: ${model.architecture.num_classes}
-    average: macro
-  f1:
-    _target_: torchmetrics.classification.MulticlassF1Score
-    num_classes: ${model.architecture.num_classes}
-    average: macro
+  _target_: torchmetrics.MetricCollection
+  metrics:
+    precision:
+      _target_: torchmetrics.classification.MulticlassPrecision
+      num_classes: ${model.architecture.num_classes}
+      average: macro
+    recall:
+      _target_: torchmetrics.classification.MulticlassRecall
+      num_classes: ${model.architecture.num_classes}
+      average: macro
+    f1:
+      _target_: torchmetrics.classification.MulticlassF1Score
+      num_classes: ${model.architecture.num_classes}
+      average: macro
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: ${learning_rate}
+  weight_decay: ${weight_decay}
 
 # Learning rate scheduler
 scheduler:
   _target_: torch.optim.lr_scheduler.ExponentialLR
   gamma: 0.8
+  optimizer: ${optimizer}
 
 # Early stopping
 early_stopping:
@@ -41,3 +49,23 @@ checkpoint:
   monitor: val/loss
   save_top_k: 1
   mode: min
+
+
+# module initialization. You shouldn't need to change this
+lightning_module:
+  _target_: src.dnanet.modules.classification.ClassificationModule
+  learning_rate: ${learning_rate}
+  weight_decay: ${weight_decay}
+  loss_fn: ${model.loss}
+  num_classes: ${model.architecture.num_classes}
+  scheduler: ${scheduler}
+  metrics: ${metrics}
+
+data_module:
+  _target_: src.dnanet.data.datamodule.DNANetDataModule
+  batch_size: ${batch_size}
+  val_fraction: ${val_fraction}
+  num_workers: ${num_workers}
+  seed: ${seed}
+  stratify_noc: ${oc.select:data.stratify_noc,false}
+  group_by_replica: ${oc.select:data.group_by_replica,false}
