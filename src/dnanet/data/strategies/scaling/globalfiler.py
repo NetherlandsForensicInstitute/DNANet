@@ -33,30 +33,11 @@ class GlobalFilerStrategy(ScalingStrategy):
 
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         return {
-            'D3S1358': 0,
-            'vWA': 0,
-            'D16S539': 0,
-            'CSF1PO': 0,
-            'TPOX': 0,
-            'Y-Indel': 1,
-            'AMEL': 1,
-            'D8S1179': 1,
-            'D21S11': 1,
-            'D18S51': 1,
-            'DYS391': 1,
-            'D2S441': 2,
-            'D19S433': 2,
-            'TH01': 2,
-            'FGA': 2,
-            'D22S1045': 3,
-            'D5S818': 3,
-            'D13S317': 3,
-            'D7S820': 3,
-            'SE33': 3,
-            'D10S1248': 4,
-            'D1S1656': 4,
-            'D12S391': 4,
-            'D2S1338': 4,
+            'D3S1358': 0,'vWA': 0,'D16S539': 0,'CSF1PO': 0,'TPOX': 0,
+            'Yindel': 1,'AMEL': 1,'D8S1179': 1,'D21S11': 1,'D18S51': 1,'DYS391': 1,
+            'D2S441': 2,'D19S433': 2,'TH01': 2,'FGA': 2,
+            'D22S1045': 3,'D5S818': 3,'D13S317': 3,'D7S820': 3,'SE33': 3,
+            'D10S1248': 4,'D1S1656': 4,'D12S391': 4,'D2S1338': 4,
         }
 
     def dye_channel_colors(self) -> list[str]:
@@ -147,4 +128,6 @@ class GlobalFilerStrategy(ScalingStrategy):
             f'Size standard fit did not converge: {best_diff:.2f} bp deviation after '
             f'{max_shrinkages} shrinkages (threshold={threshold:.1f}). Using best fit found.'
         )
+        if best_trimmed is None or best_bps is None:
+            raise RuntimeError('Fit attempt failed')
         return best_trimmed, best_bps, best_diff
