@@ -14,12 +14,10 @@ Note:
 from __future__ import annotations
 
 from dataclasses import field, dataclass
-from functools import cached_property
 
 from dnanet.core.panel import Panel
-from dnanet.core.types import PathLike
-from dnanet.data.strategies.scaling.size_standard import WEN_ILS, GENESCAN_600_LIZ, SizeStandard
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
+from dnanet.data.strategies.scaling.size_standard import WEN_ILS, GENESCAN_600_LIZ, SizeStandard
 
 
 @dataclass(frozen=True)

@@ -28,7 +28,6 @@ How ladder-based panel adjustment works:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from pathlib import Path
 from functools import cache
 
 import numpy as np
@@ -36,15 +35,15 @@ from loguru import logger
 from scipy.signal import find_peaks
 
 from dnanet.core.panel import Panel
-from dnanet.core.types import PathLike
-from dnanet.data.image import HIDImage
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.registry import StrategyRegistry
 
 
 if TYPE_CHECKING:
-    from .ladder_allele_catalog import LadderAlleleCatalog
+    from pathlib import Path
+
+    from dnanet.core.types import PathLike
+    from dnanet.data.ladders import LadderAlleleCatalog
 
 class Ladder:
     """Calibration ladder for base-pair panel adjustment.
@@ -78,6 +77,9 @@ class Ladder:
         Returns:
             The adjusted panel
         """
+        from dnanet.data.image import HIDImage
+        from dnanet.data.strategies.registry import StrategyRegistry
+
         ladder_image = HIDImage(
             path=ladder_path,
             data_loading_strategy="analyzed",

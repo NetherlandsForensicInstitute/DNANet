@@ -31,22 +31,25 @@ Usage::
 from __future__ import annotations
 
 import random
-from typing import Generator, List, Optional, Tuple, Any
+from typing import TYPE_CHECKING, Any, List, Tuple, Optional, Generator
 from pathlib import Path
 
 import numpy as np
 from loguru import logger
 from torch.utils.data import Dataset
 
-from dnanet.core.annotation import AlleleAnnotation, Annotation, ScanpointAnnotation
-from dnanet.core.panel import Panel
-from dnanet.core.types import PathLike
-from dnanet.data.dataset import TransformableDataset
 from dnanet.data.image import HIDImage
-from dnanet.data.ladders.ladder import Ladder, LadderAlleleCatalog
+from dnanet.data.dataset import TransformableDataset
+from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
+from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
-from dnanet.data.transformer import TransformDataCallable
+
+
+if TYPE_CHECKING:
+    from dnanet.core.panel import Panel
+    from dnanet.core.types import PathLike
+    from dnanet.data.transformer import TransformDataCallable
 
 
 class HIDDataset(Dataset, TransformableDataset):
