@@ -81,7 +81,7 @@ class Ladder:
 
         ladder_image = HIDImage(
             path=ladder_path,
-            data_loading_strategy='analyzed',
+            data_loading_strategy='analyzed', #TODO do not hardcode these values
             include_size_standard=True,
             load_in_memory=False,
         )

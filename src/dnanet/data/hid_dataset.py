@@ -40,7 +40,6 @@ from loguru import logger
 from torch.utils.data import Dataset
 
 from dnanet.data.image import HIDImage
-from dnanet.data.ladder import Ladder, LadderAlleleCatalog
 from dnanet.data.dataset import TransformableDataset
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.ladders.ladder import Ladder
@@ -48,7 +47,7 @@ from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_ne
 from dnanet.data.strategies.registry import StrategyRegistry
 
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from dnanet.core.panel import Panel
     from dnanet.core.types import PathLike
     from dnanet.data.transformer import TransformDataCallable
@@ -84,7 +83,6 @@ class HIDDataset(Dataset, TransformableDataset):
         root: PathLike,
         scaling_strategy: str,
         dataset_strategy: str,
-        ladder_alleles_csv: PathLike | None = None,
         analysis_threshold_type: str = 'DTH',
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,

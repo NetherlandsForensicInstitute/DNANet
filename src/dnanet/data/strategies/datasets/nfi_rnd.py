@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import re
 import csv
-from typing import Dict, List, Tuple, Iterable, Generator
+from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
 from pathlib import Path
 from itertools import groupby
 
@@ -28,22 +28,19 @@ from sklearn.model_selection import (
     train_test_split,
 )
 
-from dnanet.core.types import PathLike
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.annotation import Annotation, AlleleAnnotation
-from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
+from dnanet.data.strategies.datasets.dataset import SplitResult, FileCategory, DatasetStrategy
 
 
 # R&D filename pattern: digit + letter + digit (e.g. "1A2")
 _RD_PREFIX_RE = re.compile(r"^\d[A-F]\d")
-from dnanet.core.annotation import Annotation, AlleleAnnotation
-from dnanet.data.hid_dataset import HIDDataset
-from dnanet.data.strategies.dataset import SplitResult, FileCategory, DatasetStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
 
 
-if typing.TYPE_CHECKING:
+
+if TYPE_CHECKING:
+    from dnanet.data import HIDDataset
     from dnanet.core.types import PathLike
 
 
@@ -59,7 +56,7 @@ class NFIRnDStrategy(DatasetStrategy):
         cls,
         root_path: PathLike,
         analysis_treshold_type: str = 'DTH',
-        **kwarges
+        **kwargs
     ) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
         """Collect the dataset files for this specific dataset strategy.
 
@@ -482,15 +479,3 @@ class NFIRnDStrategy(DatasetStrategy):
         val_idx = [i for pos in val_pos for i in replicas[pos]]
         return Subset(dataset, train_idx), Subset(dataset, val_idx)
 
-
-if __name__ == '__main__':
-    StrategyRegistry.configure_dataset(NFIRnDStrategy)
-    StrategyRegistry.configure_kit('PPF6C')
-    dataset = HIDDataset(
-        root='/Users/abel/Documents/Coding/NFI/Antigravity/DNANet-clean/data/2p_5p_Dataset_NFI',
-        ladder_alleles_csv='/Users/abel/Documents/Coding/NFI/Antigravity/DNANet-clean/data/2p_5p_Dataset_NFI/ladder_alleles.csv',
-    )
-
-    ds_strat = StrategyRegistry.get_dataset_strategy()
-
-    pass

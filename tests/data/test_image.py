@@ -65,7 +65,7 @@ class TestHIDImageLazyLoading:
         img = HIDImage(path=sample_path)
         data = img.data
         assert data is not None
-        assert data.shape == (5, 4096, 1)
+        assert data.shape == (5, 4096)
 
     def test_data_cached_after_first_load(self, sample_path):
         img = HIDImage(path=sample_path)
@@ -100,4 +100,4 @@ class TestHIDImageLazyLoading:
     def test_data_loading_strategy_raw(self, sample_path):
         img = HIDImage(path=sample_path, data_loading_strategy="raw")
         assert img.data is not None
-        assert img.data.shape == (5, 4096, 1)
+        assert img.data.shape == (5, 4096)
