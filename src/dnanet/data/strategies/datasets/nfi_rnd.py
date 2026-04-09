@@ -13,11 +13,9 @@ from __future__ import annotations
 import os
 import re
 import csv
-import typing
-from typing import Dict, List, Tuple, Iterable, Sequence, Generator
+from typing import Dict, List, Tuple, Iterable, Generator
 from pathlib import Path
 from itertools import groupby
-from collections import Counter
 
 import numpy as np
 from loguru import logger
@@ -30,8 +28,15 @@ from sklearn.model_selection import (
     train_test_split,
 )
 
+from dnanet.core.types import PathLike
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
+from dnanet.core.annotation import Annotation, AlleleAnnotation
+from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
+
+
+# R&D filename pattern: digit + letter + digit (e.g. "1A2")
+_RD_PREFIX_RE = re.compile(r"^\d[A-F]\d")
 from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.data.hid_dataset import HIDDataset
 from dnanet.data.strategies.dataset import SplitResult, FileCategory, DatasetStrategy
@@ -68,9 +73,15 @@ class NFIRnDStrategy(DatasetStrategy):
         path = Path(root_path)
         logger.info(f'Using treshold type: {analysis_treshold_type}')
 
-        hid_to_annotation_path = list(path.rglob('*hid_to_annotation*'))
-        hid_to_ladder_path = list(path.rglob('*best_ladder_paths*'))
-        if not hid_to_annotation_path or not hid_to_ladder_path:
+        analysis_treshold_type: str = kwargs.get('analysis_treshold_type', 'DTH')
+        logger.info(f"Using treshold type: {analysis_treshold_type}")
+
+        for csv_file in csv_files:
+            if re.match(hid_to_annotation_file_pattern, csv_file.name):
+                hid_to_annotation_path = csv_file.absolute()
+            if re.match(hid_to_ladder_pattern, csv_file.name):
+                hid_to_ladder_path = csv_file.absolute()
+        if hid_to_annotation_path is None or hid_to_ladder_path is None:
             raise ValueError(
                 'Path does not contain the neccessary mapping files (annotation & ladder)'
             )

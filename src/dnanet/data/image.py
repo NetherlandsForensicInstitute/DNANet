@@ -21,18 +21,19 @@ from __future__ import annotations
 
 import abc
 from abc import abstractmethod
-from functools import cached_property
-from pathlib import Path
 from typing import Any, MutableMapping
+from pathlib import Path
+from functools import cached_property
 
 import numpy as np
 from loguru import logger
 
-from dnanet.core.annotation import ScanpointAnnotation, ClassAnnotation, Annotation
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
 from dnanet.data.parsing import get_peak_data
+from dnanet.core.annotation import Annotation, ClassAnnotation, ScanpointAnnotation
 from dnanet.data.strategies.registry import StrategyRegistry
+
 
 # Default RFU detection threshold
 _DEFAULT_RFU_THRESHOLD = 40

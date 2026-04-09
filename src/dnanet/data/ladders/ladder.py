@@ -27,107 +27,23 @@ How ladder-based panel adjustment works:
 
 from __future__ import annotations
 
-import csv
-import typing
-from pathlib import Path
+from typing import TYPE_CHECKING
 from functools import cache
-from collections import defaultdict
-from dataclasses import field, dataclass
 
 import numpy as np
 from loguru import logger
 from scipy.signal import find_peaks
 
 from dnanet.core.panel import Panel
-from dnanet.data.image import HIDImage
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.registry import StrategyRegistry
 
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
+    from pathlib import Path
+
     from dnanet.core.types import PathLike
-
-# ---------------------------------------------------------------------------
-# Ladder allele catalog (loaded from CSV once)
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class LadderAlleleCatalog:
-    """Catalog of alleles expected in a ladder, organized by dye row.
-
-    Loaded from a CSV file with columns: Marker, Allele, Dye.
-
-    Note: This is a separate class to prevent multiple I/O operations for reading the
-    same CSV file and allow the use of the csv's information inside the Ladder class.
-    """
-
-    alleles_by_dye: dict[int, list[tuple[str, str]]] = field(default_factory=dict)
-
-    @classmethod
-    def from_file(cls, path: PathLike) -> LadderAlleleCatalog:
-        """Load ladder allele definitions from a file."""
-        match Path(path).suffix:
-            case '.csv':
-                return cls.from_csv(path)
-            case '.xlsx':
-                return cls.from_xlsx(path)
-            case suffix:
-                raise ValueError(f'Ladder allele mapping file unsupported: {suffix}')
-
-    @classmethod
-    def from_csv(cls, path: PathLike) -> LadderAlleleCatalog:
-        """Load ladder allele definitions from a CSV file.
-
-        Args:
-            path: Path to CSV with columns ``Marker``, ``Allele``, ``Dye``.
-        """
-        alleles: dict[int, list[tuple[str, str]]] = defaultdict(list)
-        with open(path, newline='', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                dye = int(row['Dye'])
-                alleles[dye].append((row['Marker'], row['Allele']))
-        return cls(alleles_by_dye=dict(alleles))
-
-    @classmethod
-    def from_xlsx(cls, path: PathLike) -> LadderAlleleCatalog:
-        # FIXME: This should (maybe) be part of the DStrategy?
-        logger.error(f'Cannot load xlsx file yet: {path}')
-        raise NotImplemented
-
-    def expected_count(self, dye_row: int) -> int:
-        """Number of alleles expected on a given dye row."""
-        return len(self.alleles_by_dye.get(dye_row, []))
-
-    def __hash__(self):
-        """Create a hash of the catalog based on the dye and alleles in the catalog.
-
-        Returns:
-            A hash based on the dye and alleles of the alleles_by_dye property.
-        """
-        return hash(
-            tuple((dye, tuple(alleles)) for dye, alleles in sorted(self.alleles_by_dye.items()))
-        )
-
-    def __eq__(self, other) -> bool:
-        """Compare two catalogs based on the alleles_by_dye.
-
-        Args:
-            other: The other catalog to compare to.
-
-        Returns:
-            Whether both alleles_by_dye properties match.
-        """
-        if not isinstance(other, LadderAlleleCatalog):
-            return NotImplemented
-        return self.alleles_by_dye == other.alleles_by_dye
-
-
-# ---------------------------------------------------------------------------
-# Ladder
-# ---------------------------------------------------------------------------
+    from dnanet.data.ladders import LadderAlleleCatalog
 
 
 class Ladder:
@@ -160,6 +76,9 @@ class Ladder:
         Returns:
             The adjusted panel
         """
+        from dnanet.data.image import HIDImage
+        from dnanet.data.strategies.registry import StrategyRegistry
+
         ladder_image = HIDImage(
             path=ladder_path,
             data_loading_strategy='analyzed',
@@ -168,9 +87,8 @@ class Ladder:
         )
         if ladder_image.data is None:
             raise ValueError('Ladder is invalid')
-
         scaling_strategy = StrategyRegistry.get_scaling_strategy()
-        num_dyes = scaling_strategy.kit.num_dyes
+        num_dyes = scaling_strategy.kit.num_dyes - 1 # exclude size standard
         default_panel = scaling_strategy.panel
 
         detected_peaks = cls._find_all_peaks(

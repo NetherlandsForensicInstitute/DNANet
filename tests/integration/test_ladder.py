@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
+from tests.conftest import RD_DIR, PANEL_PATH, LADDER_ALLELES_CSV
 from dnanet.core.panel import Panel
-from dnanet.data.ladder import Ladder, LadderAlleleCatalog
 from dnanet.data.parsing.hid import get_peak_data
+from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.strategies.registry import StrategyRegistry
-
-from tests.conftest import LADDER_ALLELES_CSV, PANEL_PATH, RD_DIR
+from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 
 
 class TestLadderAlleleCatalogCSV:
@@ -16,7 +16,7 @@ class TestLadderAlleleCatalogCSV:
 
     @pytest.fixture
     def catalog(self) -> LadderAlleleCatalog:
-        return LadderAlleleCatalog.from_csv(LADDER_ALLELES_CSV)
+        return LadderAlleleCatalog.from_panel(Panel.from_xml(PANEL_PATH))
 
     def test_loads_successfully(self, catalog):
         assert len(catalog.alleles_by_dye) > 0
@@ -28,14 +28,14 @@ class TestLadderAlleleCatalogCSV:
     def test_dye0_has_amel(self, catalog):
         """Dye 0 should contain AMEL X and Y."""
         dye0_markers = [name for name, _ in catalog.alleles_by_dye[0]]
-        assert "AMEL" in dye0_markers
+        assert 'AMEL' in dye0_markers
 
     def test_expected_counts_per_dye(self, catalog):
         """Should have the exact peak counts expected by the original tests."""
         expected = {0: 89, 1: 80, 2: 89, 3: 99, 4: 76}
         for dye, count in expected.items():
             actual = catalog.expected_count(dye)
-            assert actual == count, f"Dye {dye}: expected {count}, got {actual}"
+            assert actual == count, f'Dye {dye}: expected {count}, got {actual}'
 
 
 class TestLadderWithRealData:
@@ -46,13 +46,13 @@ class TestLadderWithRealData:
 
     @pytest.fixture
     def ppf6c(self):
-        StrategyRegistry.configure_kit("PPF6C")
+        StrategyRegistry.configure_kit('PPF6C')
         yield
         StrategyRegistry.reset()
 
     @pytest.fixture
     def catalog(self) -> LadderAlleleCatalog:
-        return LadderAlleleCatalog.from_csv(LADDER_ALLELES_CSV)
+        return LadderAlleleCatalog.from_panel(Panel.from_xml(PANEL_PATH))
 
     @pytest.fixture
     def default_panel(self) -> Panel:
@@ -63,7 +63,7 @@ class TestLadderWithRealData:
         scaling = StrategyRegistry.get_scaling_strategy()
 
         # Load the ladder HID data
-        raw_data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", strategy="raw")
+        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', strategy='raw')
         assert raw_data is not None
 
         # Parse size standard to get scaler and rescaled indices
@@ -77,34 +77,34 @@ class TestLadderWithRealData:
 
         # Build the ladder
         ladder = Ladder.from_hid_data(
-            path=RD_DIR / "Ladder_G03_21.hid",
+            path=RD_DIR / 'Ladder_G03_21.hid',
             data=data,
             scaler=scaler,
             catalog=catalog,
             default_panel=default_panel,
             num_dyes=5,
         )
-        assert ladder is not None, "Ladder should have been built successfully"
+        assert ladder is not None, 'Ladder should have been built successfully'
         assert ladder.adjusted_panel is not None
 
         # Verify peak counts per dye match expected values from original tests
         expected_peaks = [89, 80, 89, 99, 76]
         for dye, (peak_idxs, expected) in enumerate(
-            zip(ladder.peak_indices, expected_peaks)
+            zip(ladder.peak_indices, expected_peaks, strict=True)
         ):
             assert len(peak_idxs) == expected, (
-                f"Dye {dye}: expected {expected} peaks, got {len(peak_idxs)}"
+                f'Dye {dye}: expected {expected} peaks, got {len(peak_idxs)}'
             )
 
     def test_adjusted_panel_amel(self, ppf6c, catalog, default_panel):
         """Adjusted panel should have AMEL with calibrated bp values."""
         scaling = StrategyRegistry.get_scaling_strategy()
-        raw_data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", strategy="raw")
+        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', strategy='raw')
         ss_result = scaling.parse_size_standard(np.array(raw_data[-1]))
         data = raw_data[:, ss_result.rescaled_indices][..., np.newaxis]
 
         ladder = Ladder.from_hid_data(
-            path=RD_DIR / "Ladder_G03_21.hid",
+            path=RD_DIR / 'Ladder_G03_21.hid',
             data=data,
             scaler=ss_result.scaler,
             catalog=catalog,
@@ -114,16 +114,14 @@ class TestLadderWithRealData:
         assert ladder is not None
 
         # Find AMEL in adjusted panel
-        amel = next(
-            (m for m in ladder.adjusted_panel.markers if m.name == "AMEL"), None
-        )
+        amel = next((m for m in ladder.adjusted_panel.markers if m.name == 'AMEL'), None)
         assert amel is not None
         assert len(amel.alleles) >= 2  # X and Y
 
         # The adjusted bp should be close to but not identical to default
-        default_amel = next(m for m in default_panel.markers if m.name == "AMEL")
-        x_default = next(a for a in default_amel.alleles if a.name == "X")
-        x_adjusted = next(a for a in amel.alleles if a.name == "X")
+        default_amel = next(m for m in default_panel.markers if m.name == 'AMEL')
+        x_default = next(a for a in default_amel.alleles if a.name == 'X')
+        x_adjusted = next(a for a in amel.alleles if a.name == 'X')
 
         # Should be within a few bp of the default
         assert abs(x_adjusted.base_pair - x_default.base_pair) < 5.0
@@ -131,12 +129,12 @@ class TestLadderWithRealData:
     def test_adjusted_panel_preserves_allele_count(self, ppf6c, catalog, default_panel):
         """Each marker in adjusted panel should have same allele count as default."""
         scaling = StrategyRegistry.get_scaling_strategy()
-        raw_data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", strategy="raw")
+        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', strategy='raw')
         ss_result = scaling.parse_size_standard(np.array(raw_data[-1]))
         data = raw_data[:, ss_result.rescaled_indices][..., np.newaxis]
 
         ladder = Ladder.from_hid_data(
-            path=RD_DIR / "Ladder_G03_21.hid",
+            path=RD_DIR / 'Ladder_G03_21.hid',
             data=data,
             scaler=ss_result.scaler,
             catalog=catalog,
@@ -152,6 +150,6 @@ class TestLadderWithRealData:
             )
             if m_adjusted is not None:
                 assert len(m_adjusted.alleles) == len(m_default.alleles), (
-                    f"{m_default.name}: allele count changed from "
-                    f"{len(m_default.alleles)} to {len(m_adjusted.alleles)}"
+                    f'{m_default.name}: allele count changed from '
+                    f'{len(m_default.alleles)} to {len(m_adjusted.alleles)}'
                 )

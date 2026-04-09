@@ -1,11 +1,10 @@
 """Tests for STRKit."""
 
-import numpy as np
 import pytest
 
 from dnanet.core.panel import Panel
-from dnanet.data.strategies.kit import STRKit
-from dnanet.data.strategies.size_standard import WEN_ILS
+from dnanet.data.strategies.scaling.kit import STRKit
+from dnanet.data.strategies.scaling.size_standard import WEN_ILS
 
 
 class TestSTRKit:
