@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 
-from dnanet.core import Panel
 from dnanet.data.preprocessing.peaks import find_peaks_above_threshold
 from dnanet.data.strategies.scaling.kit import PPF6C_KIT, STRKit
 from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
     SizeStandardParseResult,
 )
-from dnanet.data.strategies.scaling.size_standard import WEN_ILS
-
-
-_PPF6C_PANEL_PATH = Path('resources/kit_panels/SGPanel_PPF6C.xml')
 
 
 class PowerPlexFusion6CStrategy(ScalingStrategy):
@@ -25,7 +18,7 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
     """
 
     def __init__(
-        self, panel_path: Path = _PPF6C_PANEL_PATH, kit: STRKit | None = None, **kwargs
+        self, kit: STRKit | None = None, **kwargs
     ) -> None:
         if kit is None:
             kit = PPF6C_KIT

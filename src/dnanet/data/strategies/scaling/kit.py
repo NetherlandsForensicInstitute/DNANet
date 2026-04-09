@@ -13,6 +13,7 @@ Note:
 
 from __future__ import annotations
 
+from functools import cached_property
 from dataclasses import field, dataclass
 
 from dnanet.core.panel import Panel
@@ -39,8 +40,7 @@ class STRKit:
 
     name: str
     size_standard: SizeStandard
-    panel: Panel | None = None
-    ladder_alleles: LadderAlleleCatalog | None = None
+    panel_path: str | None = None
     num_dyes: int = 6
     hid_dye_mapping: dict[int, int] = field(
         default_factory=lambda: {
@@ -54,6 +54,20 @@ class STRKit:
     hid_file_data_columns_analyzed: list[str] | None = None
     hid_file_data_columns_raw: list[str] | None = None
 
+    @cached_property
+    def panel(self) -> Panel | None:
+        """The allele/marker panel for this kit."""
+        if self.panel_path is None:
+            return None
+        return Panel.from_xml(self.panel_path)
+
+    @cached_property
+    def ladder_alleles(self) -> LadderAlleleCatalog | None:
+        """The ladder alleles expected for this kit."""
+        if self.panel is None:
+            return None
+        # noinspection PyTypeChecker
+        return LadderAlleleCatalog.from_panel(self.panel)
 
 
 
@@ -72,12 +86,10 @@ class STRKit:
         return row
 
 
-_PPF6C_PANEL = Panel.from_xml('resources/kits/SGPanel_PPF6C_REF_V2.xml')
 PPF6C_KIT = STRKit(
     name='PPF6C',
     size_standard=WEN_ILS,
-    panel=_PPF6C_PANEL,
-    ladder_alleles=LadderAlleleCatalog.from_panel(_PPF6C_PANEL),
+    panel_path='resources/kits/SGPanel_PPF6C_REF_V2.xml',
     num_dyes=6,
     hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_106', 'DATA_105'],
     hid_file_data_columns_analyzed=[
@@ -90,23 +102,19 @@ PPF6C_KIT = STRKit(
     ],
 )
 
-_PPY23_Panel = Panel.from_xml('resources/kits/SGPanel_PPY23_REF.xml')
 PPY23_KIT = STRKit(
     name='POWERPLEX_Y23',
     size_standard=WEN_ILS,
-    panel=_PPY23_Panel,
-    ladder_alleles=LadderAlleleCatalog.from_panel(_PPY23_Panel),
+    panel_path='resources/kits/SGPanel_PPY23_REF.xml',
     num_dyes=5,
     hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_105'],
     hid_file_data_columns_analyzed=['DATA_9', 'DATA_10', 'DATA_11', 'DATA_12', 'DATA_205'],
 )
 
-_GLOBALFILER_PANEL = Panel.from_xml('resources/kits/SGPanel_Globalfiler_Panel.xml')
 GLOBALFILER_KIT = STRKit(
     name='GlobalFiler',
     size_standard=GENESCAN_600_LIZ,
-    panel=_GLOBALFILER_PANEL,
-    ladder_alleles=LadderAlleleCatalog.from_panel(_GLOBALFILER_PANEL),
+    panel_path='resources/kits/SGPanel_Globalfiler_Panel.xml',
     num_dyes=6,
     hid_file_data_columns_raw=['DATA_1', 'DATA_2', 'DATA_3', 'DATA_4', 'DATA_106', 'DATA_105'],
     hid_file_data_columns_analyzed=[

@@ -3,7 +3,6 @@ from dnanet.data.strategies.scaling.size_standard import WEN_ILS
 from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
 
 
-# TODO: should this be a child of PowerPlexFusion6CStrategy?
 class PowerplexY23(PowerPlexFusion6CStrategy):
     def __init__(self):
         kit = PPY23_KIT
