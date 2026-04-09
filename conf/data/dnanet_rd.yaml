@@ -1,26 +1,22 @@
 # NFI R&D 2p/5p mixture dataset (PPF6C kit)
 name: dnanet_rd
 
-# Kit / scaling strategy
-kit: PPF6C
-dataset_strategy: NFI_RND
 
-# Paths (relative to project root)
-root: data/2p_5p_Dataset_NFI/Raw data .HID files
-annotations_path: data/2p_5p_Dataset_NFI/txt_annotations_2024
-hid_to_annotations_path: data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv
-best_ladder_paths_csv: data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv
-ladder_alleles_csv: data/2p_5p_Dataset_NFI/ladder_alleles.csv
+dataset:
+  _target_: dnanet.data.hid_dataset.HIDDataset
+  root: data/2p_5p_Dataset_NFI
+  scaling_strategy: PPF6C
+  dataset_strategy: NFI_RND
+  ladder_alleles_csv: data/2p_5p_Dataset_NFI/ladder_alleles.csv
+  analysis_threshold_type: DTH  # DTH (high) or DTL (low)
+  limit: null  # Set to integer to limit number of loaded images
+  skip_if_invalid_ladder: false
+  include_size_standard: false
+  data_loading_strategy: superior  # raw, analyzed, or superior
+  adjustment_of_annotations: top  # top, complete, or null
+  transform: ${oc.select:model.transform,null} # get transform from model, or null if not defined
 
-# Analysis settings
-analysis_threshold_type: DTH  # DTH (high) or DTL (low)
-data_loading_strategy: superior  # raw, analyzed, or superior
-adjustment_of_annotations: top  # top, complete, or null
 
-# Limits and options
-limit: null  # Set to integer to limit number of loaded images
-skip_if_invalid_ladder: false
-include_size_standard: false
 
 # Preprocessing parameters
 preprocessing:

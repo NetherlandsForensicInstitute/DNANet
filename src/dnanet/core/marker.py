@@ -86,7 +86,7 @@ class Marker:
         return {
             "name": self.name,
             "dye_row": self.dye_row,
-            "alleles": [a.to_dict() for a in self.alleles],
+            "alleles": [a.to_dict() for a in sorted(self.alleles, key=lambda a: a.name)],
             "lower_boundary": self.lower_boundary,
             "upper_boundary": self.upper_boundary,
             "n_nucleotide_repeats": self.n_nucleotide_repeats,

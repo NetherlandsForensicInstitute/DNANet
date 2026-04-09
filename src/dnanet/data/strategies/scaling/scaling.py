@@ -23,7 +23,7 @@ Design pattern: **Template Method**
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Dict, Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -142,6 +142,10 @@ class ScalingStrategy(ABC):
     @property
     def marker_names(self) -> list[str]:
         return list(self.marker_name_to_dye_idx().keys())
+
+    @property
+    def marker_to_idx(self) -> Dict[str, int]:
+        return {name: idx for idx, name in enumerate(self.marker_names)}
 
     @staticmethod
     def basepair_interpolator(

@@ -207,7 +207,7 @@ class NFIRnDStrategy(DatasetStrategy):
         finds the rows matching ``sample_name`` and returns the parsed markers.
 
         Args:
-            annotation_file: Path to the annotation CSV/TSV/TXT file.
+            annotation_source: Path to the annotation CSV/TSV/TXT file.
 
         Returns:
             List of Markers with their alleles, or ``None`` if not found.
