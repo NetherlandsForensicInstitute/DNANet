@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from dnanet.data.parsing.hid import get_peak_data, parse_hid
-
 from tests.conftest import RD_DIR
+from dnanet.data.parsing.hid import parse_hid, get_peak_data
+from dnanet.data.strategies.registry import StrategyRegistry
 
 
 class TestParseHID:
@@ -13,43 +13,50 @@ class TestParseHID:
 
     def test_parse_sample_hid(self):
         """Should successfully parse 1A2_A01_01.hid."""
-        result = parse_hid(RD_DIR / "1A2_A01_01.hid")
+        result = parse_hid(RD_DIR / '1A2_A01_01.hid')
         assert result is not None
         assert isinstance(result, dict)
         # Should contain DATA keys
-        data_keys = [k for k in result if k.startswith("DATA")]
+        data_keys = [k for k in result if k.startswith('DATA')]
         assert len(data_keys) > 0
 
     def test_parse_ladder_hid(self):
         """Should successfully parse Ladder_G03_21.hid."""
-        result = parse_hid(RD_DIR / "Ladder_G03_21.hid")
+        result = parse_hid(RD_DIR / 'Ladder_G03_21.hid')
         assert result is not None
 
     def test_parse_nonexistent_returns_none(self, tmp_path):
         """Non-existent file should raise, not return None."""
         with pytest.raises(FileNotFoundError):
-            parse_hid(tmp_path / "nonexistent.hid")
+            parse_hid(tmp_path / 'nonexistent.hid')
 
 
 class TestGetPeakData:
     """Test get_peak_data on real HID files."""
 
+    @pytest.fixture(autouse=True)
+    def set_strategies(self):
+        StrategyRegistry.configure_dataset('NFI_RND')
+        StrategyRegistry.configure_kit('PPF6C')
+        yield
+        StrategyRegistry.reset()
+
     def test_raw_strategy(self):
         """Raw strategy should return 6 dye channels."""
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", strategy="raw")
+        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', strategy='raw')
         assert data is not None
         assert data.shape[0] == 6  # 5 dyes + 1 size standard
         assert data.dtype == np.int16
 
     def test_analyzed_strategy(self):
         """Analyzed strategy should also return 6 channels."""
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", strategy="analyzed")
+        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', strategy='analyzed')
         assert data is not None
         assert data.shape[0] == 6
 
     def test_superior_strategy(self):
         """Superior strategy applies baseline subtraction."""
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", strategy="superior")
+        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', strategy='superior')
         assert data is not None
         assert data.shape[0] == 6
         assert data.dtype == np.int16
@@ -62,7 +69,7 @@ class TestGetPeakData:
         """
         from dnanet.data.strategies.registry import StrategyRegistry
 
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", strategy="superior")
+        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', strategy='superior')
         assert data is not None
 
         # Rescale through size standard (same as HIDImage._load)
@@ -71,21 +78,19 @@ class TestGetPeakData:
         assert ss_result is not None
         rescaled = data[:5, ss_result.rescaled_indices]  # 5 analysis dyes
 
-        ref = np.load(RD_DIR / "1A2_A01_01.npy")
+        ref = np.load(RD_DIR / '1A2_A01_01.npy')
         if ref.ndim == 3:
             ref = ref[:, :, 0]
 
-        assert rescaled.shape == ref.shape, (
-            f"Shape mismatch: {rescaled.shape} vs {ref.shape}"
-        )
+        assert rescaled.shape == ref.shape, f'Shape mismatch: {rescaled.shape} vs {ref.shape}'
 
     def test_invalid_strategy_raises(self):
-        with pytest.raises(ValueError, match="strategy must be"):
-            get_peak_data(RD_DIR / "1A2_A01_01.hid", strategy="invalid")
+        with pytest.raises(ValueError, match='strategy must be'):
+            get_peak_data(RD_DIR / '1A2_A01_01.hid', strategy='invalid')
 
     def test_ladder_has_data(self):
         """Ladder files should also parse successfully."""
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", strategy="raw")
+        data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', strategy='raw')
         assert data is not None
         assert data.shape[0] == 6
         # Size standard (last channel) should have signal
@@ -93,6 +98,6 @@ class TestGetPeakData:
 
     def test_second_sample_parses(self):
         """1A2_E01_13.hid should also parse."""
-        data = get_peak_data(RD_DIR / "1A2_E01_13.hid", strategy="superior")
+        data = get_peak_data(RD_DIR / '1A2_E01_13.hid', strategy='superior')
         assert data is not None
         assert data.shape[0] == 6
