@@ -68,7 +68,12 @@ class NFIRnDStrategy(DatasetStrategy):
             analysis_treshold_type: Whether to take annotations that were made with high (DTH) or low (DTL) analytical tresholds.
         """
         path = Path(root_path)
-        logger.info(f'Using treshold type: {analysis_treshold_type}')
+        csv_files = list(path.rglob('*.csv'))
+
+        hid_to_annotation_file_pattern = r'.*hid_to_annotation.*'
+        hid_to_annotation_path = None
+        hid_to_ladder_pattern = r'.*best_ladder_paths.*'
+        hid_to_ladder_path = None
 
         analysis_treshold_type: str = kwargs.get('analysis_treshold_type', 'DTH')
         logger.info(f"Using treshold type: {analysis_treshold_type}")
@@ -93,7 +98,7 @@ class NFIRnDStrategy(DatasetStrategy):
                 annotation_name_to_annotation.update(_annotation)
 
         # HID to Annotation mapping
-        hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path[0])
+        hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
         analysis_treshold_type_column = [
             i for i, head in enumerate(hta_header) if analysis_treshold_type in head
         ]
@@ -112,8 +117,8 @@ class NFIRnDStrategy(DatasetStrategy):
         )
 
         # Hid to Ladder mapping
-        _, htl_values = cls._read_csv_file(hid_to_ladder_path[0])
-        hid_to_ladder = {hid: path / ladder for hid, ladder in htl_values}
+        _, htl_values = cls._read_csv_file(hid_to_ladder_path)
+        hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
 
         hid_files = list(path.rglob('*.hid'))
         hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == 'sample', hid_files))

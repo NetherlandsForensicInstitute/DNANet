@@ -12,7 +12,7 @@ class TestSTRKit:
         defaults = dict(
             name="TestKit",
             size_standard=WEN_ILS,
-            panel_path="test",
+            panel_path="",
             num_dyes=5,
         )
         defaults.update(kwargs)

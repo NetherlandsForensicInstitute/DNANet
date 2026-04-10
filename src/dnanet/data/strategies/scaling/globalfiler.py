@@ -31,33 +31,16 @@ class GlobalFilerStrategy(ScalingStrategy):
         self._max_shrinkages = max_shrinkages
         self._validation_threshold = validation_threshold
 
+    # fmt: off
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         return {
-            'D3S1358': 0,
-            'vWA': 0,
-            'D16S539': 0,
-            'CSF1PO': 0,
-            'TPOX': 0,
-            'Y-Indel': 1,
-            'AMEL': 1,
-            'D8S1179': 1,
-            'D21S11': 1,
-            'D18S51': 1,
-            'DYS391': 1,
-            'D2S441': 2,
-            'D19S433': 2,
-            'TH01': 2,
-            'FGA': 2,
-            'D22S1045': 3,
-            'D5S818': 3,
-            'D13S317': 3,
-            'D7S820': 3,
-            'SE33': 3,
-            'D10S1248': 4,
-            'D1S1656': 4,
-            'D12S391': 4,
-            'D2S1338': 4,
+            'D3S1358': 0,'vWA': 0,'D16S539': 0,'CSF1PO': 0,'TPOX': 0,
+            'Yindel': 1,'AMEL': 1,'D8S1179': 1,'D21S11': 1,'D18S51': 1,'DYS391': 1,
+            'D2S441': 2,'D19S433': 2,'TH01': 2,'FGA': 2,
+            'D22S1045': 3,'D5S818': 3,'D13S317': 3,'D7S820': 3,'SE33': 3,
+            'D10S1248': 4,'D1S1656': 4,'D12S391': 4,'D2S1338': 4,
         }
+    # fmt: on
 
     def dye_channel_colors(self) -> list[str]:
         return ['blue', 'green', 'black', 'red', 'purple', 'orange']
@@ -87,6 +70,7 @@ class GlobalFilerStrategy(ScalingStrategy):
         close = np.where(np.diff(peak_idxs) <= 15)[0]
         return np.delete(peak_idxs, close)
 
+    # TODO: Can we use this function for other STR kits as well?
     @staticmethod
     def _attempt_fit(
         peak_idxs: np.ndarray,
@@ -94,15 +78,19 @@ class GlobalFilerStrategy(ScalingStrategy):
         threshold: float,
         max_shrinkages: int,
     ) -> tuple[np.ndarray, np.ndarray, float]:
-        """Iteratively trim trailing peaks until the polynomial fit is good.
+        """Align detected peaks to expected base pairs via sliding-window search.
 
-        If the fit doesn't converge within ``max_shrinkages`` iterations,
-        returns the best fit found (with a warning) rather than raising.
-        This matches the original behavior where marginally bad fits are
-        still usable for size-standard calibration.
+        For each candidate window size (starting at ``len(expected_bps)`` and
+        shrinking by one up to ``max_shrinkages`` times), every consecutive
+        sub-sequence of that many detected peaks is fitted against the expected
+        bp values using a degree-2 polynomial.  The window with the lowest
+        max-absolute residual is kept.  If that residual is below ``threshold``
+        the alignment is accepted; otherwise the window size shrinks and the
+        search repeats.  Searching all windows instead of anchoring to one end
+        makes the algorithm robust to noise peaks anywhere in the signal.
 
         Returns:
-            Tuple of ``(trimmed_peak_idxs, trimmed_bps, max_deviation)``.
+            Tuple of ``(peak_idxs, bps, max_deviation)`` for the best alignment.
         """
         bps = expected_bps
         best_trimmed, best_bps, best_diff = None, None, float('inf')
@@ -117,28 +105,47 @@ class GlobalFilerStrategy(ScalingStrategy):
 
         shrinkages = 0
         while shrinkages < max_shrinkages:
-            trimmed = peak_idxs[-len(bps) :]
-            # If fewer peaks than expected bps, trim bps to match
-            if len(trimmed) < len(bps):
-                bps = bps[-len(trimmed) :]
-            if len(trimmed) < 3:
+            n = len(bps)
+            if n < 3:
                 break
-            coeffs = np.polyfit(trimmed, bps, 2)
-            fitted = np.polyval(coeffs, trimmed)
-            diff = float(np.max(np.abs(fitted - bps)))
 
-            # Track the best fit seen so far
-            if diff < best_diff:
-                best_trimmed, best_bps, best_diff = trimmed, bps, diff
+            # Try every consecutive window of n peaks and pick the best-fitting one.
+            # This handles extra noise peaks anywhere in the signal — not just at the
+            # ends — by exhaustively searching all possible alignments.
+            window_best_diff = float('inf')
+            window_best_peaks: np.ndarray | None = None
 
-            if diff < threshold:
+            if len(peak_idxs) >= n:
+                for start in range(len(peak_idxs) - n + 1):
+                    window = peak_idxs[start : start + n]
+                    coeffs = np.polyfit(window, bps, 2)
+                    fitted = np.polyval(coeffs, window)
+                    diff = float(np.max(np.abs(fitted - bps)))
+                    if diff < window_best_diff:
+                        window_best_diff = diff
+                        window_best_peaks = window
+            else:
+                # Fewer peaks than expected bps: fit all peaks against first N bps.
+                trimmed_bps = bps[: len(peak_idxs)]
+                coeffs = np.polyfit(peak_idxs, trimmed_bps, 2)
+                fitted = np.polyval(coeffs, peak_idxs)
+                window_best_diff = float(np.max(np.abs(fitted - trimmed_bps)))
+                window_best_peaks = peak_idxs
+                bps = trimmed_bps
+
+            if window_best_diff < best_diff:
+                best_diff = window_best_diff
+                best_trimmed = window_best_peaks
+                best_bps = bps
+
+            if window_best_diff < threshold:
                 if shrinkages > 0:
-                    logger.info(
+                    logger.trace(
                         'Size standard shrunk {} times; max diff {:.2f} bp',
                         shrinkages,
-                        diff,
+                        window_best_diff,
                     )
-                return trimmed, bps, diff
+                return window_best_peaks, bps, window_best_diff  # type: ignore[return-value]
 
             bps = bps[:-1]
             shrinkages += 1
@@ -147,4 +154,6 @@ class GlobalFilerStrategy(ScalingStrategy):
             f'Size standard fit did not converge: {best_diff:.2f} bp deviation after '
             f'{max_shrinkages} shrinkages (threshold={threshold:.1f}). Using best fit found.'
         )
+        if best_trimmed is None or best_bps is None:
+            raise RuntimeError('Fit attempt failed')
         return best_trimmed, best_bps, best_diff
