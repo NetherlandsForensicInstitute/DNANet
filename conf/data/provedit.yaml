@@ -1,29 +1,28 @@
 # PROVEDIt dataset (GlobalFiler kit)
 name: provedit
 
-# Kit / scaling strategy
-kit: GLOBALFILER
-dataset_strategy: PROVEDIT
 
 # Paths (relative to project root — adjust for your setup)
-root: data/PROVEDIt/
-annotations_path: null  # ProvedIt XLSX annotation loading not yet implemented
-hid_to_annotations_path: null
-best_ladder_paths_csv: null
-ladder_alleles_csv: null
+dataset:
+  _target_: dnanet.data.hid_dataset.HIDDataset
+  root: data/PROVEDIt/
+  scaling_strategy: ${data.scaling_strategy}
+  dataset_strategy: PROVEDIT
+  limit: null  # Set to integer to limit number of loaded images
+  skip_if_invalid_ladder: true
+  include_size_standard: true
+  data_loading_strategy: superior  # raw, analyzed, or superior
+  adjustment_of_annotations: top  # top, complete, or null
+  transform: ${oc.select:model.transform,null} # get transform from model, or null if not defined
+  load_in_memory: true
 
-# Analysis settings
-analysis_threshold_type: DTH
-data_loading_strategy: superior
-adjustment_of_annotations: top
 
-# Limits and options
-limit: null
-skip_if_invalid_ladder: false
-include_size_standard: false
+# splitting options
+stratify_noc: false
+group_by_replica: false
 
-# Preprocessing parameters
-preprocessing:
-  rfu_threshold: 40          # Minimum peak height in RFU
-  signal_length: 4096        # Number of scan points per dye channel
-  base_pair_range: [60, 480] # Valid base-pair range for GlobalFiler
+# scaling strategy
+scaling_strategy:
+  _target_: src.dnanet.data.strategies.scaling.globalfiler.GlobalFilerStrategy
+  scanpoint_resolution: 4096
+

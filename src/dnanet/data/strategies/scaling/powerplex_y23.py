@@ -4,9 +4,9 @@ from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6C
 
 
 class PowerplexY23(PowerPlexFusion6CStrategy):
-    def __init__(self):
+    def __init__(self, scanpoint_resolution: int = 4096, **kwargs):
         kit = PPY23_KIT
-        super().__init__(kit=kit)
+        super().__init__(kit=kit, scanpoint_resolution=scanpoint_resolution, **kwargs)
 
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         return {

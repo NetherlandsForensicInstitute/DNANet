@@ -1,27 +1,27 @@
 # NFI R&D 2p/5p mixture dataset (PPF6C kit)
 name: dnanet_rd
 
-
+# Dataset loading options
 dataset:
   _target_: dnanet.data.hid_dataset.HIDDataset
   root: data/2p_5p_Dataset_NFI
-  scaling_strategy: PPF6C
+  scaling_strategy: ${data.scaling_strategy}
   dataset_strategy: NFI_RND
   analysis_threshold_type: DTH  # DTH (high) or DTL (low)
   limit: null  # Set to integer to limit number of loaded images
-  skip_if_invalid_ladder: false
-  include_size_standard: false
+  skip_if_invalid_ladder: true
+  include_size_standard: true
   data_loading_strategy: superior  # raw, analyzed, or superior
   adjustment_of_annotations: top  # top, complete, or null
   transform: ${oc.select:model.transform,null} # get transform from model, or null if not defined
   load_in_memory: true
 
+# splitting options
 stratify_noc: false
 group_by_replica: false
 
+# scaling strategy
+scaling_strategy:
+  _target_: src.dnanet.data.strategies.scaling.powerplex_fusion_6c.PowerPlexFusion6CStrategy
+  scanpoint_resolution: 4096
 
-# Preprocessing parameters
-preprocessing:
-  rfu_threshold: 40          # Minimum peak height in RFU
-  signal_length: 4096        # Number of scan points per dye channel
-  base_pair_range: [65, 475] # Valid base-pair range for analysis
