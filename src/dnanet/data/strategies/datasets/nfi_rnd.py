@@ -17,21 +17,18 @@ from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
 from pathlib import Path
 from itertools import groupby
 
-import numpy as np
 from loguru import logger
-from torch.utils.data import Subset, Dataset
+from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
-    GroupKFold,
     StratifiedKFold,
-    StratifiedGroupKFold,
     train_test_split,
 )
 
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.annotation import Annotation, AlleleAnnotation
-from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
+from dnanet.data.strategies.datasets.dataset import SplitResult, FileCategory, DatasetStrategy
 
 
 if TYPE_CHECKING:
@@ -306,8 +303,8 @@ class NFIRnDStrategy(DatasetStrategy):
         fraction: float | None = None,
         seed: int | None = None,
         k_folds: int | None = None,
-        stratify_noc: bool = True,
-        group_by_replica: bool = True,
+        stratify_noc: bool = False,
+        genotype_aware: bool = True,
     ):
         """Replica-aware split that keeps sample prefixes together and balances NoC.
 
@@ -318,22 +315,50 @@ class NFIRnDStrategy(DatasetStrategy):
             - Replica's grouped (to prevent data-leakage)
             - Number of Contributors balanced over splits
         """
+        # TODO: If genotype-aware splitting is true, we can only have 3 or 6 folds since we have 6 mixture datasets
         match (fraction, k_folds):
             case (float(), None) if 0 < fraction < 1:
-                return cls._fractional_split(dataset, fraction, seed, stratify_noc, group_by_replica)
-            case (None, int()) if 2 <= k_folds < len(dataset):
-                return cls._kfold_split(dataset, k_folds, seed, stratify_noc, group_by_replica)
+                return cls._fractional_split(dataset, fraction, seed, stratify_noc, genotype_aware)
+            case (None, int()) if 2 <= k_folds <= 6:
+                return cls._kfold_split(dataset, k_folds, seed, stratify_noc, genotype_aware)
             case _:
                 raise ValueError(
-                    f'Provide either a fraction in (0, 1) or 2 <= k_folds < {len(dataset)=}, not both. Got {fraction=}, {k_folds=}'
+                    f'Provide either a fraction in (0, 1) or 2 <= k_folds <= 6, not both. Got {fraction=}, {k_folds=}'
                 )
 
     # -- Fractional splitting ------
     @classmethod
-    def _fractional_split(cls, dataset: HIDDataset, fraction, seed, stratify_noc, group_by_replica):
+    def _fractional_split(
+        cls,
+        dataset: HIDDataset,
+        fraction: float,
+        seed: int | None,
+        stratify_noc: bool,
+        genotype_aware: bool,
+    ):
+        if genotype_aware:
+            if stratify_noc:
+                logger.warning(
+                    '`stratify_noc` is set to True but cannot be combined with `genotype_aware`'
+                )
 
-        if not group_by_replica:
-            indices = list(range(len(dataset)))
+            _, group_indices = cls._get_mixture_dataset_groups(dataset)
+
+            train_groups, val_groups = train_test_split(
+                group_indices, train_size=fraction, random_state=seed, stratify=None
+            )
+            train_idx = [i for group in train_groups for i in group]
+            val_idx = [i for group in val_groups for i in group]
+
+            actual_fraction = len(train_idx) / (len(train_idx) + len(val_idx))
+
+            logger.info(
+                f'Fractional split | {fraction:.0%} train (actual {actual_fraction:.1%}) | '
+                'Genotype aware'
+            )
+
+        else:
+            indices = list(range(len(dataset.images)))
             nocs = [
                 cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.images
             ]
@@ -347,25 +372,7 @@ class NFIRnDStrategy(DatasetStrategy):
                 random_state=seed,
                 stratify=nocs if stratify_noc else None,
             )
-            return Subset(dataset, train_idx), Subset(dataset, val_idx)
-
-        # Grouped: approximate via StratifiedGroupKFold / GroupKFold, take first fold
-        replica_map = cls._build_replica_map(dataset)
-        replica_ids = list(replica_map.keys())
-        n_splits = max(2, round(1.0 / (1.0 - fraction)))
-        dummy_X = np.arange(len(replica_ids))
-        noc_labels = cls._replica_noc_labels(dataset, replica_map) if stratify_noc else dummy_X
-
-        splitter = (
-            StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
-            if stratify_noc
-            else GroupKFold(n_splits=n_splits)
-        )
-        logger.info(
-            f'Fractional grouped split | -{fraction:.0%} train | {n_splits=} | stratify={"noc" if stratify_noc else "none"}'
-        )
-        train_pos, val_pos = next(splitter.split(dummy_X, noc_labels, groups=replica_ids))
-        return cls._subsets(dataset, replica_map, train_pos, val_pos)  # type: ignore
+        return Subset(dataset, train_idx), Subset(dataset, val_idx)
 
     # -- K-Fold --------------------
 
@@ -376,87 +383,57 @@ class NFIRnDStrategy(DatasetStrategy):
         k_folds: int,
         seed: int | None,
         stratify_noc: bool,
-        group_by_replica: bool,
+        genotype_aware: bool,
     ) -> SplitResult:
-        replica_map = cls._build_replica_map(dataset)
-        replica_ids = list(replica_map.keys())
-        dummy_X = np.arange(len(replica_ids))
-        noc_labels = cls._replica_noc_labels(dataset, replica_map) if stratify_noc else dummy_X
+        if genotype_aware:
+            _, group_indices = cls._get_mixture_dataset_groups(dataset)
 
-        if not group_by_replica:
-            indices = [i for indices in replica_map.values() for i in indices]
-            sample_nocs = [
-                cls.get_number_of_contributors(dataset.images[i].path.stem) for i in indices
-            ]
-            if any(n is None for n in sample_nocs) and stratify_noc:
-                raise AttributeError(
-                    "NoC couldn't be inferred for every sample, stratify=noc not possible"
-                )
-            splitter = (
-                StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
-                if stratify_noc
-                else KFold(n_splits=k_folds, shuffle=True, random_state=seed)
-            )
-            logger.info(
-                f'K-Fold split | {k_folds} folds | stratify={"noc" if stratify_noc else "none"}'
-            )
+            splitter = KFold(n_splits=k_folds, shuffle=True, random_state=seed)
+            group_range = list(range(len(group_indices)))
+            logger.info(f'K-Fold split | {k_folds} folds | Genotype aware')
             return [
                 (
-                    Subset(dataset, [indices[i] for i in train]),
-                    Subset(dataset, [indices[i] for i in val]),
+                    Subset(dataset, [i for gi in train for i in group_indices[gi]]),
+                    Subset(dataset, [i for gi in val for i in group_indices[gi]]),
                 )
-                for train, val in splitter.split(indices, sample_nocs if stratify_noc else indices)  # type: ignore
+                for train, val in splitter.split(group_range)  # type: ignore
             ]
 
+        indices = list(range(len(dataset.images)))
+        sample_nocs = [cls.get_number_of_contributors(dataset.images[i].path.stem) for i in indices]
+        if any(n is None for n in sample_nocs) and stratify_noc:
+            raise AttributeError(
+                "NoC couldn't be inferred for every sample, stratify=noc not possible"
+            )
         splitter = (
-            StratifiedGroupKFold(n_splits=k_folds, shuffle=True, random_state=seed)
+            StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
             if stratify_noc
-            else GroupKFold(n_splits=k_folds)
+            else KFold(n_splits=k_folds, shuffle=True, random_state=seed)
         )
-        logger.info(
-            f'K-Fold grouped split | {k_folds} folds | stratify={"noc" if stratify_noc else "none"}'
-        )
+        logger.info(f'K-Fold split | {k_folds} folds | stratify={"noc" if stratify_noc else "none"}')
         return [
-            cls._subsets(dataset, replica_map, train_pos, val_pos)  # type: ignore
-            for train_pos, val_pos in splitter.split(dummy_X, noc_labels, groups=replica_ids)
+            (
+                Subset(dataset, [indices[i] for i in train]),
+                Subset(dataset, [indices[i] for i in val]),
+            )
+            for train, val in splitter.split(indices, sample_nocs if stratify_noc else indices)  # type: ignore
         ]
 
     # -- Splitting helpers ---------
-
     @classmethod
-    def _build_replica_map(cls, dataset: HIDDataset) -> Dict[str, List[int]]:
-        """Maps each replica_id to its list of sample indices."""
-        replica_map: Dict[str, List[int]] = {}
+    def _get_mixture_dataset_groups(cls, dataset: HIDDataset) -> Tuple[List[str], List[List[int]]]:
+        """Return (group_names, group_index_lists) where each group is a mixture dataset."""
+        group_map: Dict[str, List[int]] = {}
+        mixture_folder_pattern = re.compile(r'Mixture dataset \d')
         for i, img in enumerate(dataset.images):
-            replica_id = cls.get_sample_id(img.path.stem)
-            replica_map.setdefault(replica_id, []).append(i)
-        return replica_map
-
-    @classmethod
-    def _replica_noc_labels(
-        cls, dataset: HIDDataset, replica_map: Dict[str, List[int]]
-    ) -> List[int]:
-        """Majority-vote NoC label per replica, in replica_map insertion order."""
-
-        def majority_noc(indices: List[int]) -> int:
-            nocs = [
-                cls.get_number_of_contributors(file_name=dataset.images[i].path.stem)
-                for i in indices
-            ]
-            if any([n is None for n in nocs]):
+            # parent folder name is the mixture dataset identifier
+            group_key = mixture_folder_pattern.search(str(img.path.absolute()))
+            if group_key is None:
                 raise ValueError(
-                    'Could not extract NoC for all samples, stratify on NoC not possible.'
+                    f'Failed to retrieve mixture dataset group key from: {img.path.absolute()}'
                 )
-            return Counter(nocs).most_common(1)[0][0]  # type: ignore
+            group_map.setdefault(group_key.group(), []).append(i)
 
-        return [majority_noc(indices) for indices in replica_map.values()]
-
-    @staticmethod
-    def _subsets(
-        dataset: Dataset, replica_map: dict, train_pos: Sequence[int], val_pos: Sequence[int]
-    ) -> Tuple[Subset, Subset]:
-        """Expand replica positions back to flat sample index lists."""
-        replicas = list(replica_map.values())
-        train_idx = [i for pos in train_pos for i in replicas[pos]]
-        val_idx = [i for pos in val_pos for i in replicas[pos]]
-        return Subset(dataset, train_idx), Subset(dataset, val_idx)
+        group_names = list(group_map.keys())
+        group_indices = [group_map[name] for name in group_names]
+        return group_names, group_indices
