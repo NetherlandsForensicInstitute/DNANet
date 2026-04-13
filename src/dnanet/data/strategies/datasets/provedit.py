@@ -40,7 +40,7 @@ class ProvedItStrategy(DatasetStrategy):
     # ProvedIt ladder pattern
     _LADDER_PATTERN = re.compile(r'Ladder', re.IGNORECASE)
     # Following pattern layed out in https://lftdi.camden.rutgers.edu/wp-content/uploads/2019/12/PROVEDIt-Database-Naming-Convention-Laboratory-Methodsv1.pdf
-    _SAMPLE_PATTERN = re.compile(r'([A-Z]\d{2})_(RD1[24]-0003)-(\d{1,2}(_\d{1,2})+)-(\d(;\d)+)')
+    _SAMPLE_PATTERN = re.compile(r'([A-Z]\d{2})_(RD1[24]-0003)-(\d{1,2}(?:_\d{1,2})+)-(\d(?:;\d)+)')
 
     @classmethod
     def collect_dataset_files(
@@ -140,6 +140,14 @@ class ProvedItStrategy(DatasetStrategy):
             # Join everything between well and injection time
             return '_'.join(parts[1:-1])
         return stem
+
+    @classmethod
+    def _extract_contributors(cls, file_stem: str) -> List[int]:
+        """Return the list of contributor IDs encoded in a sample's filename."""
+        match = cls._SAMPLE_PATTERN.search(file_stem)
+        if match is None:
+            raise ValueError(f'Filename stem {file_stem!r} does not match expected pattern')
+        return [int(x) for x in match.group(3).split('_')]
 
     @classmethod
     def _find_annotation_file(cls, path: Path) -> Path:
@@ -266,14 +274,38 @@ class ProvedItStrategy(DatasetStrategy):
         k_folds: int | None = None,
         stratify_noc: bool = True,
     ) -> Tuple[Subset, Subset] | List[Tuple[Subset, Subset]]:
+        """Split the ProvedIt dataset for train/val.
+
+        Args:
+            dataset: A HIDDataset
+            fraction: Percentage for the train fraction. Defaults to None.
+            seed: Random seed to have reproducability. Defaults to None.
+            k_folds: KFold splitting for cross-validation. Defaults to None.
+            stratify_noc: Balance the NoC over the split(s). Defaults to True.
+
+        Raises:
+            ValueError: When fraction and/or k_folds parameters aren't valid.
+
+        Returns:
+            A (list of) split of train/val datasets.
+        """
+        # FIXME: See section 3.7 of https://resolver.tudelft.nl/uuid:d07c1be2-cfa1-44d5-892f-c2d110e0c9a0 for genotype aware splitting
+        logger.warning('Genotype Aware splitting is not implemented for this dataset')
+
         match (fraction, k_folds):
             case (float(), None) if 0 < fraction < 1:
                 return cls._fractional_split(
-                    dataset=dataset, fraction=fraction, stratify_noc=stratify_noc, seed=seed
+                    dataset=dataset,
+                    fraction=fraction,
+                    stratify_noc=stratify_noc,
+                    seed=seed,
                 )
             case (None, int()) if 2 <= k_folds < len(dataset):
                 return cls._kfold_split(
-                    dataset=dataset, k_folds=k_folds, stratify_noc=stratify_noc, seed=seed
+                    dataset=dataset,
+                    k_folds=k_folds,
+                    stratify_noc=stratify_noc,
+                    seed=seed,
                 )
             case _:
                 raise ValueError(
