@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import typing
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Literal, Generator
+from pathlib import Path
+from typing import Dict, Generator, Literal, Mapping, Tuple
 
 from torch.utils.data import Subset
 
@@ -68,18 +69,10 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def find_annotation_file(cls, sample_path: Path, annotation_dir: Path) -> Path | None:
-        """Locate the annotation file for a given sample.
-
-        Returns ``None`` if no annotation is available.
-        """
-
-    @classmethod
-    @abstractmethod
     def parse_annotations(
         cls,
         annotation_source: PathLike,
-    ) -> Dict[str, Annotation]:
+    ) -> Mapping[str, Annotation]:
         """Load annotation from annotation sample to Annotation object.
 
         Args:

@@ -1,15 +1,16 @@
-"""Concrete dataset strategy implementations."""
+"""Dataset strategy interfaces and concrete implementations."""
 
+from dnanet.data.strategies.datasets.dataset import DatasetStrategy, FileCategory
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 from dnanet.data.strategies.datasets.provedit import ProvedItStrategy
 
-DATASET_STRATEGIES: dict[str, type] = {
+DATASET_STRATEGIES: dict[str, type[DatasetStrategy]] = {
     "NFI_RND": NFIRnDStrategy,
     "PROVEDIT": ProvedItStrategy,
 }
 
 
-def get_dataset_strategy(name: str) -> type:
+def get_dataset_strategy(name: str) -> type[DatasetStrategy]:
     """Look up a dataset strategy class by name.
 
     Raises:
@@ -25,6 +26,8 @@ def get_dataset_strategy(name: str) -> type:
 
 
 __all__ = [
+    "DatasetStrategy",
+    "FileCategory",
     "NFIRnDStrategy",
     "ProvedItStrategy",
     "DATASET_STRATEGIES",
