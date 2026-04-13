@@ -106,5 +106,6 @@ DEFAULT_SIGNAL_LENGTH: int = 4096
 LABELTOOL_VERSION: str = "1.0"
 
 # Markers that are not autosomal (used for filtering in allele calling)
+#TODO Should these be part of the datset/scaling strategy?
 NON_AUTOSOMAL_PREFIXES: tuple[str, ...] = ("DYS",)
 NON_AUTOSOMAL_MARKERS: frozenset[str] = frozenset({"AMEL"})

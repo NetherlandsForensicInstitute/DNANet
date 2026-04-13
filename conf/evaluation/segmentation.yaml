@@ -1,36 +1,32 @@
 # Evaluation settings for segmentation models
-pixel_metrics:
-  pixel_precision:
-    _target_: dnanet.evaluation.metrics.pixel.pixel_precision
-    _partial_: true
-    threshold: ${training.threshold}
-  pixel_recall:
-    _target_: dnanet.evaluation.metrics.pixel.pixel_recall
-    _partial_: true
-    threshold: ${training.threshold}
-  pixel_f1_score:
-    _target_: dnanet.evaluation.metrics.pixel.pixel_f1_score
-    _partial_: true
-    threshold: ${training.threshold}
-  average_binary_iou:
-    _target_: dnanet.evaluation.metrics.pixel.average_binary_iou
-    _partial_: true
-    threshold: ${training.threshold}
+batch_size: 16
+num_workers: 4
+
+metrics:
+  _target_: torchmetrics.MetricCollection
+  metrics:
+    accuracy:
+      _target_: torchmetrics.classification.BinaryAccuracy
+      threshold: ${training.threshold}
+    precision:
+      _target_: torchmetrics.classification.BinaryPrecision
+      threshold: ${training.threshold}
+    recall:
+      _target_: torchmetrics.classification.BinaryRecall
+      threshold: ${training.threshold}
+    f1:
+      _target_: torchmetrics.classification.BinaryF1Score
+      threshold: ${training.threshold}
+    iou:
+      _target_: torchmetrics.classification.BinaryJaccardIndex
+      threshold: ${training.threshold}
+
+lightning_module: dnanet.modules.segmentation.SegmentationModule
 
 allele_caller:
   _target_: dnanet.evaluation.allele_caller.NearestBasePairCaller
-  threshold: ${training.threshold}
-
-allele_metrics:
-  allele_precision:
-    _target_: dnanet.evaluation.metrics.allele.allele_precision
-    _partial_: true
-  allele_recall:
-    _target_: dnanet.evaluation.metrics.allele.allele_recall
-    _partial_: true
-  allele_f1_score:
-    _target_: dnanet.evaluation.metrics.allele.allele_f1_score
-    _partial_: true
+  threshold: 0.5
+  exclude_non_autosomal: true
 
 # Output options
 save_predictions: false

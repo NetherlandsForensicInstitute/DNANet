@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from torch.utils.data import default_collate
 
+from dnanet.core import Panel
 from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.image import HIDImage, TrainableElement
 from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
@@ -46,6 +47,16 @@ class SegmentationTransformer(TransformDataCallable[HIDImage]):
             y = torch.zeros_like(x)
 
         return x, y
+
+@dataclass
+class SegmentationTransformerMetaData(SegmentationTransformer):
+    def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor, np.ndarray, Panel | None]:
+        x, y = super().__call__(image)
+
+        scaler = image.scaler
+        adjusted_panel = image.adjusted_panel
+
+        return x, y, scaler, adjusted_panel
 
 
 @dataclass

@@ -161,6 +161,11 @@ class HIDDataset(Dataset, TransformableDataset):
             ladder_path: Path | None = entry[2]
             annotation = entry[1]  # (name, file) or None
 
+            if isinstance(annotation, AlleleAnnotation):
+                allele_annotation = annotation
+            else:
+                allele_annotation = None
+
             # Build adjusted panel from ladder
             _current_panel = self._default_panel
             if ladder_path:
@@ -179,6 +184,7 @@ class HIDDataset(Dataset, TransformableDataset):
                 adjusted_panel=_current_panel,
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,
+                allele_annotation=allele_annotation,
                 load_in_memory=self.load_in_memory,
             )
 
@@ -318,7 +324,10 @@ class HIDDataset(Dataset, TransformableDataset):
     @property
     def transform(self) -> TransformDataCallable | None:
         return self._transform
-
+    
+    @property
+    def images(self) -> List[HIDImage]:
+        return self._data
     @property
     def data(self) -> List[HIDImage]:
         """Protected property list of HIDImages in the dataset."""

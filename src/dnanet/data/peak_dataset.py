@@ -15,7 +15,7 @@ Design pattern: **Decorator**
 
 from __future__ import annotations
 
-from typing import Iterator, Any
+from typing import Iterator, Any, List
 
 from loguru import logger
 from torch.utils.data import IterableDataset
@@ -64,7 +64,8 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
     ) -> None:
         super().__init__()
 
-        self.base_dataset = base_dataset
+        self._images = base_dataset.images
+        self._transform = base_dataset.transform
         self.threshold = threshold
         self.window_size = window_size
         self.labels = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
@@ -83,8 +84,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         self, base_dataset: HIDDataset,
     ) -> Iterator[ExtractedPeak]:
         """Extract and optionally preprocess peaks from all images."""
-        for image in base_dataset:
-            image: HIDImage
+        for image in self._images:
             peaks = extract_peak_windows(
                 image,
                 threshold=self.threshold,
@@ -115,11 +115,14 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
             )
 
         peak._data = data
+        
+    @property
+    def images(self) -> List[HIDImage]:
+        return self._images
 
     @property
     def transform(self) -> TransformDataCallable | None:
-        return self.base_dataset.transform
-
+        return self._transform
 
     def __iter__(self) -> Iterator[Any]:
         for peak in self._iterate_peaks(self.base_dataset):
