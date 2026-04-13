@@ -18,6 +18,8 @@ from itertools import groupby
 
 import openpyxl
 from loguru import logger
+from torch.utils.data import Subset
+from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
@@ -27,6 +29,7 @@ from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrateg
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
+    from dnanet.data.dataset import TransformableDataset
 
 class ProvedItStrategy(DatasetStrategy):
     """Strategy for the ProvedIt dataset (GlobalFiler kit)."""
@@ -73,7 +76,6 @@ class ProvedItStrategy(DatasetStrategy):
             sample_ladder = cls.find_ladder_for_sample(sample)
             yield sample, sample_annotation, sample_ladder
 
-    
     @classmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
         """Classify based on ProvedIt naming conventions.
@@ -117,7 +119,7 @@ class ProvedItStrategy(DatasetStrategy):
         for p in parts:
             # And if it matches the pattern of:
             # contributor 1 + (underscore + contributer{i}) * i_contributors (i ranging from 1 to 4)
-            if re.match(rf'(\d{1,2})(_\d{1,2})+', p):
+            if re.match(r'(\d{1,2})(_\d{1,2})+', p):
                 # We return the number of distinct contributor ID's
                 return len(p.split('_'))
         raise ValueError(f'Could not extract NoC from {file_name=}')
@@ -189,6 +191,8 @@ class ProvedItStrategy(DatasetStrategy):
                     research_id = col
                 elif header == 'Sample ID':
                     sample_id = col
+                elif col == 'N/A':
+                    logger.debug('Skipping Y-Marker with N/A (for a female sample)')
                 else:
                     _marker = Marker(
                         name=str(header),
@@ -252,15 +256,45 @@ class ProvedItStrategy(DatasetStrategy):
     def get_annotation_classes() -> list[str]:
         return ["noise", "allele"]
 
-
-
-if __name__ == "__main__":
-    from dnanet.data.hid_dataset import HIDDataset
+    @classmethod
+    def split(
+        cls,
+        dataset,
+        fraction: float | None = None,
+        seed: int | None = None,
+        k_folds: int | None = None,
+        stratify_noc: bool = True,
+    ) -> Tuple[Subset, Subset] | List[Tuple[Subset, Subset]]:
+        match (fraction, k_folds):
+            case (float(), None) if 0 < fraction < 1:
+                return cls._fractional_split(dataset=dataset, fraction=fraction, stratify_noc=stratify_noc, seed=seed)
+            case (None, int()) if 2 <= k_folds < len(dataset):
+                return cls._kfold_split(dataset=dataset, k_folds=k_folds, stratify_noc=stratify_noc, seed=seed)
+            case _:
+                raise ValueError(
+                    f'Provide either a fraction in (0, 1) or 2 <= k_folds < {len(dataset)=}, bot both or none. Got {fraction=}, {k_folds=}'
+                )
     
-    dataset = HIDDataset(
-        root='',
-        scaling_strategy='GLOBALFILER',
-        dataset_strategy='PROVEDIT'
-    )
+    @classmethod
+    def _fractional_split(cls, dataset: TransformableDataset, fraction: float, stratify_noc: bool, seed: int | None) -> Tuple[Subset, Subset]:
+        indices = list(range(len(dataset.images)))
+        nocs = [cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.images]
+        
+        logger.info(f'Fractional split | {fraction:.0%} train | stratify={"noc" if stratify_noc else "none"}')
+        train_idx, val_idx = train_test_split(indices, train_size=fraction, random_state=seed, stratify=nocs if stratify_noc else None)
+        return Subset(dataset, train_idx), Subset(dataset, val_idx)
     
-    dataset
+    @classmethod
+    def _kfold_split(cls, dataset: TransformableDataset, k_folds: int, stratify_noc: bool, seed: int | None):
+        indices = list(range(len(dataset.images)))
+        nocs = [cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.images]
+        splitter = (
+            StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
+            if stratify_noc else KFold(n_splits=k_folds, shuffle=True, random_state=seed)
+        )
+        
+        logger.info(f'K-Fold split | {k_folds} folds | stratify={"noc" if stratify_noc else "none"}')
+        return [
+            (Subset(dataset, [indices[i] for i in train]), Subset(dataset, [indices[i] for i in val]))
+            for train, val in splitter.split(indices, nocs if stratify_noc else indices)
+        ]
