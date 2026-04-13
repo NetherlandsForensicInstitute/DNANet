@@ -7,19 +7,19 @@ metrics:
   metrics:
     accuracy:
       _target_: torchmetrics.classification.BinaryAccuracy
-      threshold: ${training.threshold}
+      threshold: ${train.threshold}
     precision:
       _target_: torchmetrics.classification.BinaryPrecision
-      threshold: ${training.threshold}
+      threshold: ${train.threshold}
     recall:
       _target_: torchmetrics.classification.BinaryRecall
-      threshold: ${training.threshold}
+      threshold: ${train.threshold}
     f1:
       _target_: torchmetrics.classification.BinaryF1Score
-      threshold: ${training.threshold}
+      threshold: ${train.threshold}
     iou:
       _target_: torchmetrics.classification.BinaryJaccardIndex
-      threshold: ${training.threshold}
+      threshold: ${train.threshold}
 
 lightning_module: dnanet.modules.segmentation.SegmentationModule
 
@@ -32,3 +32,6 @@ allele_caller:
 save_predictions: false
 predictions_dir: predictions/
 visualize: false
+
+data_transform:
+  _target_: dnanet.data.transformer.SegmentationTransformerMetaData

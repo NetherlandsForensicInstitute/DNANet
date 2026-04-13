@@ -82,11 +82,11 @@ def run(
     network = instantiate(model_cfg.architecture)
     loss_fn = instantiate(model_cfg.loss)
 
-    eval_metrics = instantiate(cfg.evaluation.metrics, _convert_="partial")
+    eval_metrics = instantiate(cfg.evaluate.metrics, _convert_="partial")
 
     # -- Lightning module --------------------------------------------------
     # noinspection PyTypeChecker
-    module_class: type[BaseTaskModule] = get_class(cfg.evaluation.lightning_module)
+    module_class: type[BaseTaskModule] = get_class(cfg.evaluate.lightning_module)
 
 
     module = module_class.load_from_checkpoint(
@@ -106,9 +106,9 @@ def run(
 
     datamodule = DNANetDataModule(
         dataset=dataset,
-        batch_size=cfg.evaluation.get("batch_size", 1),
+        batch_size=cfg.evaluate.get("batch_size", 1),
         val_fraction= None, # always use the entire dataset for evaluation
-        num_workers=cfg.evaluation.get("num_workers", 0),
+        num_workers=cfg.evaluate.get("num_workers", 0),
         seed=cfg.seed,
     )
     datamodule.setup("test")

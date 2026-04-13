@@ -14,9 +14,3 @@ architecture:
 
 loss:
   _target_: torch.nn.MSELoss
-
-transform:
-  _target_: dnanet.data.transformer.ReconstructionTransformer
-  n_dyes: 6
-  log_scale: true
-  max_rfu: 33000

@@ -4,7 +4,7 @@ name: dnanet_rd
 # Dataset loading options
 dataset:
   _target_: dnanet.data.hid_dataset.HIDDataset
-  root: data/2p_5p_Dataset_NFI
+  root: resources/data/2p_5p_Dataset_NFI
   scaling_strategy: ${data.scaling_strategy}
   dataset_strategy: NFI_RND
   analysis_threshold_type: DTH  # DTH (high) or DTL (low)
@@ -13,7 +13,7 @@ dataset:
   include_size_standard: true
   data_loading_strategy: superior  # raw, analyzed, or superior
   adjustment_of_annotations: top  # top, complete, or null
-  transform: ${oc.select:model.transform,null} # get transform from model, or null if not defined
+  transform: ${oc.select:${task}.data_transform,null}  # get transform from training/evaluation task, or null if not defined
   load_in_memory: true
 
 # splitting options
@@ -22,6 +22,6 @@ group_by_replica: false
 
 # scaling strategy
 scaling_strategy:
-  _target_: src.dnanet.data.strategies.scaling.powerplex_fusion_6c.PowerPlexFusion6CStrategy
+  _target_: dnanet.data.strategies.scaling.powerplex_fusion_6c.PowerPlexFusion6CStrategy
   scanpoint_resolution: 4096
 

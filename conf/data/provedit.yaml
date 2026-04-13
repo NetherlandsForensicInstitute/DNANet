@@ -13,7 +13,7 @@ dataset:
   include_size_standard: true
   data_loading_strategy: superior  # raw, analyzed, or superior
   adjustment_of_annotations: top  # top, complete, or null
-  transform: ${oc.select:model.transform,null} # get transform from model, or null if not defined
+  transform: ${oc.select:${task}.data_transform,null}  # get transform from training/evaluation task, or null if not defined
   load_in_memory: true
 
 

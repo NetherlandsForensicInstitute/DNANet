@@ -50,6 +50,10 @@ checkpoint:
   save_top_k: 1
   mode: min
 
+data_transform:
+  _target_: dnanet.data.transformer.PeakClassificationTransformer
+  include_marker: false
+
 
 # module initialization. You shouldn't need to change this
 lightning_module:

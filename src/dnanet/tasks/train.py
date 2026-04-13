@@ -48,7 +48,7 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     callbacks: list[L.Callback] = []
 
     # Early stopping
-    es_cfg = cfg.training.get('early_stopping')
+    es_cfg = cfg.train.get('early_stopping')
     if es_cfg:
         callbacks.append(
             EarlyStopping(
@@ -61,7 +61,7 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
         )
 
     # Model checkpointing
-    ckpt_cfg = cfg.training.get('checkpoint')
+    ckpt_cfg = cfg.train.get('checkpoint')
     if ckpt_cfg:
         callbacks.append(
             ModelCheckpoint(
@@ -194,17 +194,17 @@ def run(
     )
 
     # -- Optimizer and scheduler -------------------------------------------
-    optimizer = instantiate(cfg.training.optimizer, params=network.parameters())
+    optimizer = instantiate(cfg.train.optimizer, params=network.parameters())
 
-    if cfg.training.get('scheduler'):
-        scheduler = instantiate(cfg.training.scheduler, optimizer=optimizer)
+    if cfg.train.get('scheduler'):
+        scheduler = instantiate(cfg.train.scheduler, optimizer=optimizer)
     else:
         scheduler = None
 
 
     # -- Lightning module --------------------------------------------------
     module = instantiate(
-        cfg.training.lightning_module,
+        cfg.train.lightning_module,
         model=network,
         optimizer=optimizer,
         scheduler=scheduler,
@@ -228,18 +228,18 @@ def run(
 
         dataset = instantiate(data_cfg.dataset)
 
-    datamodule = instantiate(cfg.training.data_module, dataset=dataset)
+    datamodule = instantiate(cfg.train.data_module, dataset=dataset)
 
     logger.info(
         'Training config: {} epochs, lr={}, batch_size={}',
-        cfg.training.max_epochs,
-        cfg.training.learning_rate,
-        cfg.training.batch_size,
+        cfg.train.max_epochs,
+        cfg.train.learning_rate,
+        cfg.train.batch_size,
     )
 
     # -- Trainer -----------------------------------------------------------
     trainer = L.Trainer(
-        max_epochs=cfg.training.max_epochs,
+        max_epochs=cfg.train.max_epochs,
         callbacks=_build_callbacks(cfg),
         logger=_build_logger(cfg),
         default_root_dir=cfg.output_dir,
