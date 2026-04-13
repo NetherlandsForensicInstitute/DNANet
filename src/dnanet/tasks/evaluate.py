@@ -21,32 +21,10 @@ import numpy as np
 import lightning as L
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
-from hydra.utils import instantiate
+from hydra.utils import get_class, instantiate
 from torch.utils.data import Subset, Dataset
 
-from dnanet.metric_factory import build_metric_functions
-
-
-def _compute_metrics(
-    metric_cfg: dict[str, Any] | DictConfig | None,
-    *metric_args: Any,
-) -> dict[str, float]:
-    """Compute Hydra-configured metrics over the supplied arguments."""
-    results: dict[str, float] = {}
-    for name, metric_fn in build_metric_functions(metric_cfg).items():
-        value = metric_fn(*metric_args)
-        results[name] = float(value)
-        logger.info("  {}: {:.4f}", name, value)
-    return results
-
-
-def _compute_pixel_metrics(
-    ground_truths: list[np.ndarray],
-    predictions: list[np.ndarray],
-    metric_cfg: dict[str, Any] | DictConfig | None,
-) -> dict[str, float]:
-    """Compute configured pixel-level metrics."""
-    return _compute_metrics(metric_cfg, ground_truths, predictions)
+from dnanet.modules import BaseTaskModule
 
 
 def _raw_eval_items(dataset: Dataset) -> list[Any]:
@@ -168,15 +146,19 @@ def run(
     network = instantiate(model_cfg.architecture)
     loss_fn = instantiate(model_cfg.loss)
 
-    training_type = cfg.training.get("type", "segmentation")
-    from dnanet.tasks.train import _resolve_module_class
-    ModuleClass = _resolve_module_class(training_type)
+    eval_metrics = instantiate(cfg.evaluation.metrics, _convert_="partial")
 
-    module = ModuleClass.load_from_checkpoint(
-        checkpoint_path,
+    # -- Lightning module --------------------------------------------------
+    # noinspection PyTypeChecker
+    module_class: type[BaseTaskModule] = get_class(cfg.evaluation.lightning_module)
+
+
+    module = module_class.load_from_checkpoint(
+        checkpoint_path=checkpoint_path,
+        metrics=eval_metrics,
         model=network,
-        loss_fn=loss_fn,
-        metrics_cfg=cfg.training.get("metrics"),
+        optimizer=None,
+        loss_fn=loss_fn
     )
     module.eval()
     logger.info("Model loaded: {}", type(network).__name__)
@@ -188,22 +170,22 @@ def run(
 
     datamodule = DNANetDataModule(
         dataset=dataset,
-        batch_size=cfg.training.batch_size,
-        val_fraction=cfg.training.get("val_fraction", 0.2),
-        num_workers=cfg.training.get("num_workers", 0),
+        batch_size=cfg.evaluation.get("batch_size", 1),
+        val_fraction= None, # always use the entire dataset for evaluation
+        num_workers=cfg.evaluation.get("num_workers", 0),
         seed=cfg.seed,
     )
     datamodule.setup("test")
 
     # -- Predict -----------------------------------------------------------
-    trainer = L.Trainer(
+    predictor = L.Trainer(
         default_root_dir=cfg.output_dir,
         enable_progress_bar=True,
         logger=False,
     )
 
     logger.info("Running predictions...")
-    predictions_list = trainer.predict(module, datamodule.val_dataloader())
+    predictions_list = predictor.predict(module, datamodule.train_dataloader())
 
     # Collect predictions and ground truths as numpy arrays
     pred_arrays: list[np.ndarray] = []
@@ -220,6 +202,7 @@ def run(
         gt_arrays.append(y.numpy())
 
     # -- Compute metrics ---------------------------------------------------
+    ## TODO compute pixel and allele scores
     eval_cfg = cfg.get("evaluation", {})
     pixel_metric_cfg = eval_cfg.get("pixel_metrics")
     allele_metric_cfg = eval_cfg.get("allele_metrics")

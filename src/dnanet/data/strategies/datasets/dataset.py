@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import typing
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Literal, Generator, Mapping
+from typing import Dict, List, Tuple, Literal, Mapping, Generator
 
 from torch.utils.data import Subset
 
@@ -114,7 +114,7 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def split(cls, dataset, fraction: float, seed: int | None = None, **kwargs) -> SplitResult:
+    def split(cls, dataset, fraction: float | None, seed: int | None = None, **kwargs) -> SplitResult:
         """Default: simple random fraction split.
 
         Override in strategies that have richer metadata (e.g. replica-aware).

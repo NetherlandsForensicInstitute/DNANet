@@ -61,7 +61,7 @@ class SegmentationModule(BaseTaskModule):
         self,
         model: nn.Module,
         loss_fn: nn.Module,
-        optimizer: torch.optim.Optimizer,
+        optimizer: torch.optim.Optimizer | None,
         learning_rate: float = 1e-4,
         weight_decay: float = 5e-4,
         threshold: float = 0.5,

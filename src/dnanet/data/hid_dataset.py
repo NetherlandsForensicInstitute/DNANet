@@ -200,9 +200,9 @@ class HIDDataset(Dataset, TransformableDataset):
             if self.adjustment_of_annotations:
                 scanpoint_annotation = self._adjust_annotations(
                     [image], [scanpoint_annotation], adjustment_type=self.adjustment_of_annotations
-                )
+                )[0]
 
-            image.annotation = scanpoint_annotation[0]
+            image.annotation = scanpoint_annotation
 
             if image.annotation is None:
                 skipped_alleles += 1

@@ -343,6 +343,11 @@ class NFIRnDStrategy(DatasetStrategy):
                 return cls._fractional_split(dataset, fraction, seed, stratify_noc, group_by_replica)
             case (None, int()) if 2 <= k_folds < len(dataset):
                 return cls._kfold_split(dataset, k_folds, seed, stratify_noc, group_by_replica)
+            case (None, None):
+                logger.info('No split | using entire dataset for training')
+                train_set = Subset(dataset, list(range(len(dataset))))
+                val_set = Subset(dataset, [])
+                return train_set, val_set
             case _:
                 raise ValueError(
                     f'Provide either a fraction in (0, 1) or 2 <= k_folds < {len(dataset)=}, not both. Got {fraction=}, {k_folds=}'

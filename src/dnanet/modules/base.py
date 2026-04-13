@@ -29,7 +29,7 @@ class BaseTaskModule(L.LightningModule, ABC):
         self,
         model: nn.Module,
         loss_fn: nn.Module,
-        optimizer: torch.optim.Optimizer,
+        optimizer: torch.optim.Optimizer | None,
         metrics: torchmetrics.MetricCollection | None = None,
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ) -> None:
@@ -96,6 +96,9 @@ class BaseTaskModule(L.LightningModule, ABC):
 
 
     def configure_optimizers(self) -> dict[str, Any]:
+        if self.optimizer is None:
+            raise ValueError("Optimizer must be provided to configure_optimizers")
+
         config: dict[str, Any] = {"optimizer": self.optimizer}
 
         if self.lr_scheduler is not None:
