@@ -31,21 +31,23 @@ if TYPE_CHECKING:
     from dnanet.core.types import PathLike
     from dnanet.data.dataset import TransformableDataset
 
+
 class ProvedItStrategy(DatasetStrategy):
     """Strategy for the ProvedIt dataset (GlobalFiler kit)."""
-    
+
     # Constant suffix pattern for HID files
     _HID_SUFFIX = '*.hid'
     # ProvedIt ladder pattern
-    _LADDER_PATTERN = re.compile(r"Ladder", re.IGNORECASE)
+    _LADDER_PATTERN = re.compile(r'Ladder', re.IGNORECASE)
     # Following pattern layed out in https://lftdi.camden.rutgers.edu/wp-content/uploads/2019/12/PROVEDIt-Database-Naming-Convention-Laboratory-Methodsv1.pdf
     _SAMPLE_PATTERN = re.compile(r'([A-Z]\d{2})_(RD1[24]-0003)-(\d{1,2}(_\d{1,2})+)-(\d(;\d)+)')
-    
+
     @classmethod
     def collect_dataset_files(
-        cls,
-        root_path: str | Path
-    ) -> Generator[Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None]:
+        cls, root_path: str | Path
+    ) -> Generator[
+        Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
+    ]:
         """Collects the HID, Annotation (optional), and Ladder (optional) files for the ProvedIt dataset.
 
         Args:
@@ -55,22 +57,22 @@ class ProvedItStrategy(DatasetStrategy):
             A tuple containing the Path to the HID file, its (optional) Annotation, and its (optional) Ladder
         """
         path = Path(root_path)
-        
+
         dataset_hid_files = path.rglob(cls._HID_SUFFIX)
-        
+
         # Groupy all HID files by their category (control, ladder, sample)
         hid_file_types = {
-            key: [*paths] for key, paths in
-            groupby(
+            key: [*paths]
+            for key, paths in groupby(
                 sorted(dataset_hid_files, key=lambda f: cls.categorize_file(f.stem)),
-                key=lambda f: cls.categorize_file(f.stem)
+                key=lambda f: cls.categorize_file(f.stem),
             )
         }
-        
+
         # Check for an annotations file and parse it into a dict with Annotations
         annotations_file = cls._find_annotation_file(path)
         annotation_mapping = cls.parse_annotations(annotations_file)
-        
+
         for sample in hid_file_types['sample']:
             sample_annotation = cls._combine_contributors_into_annotation(sample, annotation_mapping)
             sample_ladder = cls.find_ladder_for_sample(sample)
@@ -87,14 +89,14 @@ class ProvedItStrategy(DatasetStrategy):
         stem = Path(file_name).stem
 
         if cls._LADDER_PATTERN.search(stem):
-            return "ladder"
+            return 'ladder'
         if cls._SAMPLE_PATTERN.search(stem):
-            return "sample"
+            return 'sample'
         lower = stem.lower()
-        if "neg" in lower or "ntc" in lower:
-            return "control"
+        if 'neg' in lower or 'ntc' in lower:
+            return 'control'
         logger.trace(f'Unknown file found: {file_name}')
-        return "unknown"
+        return 'unknown'
 
     @classmethod
     def get_number_of_contributors(cls, file_name: str) -> int:
@@ -111,7 +113,7 @@ class ProvedItStrategy(DatasetStrategy):
         # Example filename:
         # A02_RD14-0003-31_32-1;1-M2c-0.03GF-Q2.0_01.5sec
         # We want to extract the 31_32 here to conclude 2 contributors (with 1:1 mixture prop.)
-        parts = stem.split("-")
+        parts = stem.split('-')
         if len(parts) < 2:
             raise ValueError(f'Could not extract NoC from {file_name=}')
 
@@ -133,21 +135,19 @@ class ProvedItStrategy(DatasetStrategy):
         → ``"RD14-0003-34d1-0.5IP-Q0.75ng"``
         """
         stem = Path(file_name).stem
-        parts = stem.split("_")
+        parts = stem.split('_')
         if len(parts) >= 3:
             # Join everything between well and injection time
-            return "_".join(parts[1:-1])
+            return '_'.join(parts[1:-1])
         return stem
 
     @classmethod
-    def _find_annotation_file(
-        cls, path: Path
-    ) -> Path:
+    def _find_annotation_file(cls, path: Path) -> Path:
         """Find the genotype XLSX file for ProvedIt.
 
         ProvedIt uses a single XLSX file for all genotype data.
         """
-        annotations_file = list(path.glob("*Known Genotypes*"))
+        annotations_file = list(path.glob('*Known Genotypes*'))
         match len(annotations_file):
             case 0:
                 raise FileNotFoundError('No annotations file found for ProvedIt dataset')
@@ -197,12 +197,10 @@ class ProvedItStrategy(DatasetStrategy):
                     _marker = Marker(
                         name=str(header),
                         dye_row=marker_2_dye[str(header)],
-                        alleles=frozenset(
-                            Allele(name=allele) for allele in str(col).split(',')
-                        )
+                        alleles=frozenset(Allele(name=allele) for allele in str(col).split(',')),
                     )
                     markers.append(_marker)
-            
+
             _annotation = AlleleAnnotation(markers)
             if multiple_research_ids:
                 annotation_mapping[f'{research_id}-{sample_id}'] = _annotation
@@ -214,8 +212,9 @@ class ProvedItStrategy(DatasetStrategy):
     @staticmethod
     def _get_scaling_strategy():
         from dnanet.data.strategies.registry import StrategyRegistry
+
         return StrategyRegistry.get_scaling_strategy()
-    
+
     @classmethod
     def find_ladder_for_sample(
         cls, sample_path: Path, ladder_mapping: dict[str, Path] | None = None
@@ -231,30 +230,32 @@ class ProvedItStrategy(DatasetStrategy):
             return ladder_mapping[stem]
 
         # Extract well prefix (e.g. "B03")
-        well = stem.split("_")[0] if "_" in stem else None
+        well = stem.split('_')[0] if '_' in stem else None
         if well is None:
             return None
 
         # Look in same directory for a ladder with matching well
         parent = sample_path.parent
         for f in parent.glob(cls._HID_SUFFIX):
-            if "ladder" in f.name.lower() and f.stem.startswith(well):
+            if 'ladder' in f.name.lower() and f.stem.startswith(well):
                 return f
 
         # Fallback: any ladder in the directory
-        ladders = [f for f in parent.glob(cls._HID_SUFFIX) if "ladder" in f.name.lower()]
+        ladders = [f for f in parent.glob(cls._HID_SUFFIX) if 'ladder' in f.name.lower()]
         return ladders[0] if ladders else None
 
     @classmethod
-    def _combine_contributors_into_annotation(cls, sample_file: Path, annotation_mapping: Mapping[str, AlleleAnnotation]) -> AlleleAnnotation:
-        for part in sample_file.stem.split("-"):
+    def _combine_contributors_into_annotation(
+        cls, sample_file: Path, annotation_mapping: Mapping[str, AlleleAnnotation]
+    ) -> AlleleAnnotation:
+        for part in sample_file.stem.split('-'):
             if re.match(r'(\d{1,2})(_\d{1,2})+', part):
                 return reduce(lambda x, y: x + y, [annotation_mapping[c] for c in part.split('_')])
         raise ValueError(f'Could not extract contributors from sample: {sample_file.stem}')
-    
+
     @staticmethod
     def get_annotation_classes() -> list[str]:
-        return ["noise", "allele"]
+        return ['noise', 'allele']
 
     @classmethod
     def split(
@@ -267,34 +268,50 @@ class ProvedItStrategy(DatasetStrategy):
     ) -> Tuple[Subset, Subset] | List[Tuple[Subset, Subset]]:
         match (fraction, k_folds):
             case (float(), None) if 0 < fraction < 1:
-                return cls._fractional_split(dataset=dataset, fraction=fraction, stratify_noc=stratify_noc, seed=seed)
+                return cls._fractional_split(
+                    dataset=dataset, fraction=fraction, stratify_noc=stratify_noc, seed=seed
+                )
             case (None, int()) if 2 <= k_folds < len(dataset):
-                return cls._kfold_split(dataset=dataset, k_folds=k_folds, stratify_noc=stratify_noc, seed=seed)
+                return cls._kfold_split(
+                    dataset=dataset, k_folds=k_folds, stratify_noc=stratify_noc, seed=seed
+                )
             case _:
                 raise ValueError(
                     f'Provide either a fraction in (0, 1) or 2 <= k_folds < {len(dataset)=}, bot both or none. Got {fraction=}, {k_folds=}'
                 )
-    
+
     @classmethod
-    def _fractional_split(cls, dataset: TransformableDataset, fraction: float, stratify_noc: bool, seed: int | None) -> Tuple[Subset, Subset]:
+    def _fractional_split(
+        cls, dataset: TransformableDataset, fraction: float, stratify_noc: bool, seed: int | None
+    ) -> Tuple[Subset, Subset]:
         indices = list(range(len(dataset.images)))
         nocs = [cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.images]
-        
-        logger.info(f'Fractional split | {fraction:.0%} train | stratify={"noc" if stratify_noc else "none"}')
-        train_idx, val_idx = train_test_split(indices, train_size=fraction, random_state=seed, stratify=nocs if stratify_noc else None)
+
+        logger.info(
+            f'Fractional split | {fraction:.0%} train | stratify={"noc" if stratify_noc else "none"}'
+        )
+        train_idx, val_idx = train_test_split(
+            indices, train_size=fraction, random_state=seed, stratify=nocs if stratify_noc else None
+        )
         return Subset(dataset, train_idx), Subset(dataset, val_idx)
-    
+
     @classmethod
-    def _kfold_split(cls, dataset: TransformableDataset, k_folds: int, stratify_noc: bool, seed: int | None):
+    def _kfold_split(
+        cls, dataset: TransformableDataset, k_folds: int, stratify_noc: bool, seed: int | None
+    ):
         indices = list(range(len(dataset.images)))
         nocs = [cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.images]
         splitter = (
             StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
-            if stratify_noc else KFold(n_splits=k_folds, shuffle=True, random_state=seed)
+            if stratify_noc
+            else KFold(n_splits=k_folds, shuffle=True, random_state=seed)
         )
-        
+
         logger.info(f'K-Fold split | {k_folds} folds | stratify={"noc" if stratify_noc else "none"}')
         return [
-            (Subset(dataset, [indices[i] for i in train]), Subset(dataset, [indices[i] for i in val]))
+            (
+                Subset(dataset, [indices[i] for i in train]),
+                Subset(dataset, [indices[i] for i in val]),
+            )
             for train, val in splitter.split(indices, nocs if stratify_noc else indices)
         ]
