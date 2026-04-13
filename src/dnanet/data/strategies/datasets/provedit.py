@@ -31,19 +31,29 @@ if TYPE_CHECKING:
 class ProvedItStrategy(DatasetStrategy):
     """Strategy for the ProvedIt dataset (GlobalFiler kit)."""
     
+    # Constant suffix pattern for HID files
+    _HID_SUFFIX = '*.hid'
     # ProvedIt ladder pattern
     _LADDER_PATTERN = re.compile(r"Ladder", re.IGNORECASE)
     # Following pattern layed out in https://lftdi.camden.rutgers.edu/wp-content/uploads/2019/12/PROVEDIt-Database-Naming-Convention-Laboratory-Methodsv1.pdf
-    _SAMPLE_PATTERN = re.compile(r'([A-Z]\d{2})_(RD1[24]-0003)-((?:\d{1,2})(?:_\d{1,2})+)-(\d(?:;\d)+)')
+    _SAMPLE_PATTERN = re.compile(r'([A-Z]\d{2})_(RD1[24]-0003)-(\d{1,2}(_\d{1,2})+)-(\d(;\d)+)')
     
     @classmethod
     def collect_dataset_files(
         cls,
-        root_path: str | Path, **kwargs
+        root_path: str | Path
     ) -> Generator[Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None]:
+        """Collects the HID, Annotation (optional), and Ladder (optional) files for the ProvedIt dataset.
+
+        Args:
+            root_path: The root folder in which all neccesarry files are located.
+
+        Yields:
+            A tuple containing the Path to the HID file, its (optional) Annotation, and its (optional) Ladder
+        """
         path = Path(root_path)
         
-        dataset_hid_files = list(path.rglob("*.hid"))
+        dataset_hid_files = path.rglob(cls._HID_SUFFIX)
         
         # Groupy all HID files by their category (control, ladder, sample)
         hid_file_types = {
@@ -148,6 +158,7 @@ class ProvedItStrategy(DatasetStrategy):
     def parse_annotations(
         cls,
         annotation_source: PathLike,
+        multiple_research_ids: bool = False,
     ) -> Mapping[str, AlleleAnnotation]:
         """Load called alleles from the ProvedIt XLSX genotype file.
 
@@ -160,7 +171,7 @@ class ProvedItStrategy(DatasetStrategy):
         """
         path = Path(annotation_source)
         # Check if it's the standard xlsx format
-        if not path.suffix in ('.xlsx', '.xls'):
+        if path.suffix not in ('.xlsx', '.xls'):
             raise ValueError('PROVEDIt dataset annotations should be in Excel format')
 
         excel_file = openpyxl.open(path)
@@ -187,7 +198,12 @@ class ProvedItStrategy(DatasetStrategy):
                         )
                     )
                     markers.append(_marker)
-            annotation_mapping[str(sample_id)] = AlleleAnnotation(markers)
+            
+            _annotation = AlleleAnnotation(markers)
+            if multiple_research_ids:
+                annotation_mapping[f'{research_id}-{sample_id}'] = _annotation
+            else:
+                annotation_mapping[str(sample_id)] = _annotation
 
         return annotation_mapping
 
@@ -217,12 +233,12 @@ class ProvedItStrategy(DatasetStrategy):
 
         # Look in same directory for a ladder with matching well
         parent = sample_path.parent
-        for f in parent.glob("*.hid"):
+        for f in parent.glob(cls._HID_SUFFIX):
             if "ladder" in f.name.lower() and f.stem.startswith(well):
                 return f
 
         # Fallback: any ladder in the directory
-        ladders = [f for f in parent.glob("*.hid") if "ladder" in f.name.lower()]
+        ladders = [f for f in parent.glob(cls._HID_SUFFIX) if "ladder" in f.name.lower()]
         return ladders[0] if ladders else None
 
     @classmethod
@@ -235,3 +251,16 @@ class ProvedItStrategy(DatasetStrategy):
     @staticmethod
     def get_annotation_classes() -> list[str]:
         return ["noise", "allele"]
+
+
+
+if __name__ == "__main__":
+    from dnanet.data.hid_dataset import HIDDataset
+    
+    dataset = HIDDataset(
+        root='',
+        scaling_strategy='GLOBALFILER',
+        dataset_strategy='PROVEDIT'
+    )
+    
+    dataset

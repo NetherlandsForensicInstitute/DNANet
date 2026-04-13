@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import typing
 from abc import ABC, abstractmethod
+from typing import Dict, List, Tuple, Literal, Mapping, Generator
 from pathlib import Path
-from typing import Dict, Generator, Literal, Mapping, Tuple
 
 from torch.utils.data import Subset
 
