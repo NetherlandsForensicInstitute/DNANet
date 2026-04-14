@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping, Sequence
 
 import torch
 import lightning as L
@@ -54,6 +55,14 @@ class BaseTaskModule(L.LightningModule, ABC):
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Return loss, metric predictions, and metric targets for a batch."""
 
+    def compute_test_step_outputs(
+        self,
+        batch: Any,
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor | None]:
+        """Return test loss, metric inputs, and optional callback predictions."""
+        loss, preds, targets = self.compute_step_outputs(batch)
+        return loss, preds, targets, None
+
     def _metrics_for_stage(self, stage: str) -> torchmetrics.MetricCollection:
         if stage == "train":
             return self.train_metrics
@@ -65,7 +74,16 @@ class BaseTaskModule(L.LightningModule, ABC):
 
     def _shared_step(self, batch: Any, stage: str) -> Tensor:
         loss, preds, targets = self.compute_step_outputs(batch)
+        self._log_step_outputs(loss, preds, targets, stage)
+        return loss
 
+    def _log_step_outputs(
+        self,
+        loss: Tensor,
+        preds: Tensor,
+        targets: Tensor,
+        stage: str,
+    ) -> None:
         metrics = self._metrics_for_stage(stage)
         if len(metrics) > 0:
             metrics.update(preds, targets)
@@ -86,7 +104,6 @@ class BaseTaskModule(L.LightningModule, ABC):
                 on_epoch=True,
                 logger=True,
             )
-        return loss
 
     def training_step(self, batch: Any, batch_idx: int) -> Tensor:
         del batch_idx
@@ -96,9 +113,39 @@ class BaseTaskModule(L.LightningModule, ABC):
         del batch_idx
         self._shared_step(batch, "val")
 
-    def test_step(self, batch: Any, batch_idx: int) -> None:
+    def test_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor] | None:
         del batch_idx
-        self._shared_step(batch, "test")
+        loss, preds, targets, callback_preds = self.compute_test_step_outputs(batch)
+        self._log_step_outputs(loss, preds, targets, "test")
+        if callback_preds is None:
+            return None
+        return {"preds": callback_preds}
+
+    def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:
+        if self._is_metadata_batch(batch):
+            data_batch = (batch[0], batch[1])
+            moved_data_batch = super().transfer_batch_to_device(
+                data_batch, device, dataloader_idx
+            )
+            return moved_data_batch[0], moved_data_batch[1], batch[2]
+
+        return super().transfer_batch_to_device(batch, device, dataloader_idx)
+
+    @classmethod
+    def _is_metadata_batch(cls, batch: Any) -> bool:
+        return (
+            isinstance(batch, (tuple, list))
+            and len(batch) == 3
+            and cls._is_metadata_sequence(batch[2])
+        )
+
+    @staticmethod
+    def _is_metadata_sequence(metadata: Any) -> bool:
+        return (
+            isinstance(metadata, Sequence)
+            and not isinstance(metadata, (str, bytes))
+            and all(isinstance(sample_metadata, Mapping) for sample_metadata in metadata)
+        )
 
 
 

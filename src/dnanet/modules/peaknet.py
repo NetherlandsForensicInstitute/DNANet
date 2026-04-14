@@ -49,10 +49,11 @@ class PeakNetModule(BaseTaskModule):
         self,
         model: nn.Module,
         loss_fn: nn.Module,
-        optimizer: torch.optim.Optimizer,
+        optimizer: torch.optim.Optimizer | None,
         num_classes: int = 2,
         learning_rate: float = 1e-4,
         weight_decay: float = 5e-4,
+        allele_class_index: int = 1,
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         metrics: MetricCollection | None = None,
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
@@ -67,10 +68,12 @@ class PeakNetModule(BaseTaskModule):
             metrics=metrics,
             lr_scheduler=lr_scheduler,
         )
+        self.allele_class_index = allele_class_index
         self.save_hyperparameters({
             "num_classes": num_classes,
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
+            "allele_class_index": allele_class_index,
         })
 
     def compute_step_outputs(
@@ -84,6 +87,21 @@ class PeakNetModule(BaseTaskModule):
         ``((full_images, peak_windows, marker_idxs, peak_centers, peak_counts), targets)``,
         or the equivalent flattened 6-item tuple.
         """
+        logits, targets = self._compute_logits_and_targets(batch)
+        return self._compute_loss_and_metric_inputs(logits, targets)
+
+    def compute_test_step_outputs(
+        self,
+        batch: tuple[Tensor, ...],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        logits, targets = self._compute_logits_and_targets(batch)
+        loss, preds_flat, targets_flat = self._compute_loss_and_metric_inputs(logits, targets)
+        return loss, preds_flat, targets_flat, self._allele_probabilities(logits)
+
+    def _compute_logits_and_targets(
+        self,
+        batch: Any,
+    ) -> tuple[Tensor, Tensor]:
         (
             full_images,
             peak_windows,
@@ -100,7 +118,13 @@ class PeakNetModule(BaseTaskModule):
             peak_centers,
             peak_counts,
         )
+        return logits, targets
 
+    def _compute_loss_and_metric_inputs(
+        self,
+        logits: Tensor,
+        targets: Tensor,
+    ) -> tuple[Tensor, Tensor, Tensor]:
         # Loss: CrossEntropyLoss expects (N, K, ...) logits and (N, ...) targets
         # logits: (N, K, C, L) → reshape to (N*C*L, K)
         # targets: (N, C, L) → reshape to (N*C*L,)
@@ -112,6 +136,14 @@ class PeakNetModule(BaseTaskModule):
         preds_flat = logits_flat.argmax(dim=1).detach()
         return loss, preds_flat, targets_flat
 
+    def _allele_probabilities(self, logits: Tensor) -> Tensor:
+        if logits.shape[1] <= self.allele_class_index:
+            raise ValueError(
+                "PeakNet allele_class_index must refer to an output class, got "
+                f"{self.allele_class_index} for logits with {logits.shape[1]} classes."
+            )
+        return torch.softmax(logits.detach(), dim=1)[:, self.allele_class_index]
+
     @staticmethod
     def _split_batch(
         batch: Any,
@@ -121,9 +153,15 @@ class PeakNetModule(BaseTaskModule):
         if not isinstance(batch, (tuple, list)):
             raise TypeError("PeakNetModule expects batches to be tuples or lists.")
 
-        if len(batch) == 2 and isinstance(batch[0], (tuple, list)):
+        if len(batch) == 3 and isinstance(batch[0], (tuple, list)):
             inputs = tuple(batch[0])
             targets = batch[1]
+        elif len(batch) == 2 and isinstance(batch[0], (tuple, list)):
+            inputs = tuple(batch[0])
+            targets = batch[1]
+        elif len(batch) == 7:
+            inputs = tuple(batch[:5])
+            targets = batch[5]
         elif len(batch) == 6:
             inputs = tuple(batch[:5])
             targets = batch[5]
@@ -133,7 +171,7 @@ class PeakNetModule(BaseTaskModule):
         else:
             raise ValueError(
                 "PeakNetModule expects a nested (inputs, targets) batch, a flat "
-                "6-item batch, or a 5-item input-only batch.",
+                "6-item batch, a metadata-augmented batch, or a 5-item input-only batch.",
             )
 
         if len(inputs) != 5:

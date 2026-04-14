@@ -58,8 +58,8 @@ class AlleleMetricsCallback(Callback):
 
         if outputs is None or "preds" not in outputs:
             raise ValueError(
-                "AlleleMetricsCallback requires SegmentationModule.test_step "
-                "to return a mapping with a 'preds' tensor."
+                "AlleleMetricsCallback requires test_step to return a mapping "
+                "with a 'preds' tensor."
             )
 
         metadata = self._metadata_from_batch(batch)
@@ -75,7 +75,7 @@ class AlleleMetricsCallback(Callback):
             if allele_annotation is None:
                 if self.skip_missing_annotations:
                     continue
-                raise ValueError("Missing allele_annotation in segmentation metadata.")
+                raise ValueError("Missing allele_annotation in sample metadata.")
             if not isinstance(allele_annotation, AlleleAnnotation):
                 raise TypeError(
                     "Expected metadata['allele_annotation'] to be an AlleleAnnotation, "
@@ -116,8 +116,8 @@ class AlleleMetricsCallback(Callback):
     def _metadata_from_batch(batch: Any) -> Sequence[Mapping[str, Any]]:
         if not isinstance(batch, (tuple, list)) or len(batch) != 3:
             raise ValueError(
-                "AlleleMetricsCallback requires batches from "
-                "SegmentationTransformerMetaData with shape (x, y, metadata)."
+                "AlleleMetricsCallback requires batches from a metadata transformer "
+                "with shape (inputs, targets, metadata)."
             )
 
         metadata = batch[2]

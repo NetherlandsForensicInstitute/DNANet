@@ -99,6 +99,13 @@ class SegmentationModule(BaseTaskModule):
         loss, preds, y = self._compute_loss_and_probabilities(batch)
         return loss, preds.reshape(-1), y.reshape(-1).int()
 
+    def compute_test_step_outputs(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        loss, preds, y = self._compute_loss_and_probabilities(batch)
+        return loss, preds.reshape(-1), y.reshape(-1).int(), preds
+
     @staticmethod
     def _split_batch(batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]) -> tuple[Tensor, Tensor]:
         if len(batch) == 3:
@@ -116,42 +123,9 @@ class SegmentationModule(BaseTaskModule):
         loss = self.loss_fn(logits, y)
         return loss, torch.sigmoid(logits).detach(), y
 
-    def test_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor]:
-        del batch_idx
-        loss, preds, y = self._compute_loss_and_probabilities(batch)
-
-        metrics = self._metrics_for_stage("test")
-        if len(metrics) > 0:
-            metrics.update(preds.reshape(-1), y.reshape(-1).int())
-
-        self.log(
-            "test/loss",
-            loss,
-            prog_bar=True,
-            on_step=False,
-            on_epoch=True,
-            logger=True,
-        )
-        if len(metrics) > 0:
-            self.log_dict(
-                metrics,
-                prog_bar=False,
-                on_step=False,
-                on_epoch=True,
-                logger=True,
-            )
-
-        return {"preds": preds}
-
     def predict_step(self, batch: Any, batch_idx: int) -> Tensor:
         del batch_idx
         """Return sigmoid probabilities for prediction."""
         x = batch[0] if isinstance(batch, (tuple, list)) else batch
         logits = self(x)
         return torch.sigmoid(logits)
-
-    def transfer_batch_to_device(self, batch, device, dataloader_idx):
-        if isinstance(batch, (tuple, list)) and len(batch) == 3:
-            x, y, metadata = batch
-            return x.to(device), y.to(device), metadata
-        return super().transfer_batch_to_device(batch, device, dataloader_idx)
