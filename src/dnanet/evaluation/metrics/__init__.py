@@ -9,6 +9,13 @@ from dnanet.evaluation.metrics.allele import (
     AlleleF1Score,
     AllelePrecision,
 )
+from dnanet.evaluation.metrics.per_RFU import (
+    PerRFUOutcomeMetric,
+    compute_binned_f1,
+    load_rfu_outcome_csv,
+    write_rfu_outcome_csv,
+    compute_binned_f1_from_csv,
+)
 
 
 __all__ = [
@@ -16,4 +23,9 @@ __all__ = [
     "AllelePrecision",
     "AlleleRecall",
     "AlleleF1Score",
+    "PerRFUOutcomeMetric",
+    "write_rfu_outcome_csv",
+    "load_rfu_outcome_csv",
+    "compute_binned_f1",
+    "compute_binned_f1_from_csv",
 ]

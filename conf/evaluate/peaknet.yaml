@@ -29,6 +29,10 @@ callbacks:
   allele_metrics:
     _target_: dnanet.evaluation.callbacks.AlleleMetricsCallback
     allele_caller: ${evaluate.allele_caller}
+  per_rfu_outcomes:
+    _target_: dnanet.evaluation.callbacks.PerRFUOutcomeCallback
+    threshold: 0.5
+    filename: per_rfu_outcomes.csv
 
 # Output options
 save_predictions: false
