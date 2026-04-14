@@ -33,14 +33,13 @@ class TransformDataCallable(abc.ABC, Generic[TrainableT]):
 @dataclass
 class SegmentationTransformer(TransformDataCallable[HIDImage]):
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
-        # Input: (dyes, signal_length, 1) -> (1, dyes, signal_length)
         data = image.data
-        x = torch.tensor(np.transpose(data, (2, 0, 1)), dtype=torch.float32)
+        x = torch.tensor(data, dtype=torch.float32)
 
         # Target: segmentation mask with same shape
         if image.annotation is not None:
             y = torch.tensor(
-                np.transpose(image.annotation.data, (2, 0, 1)),
+                image.annotation.data,
                 dtype=torch.float32,
             )
         else:
@@ -54,7 +53,6 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
     threshold: int = 25
     window_size: int = 120
     include_max_pool_dyes: bool = False
-    device: torch.device | str = 'cuda'
 
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = image.data
@@ -70,7 +68,6 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         # Extract peaks as tensors
         peak_windows, marker_idxs, peak_centers = extract_peaks_torch(
             image,
-            device=self.device,
             threshold=self.threshold,
             window_size=self.window_size,
             include_max_pool_dyes=self.include_max_pool_dyes,

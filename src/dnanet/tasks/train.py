@@ -21,16 +21,22 @@ Usage::
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from pathlib import Path
 
 import lightning as L
-from hydra.utils import instantiate
-from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
-from torch.utils.data import Dataset
+from hydra.utils import instantiate
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
+from dnanet.modules.base import EpochConsoleLogger
 from dnanet.data.datamodule import DNANetDataModule
+
+
+if TYPE_CHECKING:
+    from torch.utils.data import Dataset
+
 
 # ---------------------------------------------------------------------------
 # Module registry: maps training type to Lightning module class
@@ -70,6 +76,7 @@ def _resolve_module_class(training_type: str):
 
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
+    # callbacks: list[L.Callback] = [EpochConsoleLogger()]
     callbacks: list[L.Callback] = []
 
     # Early stopping
@@ -94,7 +101,8 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
                 save_top_k=ckpt_cfg.get('save_top_k', 1),
                 mode=ckpt_cfg.get('mode', 'min'),
                 dirpath=f'{cfg.output_dir}/checkpoints',
-                filename='best-{epoch:02d}-{val/loss:.4f}',
+                filename='epoch-{epoch:03d}-val_loss-{val/loss:.4f}',
+                auto_insert_metric_name=False,
             )
         )
 
@@ -148,6 +156,7 @@ def _build_module(
     kwargs = {
         'model': network,
         'loss_fn': loss_fn,
+        'metrics_cfg': cfg.training.get('metrics'),
         'learning_rate': cfg.training.learning_rate,
         'weight_decay': cfg.training.get('weight_decay', 0.0),
         'scheduler_gamma': cfg.training.get('scheduler', {}).get('gamma', 1.0),
@@ -271,7 +280,7 @@ def run(
         dataset=dataset,
         batch_size=cfg.training.get("batch_size", 16),
         val_fraction=cfg.training.get("val_fraction", 0.2),
-        num_workers=cfg.training.get("num_workers", 0),
+        num_workers=cfg.training.get("num_workers", 1),
         seed=cfg.get("seed", 42),
     )
 
@@ -290,11 +299,13 @@ def run(
         default_root_dir=cfg.output_dir,
         deterministic=False,
         enable_progress_bar=True,
-        log_every_n_steps=10,
+        log_every_n_steps=1,
+        check_val_every_n_epoch=1,
     )
 
     if datamodule is not None:
         ckpt_path = cfg.get('checkpoint')
+        logger.info('Starting training...')
         trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
         logger.info('Training complete!')
         _save_config(cfg, cfg.output_dir)

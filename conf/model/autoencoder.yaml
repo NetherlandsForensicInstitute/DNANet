@@ -17,6 +17,6 @@ loss:
 
 transform:
   _target_: dnanet.data.transformer.ReconstructionTransformer
-  n_dyes: 5
+  n_dyes: 6
   log_scale: true
   max_rfu: 33000

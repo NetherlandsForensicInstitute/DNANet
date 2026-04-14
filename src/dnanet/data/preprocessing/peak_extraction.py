@@ -381,7 +381,6 @@ def extract_peak_windows(
 
 def extract_peaks_torch(
     image: HIDImage,
-    device: torch.device | str,
     threshold: float,
     window_size: int,
     include_max_pool_dyes: bool = False,
@@ -417,7 +416,7 @@ def extract_peaks_torch(
     else:
         data_2d = data  # (D, L)
 
-    x = torch.from_numpy(data_2d.astype(np.float32)).to(device)
+    x = torch.from_numpy(data_2d.astype(np.float32))
     n_dyes = scaling_strategy.kit.num_dyes
     n_dyes = n_dyes - 1  # exclude size standard
     x = x[:n_dyes, :]
@@ -432,7 +431,7 @@ def extract_peaks_torch(
         marker_to_idx.get(adjusted_panel.get_marker_name_by_dye_and_bp(dye, bp), len(marker_to_idx))
         for dye, bp in peak_centers.tolist()
     ]
-    marker_idxs = torch.tensor(marker_idxs, dtype=torch.long, device=device)
+    marker_idxs = torch.tensor(marker_idxs, dtype=torch.long)
 
     return peak_windows, marker_idxs, peak_centers
 

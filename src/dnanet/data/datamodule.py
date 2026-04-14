@@ -9,6 +9,8 @@ from torch.utils.data import Dataset, DataLoader, default_collate
 
 from dnanet.data.dataset import TransformableDataset
 
+from dnanet.data.strategies import StrategyRegistry
+
 
 class DNANetDataModule(L.LightningDataModule):
     """Lightning DataModule for DNA profiles.
@@ -25,9 +27,11 @@ class DNANetDataModule(L.LightningDataModule):
         self,
         dataset: TransformableDataset,
         batch_size: int = 16,
-        val_fraction: float = 0.2,
+        val_fraction: float = 0.8,
         num_workers: int = 0,
         seed: int = 42,
+        stratify_noc: bool = False,
+        group_by_replica: bool = False,
     ) -> None:
         super().__init__()
         self._dataset = dataset
@@ -35,6 +39,8 @@ class DNANetDataModule(L.LightningDataModule):
         self.val_fraction = val_fraction
         self.num_workers = num_workers
         self.seed = seed
+        self.stratify_noc = stratify_noc
+        self.group_by_replica = group_by_replica
 
         self._train_dataset: Dataset | None = None
         self._val_dataset: Dataset | None = None
@@ -45,7 +51,8 @@ class DNANetDataModule(L.LightningDataModule):
         if self._train_dataset is not None:
             return  # already set up
 
-        train_data, val_data = self._dataset.split(fraction=1.0 - self.val_fraction, seed=self.seed) #Fixme: splitting
+        dataset_strategy = StrategyRegistry.get_dataset_strategy()
+        train_data, val_data = dataset_strategy.split(self._dataset, 1 - self.val_fraction, self.seed, stratify_noc=self.stratify_noc, group_by_replica=self.group_by_replica)
 
         self._train_dataset = train_data
         self._val_dataset = val_data

@@ -167,7 +167,7 @@ class HIDImage(TrainableElement):
             return None
 
         selected = profile if self.include_size_standard else profile[:-1]
-        data = selected[:, ss_result.rescaled_indices][..., np.newaxis]
+        data = selected[:, ss_result.rescaled_indices]
         self._scaler = ss_result.scaler
 
         return data

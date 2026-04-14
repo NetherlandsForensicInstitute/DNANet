@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from dnanet.core.types import PathLike
     from dnanet.data.ladders import LadderAlleleCatalog
 
+
 class Ladder:
     """Calibration ladder for base-pair panel adjustment.
 
@@ -62,9 +63,7 @@ class Ladder:
     @classmethod
     @cache
     def create_adjusted_panel(
-        cls,
-        ladder_path: PathLike,
-        catalog: LadderAlleleCatalog
+        cls, ladder_path: PathLike, catalog: LadderAlleleCatalog
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
 
@@ -82,21 +81,18 @@ class Ladder:
 
         ladder_image = HIDImage(
             path=ladder_path,
-            data_loading_strategy="analyzed",
-            include_size_standard=True
+            data_loading_strategy='analyzed', #TODO do not hardcode these values
+            include_size_standard=True,
+            load_in_memory=False,
         )
         if ladder_image.data is None:
-            raise ValueError("Ladder is invalid")
-
+            raise ValueError('Ladder is invalid')
         scaling_strategy = StrategyRegistry.get_scaling_strategy()
         num_dyes = scaling_strategy.kit.num_dyes - 1 # exclude size standard
         default_panel = scaling_strategy.panel
 
         detected_peaks = cls._find_all_peaks(
-            data=ladder_image.data,
-            catalog=catalog,
-            num_dyes=num_dyes,
-            path=ladder_image.path
+            data=ladder_image.data, catalog=catalog, num_dyes=num_dyes, path=ladder_image.path
         )
         if detected_peaks is None:
             return None
@@ -106,7 +102,7 @@ class Ladder:
             catalog=catalog,
             scaler=ladder_image.scaler,
             default_panel=default_panel,
-            num_dyes=num_dyes
+            num_dyes=num_dyes,
         )
         return adjusted_panel
 
@@ -135,8 +131,11 @@ class Ladder:
             expected = catalog.expected_count(dye_row)
             if len(peaks) != expected:
                 logger.warning(
-                    "Ladder {}: dye {} expected {} peaks, found {}",
-                    path.name, dye_row, expected, len(peaks),
+                    'Ladder {}: dye {} expected {} peaks, found {}',
+                    path.name,
+                    dye_row,
+                    expected,
+                    len(peaks),
                 )
                 return None
 
@@ -165,23 +164,17 @@ class Ladder:
 
         for dye_row in range(num_dyes):
             catalog_alleles = catalog.alleles_by_dye.get(dye_row, [])
-            panel_markers = [
-                m for m in default_panel.markers if m.dye_row == dye_row
-            ]
+            panel_markers = [m for m in default_panel.markers if m.dye_row == dye_row]
 
             # Build mapping: (marker_name, allele_name) → base_pair from ladder
             marker_allele_to_bp: dict[tuple[str, str], float] = {}
             for (marker_name, allele_name), peak_idx in zip(
-                catalog_alleles, peak_indices[dye_row]
+                catalog_alleles, peak_indices[dye_row], strict=True
             ):
-                marker_allele_to_bp[(marker_name, allele_name)] = float(
-                    scaler[peak_idx]
-                )
+                marker_allele_to_bp[(marker_name, allele_name)] = float(scaler[peak_idx])
 
             for marker in panel_markers:
-                adjusted_alleles = cls._adjust_marker_alleles(
-                    marker, marker_allele_to_bp
-                )
+                adjusted_alleles = cls._adjust_marker_alleles(marker, marker_allele_to_bp)
                 adjusted_markers.append(
                     Marker(
                         name=marker.name,
@@ -221,9 +214,7 @@ class Ladder:
                 )
             else:
                 # Inter/extrapolate from neighboring alleles
-                extrapolated = cls._extrapolate_allele(
-                    marker, allele, idx, marker_allele_to_bp
-                )
+                extrapolated = cls._extrapolate_allele(marker, allele, idx, marker_allele_to_bp)
                 adjusted.append(extrapolated)
 
         return adjusted
@@ -265,4 +256,3 @@ class Ladder:
             left_bin=allele.left_bin,
             right_bin=allele.right_bin,
         )
-

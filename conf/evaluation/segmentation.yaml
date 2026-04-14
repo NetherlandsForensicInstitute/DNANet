@@ -1,12 +1,36 @@
 # Evaluation settings for segmentation models
-metrics:
-  - pixel_precision
-  - pixel_recall
-  - pixel_f1_score
-  - average_binary_iou
-  - allele_precision
-  - allele_recall
-  - allele_f1_score
+pixel_metrics:
+  pixel_precision:
+    _target_: dnanet.evaluation.metrics.pixel.pixel_precision
+    _partial_: true
+    threshold: ${training.threshold}
+  pixel_recall:
+    _target_: dnanet.evaluation.metrics.pixel.pixel_recall
+    _partial_: true
+    threshold: ${training.threshold}
+  pixel_f1_score:
+    _target_: dnanet.evaluation.metrics.pixel.pixel_f1_score
+    _partial_: true
+    threshold: ${training.threshold}
+  average_binary_iou:
+    _target_: dnanet.evaluation.metrics.pixel.average_binary_iou
+    _partial_: true
+    threshold: ${training.threshold}
+
+allele_caller:
+  _target_: dnanet.evaluation.allele_caller.NearestBasePairCaller
+  threshold: ${training.threshold}
+
+allele_metrics:
+  allele_precision:
+    _target_: dnanet.evaluation.metrics.allele.allele_precision
+    _partial_: true
+  allele_recall:
+    _target_: dnanet.evaluation.metrics.allele.allele_recall
+    _partial_: true
+  allele_f1_score:
+    _target_: dnanet.evaluation.metrics.allele.allele_f1_score
+    _partial_: true
 
 # Output options
 save_predictions: false

@@ -6,9 +6,8 @@ import numpy as np
 import pytest
 
 from dnanet.tasks.evaluate import (
-    _METRIC_REGISTRY,
-    _compute_pixel_metrics,
     _save_results,
+    _compute_pixel_metrics,
 )
 
 
@@ -17,38 +16,44 @@ from dnanet.tasks.evaluate import (
 # ---------------------------------------------------------------------------
 
 class TestComputePixelMetrics:
-    def test_perfect_predictions(self):
+    def test_perfect_predictions(self, evaluation_pixel_metrics_cfg):
         gt = [np.array([[1, 1, 0, 0]], dtype=float)]
         pred = [np.array([[1, 1, 0, 0]], dtype=float)]
-        results = _compute_pixel_metrics(gt, pred, ["pixel_precision", "pixel_recall"])
+        metric_cfg = {
+            "pixel_precision": evaluation_pixel_metrics_cfg["pixel_precision"],
+            "pixel_recall": evaluation_pixel_metrics_cfg["pixel_recall"],
+        }
+        results = _compute_pixel_metrics(gt, pred, metric_cfg)
         assert results["pixel_precision"] == pytest.approx(1.0)
         assert results["pixel_recall"] == pytest.approx(1.0)
 
-    def test_partial_predictions(self):
+    def test_partial_predictions(self, evaluation_pixel_metrics_cfg):
         gt = [np.array([[1, 1, 0]], dtype=float)]
         pred = [np.array([[1, 0, 1]], dtype=float)]
         # TP=1, FP=1, FN=1
-        results = _compute_pixel_metrics(gt, pred, ["pixel_precision", "pixel_recall", "pixel_f1_score"])
+        metric_cfg = {
+            "pixel_precision": evaluation_pixel_metrics_cfg["pixel_precision"],
+            "pixel_recall": evaluation_pixel_metrics_cfg["pixel_recall"],
+            "pixel_f1_score": evaluation_pixel_metrics_cfg["pixel_f1_score"],
+        }
+        results = _compute_pixel_metrics(gt, pred, metric_cfg)
         assert results["pixel_precision"] == pytest.approx(0.5)
         assert results["pixel_recall"] == pytest.approx(0.5)
         assert results["pixel_f1_score"] == pytest.approx(0.5)
 
-    def test_iou_metric(self):
+    def test_iou_metric(self, evaluation_pixel_metrics_cfg):
         gt = [np.array([[1, 1, 0, 0]], dtype=float)]
         pred = [np.array([[1, 1, 0, 0]], dtype=float)]
-        results = _compute_pixel_metrics(gt, pred, ["average_binary_iou"])
+        metric_cfg = {
+            "average_binary_iou": evaluation_pixel_metrics_cfg["average_binary_iou"],
+        }
+        results = _compute_pixel_metrics(gt, pred, metric_cfg)
         assert results["average_binary_iou"] == pytest.approx(1.0)
 
-    def test_unknown_metric_skipped(self):
+    def test_empty_metric_mapping(self):
         gt = [np.zeros((1, 4))]
         pred = [np.zeros((1, 4))]
-        results = _compute_pixel_metrics(gt, pred, ["nonexistent_metric"])
-        assert len(results) == 0
-
-    def test_empty_metric_list(self):
-        gt = [np.zeros((1, 4))]
-        pred = [np.zeros((1, 4))]
-        results = _compute_pixel_metrics(gt, pred, [])
+        results = _compute_pixel_metrics(gt, pred, {})
         assert results == {}
 
 
@@ -72,11 +77,12 @@ class TestSaveResults:
 
 
 # ---------------------------------------------------------------------------
-# Registry
+# Configured metrics
 # ---------------------------------------------------------------------------
 
-class TestMetricRegistry:
-    def test_contains_all_pixel_metrics(self):
-        expected = ["pixel_precision", "pixel_recall", "pixel_f1_score", "average_binary_iou"]
-        for name in expected:
-            assert name in _METRIC_REGISTRY
+class TestConfiguredMetricSpecs:
+    def test_uses_all_configured_pixel_metrics(self, evaluation_pixel_metrics_cfg):
+        gt = [np.array([[1, 1, 0, 0]], dtype=float)]
+        pred = [np.array([[1, 1, 0, 0]], dtype=float)]
+        results = _compute_pixel_metrics(gt, pred, evaluation_pixel_metrics_cfg)
+        assert set(results) == set(evaluation_pixel_metrics_cfg)

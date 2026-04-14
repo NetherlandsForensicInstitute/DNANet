@@ -86,7 +86,7 @@ class ProvedItStrategy(DatasetStrategy):
         return "unknown"
 
     @classmethod
-    def get_contributors(cls, file_name: str) -> str | None:
+    def get_number_of_contributors(cls, file_name: str) -> str | None:
         """Extract contributor count from ProvedIt naming.
 
         ProvedIt encodes contributors in the sample description,

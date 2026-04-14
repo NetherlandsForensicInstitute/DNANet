@@ -8,6 +8,16 @@ weight_decay: 0.0005
 val_fraction: 0.2
 num_workers: 5
 
+metrics:
+  accuracy:
+    _target_: torchmetrics.classification.MulticlassAccuracy
+    num_classes: ${model.architecture.num_classes}
+    average: micro
+  f1:
+    _target_: torchmetrics.classification.MulticlassF1Score
+    num_classes: ${model.architecture.num_classes}
+    average: macro
+
 scheduler:
   gamma: 0.8
 
