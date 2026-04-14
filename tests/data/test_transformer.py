@@ -46,7 +46,7 @@ class TestTransformDataCallable:
 
 
 class TestSegmentationTransformer:
-    def test_returns_transposed_float_tensors_with_annotation(self):
+    def test_returns_float_tensors_with_annotation(self):
         data = np.arange(20, dtype=np.float32).reshape(5, 4, 1)
         annotation = np.zeros((5, 4, 1), dtype=np.int8)
         annotation[2, 1:3, 0] = 1
@@ -54,12 +54,12 @@ class TestSegmentationTransformer:
 
         x, y = SegmentationTransformer()(image)
 
-        assert x.shape == (1, 5, 4)
-        assert y.shape == (1, 5, 4)
+        assert x.shape == (5, 4, 1)
+        assert y.shape == (5, 4, 1)
         assert x.dtype == torch.float32
         assert y.dtype == torch.float32
-        assert_close(x, torch.tensor(np.transpose(data, (2, 0, 1)), dtype=torch.float32))
-        assert_close(y, torch.tensor(np.transpose(annotation, (2, 0, 1)), dtype=torch.float32))
+        assert_close(x, torch.tensor(data, dtype=torch.float32))
+        assert_close(y, torch.tensor(annotation, dtype=torch.float32))
 
     def test_returns_zero_target_without_annotation(self):
         data = np.arange(12, dtype=np.float32).reshape(3, 4, 1)
@@ -67,8 +67,8 @@ class TestSegmentationTransformer:
 
         x, y = SegmentationTransformer()(image)
 
-        assert x.shape == (1, 3, 4)
-        assert y.shape == (1, 3, 4)
+        assert x.shape == (3, 4, 1)
+        assert y.shape == (3, 4, 1)
         assert torch.all(y == 0)
 
 
@@ -84,9 +84,8 @@ class TestCombinedTransformer:
         peak_centers = torch.tensor([[0, 10], [4, 20]], dtype=torch.long)
         captured = {}
 
-        def fake_extract_peaks(image_arg, *, device, threshold, window_size, include_max_pool_dyes):
+        def fake_extract_peaks(image_arg, *, threshold, window_size, include_max_pool_dyes):
             captured['image'] = image_arg
-            captured['device'] = device
             captured['threshold'] = threshold
             captured['window_size'] = window_size
             captured['include_max_pool_dyes'] = include_max_pool_dyes
@@ -98,14 +97,12 @@ class TestCombinedTransformer:
             threshold=30,
             window_size=64,
             include_max_pool_dyes=True,
-            device='cpu',
         )
         inputs, target = transformer(image)
         full_image, out_peak_windows, out_marker_idxs, out_peak_centers, n_peaks = inputs
 
         assert captured == {
             'image': image,
-            'device': 'cpu',
             'threshold': 30,
             'window_size': 64,
             'include_max_pool_dyes': True,
@@ -132,7 +129,7 @@ class TestCombinedTransformer:
             ),
         )
 
-        inputs, target = CombinedTransformer(device='cpu')(image)
+        inputs, target = CombinedTransformer()(image)
         full_image, _, _, _, n_peaks = inputs
 
         assert_close(full_image, torch.tensor(data, dtype=torch.float32))
