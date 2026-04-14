@@ -29,8 +29,6 @@ __all__ = [
     "AlleleF1Score",
 ]
 
-# TODO: metric per RFU
-
 class AlleleMetric(Metric, abc.ABC):
     """Base class for micro-averaged allele call metrics.
 
@@ -49,7 +47,7 @@ class AlleleMetric(Metric, abc.ABC):
         locus: str | None = None,
         **kwargs,
     ) -> None:
-        """Initialize the metric with optional locus and RFU filters."""
+        """Initialize the metric with optional locus filtering."""
         super().__init__(**kwargs)
         self.locus = locus
         self.add_state("tp", default=torch.tensor(0, dtype=torch.long), dist_reduce_fx="sum")
@@ -121,13 +119,9 @@ def _count_allele_matches(
     for gt_markers, pred_markers in zip(
         ground_truth_markers, predicted_markers, strict=True,
     ):
-        predicted = flatten_markers_to_allele_names(
-            pred_markers, locus=locus
-        )
-        annotated = flatten_markers_to_allele_names(
-            gt_markers, locus=locus,
-        )
-        matched = len(predicted & annotated) # intersection
+        predicted = flatten_markers_to_allele_names(pred_markers, locus=locus)
+        annotated = flatten_markers_to_allele_names(gt_markers, locus=locus)
+        matched = len(predicted & annotated)
         tp += matched
         fp += len(predicted) - matched
         fn += len(annotated) - matched

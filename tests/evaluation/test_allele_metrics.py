@@ -168,20 +168,3 @@ class TestLocusFiltering:
         # Only vWA: TP=0, FP=1 => precision=0.0
         assert _compute(AllelePrecision(locus="vWA"), [gt], [pred]) == pytest.approx(0.0)
 
-
-# ---------------------------------------------------------------------------
-# RFU threshold filtering
-# ---------------------------------------------------------------------------
-
-class TestRfuFiltering:
-    def test_min_rfu_filters_low_peaks(self):
-        gt = [_marker("D5S818", 0, [("13", 500), ("15", 30)])]
-        pred = [_marker("D5S818", 0, [("13", 480), ("15", 25)])]
-        # With min_rfu=100: only "13" passes => TP=1
-        assert _compute(AllelePrecision(min_rfu=100), [gt], [pred]) == pytest.approx(1.0)
-
-    def test_rfu_threshold_with_missing_height_raises(self):
-        gt = [Marker(name="D5S818", dye_row=0, alleles=frozenset([Allele(name="13"),]))]
-        pred = [_marker("D5S818", 0, [("13", 500)])]
-        with pytest.raises(ValueError, match="has no height"):
-            AllelePrecision(min_rfu=100).update([gt], [pred])

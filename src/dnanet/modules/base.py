@@ -42,6 +42,7 @@ class BaseTaskModule(L.LightningModule, ABC):
             metrics = MetricCollection([])
         self.train_metrics = metrics.clone(prefix="train/")
         self.val_metrics = metrics.clone(prefix="val/")
+        self.test_metrics = metrics.clone(prefix="test/")
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.model(*args, **kwargs)
@@ -58,6 +59,8 @@ class BaseTaskModule(L.LightningModule, ABC):
             return self.train_metrics
         if stage == "val":
             return self.val_metrics
+        if stage == "test":
+            return self.test_metrics
         raise ValueError(f"Unsupported stage: {stage}")
 
     def _shared_step(self, batch: Any, stage: str) -> Tensor:
@@ -92,6 +95,10 @@ class BaseTaskModule(L.LightningModule, ABC):
     def validation_step(self, batch: Any, batch_idx: int) -> None:
         del batch_idx
         self._shared_step(batch, "val")
+
+    def test_step(self, batch: Any, batch_idx: int) -> None:
+        del batch_idx
+        self._shared_step(batch, "test")
 
 
 
