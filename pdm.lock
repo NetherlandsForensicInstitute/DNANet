@@ -5,7 +5,7 @@
 groups = ["default", "quality", "testing", "tools"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:565545500d32e6451824d5a64267bc99547c6c9d286fb285cf77297ab4f5a112"
+content_hash = "sha256:34188eb5dc5413265e779745265b1b9d771f1932f7a9e21aeba686009793ef1e"
 
 [[metadata.targets]]
 requires_python = ">=3.11,<3.15"
@@ -1852,7 +1852,7 @@ name = "loguru"
 version = "0.7.3"
 requires_python = "<4.0,>=3.5"
 summary = "Python logging made (stupidly) simple"
-groups = ["default"]
+groups = ["default", "testing"]
 dependencies = [
     "aiocontextvars>=0.2.0; python_version < \"3.7\"",
     "colorama>=0.3.4; sys_platform == \"win32\"",
@@ -3315,6 +3315,20 @@ files = [
 ]
 
 [[package]]
+name = "pytest-loguru"
+version = "0.4.0"
+requires_python = ">=3.8"
+summary = "Pytest Loguru"
+groups = ["testing"]
+dependencies = [
+    "loguru",
+]
+files = [
+    {file = "pytest_loguru-0.4.0-py3-none-any.whl", hash = "sha256:3cc7b9c6b22cb158209ccbabf0d678dacd3f3c7497d6f46f1c338c13bee1ac77"},
+    {file = "pytest_loguru-0.4.0.tar.gz", hash = "sha256:0d9e4e72ae9bfd92f774c666e7353766af11b0b78edd59c290e89be116050f03"},
+]
+
+[[package]]
 name = "pytest-timeout"
 version = "2.4.0"
 requires_python = ">=3.7"
@@ -4074,7 +4088,7 @@ name = "win32-setctime"
 version = "1.2.0"
 requires_python = ">=3.5"
 summary = "A small Python utility to set file creation time on Windows"
-groups = ["default"]
+groups = ["default", "testing"]
 marker = "sys_platform == \"win32\""
 files = [
     {file = "win32_setctime-1.2.0-py3-none-any.whl", hash = "sha256:95d644c4e708aba81dc3704a116d8cbc974d70b3bdb8be1d150e36be6e9d1390"},

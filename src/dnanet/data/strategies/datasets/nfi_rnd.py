@@ -320,6 +320,8 @@ class NFIRnDStrategy(DatasetStrategy):
             case (float(), None) if 0 < fraction < 1:
                 return cls._fractional_split(dataset, fraction, seed, stratify_noc, genotype_aware)
             case (None, int()) if 2 <= k_folds <= 6:
+                if k_folds not in (2, 3, 6):
+                    logger.warning(f'Splitting the NFI R&D into {k_folds} folds results in uneven splits (2, 3, or 6 will)')
                 return cls._kfold_split(dataset, k_folds, seed, stratify_noc, genotype_aware)
             case _:
                 raise ValueError(

@@ -162,6 +162,28 @@ class TestKFoldSplitGrouped:
         all_idx = set(range(len(STEMS)))
         for train, val in folds:
             assert set(train.indices) | set(val.indices) == all_idx
+    
+    @pytest.mark.parametrize(
+        "k_folds, warning",
+        [
+            (2, False),
+            (3, False),
+            (4, True),
+            (5, True),
+            (6, False),
+        ]
+    )
+    def test_different_fold_numbers(self, caplog, k_folds: int, warning: bool):
+        import logging
+        caplog.set_level(logging.WARNING)
+        folds = NFIRnDStrategy.split(make_dataset(STEMS), k_folds=k_folds, seed=42)
+        if warning:
+            assert caplog.record_tuples, "Did not catch any logs"
+            assert caplog.record_tuples == [(
+                'dnanet.data.strategies.datasets.nfi_rnd',
+                30,
+                f'Splitting the NFI R&D into {k_folds} folds results in uneven splits (2, 3, or 6 will)'
+            )]
 
     def test_val_indices_partition_all_samples(self):
         """Each sample appears in exactly one val fold."""
@@ -197,3 +219,13 @@ class TestKFoldSplitUngrouped:
         for _, val in folds:
             seen |= set(val.indices)
         assert seen == set(range(len(STEMS)))
+        
+    def test_k_fold_numbers(self):
+        NFIRnDStrategy.split(make_dataset(STEMS), k_folds=2, seed=42, genotype_aware=False)
+        NFIRnDStrategy.split(make_dataset(STEMS), k_folds=3, seed=42, genotype_aware=False)
+        NFIRnDStrategy.split(make_dataset(STEMS), k_folds=4, seed=42, genotype_aware=False)
+        NFIRnDStrategy.split(make_dataset(STEMS), k_folds=5, seed=42, genotype_aware=False)
+        NFIRnDStrategy.split(make_dataset(STEMS), k_folds=6, seed=42, genotype_aware=False)
+        
+        with pytest.raises(ValueError, match="Provide either a fraction"):
+            NFIRnDStrategy.split(make_dataset(STEMS), k_folds=7, seed=42, genotype_aware=False)
