@@ -3,17 +3,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import torch
 import lightning as L
+import torchmetrics
 from torch import Tensor, nn
 from loguru import logger
 from lightning import Callback
-
-
-if TYPE_CHECKING:
-    import torchmetrics
 
 
 class BaseTaskModule(L.LightningModule, ABC):

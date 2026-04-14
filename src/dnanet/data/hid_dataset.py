@@ -191,7 +191,10 @@ class HIDDataset(Dataset, TransformableDataset):
 
             if isinstance(annotation, AlleleAnnotation):
                 scanpoint_annotation = self._translate_allele_to_scanpoint_annotation(
-                    allele_annotation=annotation, adjusted_panel=_current_panel, scaler=image.scaler
+                    allele_annotation=annotation,
+                    adjusted_panel=_current_panel,
+                    scaler=image.scaler,
+                    include_size_standard=self.include_size_standard
                 )
             else:
                 scanpoint_annotation = annotation
@@ -219,7 +222,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
     @staticmethod
     def _translate_allele_to_scanpoint_annotation(
-        allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray
+        allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray, include_size_standard: bool
     ) -> ScanpointAnnotation:
         """Translates allele annotation to scanpoint annotation.
 
@@ -234,9 +237,13 @@ class HIDDataset(Dataset, TransformableDataset):
             :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
             :return: ScanpointAnnotation object containing the translated scanpoint annotation.
         """
+        
+        kit_num_dyes = StrategyRegistry.get_scaling_strategy().kit.num_dyes
+        
+        num_dyes = kit_num_dyes if include_size_standard else kit_num_dyes-1
         scanpoint_annotation = np.zeros(
             (
-                StrategyRegistry.get_scaling_strategy().kit.num_dyes,
+                num_dyes,
                 StrategyRegistry.get_scaling_strategy().scanpoint_resolution,
             ),
             dtype=np.int8,
