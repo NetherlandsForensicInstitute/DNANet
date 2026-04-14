@@ -45,31 +45,33 @@ def _fake_img(stem: str):
     img.path.absolute = lambda: stem
     return img
 
+
 def _fake_dataset(stems: list[str]):
     ds = MagicMock()
     ds.images = [_fake_img(s) for s in stems]
     ds.__len__ = MagicMock(return_value=len(stems))
     return PeakWindowDataset(images=ds.images)
 
+
 class TestPeakWindowSplit:
     @pytest.fixture(autouse=True)
     def _register_strategies(self):
         StrategyRegistry.configure_dataset(NFIRnDStrategy)
-        StrategyRegistry.configure_kit("PPF6C")
+        StrategyRegistry.configure_kit('PPF6C')
         yield
         StrategyRegistry.reset()
 
     def test_fractional_split(self):
         ds = _fake_dataset(STEMS)
-        splits: tuple[PeakWindowDataset] = NFIRnDStrategy.split(ds, fraction=.84)
-        
+        splits: tuple[PeakWindowDataset] = NFIRnDStrategy.split(ds, fraction=0.84)
+
         assert len(splits[0].images) == 20
         assert len(splits[1].images) == 4
-        
+
     def test_kfold_split(self):
         ds = _fake_dataset(STEMS)
         folds: list[tuple[PeakWindowDataset, ...]] = NFIRnDStrategy.split(ds, k_folds=3)
-        
+
         assert len(folds) == 3
         assert len(folds[0][0].images) == 16
         assert len(folds[0][1].images) == 6

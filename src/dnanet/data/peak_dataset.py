@@ -81,8 +81,6 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         self.max_rfu_value = max_rfu_value
         self.use_ground_truth = use_ground_truth
 
-
-
     def _iterate_peaks(self) -> Iterator[ExtractedPeak]:
         """Extract and optionally preprocess peaks from all images."""
         for image in self._images:
@@ -90,7 +88,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
                 image,
                 threshold=self.threshold,
                 window_size=self.window_size,
-                include_max_pool_dyes=self.include_max_pool_dyes
+                include_max_pool_dyes=self.include_max_pool_dyes,
             )
 
             for peak in peaks:
@@ -103,7 +101,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
         Optionally applies FFT smoothing and RFU scaling.
         """
-        data = peak.data.astype("float64")
+        data = peak.data.astype('float64')
 
         if self.smooth_keep_factor is not None:
             data = fft_lowpass_smooth(data, self.smooth_keep_factor)
@@ -116,7 +114,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
             )
 
         peak._data = data
-        
+
     @property
     def images(self) -> List[HIDImage]:
         return self._images
@@ -131,7 +129,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
                 yield self.transform(peak)
             else:
                 yield peak
-                
+
     def subset(self, indices: List[int]) -> PeakWindowDataset:
         """Create a subset of PeakWindowDataset with only indicated indices."""
         return PeakWindowDataset(
@@ -146,4 +144,3 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
             max_rfu_value=self.max_rfu_value,
             use_ground_truth=self.use_ground_truth,
         )
-

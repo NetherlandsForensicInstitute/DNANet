@@ -29,6 +29,7 @@ if typing.TYPE_CHECKING:
 
 FileCategory = Literal['sample', 'ladder', 'control', 'unknown']
 
+
 class DatasetStrategy(ABC):
     """Interface for dataset-specific file handling and annotation parsing.
 
@@ -121,25 +122,25 @@ class DatasetStrategy(ABC):
         Returns:
             ``(train_subset, val_subset)`` as :class:`torch.utils.data.Subset`.
         """
-    
+
     @classmethod
     def split(cls, dataset, **kwargs) -> Tuple[T, T] | List[Tuple[T, T]]:
         """Splitting wrapper.
-        
+
         Uses a Strategy's _split implementation to split the data and
         converts the result to the correct dataset type if needed.
         """
         from dnanet.data.peak_dataset import PeakWindowDataset
-        
+
         result = cls._split(dataset, **kwargs)
-        
+
         if not isinstance(dataset, PeakWindowDataset):
             return result
-        
+
         def convert(pair):
             train, val = pair
             return dataset.subset(train.indices), dataset.subset(val.indices)
-        
+
         if isinstance(result, list):
             # K-Fold
             return [convert(pair) for pair in result]
