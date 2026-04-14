@@ -15,19 +15,21 @@ Design pattern: **Decorator**
 
 from __future__ import annotations
 
-from typing import Iterator, Any, List
+from typing import TYPE_CHECKING, Any, List, Iterator
 
 from torch.utils.data import IterableDataset
 
 from dnanet.data.dataset import TransformableDataset
-from dnanet.data.extracted_peak import ExtractedPeak
-from dnanet.data.hid_dataset import HIDDataset
-from dnanet.data.image import HIDImage
+from dnanet.data.strategies import StrategyRegistry
+from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
 from dnanet.data.preprocessing.baseline import fft_lowpass_smooth
 from dnanet.data.preprocessing.peak_extraction import extract_peak_windows
-from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
-from dnanet.data.strategies import StrategyRegistry
-from dnanet.data.transformer import TransformDataCallable
+
+
+if TYPE_CHECKING:
+    from dnanet.data.image import HIDImage
+    from dnanet.data.transformer import TransformDataCallable
+    from dnanet.data.extracted_peak import ExtractedPeak
 
 
 class PeakWindowDataset(IterableDataset, TransformableDataset):
@@ -52,7 +54,8 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
     def __init__(
         self,
-        base_dataset: HIDDataset,
+        images: List[HIDImage],
+        transform: TransformDataCallable | None = None,
         threshold: float = 40,
         window_size: int = 120,
         include_max_pool_dyes: bool = False,
@@ -64,8 +67,8 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
     ) -> None:
         super().__init__()
 
-        self._images = base_dataset.images
-        self._transform = base_dataset.transform
+        self._images = images
+        self._transform = transform
         self.threshold = threshold
         self.window_size = window_size
         self.labels = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
@@ -80,9 +83,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
 
 
-    def _iterate_peaks(
-        self, base_dataset: HIDDataset,
-    ) -> Iterator[ExtractedPeak]:
+    def _iterate_peaks(self) -> Iterator[ExtractedPeak]:
         """Extract and optionally preprocess peaks from all images."""
         for image in self._images:
             peaks = extract_peak_windows(
@@ -125,10 +126,24 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         return self._transform
 
     def __iter__(self) -> Iterator[Any]:
-        for peak in self._iterate_peaks(self.base_dataset):
-
+        for peak in self._iterate_peaks():
             if self.transform:
                 yield self.transform(peak)
             else:
                 yield peak
+                
+    def subset(self, indices: List[int]) -> PeakWindowDataset:
+        """Create a subset of PeakWindowDataset with only indicated indices."""
+        return PeakWindowDataset(
+            images=[self._images[idx] for idx in indices],
+            transform=self._transform,
+            threshold=self.threshold,
+            window_size=self.window_size,
+            include_max_pool_dyes=self.include_max_pool_dyes,
+            preprocess=self.preprocess,
+            smooth_keep_factor=self.smooth_keep_factor,
+            log_scale=self.log_scale,
+            max_rfu_value=self.max_rfu_value,
+            use_ground_truth=self.use_ground_truth,
+        )
 

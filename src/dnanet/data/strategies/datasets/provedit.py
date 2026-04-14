@@ -266,13 +266,14 @@ class ProvedItStrategy(DatasetStrategy):
         return ['noise', 'allele']
 
     @classmethod
-    def split(
+    def _split(
         cls,
         dataset,
         fraction: float | None = None,
         seed: int | None = None,
         k_folds: int | None = None,
         stratify_noc: bool = True,
+        **kwargs,
     ) -> Tuple[Subset, Subset] | List[Tuple[Subset, Subset]]:
         """Split the ProvedIt dataset for train/val.
 

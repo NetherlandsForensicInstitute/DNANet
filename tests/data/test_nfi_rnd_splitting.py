@@ -29,7 +29,7 @@ def _fake_img(stem: str):
 
 
 def make_dataset(stems: list[str]):
-    """Minimal fake dataset: exposes .data (list of images) and __len__."""
+    """Minimal fake dataset: exposes .images (list of images) and __len__."""
     ds = MagicMock()
     ds.images = [_fake_img(s) for s in stems]
     ds.__len__ = MagicMock(return_value=len(stems))

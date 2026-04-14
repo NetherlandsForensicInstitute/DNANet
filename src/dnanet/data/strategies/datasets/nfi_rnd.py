@@ -28,7 +28,7 @@ from sklearn.model_selection import (
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.annotation import Annotation, AlleleAnnotation
-from dnanet.data.strategies.datasets.dataset import SplitResult, FileCategory, DatasetStrategy
+from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 
 
 if TYPE_CHECKING:
@@ -297,7 +297,7 @@ class NFIRnDStrategy(DatasetStrategy):
         return ['noise', 'allele']
 
     @classmethod
-    def split(
+    def _split(
         cls,
         dataset: HIDDataset,
         fraction: float | None = None,
@@ -305,6 +305,7 @@ class NFIRnDStrategy(DatasetStrategy):
         k_folds: int | None = None,
         stratify_noc: bool = False,
         genotype_aware: bool = True,
+        **kwargs,
     ):
         """Replica-aware split that keeps sample prefixes together and balances NoC.
 
@@ -337,7 +338,7 @@ class NFIRnDStrategy(DatasetStrategy):
         seed: int | None,
         stratify_noc: bool,
         genotype_aware: bool,
-    ):
+    ) -> Tuple[Subset, Subset]:
         if genotype_aware:
             if stratify_noc:
                 logger.warning(
@@ -386,7 +387,7 @@ class NFIRnDStrategy(DatasetStrategy):
         seed: int | None,
         stratify_noc: bool,
         genotype_aware: bool,
-    ) -> SplitResult:
+    ) -> List[Tuple[Subset, Subset]]:
         if genotype_aware:
             _, group_indices = cls._get_mixture_dataset_groups(dataset)
 
