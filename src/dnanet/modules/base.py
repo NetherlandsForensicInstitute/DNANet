@@ -11,8 +11,6 @@ from torch import Tensor, nn
 from loguru import logger
 from lightning import Callback
 
-from dnanet.metric_factory import build_metric_collection
-
 
 if TYPE_CHECKING:
     import torchmetrics
@@ -36,15 +34,9 @@ class BaseTaskModule(L.LightningModule, ABC):
         self.model = model
         self.loss_fn = loss_fn
         self.metrics_cfg = metrics_cfg
-        self.initialize_metrics()
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.model(*args, **kwargs)
-
-    def initialize_metrics(self) -> None:
-        metrics = build_metric_collection(self.metrics_cfg)
-        self.train_metrics = metrics.clone(prefix="train/")
-        self.val_metrics = metrics.clone(prefix="val/")
 
     @abstractmethod
     def compute_step_outputs(
@@ -53,11 +45,7 @@ class BaseTaskModule(L.LightningModule, ABC):
         """Return loss, metric predictions, and metric targets for a batch."""
 
     def _metrics_for_stage(self, stage: str) -> torchmetrics.MetricCollection:
-        if stage == "train":
-            return self.train_metrics
-        if stage == "val":
-            return self.val_metrics
-        raise ValueError(f"Unsupported stage: {stage}")
+        return torchmetrics.MetricCollection([]) # fixme
 
     def _shared_step(self, batch: Any, stage: str) -> Tensor:
         loss, preds, targets = self.compute_step_outputs(batch)
