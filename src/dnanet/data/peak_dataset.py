@@ -28,6 +28,7 @@ from dnanet.data.preprocessing.peak_extraction import extract_peak_windows
 
 if TYPE_CHECKING:
     from dnanet.data.image import HIDImage
+    from dnanet.data.hid_dataset import HIDDataset
     from dnanet.data.transformer import TransformDataCallable
     from dnanet.data.extracted_peak import ExtractedPeak
 
@@ -80,6 +81,15 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         self.log_scale = log_scale
         self.max_rfu_value = max_rfu_value
         self.use_ground_truth = use_ground_truth
+        
+    @classmethod
+    def from_hid_dataset(cls, base_dataset: HIDDataset, **kwargs):
+        """Create a PeakWindowDataset based on a HIDDataset's images and transform."""
+        return cls.__init__(
+            images=base_dataset.images,
+            transform=base_dataset.transform,
+            **kwargs
+        )
 
     def _iterate_peaks(self) -> Iterator[ExtractedPeak]:
         """Extract and optionally preprocess peaks from all images."""
@@ -124,6 +134,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         return self._transform
 
     def __iter__(self) -> Iterator[Any]:
+        """Create an iterator for the peaks."""
         for peak in self._iterate_peaks():
             if self.transform:
                 yield self.transform(peak)
