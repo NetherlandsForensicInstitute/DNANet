@@ -14,14 +14,14 @@ Usage::
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import List, Mapping
+from pathlib import Path
 
-import lightning as L
 import numpy as np
-from hydra.utils import get_class, instantiate
+import lightning as L
 from loguru import logger
-from omegaconf import OmegaConf, DictConfig
+from omegaconf import OmegaConf, DictConfig, ListConfig
+from hydra.utils import get_class, instantiate
 from torch.utils.data import Dataset
 
 from dnanet.modules import BaseTaskModule
@@ -45,6 +45,24 @@ def _save_results(
     metrics_path = output_path / filename
     metrics_path.write_text(json.dumps(results, indent=2))
     return metrics_path
+
+
+def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
+    """Build test-stage callbacks from evaluation config."""
+    callbacks_cfg = cfg.evaluate.get("callbacks")
+    if not callbacks_cfg:
+        return []
+
+    if isinstance(callbacks_cfg, DictConfig):
+        callback_specs = callbacks_cfg.values()
+    elif isinstance(callbacks_cfg, ListConfig):
+        callback_specs = callbacks_cfg
+    else:
+        raise TypeError(
+            "evaluate.callbacks must be a mapping or list of Hydra callback configs."
+        )
+
+    return [instantiate(callback_cfg, _convert_="partial") for callback_cfg in callback_specs]
 
 
 def run(
@@ -116,6 +134,7 @@ def run(
     # -- Predict -----------------------------------------------------------
     trainer = L.Trainer(
         default_root_dir=cfg.output_dir,
+        callbacks=_build_callbacks(cfg),
         enable_progress_bar=True,
         logger=_build_logger(cfg),
         devices=1,

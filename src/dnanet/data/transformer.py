@@ -1,22 +1,17 @@
 import abc
 from abc import abstractmethod
+from typing import Any, Tuple, Generic, TypeVar
 from dataclasses import dataclass
 
-from typing import Tuple
-
-import numpy as np
 import torch
 from torch.utils.data import default_collate
 
-from dnanet.core import Panel
-from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.image import HIDImage, TrainableElement
-from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
-from dnanet.data.preprocessing.scaling import scale_rfu_torch
 from dnanet.data.strategies import StrategyRegistry
+from dnanet.data.extracted_peak import ExtractedPeak
+from dnanet.data.preprocessing.scaling import scale_rfu_torch
+from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
 
-
-from typing import Generic, TypeVar
 
 TrainableT = TypeVar('TrainableT', bound=TrainableElement)
 
@@ -50,13 +45,26 @@ class SegmentationTransformer(TransformDataCallable[HIDImage]):
 
 @dataclass
 class SegmentationTransformerMetaData(SegmentationTransformer):
-    def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor, np.ndarray, Panel | None]:
+    def __call__(self, image: HIDImage) -> tuple[torch.Tensor | Tuple, torch.Tensor, dict[str, Any]]:
         x, y = super().__call__(image)
 
-        scaler = image.scaler
-        adjusted_panel = image.adjusted_panel
+        metadata = {
+            "allele_annotation": image.allele_annotation,
+            "panel": image.adjusted_panel,
+            "path": image.path,
+            "scaler": image.scaler,
+            "signal_image": image.data,
+        }
 
-        return x, y, scaler, adjusted_panel
+        return x, y, metadata
+
+    @staticmethod
+    def collate_fn(
+        batch: list[tuple[torch.Tensor | Tuple, torch.Tensor, dict[str, Any]]],
+    ) -> tuple[torch.Tensor, torch.Tensor, list[dict[str, Any]]]:
+        xs, ys, metadata = zip(*batch, strict=True)
+
+        return torch.stack(xs), torch.stack(ys), list(metadata)
 
 
 @dataclass

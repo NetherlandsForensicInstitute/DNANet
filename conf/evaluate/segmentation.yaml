@@ -28,6 +28,11 @@ allele_caller:
   threshold: 0.5
   exclude_non_autosomal: true
 
+callbacks:
+  allele_metrics:
+    _target_: dnanet.evaluation.callbacks.AlleleMetricsCallback
+    allele_caller: ${evaluate.allele_caller}
+
 # Output options
 save_predictions: false
 predictions_dir: predictions/

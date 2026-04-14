@@ -86,7 +86,7 @@ class SegmentationModule(BaseTaskModule):
         })
 
     def compute_step_outputs(
-        self, batch: tuple[Tensor, Tensor],
+        self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Compute loss and metric inputs for a single batch.
 
@@ -96,13 +96,52 @@ class SegmentationModule(BaseTaskModule):
         Returns:
             Scalar loss plus flattened prediction/target tensors for metrics.
         """
+        loss, preds, y = self._compute_loss_and_probabilities(batch)
+        return loss, preds.reshape(-1), y.reshape(-1).int()
+
+    @staticmethod
+    def _split_batch(batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]) -> tuple[Tensor, Tensor]:
+        if len(batch) == 3:
+            x, y, _metadata = batch
+            return x, y
         x, y = batch
+        return x, y
+
+    def _compute_loss_and_probabilities(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        x, y = self._split_batch(batch)
         logits = self(x)
         loss = self.loss_fn(logits, y)
+        return loss, torch.sigmoid(logits).detach(), y
 
-        # Update metrics with flattened predictions
-        preds = torch.sigmoid(logits).detach()
-        return loss, preds.reshape(-1), y.reshape(-1).int()
+    def test_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor]:
+        del batch_idx
+        loss, preds, y = self._compute_loss_and_probabilities(batch)
+
+        metrics = self._metrics_for_stage("test")
+        if len(metrics) > 0:
+            metrics.update(preds.reshape(-1), y.reshape(-1).int())
+
+        self.log(
+            "test/loss",
+            loss,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+            logger=True,
+        )
+        if len(metrics) > 0:
+            self.log_dict(
+                metrics,
+                prog_bar=False,
+                on_step=False,
+                on_epoch=True,
+                logger=True,
+            )
+
+        return {"preds": preds}
 
     def predict_step(self, batch: Any, batch_idx: int) -> Tensor:
         del batch_idx
