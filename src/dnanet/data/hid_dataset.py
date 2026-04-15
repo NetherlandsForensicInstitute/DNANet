@@ -40,6 +40,10 @@ from dnanet.data.dataset import TransformableDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
+from dnanet.data.strategies import ScalingStrategy, DatasetStrategy
+from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
+
 from dnanet.data.strategies.datasets import DatasetStrategy
 from dnanet.data.strategies.scaling import ScalingStrategy
 
@@ -114,12 +118,11 @@ class HIDDataset(Dataset, TransformableDataset):
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
         logger.info('Found {} sample files to process', len(file_entries))
 
-
         self._data: List[HIDImage] = list(self._load_images(file_entries))
 
         if limit:
             self._data = random.sample(self._data, min(limit, len(self._data)))
-            logger.info("Limiting to {} files (random sample)", len(self._data))
+            logger.info('Limiting to {} files (random sample)', len(self._data))
 
         if len(self._data) == 0:
             raise ValueError(
@@ -127,7 +130,11 @@ class HIDDataset(Dataset, TransformableDataset):
                 f'Check paths and strategy configuration.'
             )
 
-        logger.info(f'Transforming all samples with {self.transform.__class__.__name__}' if self.transform else 'No transform applied to samples')
+        logger.info(
+            f'Transforming all samples with {self.transform.__class__}'
+            if self.transform is not None
+            else 'No transform applied to samples'
+        )
 
         logger.info('Loaded {} valid HID images', len(self._data))
 
@@ -157,7 +164,12 @@ class HIDDataset(Dataset, TransformableDataset):
             _current_panel = self._default_panel
             if ladder_path:
                 adjusted = Ladder.create_adjusted_panel(
-                    ladder_path=ladder_path, catalog=self._scaling.kit.ladder_alleles, scaling_strategy=self._scaling, dataset_strategy=self.dataset_strategy
+                    ladder_path=ladder_path,
+                    catalog=LadderAlleleCatalog.from_panel(self._default_panel),
+                    data_loading_strategy=self.data_loading_strategy,
+                    include_size_standard=self.include_size_standard,
+                    scaling_strategy=self._scaling,
+                    dataset_strategy=self.dataset_strategy
                 )
                 if adjusted:
                     _current_panel = adjusted
@@ -194,7 +206,6 @@ class HIDDataset(Dataset, TransformableDataset):
                 )
             else:
                 scanpoint_annotation = annotation
-
 
             if self.adjustment_of_annotations:
                 scanpoint_annotation = self._adjust_annotations(
@@ -335,7 +346,6 @@ class HIDDataset(Dataset, TransformableDataset):
         return self._dataset_strategy
 
     # -- Dunder ----------------------------------------------------------- #
-
 
     def __len__(self) -> int:
         """Length of the dataset."""

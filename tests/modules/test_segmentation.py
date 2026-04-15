@@ -3,8 +3,8 @@
 import torch
 import pytest
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader, TensorDataset
+from torch.optim.lr_scheduler import ExponentialLR
 
 from dnanet.models.loss import DiceLoss
 from dnanet.models.unet import UNet

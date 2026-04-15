@@ -11,10 +11,10 @@ from dnanet.data.image import HIDImage
 from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
 from dnanet.data.transformer import (
     CombinedTransformer,
-    PeakClassificationTransformer,
-    ReconstructionTransformer,
-    SegmentationTransformer,
     TransformDataCallable,
+    SegmentationTransformer,
+    ReconstructionTransformer,
+    PeakClassificationTransformer,
 )
 
 

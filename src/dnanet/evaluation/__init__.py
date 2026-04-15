@@ -11,6 +11,7 @@ from dnanet.evaluation.metrics import (
     AlleleRecall,
     AlleleF1Score,
     AllelePrecision,
+    PerRFUOutcomeMetric,
 )
 from dnanet.evaluation.allele_caller import AlleleCaller, NearestBasePairCaller
 
@@ -22,4 +23,5 @@ __all__ = [
     "AllelePrecision",
     "AlleleRecall",
     "AlleleF1Score",
+    "PerRFUOutcomeMetric",
 ]

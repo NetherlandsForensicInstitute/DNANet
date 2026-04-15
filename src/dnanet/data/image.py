@@ -35,6 +35,17 @@ from dnanet.data.parsing import get_peak_data
 from dnanet.data.strategies import DatasetStrategy
 from dnanet.data.strategies.scaling import ScalingStrategy
 
+if TYPE_CHECKING:
+    from dnanet.core.panel import Panel
+    from dnanet.core.types import PathLike
+    from dnanet.core.annotation import (
+        Annotation,
+        ClassAnnotation,
+        AlleleAnnotation,
+        ScanpointAnnotation,
+    )
+
+
 # Default RFU detection threshold
 _DEFAULT_RFU_THRESHOLD = 40
 

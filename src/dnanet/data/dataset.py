@@ -10,8 +10,7 @@ class TransformableDataset(abc.ABC):
     @property
     @abc.abstractmethod
     def images(self) -> List[HIDImage]:
-        raise NotImplemented
-
+        raise NotImplementedError
     @property
     @abc.abstractmethod
     def transform(self) -> TransformDataCallable | None:

@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 from collections.abc import Mapping, Sequence
-from typing import Any
 
 import lightning as L
-import torch
 import torchmetrics
-from lightning import Callback
 from loguru import logger
-from torch import Tensor, nn
+from lightning import Callback
 from torchmetrics import MetricCollection
 
+
+if TYPE_CHECKING:
+    import torch
+    from torch import Tensor, nn
+    
 
 class BaseTaskModule(L.LightningModule, ABC):
     """Common Lightning scaffolding for DNANet training tasks.

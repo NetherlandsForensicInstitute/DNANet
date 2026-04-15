@@ -5,17 +5,17 @@ from pathlib import Path
 import numpy as np
 import pytest
 from torchmetrics import MetricCollection
-from torchmetrics.classification import (
-    BinaryAccuracy,
-    BinaryF1Score,
-    BinaryJaccardIndex,
-    BinaryPrecision,
-    BinaryRecall,
-    MulticlassF1Score,
-    MulticlassPrecision,
-    MulticlassRecall,
-)
 from torchmetrics.regression import MeanSquaredError
+from torchmetrics.classification import (
+    BinaryRecall,
+    BinaryF1Score,
+    BinaryAccuracy,
+    BinaryPrecision,
+    MulticlassRecall,
+    MulticlassF1Score,
+    BinaryJaccardIndex,
+    MulticlassPrecision,
+)
 
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker

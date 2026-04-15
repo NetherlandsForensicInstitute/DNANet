@@ -33,5 +33,7 @@ Thumbs.db
 .pytest_cache/
 .coverage
 .pdm-python
+.mypy_cache/
+.ruff_cache/
 
 annotations.csv

@@ -14,18 +14,23 @@ Usage::
 from __future__ import annotations
 
 import json
-from typing import List, Mapping
+from typing import TYPE_CHECKING, List, Mapping
 from pathlib import Path
 
-import numpy as np
 import lightning as L
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig, ListConfig
 from hydra.utils import get_class, instantiate
-from torch.utils.data import Dataset
 
-from dnanet.modules import BaseTaskModule
 from dnanet.tasks.train import _build_logger
+
+
+if TYPE_CHECKING:
+    import numpy as np
+    from torch.utils.data import Dataset
+
+    from dnanet.modules import BaseTaskModule
+    
 
 
 def _as_2d_array(array: np.ndarray) -> np.ndarray:

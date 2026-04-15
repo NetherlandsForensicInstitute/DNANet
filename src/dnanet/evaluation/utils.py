@@ -6,13 +6,13 @@ allele-level metric computation.
 
 from __future__ import annotations
 
-from typing import Mapping, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from loguru import logger
 
-from dnanet.core.allele import Allele
-from dnanet.core.marker import Marker
 
+if TYPE_CHECKING:
+    from dnanet.core.marker import Marker
 
 
 def flatten_markers_to_allele_names(
