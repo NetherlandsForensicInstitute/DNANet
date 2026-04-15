@@ -6,9 +6,9 @@ from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
 from torch import nn
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import OmegaConf, DictConfig
 
-from dnanet.tasks.train import _build_callbacks, _build_logger, _save_config, run
+from dnanet.tasks.train import run, _save_config, _build_logger, _build_callbacks
 
 
 def _make_cfg(**overrides) -> DictConfig:

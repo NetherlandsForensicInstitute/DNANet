@@ -4,18 +4,18 @@ import numpy as np
 import torch
 from torch.testing import assert_close
 
-from dnanet.core.annotation import ScanpointAnnotation
-from dnanet.data.extracted_peak import ExtractedPeak
+import dnanet.data.transformer as transformer_module
 from dnanet.data.image import HIDImage
-from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.transformer import (
     CombinedTransformer,
-    PeakClassificationTransformer,
-    ReconstructionTransformer,
-    SegmentationTransformer,
     TransformDataCallable,
+    SegmentationTransformer,
+    ReconstructionTransformer,
+    PeakClassificationTransformer,
 )
-import dnanet.data.transformer as transformer_module
+from dnanet.data.extracted_peak import ExtractedPeak
+from dnanet.data.strategies.registry import StrategyRegistry
 
 
 def _make_fake_image(

@@ -13,9 +13,9 @@ from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.transformer import (
-    AlleleMetadataTransformer,
     CombinedTransformer,
     SegmentationTransformer,
+    AlleleMetadataTransformer,
 )
 
 

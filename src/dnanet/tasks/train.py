@@ -25,16 +25,19 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 
 import lightning as L
-from torch import nn
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
-from torch.optim import AdamW
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
-from dnanet.modules.base import EpochConsoleLogger
-from dnanet.data.datamodule import DNANetDataModule
 
+if TYPE_CHECKING:
+    from torch.utils.data import Dataset
+
+
+# ---------------------------------------------------------------------------
+# Module registry: maps training type to Lightning module class
+# ---------------------------------------------------------------------------
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
@@ -111,7 +114,6 @@ def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
     return None
 
 
-
 def _load_pretrained_weights(network, cfg: DictConfig) -> None:
     """Load pre-trained sub-model weights if checkpoint paths are given.
 
@@ -164,9 +166,9 @@ def _save_config(cfg: DictConfig, output_dir: str) -> None:
 
 
 def run(
-        cfg: DictConfig,
-        dataset: Dataset | None = None,
-        ) -> tuple[L.Trainer, L.LightningModule]:
+    cfg: DictConfig,
+    dataset: Dataset | None = None,
+) -> tuple[L.Trainer, L.LightningModule]:
     """Run model training.
 
     Args:
@@ -222,8 +224,7 @@ def run(
     if not dataset:
         if (data_cfg := cfg.get('data')) is None:
             raise ValueError(
-                "Training requires a dataset. "
-                "Set it via: dnanet task=train data=your_dataset"
+                'Training requires a dataset. Set it via: dnanet task=train data=your_dataset'
             )
 
         dataset = instantiate(data_cfg.dataset)

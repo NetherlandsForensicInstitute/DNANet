@@ -1,9 +1,9 @@
 """Tests for U-Net architecture."""
 
-import pytest
 import torch
+import pytest
 
-from dnanet.models.unet import DecoderBlock, DoubleConv, EncoderBlock, UNet
+from dnanet.models.unet import UNet, DoubleConv, DecoderBlock, EncoderBlock
 
 
 class TestDoubleConv:
@@ -129,8 +129,8 @@ class TestUNet:
 
     def test_hydra_config_instantiation(self):
         """Should be instantiable with Hydra-style config."""
-        from hydra.utils import instantiate
         from omegaconf import OmegaConf
+        from hydra.utils import instantiate
 
         cfg = OmegaConf.create({
             "_target_": "dnanet.models.unet.UNet",

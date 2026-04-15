@@ -45,6 +45,7 @@ from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnota
 from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 
 
 if TYPE_CHECKING:
@@ -117,22 +118,15 @@ class HIDDataset(Dataset, TransformableDataset):
         self._dataset_strategy = StrategyRegistry.get_dataset_strategy()
         self._default_panel = self._scaling.panel
 
-        # Load best ladder paths: sample_stem -> ladder_path
-        # self._ladder_paths: dict[str, Path] = {}
-        # if best_ladder_paths_csv:
-        #     self._ladder_paths = self._load_ladder_paths(Path(best_ladder_paths_csv))
-        #     logger.info("Loaded {} ladder path mappings", len(self._ladder_paths))
-
         # Collect files, apply limit, load images
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root))
         logger.info('Found {} sample files to process', len(file_entries))
-
 
         self._data: List[HIDImage] = list(self._load_images(file_entries))
 
         if limit:
             self._data = random.sample(self._data, min(limit, len(self._data)))
-            logger.info("Limiting to {} files (random sample)", len(self._data))
+            logger.info('Limiting to {} files (random sample)', len(self._data))
 
         if len(self._data) == 0:
             raise ValueError(
@@ -140,7 +134,11 @@ class HIDDataset(Dataset, TransformableDataset):
                 f'Check paths and StrategyRegistry configuration.'
             )
 
-        logger.info(f'Transforming all samples with {self.transform.__class__.__name__}' if self.transform else 'No transform applied to samples')
+        logger.info(
+            f'Transforming all samples with {self.transform.__class__}'
+            if self.transform is not None
+            else 'No transform applied to samples'
+        )
 
         logger.info('Loaded {} valid HID images', len(self._data))
 
@@ -170,7 +168,10 @@ class HIDDataset(Dataset, TransformableDataset):
             _current_panel = self._default_panel
             if ladder_path:
                 adjusted = Ladder.create_adjusted_panel(
-                    ladder_path=ladder_path, catalog=self._scaling.kit.ladder_alleles
+                    ladder_path=ladder_path,
+                    catalog=LadderAlleleCatalog.from_panel(self._default_panel),
+                    data_loading_strategy=self.data_loading_strategy,
+                    include_size_standard=self.include_size_standard,
                 )
                 if adjusted:
                     _current_panel = adjusted
@@ -204,7 +205,6 @@ class HIDDataset(Dataset, TransformableDataset):
                 )
             else:
                 scanpoint_annotation = annotation
-
 
             if self.adjustment_of_annotations:
                 scanpoint_annotation = self._adjust_annotations(
@@ -243,7 +243,6 @@ class HIDDataset(Dataset, TransformableDataset):
             :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
             :return: ScanpointAnnotation object containing the translated scanpoint annotation.
         """
-        
         kit_num_dyes = StrategyRegistry.get_scaling_strategy().kit.num_dyes
         
         num_dyes = kit_num_dyes if include_size_standard else kit_num_dyes-1
@@ -341,7 +340,6 @@ class HIDDataset(Dataset, TransformableDataset):
         return self._data
 
     # -- Dunder ----------------------------------------------------------- #
-
 
     def __len__(self) -> int:
         """Length of the dataset."""

@@ -27,8 +27,8 @@ How ladder-based panel adjustment works:
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
-from functools import cache
 
 import numpy as np
 from loguru import logger
@@ -46,6 +46,17 @@ if TYPE_CHECKING:
     from dnanet.data.ladders import LadderAlleleCatalog
 
 
+def classmethod_cache(func):
+    """Creates a decorator that preserves a cached classmethod signature."""
+    cached = functools.cache(func)
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return cached(*args, **kwargs)
+
+    return wrapper
+
+
 class Ladder:
     """Calibration ladder for base-pair panel adjustment.
 
@@ -61,9 +72,13 @@ class Ladder:
     """
 
     @classmethod
-    @cache
+    @classmethod_cache
     def create_adjusted_panel(
-        cls, ladder_path: PathLike, catalog: LadderAlleleCatalog
+        cls,
+        ladder_path: PathLike,
+        catalog: LadderAlleleCatalog,
+        data_loading_strategy: str,
+        include_size_standard: bool,
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
 
@@ -72,6 +87,8 @@ class Ladder:
         Args:
             ladder_path: Path to the ladder HID file to use for adjustment
             catalog: The Ladder Catalog that was read from a csv
+            data_loading_strategy: The way the HID file is parsed ('raw', 'analyzed', 'superior')
+            include_size_standard: Whether to include the size standard dye lane
 
         Returns:
             The adjusted panel
@@ -81,12 +98,13 @@ class Ladder:
 
         ladder_image = HIDImage(
             path=ladder_path,
-            data_loading_strategy='analyzed', #TODO do not hardcode these values
-            include_size_standard=True,
+            data_loading_strategy=data_loading_strategy,
+            include_size_standard=include_size_standard,
             load_in_memory=False,
         )
         if ladder_image.data is None:
-            raise ValueError('Ladder is invalid')
+            raise ValueError("Ladder is invalid")
+
         scaling_strategy = StrategyRegistry.get_scaling_strategy()
         num_dyes = scaling_strategy.kit.num_dyes - 1 # exclude size standard
         default_panel = scaling_strategy.panel
