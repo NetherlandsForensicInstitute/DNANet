@@ -36,7 +36,9 @@ predictions_dir: predictions/
 visualize: false
 
 data_transform:
-  _target_: dnanet.data.transformer.CombinedTransformerMetaData
-  threshold: ${model.peak_threshold}
-  window_size: ${model.window_size}
-  include_max_pool_dyes: false
+  _target_: dnanet.data.transformer.AlleleMetadataTransformer
+  transformer:
+    _target_: dnanet.data.transformer.CombinedTransformer
+    threshold: ${model.peak_threshold}
+    window_size: ${model.window_size}
+    include_max_pool_dyes: false

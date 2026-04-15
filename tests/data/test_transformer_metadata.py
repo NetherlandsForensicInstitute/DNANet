@@ -12,7 +12,27 @@ from dnanet.data.image import HIDImage
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
-from dnanet.data.transformer import CombinedTransformerMetaData
+from dnanet.data.transformer import (
+    AlleleMetadataTransformer,
+    CombinedTransformer,
+    SegmentationTransformer,
+)
+
+
+def test_metadata_wrapper_collate_delegates_to_wrapped_transformer():
+    image = HIDImage(path="segmentation.hid", load_in_memory=True)
+    image._data = np.ones((1, 4, 1), dtype=np.float32)
+    image._annotation = ScanpointAnnotation(data=np.zeros((1, 4, 1), dtype=np.int8))
+    image._scaler = np.arange(4)
+
+    transformer = AlleleMetadataTransformer(SegmentationTransformer())
+    sample = transformer(image)
+    inputs, targets, metadata = transformer.collate_fn([sample])
+
+    assert_close(inputs, torch.ones((1, 1, 4, 1), dtype=torch.float32))
+    assert_close(targets, torch.zeros((1, 1, 4, 1), dtype=torch.float32))
+    assert metadata[0]["path"] == image.path
+    assert_close(torch.as_tensor(metadata[0]["scaler"]), torch.arange(4))
 
 
 def test_combined_transformer_metadata_collate_preserves_sample_metadata(monkeypatch):
@@ -42,8 +62,9 @@ def test_combined_transformer_metadata_collate_preserves_sample_metadata(monkeyp
         ),
     )
 
-    sample = CombinedTransformerMetaData(window_size=4)(image)
-    inputs, targets, metadata = CombinedTransformerMetaData.collate_fn([sample])
+    transformer = AlleleMetadataTransformer(CombinedTransformer(window_size=4))
+    sample = transformer(image)
+    inputs, targets, metadata = transformer.collate_fn([sample])
 
     full_images, peak_windows, marker_idxs, peak_centers, peak_counts = inputs
     assert_close(full_images, torch.zeros((1, 1, 8), dtype=torch.float32))

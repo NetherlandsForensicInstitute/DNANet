@@ -54,19 +54,25 @@ class SegmentationTransformer(TransformDataCallable[HIDImage]):
         return x, y
 
 @dataclass
-class SegmentationTransformerMetaData(SegmentationTransformer):
-    def __call__(self, image: HIDImage) -> tuple[torch.Tensor | Tuple, torch.Tensor, dict[str, Any]]:
-        x, y = super().__call__(image)
+class AlleleMetadataTransformer(TransformDataCallable[HIDImage]):
+    transformer: TransformDataCallable[HIDImage]
 
-        return x, y, _allele_metadata_from_image(image)
+    def __call__(
+        self,
+        image: HIDImage,
+    ) -> tuple[torch.Tensor | Tuple, torch.Tensor, dict[str, Any]]:
+        inputs, target = self.transformer(image)
+        return inputs, target, _allele_metadata_from_image(image)
 
-    @staticmethod
     def collate_fn(
+        self,
         batch: list[tuple[torch.Tensor | Tuple, torch.Tensor, dict[str, Any]]],
-    ) -> tuple[torch.Tensor, torch.Tensor, list[dict[str, Any]]]:
-        xs, ys, metadata = zip(*batch, strict=True)
+    ) -> tuple[torch.Tensor | Tuple, torch.Tensor, list[dict[str, Any]]]:
+        inputs_and_targets = [(inputs, target) for inputs, target, _metadata in batch]
+        metadata = [metadata for _inputs, _target, metadata in batch]
+        inputs, targets = self.transformer.collate_fn(inputs_and_targets)
 
-        return torch.stack(xs), torch.stack(ys), list(metadata)
+        return inputs, targets, metadata
 
 
 @dataclass
@@ -139,35 +145,6 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         new_inputs = (full_images, peak_windows, marker_idxs, peak_centers, peak_counts)
         return new_inputs, targets
 
-@dataclass
-class CombinedTransformerMetaData(CombinedTransformer):
-    def __call__(
-        self,
-        image: HIDImage,
-    ) -> tuple[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int], torch.Tensor, dict[str, Any]]:
-        inputs, target = super().__call__(image)
-
-        return inputs, target, _allele_metadata_from_image(image)
-
-    @staticmethod
-    def collate_fn(
-        batch: list[
-            tuple[
-                tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int],
-                torch.Tensor,
-                dict[str, Any],
-            ]
-        ],
-    ) -> tuple[
-        tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
-        torch.Tensor,
-        list[dict[str, Any]],
-    ]:
-        inputs_and_targets = [(inputs, target) for inputs, target, _metadata in batch]
-        metadata = [metadata for _inputs, _target, metadata in batch]
-        inputs, targets = CombinedTransformer.collate_fn(inputs_and_targets)
-
-        return inputs, targets, metadata
 
 @dataclass
 class ReconstructionTransformer(TransformDataCallable[HIDImage]):
