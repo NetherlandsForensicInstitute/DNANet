@@ -13,26 +13,23 @@ from __future__ import annotations
 import csv
 import os
 import re
-from collections import Counter
+from collections import defaultdict
 from itertools import groupby
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator, Sequence
+from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
 
 from loguru import logger
-from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     StratifiedKFold,
     train_test_split,
 )
-from torch.utils.data import Subset, Dataset
+from torch.utils.data import Subset
 
 from dnanet.core.allele import Allele
 from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.datasets.dataset import  FileCategory, DatasetStrategy
-
-
+from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
@@ -47,12 +44,25 @@ class NFIRnDStrategy(DatasetStrategy):
     # R&D filename pattern: digit + letter + digit (e.g. "1A2")
     _RD_PREFIX_RE = re.compile(r'^\d[A-F]\d')
 
-    @classmethod
+    _DONORS_PER_DATASET_NR = {'1': ['A', 'B', 'C', 'D', 'E'],
+                             '2': ['F', 'G', 'H', 'I', 'J'],
+                             '3': ['K', 'L', 'M', 'N', 'O'],
+                             '4': ['P', 'Q', 'R', 'S', 'T'],
+                             '5': ['U', 'V', 'W', 'X', 'Y'],
+                             '6': ['Z', 'AA', 'AB', 'AC', 'AD'],
+                             }
+
+    def __init__(self, annotation_type: str):
+        """Initialize the NFI R&D dataset strategy."""
+        self.annotation_type = annotation_type
+
+        assert annotation_type in ['DTH', 'DTL', 'ground_truth'], f'Invalid annotation type: {annotation_type}'
+
+
     def collect_dataset_files(
-        cls,
+        self,
         root_path: PathLike,
         scaling_strategy: ScalingStrategy,
-        analysis_treshold_type: str = 'DTH',
         **kwargs
     ) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
         """Collect the dataset files for this specific dataset strategy.
@@ -63,21 +73,45 @@ class NFIRnDStrategy(DatasetStrategy):
         Args:
             root_path: The path to the root of this dataset
             scaling_strategy: The scaling strategy to use for the annotations.
-            analysis_treshold_type: Whether to take annotations that were made with high (DTH) or low (DTL) analytical tresholds.
         """
         path = Path(root_path)
-        csv_files = list(path.rglob('*.csv'))
 
-        hid_to_annotation_path = list(path.rglob('*hid_to_annotation*'))
         hid_to_ladder_path = list(path.rglob('*best_ladder_paths*'))
-        if not hid_to_annotation_path or not hid_to_ladder_path:
+        if not hid_to_ladder_path:
             raise ValueError(
-                'Path does not contain the neccessary mapping files (annotation & ladder)'
+                'Path does not contain the necessary ladder mapping files ladder'
             )
 
-        # Allele Report for Annotations
+        # find all HID files
+        hid_files = list(path.rglob('*.hid'))
+        hid_file_samples = list(filter(lambda x: self.categorize_file(x.name) == 'sample', hid_files))
+
+        # load and parse annotations
+        if self.annotation_type == 'DTH' or self.annotation_type == 'DTL':
+            hid_to_annotation = self._parse_analyst_annotation(path, self.annotation_type, scaling_strategy)
+        elif self.annotation_type == 'ground_truth':
+            hid_to_annotation = self._parse_ground_truth_annotation(path, hid_file_samples, scaling_strategy)
+        else:
+            raise ValueError(f'Invalid annotation type: {self.annotation_type}')
+
+        # Hid to Ladder mapping
+        _, htl_values = self._read_csv_file(hid_to_ladder_path)
+        hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
+
+        # collect all files
+        for hid_file in hid_file_samples:
+            yield (
+                hid_file,
+                hid_to_annotation.get(str(hid_file.stem)),
+                hid_to_ladder.get(hid_file.stem),
+            )
+
+    @classmethod
+    def _parse_analyst_annotation(cls, path: Path, annotation_type: str, scaling_strategy: ScalingStrategy) -> dict[str, AlleleAnnotation | None]:
+        hid_to_annotation_path = list(path.rglob('*hid_to_annotation*'))
+
         annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
-        annotation_name_to_annotation: Dict[str, Annotation] = {}
+        annotation_name_to_annotation: Dict[str, AlleleAnnotation] = {}
         for txt_file in annotation_txt_files:
             _annotation = cls.parse_annotations(txt_file, scaling_strategy)
 
@@ -87,7 +121,7 @@ class NFIRnDStrategy(DatasetStrategy):
         # HID to Annotation mapping
         hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
         analysis_treshold_type_column = [
-            i for i, head in enumerate(hta_header) if analysis_treshold_type in head
+            i for i, head in enumerate(hta_header) if annotation_type in head
         ]
         if len(analysis_treshold_type_column) != 1:
             raise RuntimeError(
@@ -102,20 +136,44 @@ class NFIRnDStrategy(DatasetStrategy):
                 for v in hta_values
             ]
         )
+        return hid_to_annotation
 
-        # Hid to Ladder mapping
-        _, htl_values = cls._read_csv_file(hid_to_ladder_path)
-        hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
+    @classmethod
+    def _parse_ground_truth_annotation(cls, path: Path, hid_files: List[Path], scaling_strategy: ScalingStrategy) -> dict[str, AlleleAnnotation]:
 
-        hid_files = list(path.rglob('*.hid'))
-        hid_file_samples = list(filter(lambda x: cls.categorize_file(x.name) == 'sample', hid_files))
+        marker_to_dye = scaling_strategy.marker_name_to_dye_idx()
+        annotation_dict: Dict[str, AlleleAnnotation] = {}
 
-        for hid_file in hid_file_samples:
-            yield (
-                hid_file,
-                hid_to_annotation.get(str(hid_file.stem)),
-                hid_to_ladder.get(hid_file.stem),
-            )
+        for hid_file in hid_files:
+            prefix = hid_file.stem.split("_")[0]  # take '1A2'
+            dataset_nr, nr_donors = prefix[0], int(prefix[2])
+            # one file contains alleles of one donor, so find files for all donors of the profile
+            file_stems = [f"{dataset_nr}{letter}" for letter in
+                          cls._DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
+
+            # find the set of all alleles of the donors per marker
+            marker_allele_strings = defaultdict(set)
+            for file_stem in file_stems:
+                reference_profiles_path = os.path.join(f'{path}', 'References', f'{file_stem}.csv')
+                with open(reference_profiles_path, "r") as f:
+                    reader = csv.DictReader(f, delimiter=";")
+                    for row in reader:
+                        marker_allele_strings[row['Marker']].update([row['Allele1'], row['Allele2']])
+
+            # convert the set of alleles to a list of Marker and Allele objects
+
+            marker_list = [Marker(
+                name=str(marker),
+                dye_row=marker_to_dye[str(marker)],
+                alleles=frozenset(Allele(name=allele) for allele in alleles),
+                ) for marker, alleles in marker_allele_strings.items()]
+
+            # add the Marker list to the annotation dict
+            annotation_dict[hid_file.stem] = AlleleAnnotation(marker_list)
+
+        return annotation_dict
+
+
 
     @classmethod
     def categorize_file(cls, file_name: str) -> FileCategory:

@@ -81,7 +81,6 @@ class HIDDataset(Dataset, TransformableDataset):
         root: PathLike,
         scaling_strategy: ScalingStrategy,
         dataset_strategy: DatasetStrategy,
-        analysis_threshold_type: str = 'DTH',
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
         skip_if_invalid_ladder: bool = False,
@@ -93,7 +92,6 @@ class HIDDataset(Dataset, TransformableDataset):
         super().__init__()
 
         self.root = Path(root)
-        self.analysis_threshold_type = analysis_threshold_type
         self.adjustment_of_annotations = adjustment_of_annotations
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.include_size_standard = include_size_standard

@@ -7,7 +7,6 @@ dataset:
   root: resources/data/2p_5p_Dataset_NFI
   scaling_strategy: ${data.scaling_strategy}
   dataset_strategy: ${data.dataset_strategy}
-  analysis_threshold_type: DTH  # DTH (high) or DTL (low)
   limit: null  # Set to integer to limit number of loaded images
   skip_if_invalid_ladder: true
   include_size_standard: true
@@ -28,3 +27,4 @@ scaling_strategy:
 # dataset strategy
 dataset_strategy:
   _target_: dnanet.data.strategies.datasets.NFIRnDStrategy
+  annotation_type: ground_truth # DTH (analyst high threshold), or DTL (analyst low threshold), or ground_truth
