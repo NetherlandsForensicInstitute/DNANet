@@ -20,6 +20,7 @@ from torchmetrics.regression import MeanSquaredError
 from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
+from dnanet.data.strategies import PowerPlexFusion6CStrategy, GlobalFilerStrategy
 from dnanet.data.strategies.registry import StrategyRegistry
 
 
@@ -144,23 +145,19 @@ def evaluation_pixel_metrics_cfg() -> dict[str, object]:
 
 
 # ---------------------------------------------------------------------------
-# Strategy fixtures (configure global kit strategy for integration tests)
+# Strategy fixtures
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
 def ppf6c_kit():
-    """Configure the PPF6C scaling strategy globally."""
-    StrategyRegistry.configure_kit("PPF6C")
-    yield
-    StrategyRegistry.reset()
+    """Return the PPF6C scaling strategy."""
+    return PowerPlexFusion6CStrategy()
 
 
 @pytest.fixture
 def globalfiler_kit():
-    """Configure the GlobalFiler scaling strategy globally."""
-    StrategyRegistry.configure_kit("GLOBALFILER")
-    yield
-    StrategyRegistry.reset()
+    """Return the GlobalFiler scaling strategy."""
+    return GlobalFilerStrategy()
 
 
 # ---------------------------------------------------------------------------
@@ -169,19 +166,17 @@ def globalfiler_kit():
 
 @pytest.fixture
 def nfi_rnd_kit():
-    """Configure PPF6C kit + NFI_RND dataset strategy."""
-    StrategyRegistry.configure_kit("PPF6C")
+    """Configure the NFI_RND dataset strategy and return PPF6C scaling."""
     StrategyRegistry.configure_dataset("NFI_RND")
-    yield
+    yield PowerPlexFusion6CStrategy()
     StrategyRegistry.reset()
 
 
 @pytest.fixture
 def globalfiler_provedit():
-    """Configure GlobalFiler kit + PROVEDIT dataset strategy."""
-    StrategyRegistry.configure_kit("GLOBALFILER")
+    """Configure the PROVEDIT dataset strategy and return GlobalFiler scaling."""
     StrategyRegistry.configure_dataset("PROVEDIT")
-    yield
+    yield GlobalFilerStrategy()
     StrategyRegistry.reset()
 
 

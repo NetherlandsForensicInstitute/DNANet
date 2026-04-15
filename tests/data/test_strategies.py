@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from dnanet.data.strategies.scaling import get_scaling_strategy
+from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 from dnanet.data.strategies.scaling.size_standard import WEN_ILS, GENESCAN_600_LIZ
@@ -45,23 +45,16 @@ class TestStrategyRegistry:
         StrategyRegistry.reset()
 
     def test_unconfigured_raises(self):
-        with pytest.raises(RuntimeError, match='No scaling strategy'):
-            StrategyRegistry.get_scaling_strategy()
+        with pytest.raises(RuntimeError, match='No dataset strategy'):
+            StrategyRegistry.get_dataset_strategy()
 
     def test_configure_by_string(self):
-        # This will fail if panel files aren't present, which is expected
-        # in a unit test without resources. Test the registry logic instead.
-        StrategyRegistry.reset()
-        with pytest.raises(RuntimeError):
-            StrategyRegistry.get_scaling_strategy()
+        StrategyRegistry.configure_dataset('NFI_RND')
+        assert StrategyRegistry.get_dataset_strategy() is NFIRnDStrategy
 
     def test_reset(self):
+        StrategyRegistry.configure_dataset('NFI_RND')
         StrategyRegistry.reset()
-        with pytest.raises(RuntimeError):
-            StrategyRegistry.get_scaling_strategy()
+        with pytest.raises(RuntimeError, match='No dataset strategy'):
+            StrategyRegistry.get_dataset_strategy()
 
-
-class TestGetScalingStrategy:
-    def test_unknown_raises(self):
-        with pytest.raises(ValueError, match='Unknown scaling strategy'):
-            get_scaling_strategy('NONEXISTENT')

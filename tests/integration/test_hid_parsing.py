@@ -3,9 +3,10 @@
 import numpy as np
 import pytest
 
-from tests.conftest import RD_DIR
 from dnanet.data.parsing.hid import parse_hid, get_peak_data
+from dnanet.data.strategies import PowerPlexFusion6CStrategy
 from dnanet.data.strategies.registry import StrategyRegistry
+from tests.conftest import RD_DIR
 
 
 class TestParseHID:
@@ -37,26 +38,26 @@ class TestGetPeakData:
     @pytest.fixture(autouse=True)
     def set_strategies(self):
         StrategyRegistry.configure_dataset('NFI_RND')
-        StrategyRegistry.configure_kit('PPF6C')
+        self.scaling = PowerPlexFusion6CStrategy()
         yield
         StrategyRegistry.reset()
 
     def test_raw_strategy(self):
         """Raw strategy should return 6 dye channels."""
-        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', data_loading_strategy='raw')
+        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='raw')
         assert data is not None
         assert data.shape[0] == 6  # 5 dyes + 1 size standard
         assert data.dtype == np.int16
 
     def test_analyzed_strategy(self):
         """Analyzed strategy should also return 6 channels."""
-        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', data_loading_strategy='analyzed')
+        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='analyzed')
         assert data is not None
         assert data.shape[0] == 6
 
     def test_superior_strategy(self):
         """Superior strategy applies baseline subtraction."""
-        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', data_loading_strategy='superior')
+        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='superior')
         assert data is not None
         assert data.shape[0] == 6
         assert data.dtype == np.int16
@@ -67,14 +68,11 @@ class TestGetPeakData:
         The reference .npy was saved from the original DNANet pipeline (parse +
         baseline + rescale to 4096). We reproduce the full pipeline here.
         """
-        from dnanet.data.strategies.registry import StrategyRegistry
-
-        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', data_loading_strategy='superior')
+        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', ppf6c_kit, data_loading_strategy='superior')
         assert data is not None
 
         # Rescale through size standard (same as HIDImage._load)
-        scaling = StrategyRegistry.get_scaling_strategy()
-        ss_result = scaling.parse_size_standard(np.array(data[-1]))
+        ss_result = ppf6c_kit.parse_size_standard(np.array(data[-1]))
         assert ss_result is not None
         rescaled = data[:5, ss_result.rescaled_indices]  # 5 analysis dyes
 
@@ -86,11 +84,11 @@ class TestGetPeakData:
 
     def test_invalid_strategy_raises(self):
         with pytest.raises(ValueError, match='strategy must be'):
-            get_peak_data(RD_DIR / '1A2_A01_01.hid', data_loading_strategy='invalid')
+            get_peak_data(RD_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='invalid')
 
     def test_ladder_has_data(self):
         """Ladder files should also parse successfully."""
-        data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', data_loading_strategy='raw')
+        data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', self.scaling, data_loading_strategy='raw')
         assert data is not None
         assert data.shape[0] == 6
         # Size standard (last channel) should have signal
@@ -98,6 +96,6 @@ class TestGetPeakData:
 
     def test_second_sample_parses(self):
         """1A2_E01_13.hid should also parse."""
-        data = get_peak_data(RD_DIR / '1A2_E01_13.hid', data_loading_strategy='superior')
+        data = get_peak_data(RD_DIR / '1A2_E01_13.hid', self.scaling, data_loading_strategy='superior')
         assert data is not None
         assert data.shape[0] == 6

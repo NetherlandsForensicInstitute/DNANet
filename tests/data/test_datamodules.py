@@ -14,6 +14,7 @@ from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
 from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.image import HIDImage
+from dnanet.data.strategies import PowerPlexFusion6CStrategy
 from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.transformer import (
     CombinedTransformer,
@@ -58,7 +59,12 @@ def _make_fake_image(
     with_annotation: bool = True,
     peak_count: int = 3,
 ) -> HIDImage:
-    img = HIDImage(path=name, load_in_memory=True, meta={"peak_count": peak_count})
+    img = HIDImage(
+        path=name,
+        scaling_strategy=PowerPlexFusion6CStrategy(),
+        load_in_memory=True,
+        meta={"peak_count": peak_count},
+    )
     img._data = (np.random.rand(num_dyes, signal_length, 1) * 100).astype(np.float32)
     if with_annotation:
         mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
@@ -82,14 +88,12 @@ def _make_mock_peaks(n: int = 8) -> list[ExtractedPeak]:
         for i in range(n)
     ]
 
+@pytest.fixture
+def ppf6c() -> PowerPlexFusion6CStrategy:
+    return PowerPlexFusion6CStrategy()
 
 @pytest.fixture
 def configured_peak_registry(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        StrategyRegistry,
-        "_scaling_strategy",
-        SimpleNamespace(marker_to_idx={"D3S1358": 7}),
-    )
     monkeypatch.setattr(
         StrategyRegistry,
         "_dataset_strategy",
@@ -99,8 +103,14 @@ def configured_peak_registry(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def fake_peak_extractor(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _extract_peaks_torch(image, device, threshold, window_size, include_max_pool_dyes):
-        del device, threshold
+    def _extract_peaks_torch(
+        image,
+        scaling_strategy,
+        threshold,
+        window_size,
+        include_max_pool_dyes,
+    ):
+        del scaling_strategy, threshold
         peak_count = image.meta["peak_count"]
         channels = 2 if include_max_pool_dyes else 1
         peak_windows = torch.randn(peak_count, channels, window_size)
@@ -118,11 +128,15 @@ class TestPeakClassificationTransformer:
     @pytest.mark.usefixtures("configured_peak_registry")
     def test_datamodule_batches_marker_and_target_tensors(
         self,
+        ppf6c,
     ) -> None:
         peaks = _make_mock_peaks(10)
         dataset = SplitPreservingDataset(
             peaks,
-            transform=PeakClassificationTransformer(include_marker=True),
+            transform=PeakClassificationTransformer(
+                scaling_strategy=ppf6c,
+                include_marker=True,
+            ),
         )
         dm = DNANetDataModule(dataset, batch_size=4, val_fraction=0.2, seed=42)
         dm.setup("fit")
@@ -139,11 +153,15 @@ class TestPeakClassificationTransformer:
     @pytest.mark.usefixtures("configured_peak_registry")
     def test_datamodule_batches_negative_marker_when_disabled(
         self,
+        ppf6c,
     ) -> None:
         peaks = _make_mock_peaks(10)
         dataset = SplitPreservingDataset(
             peaks,
-            transform=PeakClassificationTransformer(include_marker=False),
+            transform=PeakClassificationTransformer(
+                scaling_strategy=ppf6c,
+                include_marker=False,
+            ),
         )
         dm = DNANetDataModule(dataset, batch_size=4, val_fraction=0.2, seed=42)
         dm.setup("fit")
@@ -181,7 +199,7 @@ class TestCombinedTransformer:
         ]
         dataset = SplitPreservingDataset(
             images,
-            transform=CombinedTransformer(device="cpu", window_size=120),
+            transform=CombinedTransformer(window_size=120),
         )
         dm = DNANetDataModule(dataset, batch_size=2, val_fraction=0.2, seed=42)
         dm.setup("fit")

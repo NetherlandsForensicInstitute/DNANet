@@ -13,6 +13,7 @@ from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
 from dnanet.data.image import HIDImage
 from dnanet.data.transformer import SegmentationTransformer
+from tests.data.test_caching import ppf6c
 
 
 class SplitPreservingDataset(Dataset):
@@ -50,7 +51,11 @@ def _make_fake_image(
     signal_length: int = 100,
     with_annotation: bool = True,
 ) -> HIDImage:
-    img = HIDImage(path=name, load_in_memory=True)
+    img = HIDImage(
+        path=name,
+        scaling_strategy=ppf6c,
+        load_in_memory=True,
+    )
     img._data = np.random.rand(num_dyes, signal_length, 1).astype(np.float32)
     if with_annotation:
         mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
@@ -87,7 +92,7 @@ class TestDNANetDataModule:
         dm.setup("fit")
         x, y = next(iter(dm.train_dataloader()))
         assert x.shape[0] <= 4
-        assert x.shape[1:] == (1, 5, 100)
+        assert x.shape[1:] == (5, 100, 1)
         assert y.shape == x.shape
 
     def test_segmentation_transform_zeros_targets_without_annotations(

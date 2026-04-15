@@ -24,7 +24,6 @@ Design pattern: **Registry**
 from dnanet.data.strategies.scaling import (
     WEN_ILS,
     GENESCAN_600_LIZ,
-    SCALING_STRATEGIES,
     SYNTHETIC_GENESCAN_600_LIZ,
     STRKit,
     PowerplexY23,
@@ -33,7 +32,6 @@ from dnanet.data.strategies.scaling import (
     GlobalFilerStrategy,
     SizeStandardParseResult,
     PowerPlexFusion6CStrategy,
-    get_scaling_strategy,
 )
 from dnanet.data.strategies.datasets import (
     DATASET_STRATEGIES,
@@ -53,7 +51,6 @@ __all__ = [
     "NFIRnDStrategy",
     "ProvedItStrategy",
     "get_dataset_strategy",
-    "SCALING_STRATEGIES",
     "STRKit",
     "SizeStandard",
     "WEN_ILS",
@@ -64,6 +61,5 @@ __all__ = [
     "PowerplexY23",
     "ScalingStrategy",
     "SizeStandardParseResult",
-    "get_scaling_strategy",
     "StrategyRegistry",
 ]

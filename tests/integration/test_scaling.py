@@ -5,13 +5,11 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from dnanet.data.parsing.hid import get_peak_data
-from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
+from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
 from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
 )
-from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
-from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
-
 from tests.conftest import RD_DIR
 
 
@@ -20,13 +18,11 @@ class TestPPF6CSizeStandard:
 
     @pytest.fixture
     def ppf6c(self):
-        StrategyRegistry.configure_kit("PPF6C")
-        yield StrategyRegistry.get_scaling_strategy()
-        StrategyRegistry.reset()
+        return PowerPlexFusion6CStrategy()
 
     def test_parse_size_standard_from_ladder(self, ppf6c):
         """Size standard parsing should succeed on a real ladder file."""
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", data_loading_strategy="raw")
+        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", ppf6c, data_loading_strategy="raw")
         assert data is not None
 
         ss_lane = np.array(data[-1])
@@ -41,7 +37,7 @@ class TestPPF6CSizeStandard:
         Due to discrete pixel→bp mapping, adjacent positions can have the
         same bp value, so we check >= rather than strictly >.
         """
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", data_loading_strategy="raw")
+        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", ppf6c, data_loading_strategy="raw")
         result = ppf6c.parse_size_standard(np.array(data[-1]))
         assert result is not None
 
@@ -51,7 +47,7 @@ class TestPPF6CSizeStandard:
 
     def test_scaler_range(self, ppf6c):
         """Scaler should cover approximately 65-475 bp for PPF6C."""
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", data_loading_strategy="raw")
+        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", ppf6c, data_loading_strategy="raw")
         result = ppf6c.parse_size_standard(np.array(data[-1]))
         assert result is not None
 
@@ -64,7 +60,7 @@ class TestPPF6CSizeStandard:
 
         Reference values from original DNANet test_utils.py.
         """
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", data_loading_strategy="analyzed")
+        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", ppf6c, data_loading_strategy="analyzed")
         assert data is not None
         ss_lane = data[-1]
 
@@ -82,7 +78,7 @@ class TestPPF6CSizeStandard:
 
         From original test: zero out signal after 8200 but keep final peak at 150rfu.
         """
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", data_loading_strategy="analyzed")
+        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", ppf6c, data_loading_strategy="analyzed")
         assert data is not None
         ss_lane = data[-1].copy()
 
@@ -108,10 +104,9 @@ class TestPPF6CSizeStandard:
         assert mapping["FGA"] == 4
         assert len(mapping) == 27
 
-    def test_dye_channel_colors(self, ppf6c):
-        """Should return 6 colors (5 dyes + size standard)."""
-        colors = ppf6c.dye_channel_colors()
-        assert len(colors) == 6
+    def test_kit_num_dyes_includes_size_standard(self, ppf6c):
+        """Kit metadata should include 5 dyes plus the size-standard channel."""
+        assert ppf6c.kit.num_dyes == 6
 
 
 class TestGlobalFilerAttemptFit:
