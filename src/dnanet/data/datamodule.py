@@ -77,12 +77,15 @@ class DNANetDataModule(L.LightningDataModule):
                 seed=self.seed,
             )
             self._test_dataset = test_data
-        else:
+        elif self.val_fraction > 0.0:
             train_data, val_data = strategy.split(
                 self._dataset,
                 fraction=train_fraction,
                 seed=self.seed,
             )
+        else:
+            train_data = self._dataset
+            val_data = None
 
         self._train_dataset = train_data
         self._val_dataset = val_data
