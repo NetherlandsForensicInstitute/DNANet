@@ -1,5 +1,7 @@
 """Tests for RFU outcome collection and later F1 binning."""
 
+import csv
+
 import numpy as np
 import torch
 import pytest
@@ -7,8 +9,12 @@ import pytest
 from dnanet.evaluation.metrics.per_RFU import (
     PerRFUOutcomeMetric,
     compute_binned_f1,
+    load_rfu_outcome_csv,
     load_rfu_outcome_npz,
+    write_rfu_outcome_csv,
     write_rfu_outcome_npz,
+    write_rfu_outcome_file,
+    compute_binned_f1_from_csv,
     compute_binned_f1_from_npz,
 )
 
@@ -63,6 +69,49 @@ def test_rfu_outcome_npz_round_trip(tmp_path):
     assert loaded["fn_rfus"].tolist() == pytest.approx([30.0])
 
 
+def test_rfu_outcome_csv_round_trip(tmp_path):
+    path = tmp_path / "per_rfu_outcomes.csv"
+    outcomes = {
+        "tp_rfus": torch.tensor([10.0, 11.0]),
+        "fp_rfus": torch.tensor([20.0]),
+        "fn_rfus": torch.tensor([30.0]),
+    }
+
+    write_rfu_outcome_csv(path, outcomes)
+
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert rows == [
+        {"outcome": "tp", "rfu": "10"},
+        {"outcome": "tp", "rfu": "11"},
+        {"outcome": "fp", "rfu": "20"},
+        {"outcome": "fn", "rfu": "30"},
+    ]
+
+    loaded = load_rfu_outcome_csv(path)
+    assert loaded["tp_rfus"].tolist() == pytest.approx([10.0, 11.0])
+    assert loaded["fp_rfus"].tolist() == pytest.approx([20.0])
+    assert loaded["fn_rfus"].tolist() == pytest.approx([30.0])
+
+
+def test_write_rfu_outcome_file_dispatches_by_extension(tmp_path):
+    outcomes = {
+        "tp_rfus": [10.0],
+        "fp_rfus": [20.0],
+        "fn_rfus": [30.0],
+    }
+
+    npz_path = write_rfu_outcome_file(tmp_path / "outcomes.npz", outcomes)
+    csv_path = write_rfu_outcome_file(tmp_path / "outcomes.csv", outcomes)
+
+    assert npz_path.exists()
+    assert csv_path.exists()
+
+    with pytest.raises(ValueError, match="must end with"):
+        write_rfu_outcome_file(tmp_path / "outcomes.txt", outcomes)
+
+
 def test_compute_binned_f1_from_saved_outcomes(tmp_path):
     path = tmp_path / "per_rfu_outcomes.npz"
     write_rfu_outcome_npz(
@@ -99,3 +148,20 @@ def test_compute_binned_f1_from_saved_outcomes(tmp_path):
         "recall": pytest.approx(0.5),
         "f1": pytest.approx(2 / 3),
     }
+
+
+def test_compute_binned_f1_from_saved_csv_outcomes(tmp_path):
+    path = tmp_path / "per_rfu_outcomes.csv"
+    write_rfu_outcome_csv(
+        path,
+        {
+            "tp_rfus": [10.0, 110.0],
+            "fp_rfus": [20.0],
+            "fn_rfus": [120.0],
+        },
+    )
+
+    assert compute_binned_f1_from_csv(path, [0.0, 100.0, 200.0]) == compute_binned_f1(
+        load_rfu_outcome_csv(path),
+        [0.0, 100.0, 200.0],
+    )

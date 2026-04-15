@@ -12,7 +12,7 @@ from lightning import Callback
 
 from dnanet.core.annotation import AlleleAnnotation
 from dnanet.evaluation.metrics.allele import AlleleRecall, AlleleF1Score, AllelePrecision
-from dnanet.evaluation.metrics.per_RFU import PerRFUOutcomeMetric, write_rfu_outcome_npz
+from dnanet.evaluation.metrics.per_RFU import PerRFUOutcomeMetric, write_rfu_outcome_file
 
 
 if TYPE_CHECKING:
@@ -159,7 +159,7 @@ class PerRFUOutcomeCallback(Callback):
     def on_test_epoch_start(self, trainer: L.Trainer, pl_module: L.LightningModule) -> None:
         """Reset RFU outcome state before a test epoch starts."""
         del trainer, pl_module
-        logger.warning("Per-RFU outcome logging may create large NPZ files.")
+        logger.warning("Per-RFU outcome logging may create large output files.")
         self.metric.reset()
 
     def on_test_batch_end(
@@ -208,7 +208,7 @@ class PerRFUOutcomeCallback(Callback):
         outcomes = self.metric.compute()
 
         if getattr(trainer, "is_global_zero", True):
-            write_rfu_outcome_npz(self._output_path(trainer), outcomes)
+            write_rfu_outcome_file(self._output_path(trainer), outcomes)
 
         self.metric.reset()
 
