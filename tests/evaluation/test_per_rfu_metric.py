@@ -1,18 +1,15 @@
 """Tests for RFU outcome collection and later F1 binning."""
 
-from __future__ import annotations
-
-import csv
-
+import numpy as np
 import torch
 import pytest
 
 from dnanet.evaluation.metrics.per_RFU import (
     PerRFUOutcomeMetric,
     compute_binned_f1,
-    load_rfu_outcome_csv,
-    write_rfu_outcome_csv,
-    compute_binned_f1_from_csv,
+    load_rfu_outcome_npz,
+    write_rfu_outcome_npz,
+    compute_binned_f1_from_npz,
 )
 
 
@@ -45,35 +42,30 @@ def test_per_rfu_metric_uses_configured_threshold():
     assert outcomes["fn_rfus"].tolist() == pytest.approx([100.0])
 
 
-def test_rfu_outcome_csv_round_trip(tmp_path):
-    path = tmp_path / "per_rfu_outcomes.csv"
+def test_rfu_outcome_npz_round_trip(tmp_path):
+    path = tmp_path / "per_rfu_outcomes.npz"
     outcomes = {
         "tp_rfus": torch.tensor([10.0, 11.0]),
         "fp_rfus": torch.tensor([20.0]),
         "fn_rfus": torch.tensor([30.0]),
     }
 
-    write_rfu_outcome_csv(path, outcomes)
+    write_rfu_outcome_npz(path, outcomes)
 
-    with path.open(newline="", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
+    with np.load(path) as data:
+        assert data["tp_rfus"].tolist() == pytest.approx([10.0, 11.0])
+        assert data["fp_rfus"].tolist() == pytest.approx([20.0])
+        assert data["fn_rfus"].tolist() == pytest.approx([30.0])
 
-    assert rows == [
-        {"outcome": "tp", "rfu": "10"},
-        {"outcome": "tp", "rfu": "11"},
-        {"outcome": "fp", "rfu": "20"},
-        {"outcome": "fn", "rfu": "30"},
-    ]
-
-    loaded = load_rfu_outcome_csv(path)
+    loaded = load_rfu_outcome_npz(path)
     assert loaded["tp_rfus"].tolist() == pytest.approx([10.0, 11.0])
     assert loaded["fp_rfus"].tolist() == pytest.approx([20.0])
     assert loaded["fn_rfus"].tolist() == pytest.approx([30.0])
 
 
 def test_compute_binned_f1_from_saved_outcomes(tmp_path):
-    path = tmp_path / "per_rfu_outcomes.csv"
-    write_rfu_outcome_csv(
+    path = tmp_path / "per_rfu_outcomes.npz"
+    write_rfu_outcome_npz(
         path,
         {
             "tp_rfus": [10.0, 110.0],
@@ -82,9 +74,9 @@ def test_compute_binned_f1_from_saved_outcomes(tmp_path):
         },
     )
 
-    rows = compute_binned_f1_from_csv(path, [0.0, 100.0, 200.0])
+    rows = compute_binned_f1_from_npz(path, [0.0, 100.0, 200.0])
 
-    assert rows == compute_binned_f1(load_rfu_outcome_csv(path), [0.0, 100.0, 200.0])
+    assert rows == compute_binned_f1(load_rfu_outcome_npz(path), [0.0, 100.0, 200.0])
     assert rows[0] == {
         "bin_left": 0.0,
         "bin_right": 100.0,

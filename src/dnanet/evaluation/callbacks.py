@@ -7,11 +7,12 @@ from pathlib import Path
 from collections.abc import Mapping, Sequence
 
 import numpy as np
+from loguru import logger
 from lightning import Callback
 
 from dnanet.core.annotation import AlleleAnnotation
 from dnanet.evaluation.metrics.allele import AlleleRecall, AlleleF1Score, AllelePrecision
-from dnanet.evaluation.metrics.per_RFU import PerRFUOutcomeMetric, write_rfu_outcome_csv
+from dnanet.evaluation.metrics.per_RFU import PerRFUOutcomeMetric, write_rfu_outcome_npz
 
 
 if TYPE_CHECKING:
@@ -148,7 +149,7 @@ class PerRFUOutcomeCallback(Callback):
     def __init__(
         self,
         threshold: float = 0.5,
-        filename: str = "per_rfu_outcomes.csv",
+        filename: str = "per_rfu_outcomes.npz",
         metric: PerRFUOutcomeMetric | None = None,
     ) -> None:
         """Initialize the RFU outcome callback."""
@@ -158,6 +159,7 @@ class PerRFUOutcomeCallback(Callback):
     def on_test_epoch_start(self, trainer: L.Trainer, pl_module: L.LightningModule) -> None:
         """Reset RFU outcome state before a test epoch starts."""
         del trainer, pl_module
+        logger.warning("Per-RFU outcome logging may create large NPZ files.")
         self.metric.reset()
 
     def on_test_batch_end(
@@ -201,12 +203,12 @@ class PerRFUOutcomeCallback(Callback):
             )
 
     def on_test_epoch_end(self, trainer: L.Trainer, pl_module: L.LightningModule) -> None:
-        """Write compact RFU outcome CSV at the end of testing."""
+        """Write RFU outcome NPZ at the end of testing."""
         del pl_module
         outcomes = self.metric.compute()
 
         if getattr(trainer, "is_global_zero", True):
-            write_rfu_outcome_csv(self._output_path(trainer), outcomes)
+            write_rfu_outcome_npz(self._output_path(trainer), outcomes)
 
         self.metric.reset()
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 from typing import TYPE_CHECKING
 from pathlib import Path
 
@@ -73,47 +72,42 @@ class PerRFUOutcomeMetric(Metric):
             "fn_rfus": _cat_tensors(self.fn_rfus, device=self.device),
         }
 
-    def write_csv(self, path: str | Path) -> Path:
-        """Write accumulated outcomes as a compact two-column CSV."""
-        return write_rfu_outcome_csv(path, self.compute())
+    def write_npz(self, path: str | Path) -> Path:
+        """Write accumulated outcomes as a compressed NPZ archive."""
+        return write_rfu_outcome_npz(path, self.compute())
 
 
-
-
-def write_rfu_outcome_csv(
+def write_rfu_outcome_npz(
     path: str | Path,
     outcomes: Mapping[str, Tensor | np.ndarray | Sequence[float] | Sequence[Tensor]],
 ) -> Path:
-    """Write RFU outcomes as ``outcome,rfu`` rows."""
+    """Write RFU outcomes as a compressed NPZ archive."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with output_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(("outcome", "rfu"))
-        for outcome in RFU_OUTCOMES:
-            for rfu in _outcome_array(outcomes, outcome):
-                writer.writerow((outcome, f"{rfu:g}"))
+    with output_path.open("wb") as handle:
+        np.savez_compressed(
+            handle,
+            **{
+                f"{outcome}_rfus": _outcome_array(outcomes, outcome)
+                for outcome in RFU_OUTCOMES
+            },
+        )
 
     return output_path
 
 
-def load_rfu_outcome_csv(path: str | Path) -> dict[str, np.ndarray]:
-    """Load an RFU outcome CSV written by :func:`write_rfu_outcome_csv`."""
-    values: dict[str, list[float]] = {f"{outcome}_rfus": [] for outcome in RFU_OUTCOMES}
+def load_rfu_outcome_npz(path: str | Path) -> dict[str, np.ndarray]:
+    """Load an RFU outcome NPZ written by :func:`write_rfu_outcome_npz`."""
+    with np.load(Path(path)) as data:
+        missing = [f"{outcome}_rfus" for outcome in RFU_OUTCOMES if f"{outcome}_rfus" not in data]
+        if missing:
+            raise ValueError(f"Missing RFU outcome array(s): {', '.join(missing)}.")
 
-    with Path(path).open(newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            outcome = row["outcome"]
-            if outcome not in RFU_OUTCOMES:
-                raise ValueError(f"Unknown RFU outcome {outcome!r}.")
-            values[f"{outcome}_rfus"].append(float(row["rfu"]))
-
-    return {
-        key: np.asarray(outcome_values, dtype=float)
-        for key, outcome_values in values.items()
-    }
+        return {
+            f"{outcome}_rfus": np.asarray(data[f"{outcome}_rfus"], dtype=float).reshape(-1)
+            for outcome in RFU_OUTCOMES
+        }
 
 
 def compute_binned_f1(
@@ -151,12 +145,12 @@ def compute_binned_f1(
     ]
 
 
-def compute_binned_f1_from_csv(
+def compute_binned_f1_from_npz(
     path: str | Path,
     bin_edges: Sequence[float],
 ) -> list[dict[str, float | int]]:
-    """Load an RFU outcome CSV and compute binned F1 rows."""
-    return compute_binned_f1(load_rfu_outcome_csv(path), bin_edges)
+    """Load an RFU outcome NPZ and compute binned F1 rows."""
+    return compute_binned_f1(load_rfu_outcome_npz(path), bin_edges)
 
 
 def _to_tensor(value: Tensor, *, device: torch.device) -> Tensor:

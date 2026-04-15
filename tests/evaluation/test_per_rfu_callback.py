@@ -1,9 +1,5 @@
 """Tests for the RFU outcome Lightning callback."""
 
-from __future__ import annotations
-
-import csv
-
 import numpy as np
 import torch
 import pytest
@@ -21,8 +17,8 @@ class FakeModule:
     pass
 
 
-def test_per_rfu_callback_writes_compact_outcome_csv(tmp_path):
-    callback = PerRFUOutcomeCallback(threshold=0.5, filename="per_rfu_outcomes.csv")
+def test_per_rfu_callback_writes_outcome_npz(tmp_path):
+    callback = PerRFUOutcomeCallback(threshold=0.5, filename="per_rfu_outcomes.npz")
     trainer = FakeTrainer(tmp_path)
     module = FakeModule()
 
@@ -40,14 +36,10 @@ def test_per_rfu_callback_writes_compact_outcome_csv(tmp_path):
     callback.on_test_batch_end(trainer, module, outputs=outputs, batch=batch, batch_idx=0)
     callback.on_test_epoch_end(trainer, module)
 
-    with (tmp_path / "per_rfu_outcomes.csv").open(newline="", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
-
-    assert rows == [
-        {"outcome": "tp", "rfu": "10"},
-        {"outcome": "fp", "rfu": "30"},
-        {"outcome": "fn", "rfu": "20"},
-    ]
+    with np.load(tmp_path / "per_rfu_outcomes.npz") as data:
+        assert data["tp_rfus"].tolist() == pytest.approx([10.0])
+        assert data["fp_rfus"].tolist() == pytest.approx([30.0])
+        assert data["fn_rfus"].tolist() == pytest.approx([20.0])
 
 
 def test_per_rfu_callback_accepts_trailing_singleton_channel(tmp_path):
