@@ -95,7 +95,7 @@ class NFIRnDStrategy(DatasetStrategy):
             raise ValueError(f'Invalid annotation type: {self.annotation_type}')
 
         # Hid to Ladder mapping
-        _, htl_values = self._read_csv_file(hid_to_ladder_path)
+        _, htl_values = self._read_csv_file(hid_to_ladder_path[0])
         hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
 
         # collect all files
@@ -119,7 +119,7 @@ class NFIRnDStrategy(DatasetStrategy):
                 annotation_name_to_annotation.update(_annotation)
 
         # HID to Annotation mapping
-        hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
+        hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path[0])
         analysis_treshold_type_column = [
             i for i, head in enumerate(hta_header) if annotation_type in head
         ]
