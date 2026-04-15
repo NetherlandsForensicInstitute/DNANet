@@ -114,17 +114,22 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def _split(cls, dataset, **kwargs) -> Tuple[Any, Any] | List[Tuple[Any, Any]]:
+    def _split(
+        cls, dataset, **kwargs
+    ) -> Tuple[Any, Any] | Tuple[Any, Any, Any] | List[Tuple[Any, Any]]:
         """Default: simple random fraction split.
 
         Override in strategies that have richer metadata (e.g. replica-aware).
 
         Returns:
-            ``(train_subset, val_subset)`` as :class:`torch.utils.data.Subset`.
+            ``(train_subset, val_subset)`` as :class:`torch.utils.data.Subset`
+            for a 2-way fractional split, or
+            ``(train_subset, val_subset, test_subset)`` when ``test_fraction > 0``, or
+            a list of ``(train_subset, val_subset)`` pairs for k-fold splits.
         """
 
     @classmethod
-    def split(cls, dataset, **kwargs) -> Tuple[T, T] | List[Tuple[T, T]]:
+    def split(cls, dataset, **kwargs) -> Tuple[T, T] | Tuple[T, T, T] | List[Tuple[T, T]]:
         """Splitting wrapper.
 
         Uses a Strategy's _split implementation to split the data and
@@ -137,9 +142,8 @@ class DatasetStrategy(ABC):
         if not isinstance(dataset, PeakWindowDataset):
             return result
 
-        def convert(pair):
-            train, val = pair
-            return dataset.subset(train.indices), dataset.subset(val.indices)
+        def convert(splits):
+            return tuple(dataset.subset(s.indices) for s in splits)
 
         if isinstance(result, list):
             # K-Fold

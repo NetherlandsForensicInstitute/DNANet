@@ -305,12 +305,13 @@ class NFIRnDStrategy(DatasetStrategy):
         k_folds: int | None = None,
         stratify_noc: bool = False,
         genotype_aware: bool = True,
+        test_fraction: float = 0.0,
         **kwargs,
     ):
         """Replica-aware split that keeps sample prefixes together and balances NoC.
 
         Possible options are:
-        1. Simple fractional split
+        1. Simple fractional split (2-way or 3-way with test_fraction)
         2. K-Fold split
         3. Above splits with optional:
             - Replica's grouped (to prevent data-leakage)
@@ -319,8 +320,12 @@ class NFIRnDStrategy(DatasetStrategy):
         # TODO: If genotype-aware splitting is true, we can only have 3 or 6 folds since we have 6 mixture datasets
         match (fraction, k_folds):
             case (float(), None) if 0 < fraction < 1:
-                return cls._fractional_split(dataset, fraction, seed, stratify_noc, genotype_aware)
+                return cls._fractional_split(
+                    dataset, fraction, seed, stratify_noc, genotype_aware, test_fraction
+                )
             case (None, int()) if 2 <= k_folds <= 6:
+                if test_fraction > 0.0:
+                    raise ValueError('test_fraction is not supported with k-fold splitting')
                 if k_folds not in (2, 3, 6):
                     logger.warning(
                         f'Splitting the NFI R&D into {k_folds} folds results in uneven splits (2, 3, or 6 will)'
@@ -340,7 +345,8 @@ class NFIRnDStrategy(DatasetStrategy):
         seed: int | None,
         stratify_noc: bool,
         genotype_aware: bool,
-    ) -> Tuple[Subset, Subset]:
+        test_fraction: float = 0.0,
+    ) -> Tuple[Subset, Subset] | Tuple[Subset, Subset, Subset]:
         if genotype_aware:
             if stratify_noc:
                 logger.warning(
@@ -348,6 +354,34 @@ class NFIRnDStrategy(DatasetStrategy):
                 )
 
             _, group_indices = cls._get_mixture_dataset_groups(dataset)
+
+            if test_fraction > 0.0:
+                main_groups, test_groups = train_test_split(
+                    group_indices,
+                    train_size=1.0 - test_fraction,
+                    random_state=seed,
+                    stratify=None,
+                )
+                adjusted_fraction = fraction / (1.0 - test_fraction)
+                train_groups, val_groups = train_test_split(
+                    main_groups,
+                    train_size=adjusted_fraction,
+                    random_state=seed,
+                    stratify=None,
+                )
+                train_idx = [i for group in train_groups for i in group]
+                val_idx = [i for group in val_groups for i in group]
+                test_idx = [i for group in test_groups for i in group]
+                logger.info(
+                    f'Fractional 3-way split | {fraction:.0%} train / '
+                    f'{1 - fraction - test_fraction:.0%} val / {test_fraction:.0%} test | '
+                    'Genotype aware'
+                )
+                return (
+                    Subset(dataset, train_idx),
+                    Subset(dataset, val_idx),
+                    Subset(dataset, test_idx),
+                )
 
             train_groups, val_groups = train_test_split(
                 group_indices, train_size=fraction, random_state=seed, stratify=None
@@ -367,6 +401,32 @@ class NFIRnDStrategy(DatasetStrategy):
             nocs = [
                 cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.images
             ]
+
+            if test_fraction > 0.0:
+                main_idx, test_idx = train_test_split(
+                    indices,
+                    train_size=1.0 - test_fraction,
+                    random_state=seed,
+                    stratify=nocs if stratify_noc else None,
+                )
+                adjusted_fraction = fraction / (1.0 - test_fraction)
+                main_nocs = [nocs[i] for i in main_idx] if stratify_noc else None
+                train_idx, val_idx = train_test_split(
+                    main_idx,
+                    train_size=adjusted_fraction,
+                    random_state=seed,
+                    stratify=main_nocs,
+                )
+                logger.info(
+                    f'Fractional 3-way split | {fraction:.0%} train / '
+                    f'{1 - fraction - test_fraction:.0%} val / {test_fraction:.0%} test | '
+                    f'stratify={"noc" if stratify_noc else "none"}'
+                )
+                return (
+                    Subset(dataset, train_idx),
+                    Subset(dataset, val_idx),
+                    Subset(dataset, test_idx),
+                )
 
             logger.info(
                 f'Fractional split | {fraction:.0%} train | stratify={"noc" if stratify_noc else "none"}'

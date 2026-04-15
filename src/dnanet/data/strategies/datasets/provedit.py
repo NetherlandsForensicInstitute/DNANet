@@ -273,9 +273,10 @@ class ProvedItStrategy(DatasetStrategy):
         seed: int | None = None,
         k_folds: int | None = None,
         stratify_noc: bool = True,
+        test_fraction: float = 0.0,
         **kwargs,
-    ) -> Tuple[Subset, Subset] | List[Tuple[Subset, Subset]]:
-        """Split the ProvedIt dataset for train/val.
+    ) -> Tuple[Subset, Subset] | Tuple[Subset, Subset, Subset] | List[Tuple[Subset, Subset]]:
+        """Split the ProvedIt dataset for train/val or train/val/test.
 
         Args:
             dataset: A HIDDataset
@@ -283,12 +284,15 @@ class ProvedItStrategy(DatasetStrategy):
             seed: Random seed to have reproducability. Defaults to None.
             k_folds: KFold splitting for cross-validation. Defaults to None.
             stratify_noc: Balance the NoC over the split(s). Defaults to True.
+            test_fraction: Fraction of total data held out as test set. Defaults to 0.0.
+            **kwargs
 
         Raises:
             ValueError: When fraction and/or k_folds parameters aren't valid.
 
         Returns:
-            A (list of) split of train/val datasets.
+            A (list of) split of train/val datasets, or a (train, val, test) 3-tuple
+            when test_fraction > 0.
         """
         # FIXME: See section 3.7 of https://resolver.tudelft.nl/uuid:d07c1be2-cfa1-44d5-892f-c2d110e0c9a0 for genotype aware splitting
         logger.warning('Genotype Aware splitting is not implemented for this dataset')
@@ -300,8 +304,11 @@ class ProvedItStrategy(DatasetStrategy):
                     fraction=fraction,
                     stratify_noc=stratify_noc,
                     seed=seed,
+                    test_fraction=test_fraction,
                 )
             case (None, int()) if 2 <= k_folds < len(dataset):
+                if test_fraction > 0.0:
+                    raise ValueError('test_fraction is not supported with k-fold splitting')
                 return cls._kfold_split(
                     dataset=dataset,
                     k_folds=k_folds,
@@ -315,10 +322,37 @@ class ProvedItStrategy(DatasetStrategy):
 
     @classmethod
     def _fractional_split(
-        cls, dataset: TransformableDataset, fraction: float, stratify_noc: bool, seed: int | None
-    ) -> Tuple[Subset, Subset]:
+        cls,
+        dataset: TransformableDataset,
+        fraction: float,
+        stratify_noc: bool,
+        seed: int | None,
+        test_fraction: float = 0.0,
+    ) -> Tuple[Subset, Subset] | Tuple[Subset, Subset, Subset]:
         indices = list(range(len(dataset.images)))
         nocs = [cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.images]
+
+        if test_fraction > 0.0:
+            main_idx, test_idx = train_test_split(
+                indices,
+                train_size=1.0 - test_fraction,
+                random_state=seed,
+                stratify=nocs if stratify_noc else None,
+            )
+            adjusted_fraction = fraction / (1.0 - test_fraction)
+            main_nocs = [nocs[i] for i in main_idx] if stratify_noc else None
+            train_idx, val_idx = train_test_split(
+                main_idx,
+                train_size=adjusted_fraction,
+                random_state=seed,
+                stratify=main_nocs,
+            )
+            logger.info(
+                f'Fractional 3-way split | {fraction:.0%} train / '
+                f'{1 - fraction - test_fraction:.0%} val / {test_fraction:.0%} test | '
+                f'stratify={"noc" if stratify_noc else "none"}'
+            )
+            return Subset(dataset, train_idx), Subset(dataset, val_idx), Subset(dataset, test_idx)
 
         logger.info(
             f'Fractional split | {fraction:.0%} train | stratify={"noc" if stratify_noc else "none"}'
