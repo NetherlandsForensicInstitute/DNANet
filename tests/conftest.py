@@ -17,12 +17,10 @@ from torchmetrics.classification import (
 )
 from torchmetrics.regression import MeanSquaredError
 
-from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.data.strategies import PowerPlexFusion6CStrategy, GlobalFilerStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
-
+from dnanet.core.panel import Panel
+from dnanet.data.strategies import PowerPlexFusion6CStrategy, GlobalFilerStrategy, NFIRnDStrategy, ProvedItStrategy
 
 # ---------------------------------------------------------------------------
 # Resource paths
@@ -153,31 +151,24 @@ def ppf6c_kit():
     """Return the PPF6C scaling strategy."""
     return PowerPlexFusion6CStrategy()
 
+@pytest.fixture
+def nfi_rnd_kit():
+    """Return the PPF6C scaling strategy."""
+    return PowerPlexFusion6CStrategy()
+
 
 @pytest.fixture
 def globalfiler_kit():
     """Return the GlobalFiler scaling strategy."""
     return GlobalFilerStrategy()
 
-
-# ---------------------------------------------------------------------------
-# Dataset fixtures
-# ---------------------------------------------------------------------------
+@pytest.fixture
+def nfi_rnd_dataset():
+    return NFIRnDStrategy()
 
 @pytest.fixture
-def nfi_rnd_kit():
-    """Configure the NFI_RND dataset strategy and return PPF6C scaling."""
-    StrategyRegistry.configure_dataset("NFI_RND")
-    yield PowerPlexFusion6CStrategy()
-    StrategyRegistry.reset()
-
-
-@pytest.fixture
-def globalfiler_provedit():
-    """Configure the PROVEDIT dataset strategy and return GlobalFiler scaling."""
-    StrategyRegistry.configure_dataset("PROVEDIT")
-    yield GlobalFilerStrategy()
-    StrategyRegistry.reset()
+def provedit_dataset():
+    return ProvedItStrategy()
 
 
 # ---------------------------------------------------------------------------

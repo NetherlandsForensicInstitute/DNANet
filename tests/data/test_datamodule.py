@@ -54,6 +54,7 @@ def _make_fake_image(
     img = HIDImage(
         path=name,
         scaling_strategy=ppf6c,
+        dataset_strategy=nfi_rnd_dataset,
         load_in_memory=True,
     )
     img._data = np.random.rand(num_dyes, signal_length, 1).astype(np.float32)

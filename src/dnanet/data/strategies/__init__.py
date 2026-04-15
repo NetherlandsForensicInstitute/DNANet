@@ -34,22 +34,18 @@ from dnanet.data.strategies.scaling import (
     PowerPlexFusion6CStrategy,
 )
 from dnanet.data.strategies.datasets import (
-    DATASET_STRATEGIES,
     FileCategory,
     NFIRnDStrategy,
     DatasetStrategy,
     ProvedItStrategy,
-    get_dataset_strategy,
 )
 
 
 __all__ = [
-    "DATASET_STRATEGIES",
     "DatasetStrategy",
     "FileCategory",
     "NFIRnDStrategy",
     "ProvedItStrategy",
-    "get_dataset_strategy",
     "STRKit",
     "SizeStandard",
     "WEN_ILS",

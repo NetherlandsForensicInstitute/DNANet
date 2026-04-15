@@ -8,8 +8,7 @@ import dnanet.data.transformer as transformer_module
 from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.image import HIDImage
-from dnanet.data.strategies import PowerPlexFusion6CStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
 from dnanet.data.transformer import (
     CombinedTransformer,
     PeakClassificationTransformer,
@@ -27,6 +26,7 @@ def _make_fake_image(
     img = HIDImage(
         path='fake.hid',
         scaling_strategy=PowerPlexFusion6CStrategy(),
+        dataset_strategy=NFIRnDStrategy(),
         load_in_memory=True,
     )
     img._data = data if data is not None else np.zeros((5, 8, 1), dtype=np.float32)
@@ -218,9 +218,9 @@ class TestReconstructionTransformer:
 
 
 class TestPeakClassificationTransformer:
-    def test_maps_marker_and_label_with_configured_strategies(self, nfi_rnd_kit):
-        scaling_strategy = nfi_rnd_kit
-        dataset_strategy = StrategyRegistry.get_dataset_strategy()
+    def test_maps_marker_and_label_with_configured_strategies(self, ppf6c_kit, nfi_rnd_dataset):
+        scaling_strategy = ppf6c_kit
+        dataset_strategy = nfi_rnd_dataset
         marker_name = scaling_strategy.marker_names[0]
         peak = ExtractedPeak(
             data=np.ones((2, 120), dtype=np.float32),
@@ -244,8 +244,8 @@ class TestPeakClassificationTransformer:
         assert target.item() == dataset_strategy.get_annotation_classes().index('allele')
         assert target.dtype == torch.long
 
-    def test_uses_negative_marker_index_when_marker_embedding_disabled(self, nfi_rnd_kit):
-        scaling_strategy = nfi_rnd_kit
+    def test_uses_negative_marker_index_when_marker_embedding_disabled(self, ppf6c_kit, nfi_rnd_dataset):
+        scaling_strategy = ppf6c_kit
         peak = ExtractedPeak(
             data=np.ones((1, 120), dtype=np.float32),
             dye_index=0,

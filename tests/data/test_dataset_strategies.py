@@ -2,7 +2,6 @@
 
 import pytest
 
-from dnanet.data.strategies.datasets import get_dataset_strategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 from dnanet.data.strategies.datasets.provedit import ProvedItStrategy
 
@@ -64,15 +63,3 @@ class TestProvedItStrategy:
             'B03_RD14-0003-34d1-0.5IP-Q0.75ng_05sec.hid'
         )
         assert noc == '2p'
-
-
-class TestStrategyLookup:
-    def test_lookup_nfi_rnd(self):
-        assert get_dataset_strategy('NFI_RND') is NFIRnDStrategy
-
-    def test_lookup_provedit(self):
-        assert get_dataset_strategy('PROVEDIT') is ProvedItStrategy
-
-    def test_unknown_raises(self):
-        with pytest.raises(ValueError, match='Unknown dataset strategy'):
-            get_dataset_strategy('NONEXISTENT')

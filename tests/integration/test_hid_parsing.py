@@ -5,7 +5,6 @@ import pytest
 
 from dnanet.data.parsing.hid import parse_hid, get_peak_data
 from dnanet.data.strategies import PowerPlexFusion6CStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
 from tests.conftest import RD_DIR
 
 
@@ -37,10 +36,7 @@ class TestGetPeakData:
 
     @pytest.fixture(autouse=True)
     def set_strategies(self):
-        StrategyRegistry.configure_dataset('NFI_RND')
         self.scaling = PowerPlexFusion6CStrategy()
-        yield
-        StrategyRegistry.reset()
 
     def test_raw_strategy(self):
         """Raw strategy should return 6 dye channels."""

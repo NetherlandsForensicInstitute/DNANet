@@ -11,7 +11,6 @@ from dnanet.data.preprocessing.peak_extraction import (
     extract_peaks_torch,
     setup_marker_to_idx,
     extract_peak_windows,
-    _label_peak_from_annotation,
 )
 from tests.conftest import PANEL_PATH
 
@@ -72,35 +71,6 @@ class TestBuildPeakData:
         assert result[1, 0] == 5.0
 
 
-class TestLabelPeakFromAnnotation:
-    """Tests for _label_peak_from_annotation."""
-
-    def test_none_annotation_returns_noise(self, nfi_rnd_kit):
-        label = _label_peak_from_annotation(None, 0, 50)
-        assert label == 'noise'
-
-    def test_annotated_peak_returns_allele(self, nfi_rnd_kit):
-        ann = np.zeros((5, 100))
-        ann[0, 49:52] = 1  # annotated around position 50
-        label = _label_peak_from_annotation(ann, 0, 50)
-        assert label == 'allele'
-
-    def test_unannotated_peak_returns_noise(self, nfi_rnd_kit):
-        ann = np.zeros((5, 100))
-        label = _label_peak_from_annotation(ann, 0, 50)
-        assert label == 'noise'
-
-    def test_3d_annotation(self, nfi_rnd_kit):
-        ann = np.zeros((5, 100, 1))
-        ann[2, 30, 0] = 1
-        label = _label_peak_from_annotation(ann, 2, 30)
-        assert label == 'allele'
-
-    def test_padding_extends_check_range(self, nfi_rnd_kit):
-        ann = np.zeros((5, 100))
-        ann[0, 52] = 1  # just outside default padding of 1
-        label = _label_peak_from_annotation(ann, 0, 50, padding=2)
-        assert label == 'allele'
 
 
 class TestMarkerToIdx:

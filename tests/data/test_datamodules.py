@@ -14,8 +14,7 @@ from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
 from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.image import HIDImage
-from dnanet.data.strategies import PowerPlexFusion6CStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
 from dnanet.data.transformer import (
     CombinedTransformer,
     PeakClassificationTransformer,
@@ -62,6 +61,7 @@ def _make_fake_image(
     img = HIDImage(
         path=name,
         scaling_strategy=PowerPlexFusion6CStrategy(),
+        dataset_strategy=NFIRnDStrategy(),
         load_in_memory=True,
         meta={"peak_count": peak_count},
     )
@@ -92,13 +92,7 @@ def _make_mock_peaks(n: int = 8) -> list[ExtractedPeak]:
 def ppf6c() -> PowerPlexFusion6CStrategy:
     return PowerPlexFusion6CStrategy()
 
-@pytest.fixture
-def configured_peak_registry(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        StrategyRegistry,
-        "_dataset_strategy",
-        SimpleNamespace(get_annotation_classes=lambda: ["noise", "allele"]),
-    )
+
 
 
 @pytest.fixture

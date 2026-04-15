@@ -12,7 +12,7 @@ from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.data.image import HIDImage
-from dnanet.data.strategies import PowerPlexFusion6CStrategy
+from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
 from dnanet.data.transformer import (
     AlleleMetadataTransformer,
     CombinedTransformer,
@@ -24,6 +24,7 @@ def test_metadata_wrapper_collate_delegates_to_wrapped_transformer():
     image = HIDImage(
         path="segmentation.hid",
         scaling_strategy=PowerPlexFusion6CStrategy(),
+        dataset_strategy=NFIRnDStrategy(),
         load_in_memory=True,
     )
     image._data = np.ones((1, 4, 1), dtype=np.float32)
@@ -50,6 +51,7 @@ def test_combined_transformer_metadata_collate_preserves_sample_metadata(monkeyp
     image = HIDImage(
         path="sample.hid",
         scaling_strategy=PowerPlexFusion6CStrategy(),
+        dataset_strategy=NFIRnDStrategy(),
         adjusted_panel=Panel(markers=[marker]),
         allele_annotation=annotation,
         load_in_memory=True,
