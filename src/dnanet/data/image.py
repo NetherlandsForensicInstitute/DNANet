@@ -21,19 +21,19 @@ from __future__ import annotations
 
 import abc
 from abc import abstractmethod
-from typing import Any, MutableMapping
-from pathlib import Path
 from functools import cached_property
+from pathlib import Path
+from typing import Any, MutableMapping
 
 import numpy as np
 from loguru import logger
 
+from dnanet.core.annotation import Annotation, ClassAnnotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
 from dnanet.data.parsing import get_peak_data
-from dnanet.core.annotation import Annotation, ClassAnnotation, AlleleAnnotation, ScanpointAnnotation
+from dnanet.data.strategies import DatasetStrategy
 from dnanet.data.strategies.scaling import ScalingStrategy
-
 
 # Default RFU detection threshold
 _DEFAULT_RFU_THRESHOLD = 40
@@ -77,6 +77,7 @@ class HIDImage(TrainableElement):
         self,
         path: PathLike,
         scaling_strategy: ScalingStrategy,
+        dataset_strategy: DatasetStrategy,
         adjusted_panel: Panel | None = None,
         include_size_standard: bool = False,
         annotation: ScanpointAnnotation | None = None,
@@ -92,6 +93,7 @@ class HIDImage(TrainableElement):
         self.data_loading_strategy = data_loading_strategy
         self.rfu_threshold = rfu_threshold
         self.scaling_strategy = scaling_strategy
+        self.dataset_strategy = dataset_strategy
 
         self._adjusted_panel = adjusted_panel
         self._data: np.ndarray | None = None

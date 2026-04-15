@@ -41,7 +41,6 @@ from dnanet.data.strategies.datasets import (
     ProvedItStrategy,
     get_dataset_strategy,
 )
-from dnanet.data.strategies.registry import StrategyRegistry
 
 
 __all__ = [
@@ -60,6 +59,5 @@ __all__ = [
     "PowerPlexFusion6CStrategy",
     "PowerplexY23",
     "ScalingStrategy",
-    "SizeStandardParseResult",
-    "StrategyRegistry",
+    "SizeStandardParseResult"
 ]

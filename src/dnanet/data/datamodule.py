@@ -8,7 +8,6 @@ import lightning as L
 from torch.utils.data import Dataset, DataLoader, default_collate
 
 from dnanet.data.dataset import TransformableDataset
-from dnanet.data.strategies import StrategyRegistry
 
 
 class DNANetDataModule(L.LightningDataModule):
@@ -40,6 +39,7 @@ class DNANetDataModule(L.LightningDataModule):
         self.seed = seed
         self.stratify_noc = stratify_noc
         self.group_by_replica = group_by_replica
+        self.dataset_strategy = self._dataset.dataset_strategy
 
         self._train_dataset: Dataset | None = None
         self._val_dataset: Dataset | None = None
@@ -50,8 +50,7 @@ class DNANetDataModule(L.LightningDataModule):
         if self._train_dataset is not None:
             return  # already set up
 
-        dataset_strategy = StrategyRegistry.get_dataset_strategy()
-        train_data, val_data = dataset_strategy.split(self._dataset, 1 - self.val_fraction, self.seed, stratify_noc=self.stratify_noc, group_by_replica=self.group_by_replica)
+        train_data, val_data = self.dataset_strategy.split(self._dataset, 1 - self.val_fraction, self.seed, stratify_noc=self.stratify_noc, group_by_replica=self.group_by_replica)
 
         self._train_dataset = train_data
         self._val_dataset = val_data

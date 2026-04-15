@@ -10,16 +10,15 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
+import csv
 import os
 import re
-import csv
-from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
-from pathlib import Path
 from itertools import groupby
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator, Sequence
 
 import numpy as np
 from loguru import logger
-from torch.utils.data import Subset, Dataset
 from sklearn.model_selection import (
     KFold,
     GroupKFold,
@@ -27,13 +26,12 @@ from sklearn.model_selection import (
     StratifiedGroupKFold,
     train_test_split,
 )
+from torch.utils.data import Subset, Dataset
 
 from dnanet.core.allele import Allele
-from dnanet.core.marker import Marker
 from dnanet.core.annotation import Annotation, AlleleAnnotation
-from dnanet.data.strategies import ScalingStrategy
+from dnanet.core.marker import Marker
 from dnanet.data.strategies.datasets.dataset import SplitResult, FileCategory, DatasetStrategy
-
 
 # R&D filename pattern: digit + letter + digit (e.g. "1A2")
 _RD_PREFIX_RE = re.compile(r"^\d[A-F]\d")
@@ -43,6 +41,7 @@ _RD_PREFIX_RE = re.compile(r"^\d[A-F]\d")
 if TYPE_CHECKING:
     from dnanet.data import HIDDataset
     from dnanet.core.types import PathLike
+    from dnanet.data.strategies import ScalingStrategy
 
 
 class NFIRnDStrategy(DatasetStrategy):

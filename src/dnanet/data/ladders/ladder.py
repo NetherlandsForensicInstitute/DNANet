@@ -37,6 +37,7 @@ from scipy.signal import find_peaks
 from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
+from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 
 if TYPE_CHECKING:
@@ -64,7 +65,7 @@ class Ladder:
     @classmethod
     @cache
     def create_adjusted_panel(
-        cls, ladder_path: PathLike, catalog: LadderAlleleCatalog, scaling_strategy: ScalingStrategy
+        cls, ladder_path: PathLike, catalog: LadderAlleleCatalog, scaling_strategy: ScalingStrategy, dataset_strategy: DatasetStrategy
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
 
@@ -74,6 +75,7 @@ class Ladder:
             ladder_path: Path to the ladder HID file to use for adjustment
             catalog: The Ladder Catalog that was read from a csv
             scaling_strategy: The Kit Scaling Strategy to use for scaling
+            dataset_strategy: The Dataset Strategy to use
 
         Returns:
             The adjusted panel
@@ -83,6 +85,7 @@ class Ladder:
         ladder_image = HIDImage(
             path=ladder_path,
             scaling_strategy=scaling_strategy,
+            dataset_strategy=dataset_strategy,
             data_loading_strategy='analyzed', #TODO do not hardcode these values
             include_size_standard=True,
             load_in_memory=False,

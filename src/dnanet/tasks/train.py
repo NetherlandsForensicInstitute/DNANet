@@ -21,20 +21,14 @@ Usage::
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import lightning as L
-from torch import nn
+from hydra.utils import instantiate
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
-from hydra.utils import instantiate
-from torch.optim import AdamW
-from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
-
-from dnanet.modules.base import EpochConsoleLogger
-from dnanet.data.datamodule import DNANetDataModule
-
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
@@ -229,6 +223,7 @@ def run(
         dataset = instantiate(data_cfg.dataset)
 
     datamodule = instantiate(cfg.train.data_module, dataset=dataset)
+    datamodule.setup('fit')
 
     logger.info(
         'Training config: {} epochs, lr={}, batch_size={}',

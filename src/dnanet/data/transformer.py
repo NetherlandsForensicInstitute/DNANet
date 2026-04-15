@@ -1,18 +1,17 @@
 import abc
 from abc import abstractmethod
-from typing import Any, Tuple, Generic, TypeVar
 from dataclasses import dataclass
+from typing import Any, Tuple, Generic, TypeVar
 
 import torch
 from torch.utils.data import default_collate
 
-from dnanet.data.image import HIDImage, TrainableElement
 from dnanet.data.extracted_peak import ExtractedPeak
-from dnanet.data.strategies.scaling import ScalingStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
-from dnanet.data.preprocessing.scaling import scale_rfu_torch
+from dnanet.data.image import HIDImage, TrainableElement
 from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
-
+from dnanet.data.preprocessing.scaling import scale_rfu_torch
+from dnanet.data.strategies import DatasetStrategy
+from dnanet.data.strategies.scaling import ScalingStrategy
 
 TrainableT = TypeVar('TrainableT', bound=TrainableElement)
 
@@ -176,6 +175,7 @@ class ReconstructionTransformer(TransformDataCallable[HIDImage]):
 @dataclass
 class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
     scaling_strategy: ScalingStrategy
+    dataset_strategy: DatasetStrategy
     include_marker: bool = True
 
 
@@ -191,9 +191,8 @@ class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
             marker_tensor = torch.full(size=(1,), fill_value=-1, dtype=torch.long)
 
         ann_label: str = peak.annotation.data
-        dataset_strategy = StrategyRegistry.get_dataset_strategy()
         annotation_to_idx = {
-            name: idx for idx, name in enumerate(dataset_strategy.get_annotation_classes())
+            name: idx for idx, name in enumerate(self.dataset_strategy.get_annotation_classes())
         }
         annotation_idx = annotation_to_idx[ann_label]
         target = torch.tensor(annotation_idx, dtype=torch.long)

@@ -11,23 +11,22 @@ Handles the ProvedIt dataset conventions:
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Dict, List, Tuple, Mapping, Generator
-from pathlib import Path
 from functools import reduce
 from itertools import groupby
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Tuple, Mapping, Generator
 
 import openpyxl
 from loguru import logger
 
 from dnanet.core.allele import Allele
+from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.core.marker import Marker
-from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
-from dnanet.data.strategies.scaling import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
-
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
+    from dnanet.data.strategies.scaling import ScalingStrategy
 
 class ProvedItStrategy(DatasetStrategy):
     """Strategy for the ProvedIt dataset (GlobalFiler kit)."""

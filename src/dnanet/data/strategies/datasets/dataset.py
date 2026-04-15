@@ -99,12 +99,6 @@ class DatasetStrategy(ABC):
             Path to the ladder file, or ``None`` if not found.
         """
 
-    @classmethod
-    @abstractmethod
-    def find_annotation_for_sample(
-        cls, sample_path: Path, annotation_mapping: Dict[str, Path] | None = None
-    ) -> Path | None:
-        """Find the appropriate annotation for a given sample."""
 
     @staticmethod
     @abstractmethod
