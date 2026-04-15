@@ -80,7 +80,7 @@ class TestPeakWindowDataset:
     def test_items_are_extracted_peaks(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds = PeakWindowDataset(
-            base_dataset=base, threshold=100, window_size=120, preprocess=False,
+            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120, preprocess=False,
         )
         for peak in ds:
             assert isinstance(peak, ExtractedPeak)
@@ -89,7 +89,7 @@ class TestPeakWindowDataset:
     def test_label_mapping(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds = PeakWindowDataset(
-            base_dataset=base, threshold=100, window_size=120,
+            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120,
             preprocess=False,
         )
         assert ds.label_to_idx["noise"] == 0
@@ -99,10 +99,10 @@ class TestPeakWindowDataset:
     def test_preprocessing_changes_data(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds_raw = PeakWindowDataset(
-            base_dataset=base, threshold=100, window_size=120, preprocess=False,
+            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120, preprocess=False,
         )
         ds_prep = PeakWindowDataset(
-            base_dataset=base, threshold=100, window_size=120,
+            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120,
             preprocess=True, log_scale=True,
         )
         # Preprocessed data should be different (scaled)
@@ -110,21 +110,12 @@ class TestPeakWindowDataset:
         prep_max = max(p.data.max() for p in ds_prep)
         assert prep_max < raw_max  # log scaling reduces magnitude
 
-    def test_split(self, nfi_rnd_kit, nfi_rnd_dataset):
-        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=5, n_peaks=2)
-        ds = PeakWindowDataset(
-            base_dataset=base, threshold=100, window_size=120, preprocess=False,
-        )
-        total = len(ds)
-        train, val = ds.split(fraction=0.8, seed=42)
-        assert len(train) + len(val) == total
-
 
 
     def test_include_max_pool_dyes(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds = PeakWindowDataset(
-            base_dataset=base, threshold=100, window_size=120,
+            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120,
             include_max_pool_dyes=True, preprocess=False,
         )
         assert ds[0].data.shape == (2, 120)

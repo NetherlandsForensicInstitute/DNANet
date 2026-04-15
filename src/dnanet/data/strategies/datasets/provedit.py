@@ -24,7 +24,6 @@ from torch.utils.data import Subset
 from dnanet.core.allele import Allele
 from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.core.marker import Marker
-from dnanet.data.strategies import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 
 if TYPE_CHECKING:

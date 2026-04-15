@@ -39,11 +39,8 @@ from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnota
 from dnanet.data.dataset import TransformableDataset
 from dnanet.data.image import HIDImage
 from dnanet.data.ladders.ladder import Ladder
-from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
-from dnanet.data.strategies import ScalingStrategy, DatasetStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
-
+from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.strategies.datasets import DatasetStrategy
 from dnanet.data.strategies.scaling import ScalingStrategy
 

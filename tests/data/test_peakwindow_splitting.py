@@ -7,7 +7,6 @@ import pytest
 
 from dnanet.data.hid_dataset import HIDDataset
 from dnanet.data.peak_dataset import PeakWindowDataset
-from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 
 
@@ -50,16 +49,10 @@ def _fake_dataset(stems: list[str]):
     ds = MagicMock()
     ds.images = [_fake_img(s) for s in stems]
     ds.__len__ = MagicMock(return_value=len(stems))
-    return PeakWindowDataset(images=ds.images)
+    return PeakWindowDataset(images=ds.images, dataset_strategy=ds.dataset_strategy)
 
 
 class TestPeakWindowSplit:
-    @pytest.fixture(autouse=True)
-    def _register_strategies(self):
-        StrategyRegistry.configure_dataset(NFIRnDStrategy)
-        StrategyRegistry.configure_kit('PPF6C')
-        yield
-        StrategyRegistry.reset()
 
     def test_fractional_split(self):
         ds = _fake_dataset(STEMS)
