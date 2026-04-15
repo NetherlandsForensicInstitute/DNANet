@@ -150,7 +150,7 @@ class TestLoadFromCache:
 # ---------------------------------------------------------------------------
 
 class TestReconstructImage:
-    def test_basic_reconstruction(self, ppf6c):
+    def test_basic_reconstruction(self, ppf6c, nfi_rnd_dataset):
         img_data = np.zeros((5, 100, 1), dtype=np.int16)
         ann_data = np.zeros((5, 100, 1), dtype=np.int8)
         scaler = np.linspace(60, 480, 100).tolist()
@@ -161,7 +161,15 @@ class TestReconstructImage:
         alleles_json = "[]"
 
         img = _reconstruct_image(
-            img_data, ann_data, "test.hid", scaler, panel_json, alleles_json, False, ppf6c
+            img_data,
+            ann_data,
+            "test.hid",
+            scaler,
+            panel_json,
+            alleles_json,
+            False,
+            ppf6c,
+            nfi_rnd_dataset,
         )
         assert isinstance(img, HIDImage)
         assert img.data is not None

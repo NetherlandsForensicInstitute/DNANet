@@ -77,17 +77,15 @@ XML panel for each specific electrophoresis run.
 ```python
 dataset = HIDDataset(
     root="data/2p_5p_Dataset_NFI/Raw data .HID files",
-    annotations_path="data/2p_5p_Dataset_NFI/txt_annotations_2024",
-    hid_to_annotations_path="data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv",
-    best_ladder_paths_csv="data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv",
-    ladder_alleles_csv="data/2p_5p_Dataset_NFI/ladder_alleles.csv",
+    scaling_strategy=scaling_strategy,
+    dataset_strategy=dataset_strategy,
     analysis_threshold_type="DTH",
     adjustment_of_annotations="complete",
 )
 ```
 
 ### Steps:
-1. **Configure strategies** — `StrategyRegistry` must be set before construction
+1. **Inject strategies** — pass a kit scaling strategy and dataset strategy
 2. **Load mappings** — Annotation mapping CSV, ladder paths CSV, ladder catalog
 3. **Collect files** — Walk root recursively, filter via `DatasetStrategy.categorize_file()`
 4. **Load images** — For each sample:
@@ -120,6 +118,6 @@ datamodule = DNANetDataModule(
 ```
 
 Internally:
-1. Calls `dataset.split(val_fraction)` → train and val `SimpleDataset`
-2. Wraps each in `HIDTorchDataset` which transposes `(D, L, 1)` → `(1, D, L)`
+1. Calls the dataset strategy split helper when available, otherwise `dataset.split(...)`
+2. Applies the dataset transformer and collate function
 3. Creates `DataLoader` instances for Lightning's `fit()` / `validate()` / `predict()`

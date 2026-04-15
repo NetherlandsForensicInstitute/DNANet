@@ -15,13 +15,12 @@ Design pattern: **Template Method** (inherited)
 
 Usage::
 
-    from dnanet.data.strategies.datasets import get_dataset_strategy
-    from dnanet.data.strategies.scaling import get_scaling_strategy
+    from dnanet.data.strategies import NFIRnDStrategy, PowerPlexFusion6CStrategy
 
     dataset = HIDDataset(
         root="data/2p_5p_Dataset_NFI/Raw data .HID files",
-        scaling_strategy=get_scaling_strategy("PPF6C"),
-        dataset_strategy=get_dataset_strategy("NFI_RND"),
+        scaling_strategy=PowerPlexFusion6CStrategy(),
+        dataset_strategy=NFIRnDStrategy(),
     )
 """
 
@@ -61,8 +60,8 @@ class HIDDataset(Dataset, TransformableDataset):
     5. Creates ``HIDImage`` instances and filters out invalid ones
 
     Requires a kit scaling strategy and dataset strategy to be passed during
-    construction. The dataset strategy is also registered globally for shared
-    dataset-specific label and split helpers.
+    construction. The dataset strategy provides dataset-specific file
+    collection, annotations, labels, and split helpers.
 
     Args:
         root: Root directory containing HID files (searched recursively).

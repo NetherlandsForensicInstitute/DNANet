@@ -36,23 +36,20 @@ class GlobalFilerStrategy(ScalingStrategy):
 - Baseline estimation → `superior_baseline`, `classic_baseline`, `enhanced_baseline`
 - PeakNet combiner → `MLPCombiner`, `FiLMCombiner`, `CrossAttentionCombiner`
 
-## Service Locator (Registry)
+## Dependency Injection
 
-**Where:** `StrategyRegistry`
+**Where:** `HIDDataset`, `HIDImage`, data transformers
 
-**Why:** Some deep call chains (e.g., inside `Panel.fill_allele_bins`) need
-access to the active scaling strategy. Threading a context parameter through
-every function is impractical. The registry is a pragmatic compromise:
-explicit configuration at startup, global read-only access at runtime.
+**Why:** Shared helpers need kit-specific and dataset-specific behavior such
+as marker mappings, annotation class names, and split rules. These strategies
+are passed through constructors and function arguments so the active dataset is
+explicit at each call site.
 
 ```python
-# Configured once at startup
-StrategyRegistry.configure_kit("PPF6C")
-StrategyRegistry.configure_dataset("NFI_RND")
+from dnanet.data.strategies import NFIRnDStrategy, PowerPlexFusion6CStrategy
 
-# Read by any component that needs kit-specific behavior
-scaling = StrategyRegistry.get_scaling_strategy()
-dataset = StrategyRegistry.get_dataset_strategy()
+dataset_strategy = NFIRnDStrategy()
+scaling_strategy = PowerPlexFusion6CStrategy()
 ```
 
 ## Lazy Loading (Virtual Proxy)
@@ -65,7 +62,11 @@ when `.data` is first accessed. This allows scanning hundreds of files without
 loading any data.
 
 ```python
-image = HIDImage(path="sample.hid")  # Instant: no I/O
+image = HIDImage(
+    path="sample.hid",
+    scaling_strategy=scaling,
+    dataset_strategy=dataset_strategy,
+)  # Instant: no I/O
 shape = image.data.shape              # First access: triggers full load
 shape2 = image.data.shape             # Cached: no re-load
 ```
@@ -107,21 +108,17 @@ trainer, module = run(cfg)
 
 ## Adapter / Bridge
 
-**Where:** `DNANetDataModule`, `HIDTorchDataset`
+**Where:** `DNANetDataModule`
 
 **Why:** DNANet's domain model (`HIDImage`, `InMemoryDataset`) and
 PyTorch/Lightning (`Dataset`, `DataModule`, `DataLoader`) are independent
-hierarchies. The adapter bridges them:
+hierarchies. The data module bridges them by applying the dataset split,
+transformer, collate function, and `DataLoader` construction:
 
 ```python
-class HIDTorchDataset(Dataset):
-    """Adapts list[HIDImage] → PyTorch Dataset returning (x, y) tensors."""
-
-    def __getitem__(self, idx):
-        image = self._images[idx]
-        x = np.transpose(image.data, (2, 0, 1))  # (1, dyes, signal)
-        y = np.transpose(image.annotation.image, (2, 0, 1))
-        return torch.from_numpy(x), torch.from_numpy(y)
+datamodule = DNANetDataModule(dataset, batch_size=16)
+datamodule.setup("fit")
+train_loader = datamodule.train_dataloader()
 ```
 
 ## Composite

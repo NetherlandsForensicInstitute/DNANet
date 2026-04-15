@@ -234,6 +234,7 @@ class TestPeakClassificationTransformer:
 
         inputs, target = PeakClassificationTransformer(
             scaling_strategy=scaling_strategy,
+            dataset_strategy=dataset_strategy,
             include_marker=True,
         )(peak)
         peak_tensor, marker_tensor = inputs
@@ -246,6 +247,7 @@ class TestPeakClassificationTransformer:
 
     def test_uses_negative_marker_index_when_marker_embedding_disabled(self, ppf6c_kit, nfi_rnd_dataset):
         scaling_strategy = ppf6c_kit
+        dataset_strategy = nfi_rnd_dataset
         peak = ExtractedPeak(
             data=np.ones((1, 120), dtype=np.float32),
             dye_index=0,
@@ -258,6 +260,7 @@ class TestPeakClassificationTransformer:
 
         inputs, target = PeakClassificationTransformer(
             scaling_strategy=scaling_strategy,
+            dataset_strategy=dataset_strategy,
             include_marker=False,
         )(peak)
         _, marker_tensor = inputs

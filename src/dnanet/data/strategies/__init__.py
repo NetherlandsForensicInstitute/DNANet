@@ -12,13 +12,8 @@ Design pattern: **Strategy**
     - ``ScalingStrategy`` (ABC) — kit-specific size standard parsing & rescaling
     - ``DatasetStrategy`` (ABC) — dataset-specific file handling & annotations
 
-    At runtime, the user selects strategies via Hydra config. Kit scaling is
-    injected into the data pipeline directly. Dataset strategy is also stored
-    in ``StrategyRegistry`` for shared dataset label and split helpers.
-
-Design pattern: **Registry**
-    ``StrategyRegistry`` is a simple service locator for the active dataset
-    strategy only. Scaling strategies are not stored globally.
+    At runtime, the user selects strategies via Hydra config. Both kit scaling
+    and dataset strategies are injected into the data pipeline directly.
 """
 
 from dnanet.data.strategies.scaling import (

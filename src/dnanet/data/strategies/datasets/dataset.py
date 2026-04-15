@@ -6,8 +6,8 @@ Design pattern: **Strategy** (abstract base for dataset variants)
     metadata. This ABC defines the contract; concrete implementations (in
     ``dnanet.data.strategies.datasets``) provide the details.
 
-    To support a new dataset, create a new subclass and register it in the
-    ``DATASET_STRATEGIES`` dict at the bottom of this file.
+    To support a new dataset, create a new subclass and pass it explicitly
+    where a ``DatasetStrategy`` is required.
 """
 
 from __future__ import annotations

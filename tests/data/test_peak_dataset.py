@@ -10,9 +10,11 @@ from dnanet.data.peak_dataset import PeakWindowDataset
 class MockImage:
     """Minimal HIDImage-like object."""
 
-    def __init__(self, data, annotation_image=None):
+    def __init__(self, data, scaling_strategy, dataset_strategy, annotation_image=None):
         self._raw_data = data
         self._panel = None
+        self.scaling_strategy = scaling_strategy
+        self.dataset_strategy = dataset_strategy
         if annotation_image is not None:
             self.annotation = ScanpointAnnotation(data=annotation_image)
         else:
@@ -27,14 +29,19 @@ class MockImage:
 class MockBaseDataset:
     """Minimal HIDDataset-like object for PeakWindowDataset tests."""
 
-    def __init__(self, images, scaling_strategy):
+    def __init__(self, images, scaling_strategy, dataset_strategy):
         self._images = images
         self._scaling = scaling_strategy
+        self._dataset_strategy = dataset_strategy
         self.transform = None
 
     @property
     def images(self):
         return self._images
+
+    @property
+    def dataset_strategy(self):
+        return self._dataset_strategy
 
 
 def _make_profile_with_peaks(n_dyes=5, length=4096, n_peaks=3):
@@ -49,18 +56,18 @@ def _make_profile_with_peaks(n_dyes=5, length=4096, n_peaks=3):
 
 class TestPeakWindowDataset:
 
-    def _make_base_dataset(self, scaling_strategy, n_images=3, n_peaks=3):
+    def _make_base_dataset(self, scaling_strategy, dataset_strategy, n_images=3, n_peaks=3):
         """Create a SimpleDataset of mock images."""
         images = []
         for _ in range(n_images):
             data, centers = _make_profile_with_peaks(n_peaks=n_peaks)
             ann = np.zeros_like(data)
             ann[0, centers[0] - 2 : centers[0] + 3] = 1
-            images.append(MockImage(data, annotation_image=ann))
-        return MockBaseDataset(images, scaling_strategy)
+            images.append(MockImage(data, scaling_strategy, dataset_strategy, annotation_image=ann))
+        return MockBaseDataset(images, scaling_strategy, dataset_strategy)
 
-    def test_extracts_peaks_from_images(self, nfi_rnd_kit):
-        base = self._make_base_dataset(nfi_rnd_kit, n_images=2, n_peaks=3)
+    def test_extracts_peaks_from_images(self, nfi_rnd_kit, nfi_rnd_dataset):
+        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=2, n_peaks=3)
         ds = PeakWindowDataset(
             base_dataset=base,
             threshold=100,
@@ -70,8 +77,8 @@ class TestPeakWindowDataset:
         # Each image has 3 peaks in dye 0
         assert len(ds) >= 6
 
-    def test_items_are_extracted_peaks(self, nfi_rnd_kit):
-        base = self._make_base_dataset(nfi_rnd_kit, n_images=1)
+    def test_items_are_extracted_peaks(self, nfi_rnd_kit, nfi_rnd_dataset):
+        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120, preprocess=False,
         )
@@ -79,8 +86,8 @@ class TestPeakWindowDataset:
             assert isinstance(peak, ExtractedPeak)
             assert peak.data.shape == (120,)
 
-    def test_label_mapping(self, nfi_rnd_kit):
-        base = self._make_base_dataset(nfi_rnd_kit, n_images=1)
+    def test_label_mapping(self, nfi_rnd_kit, nfi_rnd_dataset):
+        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120,
             preprocess=False,
@@ -89,8 +96,8 @@ class TestPeakWindowDataset:
         assert ds.label_to_idx["allele"] == 1
         assert ds.idx_to_label[0] == "noise"
 
-    def test_preprocessing_changes_data(self, nfi_rnd_kit):
-        base = self._make_base_dataset(nfi_rnd_kit, n_images=1)
+    def test_preprocessing_changes_data(self, nfi_rnd_kit, nfi_rnd_dataset):
+        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds_raw = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120, preprocess=False,
         )
@@ -103,8 +110,8 @@ class TestPeakWindowDataset:
         prep_max = max(p.data.max() for p in ds_prep)
         assert prep_max < raw_max  # log scaling reduces magnitude
 
-    def test_split(self, nfi_rnd_kit):
-        base = self._make_base_dataset(nfi_rnd_kit, n_images=5, n_peaks=2)
+    def test_split(self, nfi_rnd_kit, nfi_rnd_dataset):
+        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=5, n_peaks=2)
         ds = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120, preprocess=False,
         )
@@ -114,8 +121,8 @@ class TestPeakWindowDataset:
 
 
 
-    def test_include_max_pool_dyes(self, nfi_rnd_kit):
-        base = self._make_base_dataset(nfi_rnd_kit, n_images=1)
+    def test_include_max_pool_dyes(self, nfi_rnd_kit, nfi_rnd_dataset):
+        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds = PeakWindowDataset(
             base_dataset=base, threshold=100, window_size=120,
             include_max_pool_dyes=True, preprocess=False,

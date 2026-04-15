@@ -119,16 +119,17 @@ def fake_peak_extractor(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class TestPeakClassificationTransformer:
-    @pytest.mark.usefixtures("configured_peak_registry")
     def test_datamodule_batches_marker_and_target_tensors(
         self,
         ppf6c,
+        nfi_rnd_dataset,
     ) -> None:
         peaks = _make_mock_peaks(10)
         dataset = SplitPreservingDataset(
             peaks,
             transform=PeakClassificationTransformer(
                 scaling_strategy=ppf6c,
+                dataset_strategy=nfi_rnd_dataset,
                 include_marker=True,
             ),
         )
@@ -144,16 +145,17 @@ class TestPeakClassificationTransformer:
         assert targets.shape[0] == peak_data.shape[0]
         assert targets.dtype == torch.long
 
-    @pytest.mark.usefixtures("configured_peak_registry")
     def test_datamodule_batches_negative_marker_when_disabled(
         self,
         ppf6c,
+        nfi_rnd_dataset,
     ) -> None:
         peaks = _make_mock_peaks(10)
         dataset = SplitPreservingDataset(
             peaks,
             transform=PeakClassificationTransformer(
                 scaling_strategy=ppf6c,
+                dataset_strategy=nfi_rnd_dataset,
                 include_marker=False,
             ),
         )

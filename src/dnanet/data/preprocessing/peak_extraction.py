@@ -223,11 +223,10 @@ def extract_peak_windows(
     centered on each peak.
 
     Args:
-        image: Source DNA profile.
+        image: Source DNA profile. Its ``scaling_strategy`` and
+            ``dataset_strategy`` are used for marker and label handling.
         threshold: Minimum RFU for peak detection.
         window_size: Width of extraction window in scan points.
-        scaling_strategy: Scaling strategy for the image.
-        dataset_strategy: Dataset strategy for the image.
         include_max_pool_dyes: Add max-pooled other-dyes channel.
 
     Returns:

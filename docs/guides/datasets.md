@@ -66,8 +66,8 @@ HID files on disk
     │
     ▼
 HIDDataset.__init__()
-    ├─ StrategyRegistry.configure_kit(kit)
-    ├─ StrategyRegistry.configure_dataset(dataset_strategy)
+    ├─ receives scaling_strategy
+    ├─ receives dataset_strategy
     ├─ _create_annotation_mapping()    ← CSV lookup
     ├─ _load_ladder_paths()            ← CSV lookup
     ├─ _collect_files()                ← walk + filter via strategy
@@ -93,7 +93,7 @@ HIDDataset.__init__()
               ▼
     DNANetDataModule
          ├─ split(val_fraction) → train/val
-         └─ HIDTorchDataset    → (x, y) tensors
+         └─ transformer/collate_fn → (x, y) tensors
               │
               ▼
          DataLoader → Lightning Trainer
@@ -104,10 +104,10 @@ HIDDataset.__init__()
 | Stage | Shape | Description |
 |-------|-------|-------------|
 | Raw HID | `(num_dyes+1, ~10000)` | Raw scan points per dye |
-| After rescaling | `(num_dyes, 4096, 1)` | Uniform base-pair grid |
-| Segmentation mask | `(num_dyes, 4096, 1)` | Binary annotation |
-| Torch input (x) | `(1, num_dyes, 4096)` | Transposed for Conv2d |
-| Torch target (y) | `(1, num_dyes, 4096)` | Transposed for Conv2d |
+| After rescaling | `(num_dyes, 4096)` | Uniform base-pair grid |
+| Segmentation mask | `(num_dyes, 4096)` | Binary annotation |
+| Torch input (x) | task-specific | Produced by the configured transformer |
+| Torch target (y) | task-specific | Produced by the configured transformer |
 
 Where `num_dyes = 5` (analysis channels; size standard excluded by default).
 
@@ -123,7 +123,7 @@ class MyDatasetStrategy(DatasetStrategy):
         ...
 
     @classmethod
-    def get_contributors(cls, file_name: str) -> str | None:
+    def get_number_of_contributors(cls, file_name: str) -> int | None:
         # Extract NOC from filename (e.g., "2p")
         ...
 
@@ -135,20 +135,23 @@ class MyDatasetStrategy(DatasetStrategy):
     # ... implement remaining abstract methods
 ```
 
-2. **Register** the strategy in `datasets/__init__.py`:
-
-```python
-DATASET_STRATEGIES["MY_DATASET"] = MyDatasetStrategy
-```
-
-3. **Create a config** in `conf/data/my_dataset.yaml`:
+2. **Create a config** in `conf/data/my_dataset.yaml` and point
+   `dataset_strategy._target_` at the strategy class:
 
 ```yaml
 name: my_dataset
-kit: PPF6C           # or GLOBALFILER
-dataset_strategy: MY_DATASET
-root: data/my_dataset/
-# ... other parameters
+dataset:
+  _target_: dnanet.data.hid_dataset.HIDDataset
+  root: data/my_dataset/
+  scaling_strategy: ${data.scaling_strategy}
+  dataset_strategy: ${data.dataset_strategy}
+
+scaling_strategy:
+  _target_: dnanet.data.strategies.scaling.powerplex_fusion_6c.PowerPlexFusion6CStrategy
+  scanpoint_resolution: 4096
+
+dataset_strategy:
+  _target_: dnanet.data.strategies.datasets.my_dataset.MyDatasetStrategy
 ```
 
-4. **Run**: `dnanet task=train data=my_dataset model=unet training=segmentation`
+3. **Run**: `dnanet task=train data=my_dataset model=unet training=segmentation`

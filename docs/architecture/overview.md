@@ -50,7 +50,8 @@ in Lightning modules (`modules/`). This allows:
 Forensic DNA kits (PPF6C, GlobalFiler) and datasets (NFI R&D, ProvedIt) have
 different conventions for size standards, file naming, and annotations. Rather
 than scattering `if kit == "PPF6C"` conditions, each variant is a Strategy
-class registered in the `StrategyRegistry`.
+class. Kit scaling strategies and dataset strategies are injected directly
+into the data pipeline.
 
 ### 3. Hydra Composition over Monolithic Config
 
@@ -76,9 +77,8 @@ the I/O cost is paid only when data is actually needed.
 | `data/image.py` | ~250 | `HIDImage` | Lazy Loading (Virtual Proxy) |
 | `data/dataset.py` | ~150 | `InMemoryDataset`, `SimpleDataset` | Template Method |
 | `data/hid_dataset.py` | ~440 | `HIDDataset` | Facade |
-| `data/datamodule.py` | ~150 | `DNANetDataModule`, `HIDTorchDataset` | Adapter, Bridge |
+| `data/datamodule.py` | ~150 | `DNANetDataModule` | Adapter, Bridge |
 | `data/strategies/scaling.py` | ~460 | `ScalingStrategy`, `PPF6CStrategy`, `GlobalFilerStrategy` | Strategy, Template Method |
-| `data/strategies/registry.py` | ~100 | `StrategyRegistry` | Service Locator |
 | `models/unet.py` | ~160 | `UNet`, `EncoderBlock`, `DecoderBlock` | Composite |
 | `models/autoencoder.py` | ~300 | `Conv1dAutoencoder`, `FourierAutoencoder` | — |
 | `models/peaknet.py` | ~350 | `CombinedClassifier`, `FiLMCombiner` | Strategy (combiner) |

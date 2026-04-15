@@ -82,7 +82,7 @@ with initialize(config_path="../conf"):
 # Load dataset
 dataset = HIDDataset(...)
 print(f"Loaded {len(dataset)} images")
-print(f"Shape: {dataset[0].data.shape}")  # (5, 4096, 1)
+print(f"Shape: {dataset[0].data.shape}")  # (5, 4096)
 
 # Train
 trainer, module = run(cfg, dataset)

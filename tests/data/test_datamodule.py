@@ -13,7 +13,6 @@ from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
 from dnanet.data.image import HIDImage
 from dnanet.data.transformer import SegmentationTransformer
-from tests.data.test_caching import ppf6c
 
 
 class SplitPreservingDataset(Dataset):
@@ -46,6 +45,8 @@ class SplitPreservingDataset(Dataset):
 
 
 def _make_fake_image(
+    scaling_strategy,
+    dataset_strategy,
     name: str = "fake.hid",
     num_dyes: int = 5,
     signal_length: int = 100,
@@ -53,8 +54,8 @@ def _make_fake_image(
 ) -> HIDImage:
     img = HIDImage(
         path=name,
-        scaling_strategy=ppf6c,
-        dataset_strategy=nfi_rnd_dataset,
+        scaling_strategy=scaling_strategy,
+        dataset_strategy=dataset_strategy,
         load_in_memory=True,
     )
     img._data = np.random.rand(num_dyes, signal_length, 1).astype(np.float32)
@@ -69,15 +70,15 @@ def _make_fake_image(
 
 
 @pytest.fixture
-def segmentation_dataset() -> SplitPreservingDataset:
-    images = [_make_fake_image(f"fake_{i}.hid") for i in range(10)]
+def segmentation_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservingDataset:
+    images = [_make_fake_image(ppf6c_kit, nfi_rnd_dataset, f"fake_{i}.hid") for i in range(10)]
     return SplitPreservingDataset(images, transform=SegmentationTransformer())
 
 
 @pytest.fixture
-def unlabeled_segmentation_dataset() -> SplitPreservingDataset:
+def unlabeled_segmentation_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservingDataset:
     images = [
-        _make_fake_image(f"fake_{i}.hid", with_annotation=False)
+        _make_fake_image(ppf6c_kit, nfi_rnd_dataset, f"fake_{i}.hid", with_annotation=False)
         for i in range(10)
     ]
     return SplitPreservingDataset(images, transform=SegmentationTransformer())

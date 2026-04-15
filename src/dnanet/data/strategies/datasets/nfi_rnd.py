@@ -13,6 +13,7 @@ from __future__ import annotations
 import csv
 import os
 import re
+from collections import Counter
 from itertools import groupby
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator, Sequence
@@ -482,4 +483,3 @@ class NFIRnDStrategy(DatasetStrategy):
         train_idx = [i for pos in train_pos for i in replicas[pos]]
         val_idx = [i for pos in val_pos for i in replicas[pos]]
         return Subset(dataset, train_idx), Subset(dataset, val_idx)
-

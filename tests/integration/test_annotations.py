@@ -60,7 +60,7 @@ class TestParseCalledAlleles:
     def test_d3s1358_heights(self, nfi_rnd_kit, allele_report, monkeypatch, nfi_rnd_dataset):
         """D3S1358 allele heights should match reference."""
         dataset_strat = nfi_rnd_dataset
-        monkeypatch.setattr(dataset_strat, "READ_ANNOTATION_HEIGHTS", True)
+        monkeypatch.setattr(type(dataset_strat), "READ_ANNOTATION_HEIGHTS", True)
         markers = dataset_strat.parse_annotations(allele_report, nfi_rnd_kit)["1_11148_1A2"]
         d3 = next(m for m in markers.data if m.name == "D3S1358")
         height_map = {a.name: a.height for a in d3.alleles}

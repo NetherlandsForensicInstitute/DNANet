@@ -28,5 +28,4 @@ scaling_strategy:
 
 # dataset strategy
 dataset_strategy:
-  _target_: dnanet.data.strategies.datasets.get_dataset_strategy
-  name: PROVEDIT
+  _target_: dnanet.data.strategies.datasets.ProvedItStrategy

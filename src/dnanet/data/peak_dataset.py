@@ -15,10 +15,11 @@ Design pattern: **Decorator**
 
 from __future__ import annotations
 
+import random
 from typing import Iterator, Any, List
 
 from loguru import logger
-from torch.utils.data import IterableDataset
+from torch.utils.data import IterableDataset, Subset
 
 from dnanet.data.dataset import TransformableDataset
 from dnanet.data.extracted_peak import ExtractedPeak
@@ -66,8 +67,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
         self._images = base_dataset.images
         self._transform = base_dataset.transform
-        self._scaling_strategy = base_dataset._scaling
-        self._dataset_strategy = base_dataset._dataset_strategy
+        self._dataset_strategy = base_dataset.dataset_strategy
         self.threshold = threshold
         self.window_size = window_size
         self.labels = self._dataset_strategy.get_annotation_classes()
@@ -91,7 +91,6 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
                 image,
                 threshold=self.threshold,
                 window_size=self.window_size,
-                scaling_strategy=self._scaling_strategy,
                 include_max_pool_dyes=self.include_max_pool_dyes
             )
 
