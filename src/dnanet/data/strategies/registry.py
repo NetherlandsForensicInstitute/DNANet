@@ -16,11 +16,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from loguru import logger
-
-from dnanet.data.strategies.scaling import ScalingStrategy, get_scaling_strategy
-
-
 if TYPE_CHECKING:
     from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 

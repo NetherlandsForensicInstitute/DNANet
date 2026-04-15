@@ -14,9 +14,9 @@ from dnanet.core.panel import Panel
 from dnanet.data.image import HIDImage
 from dnanet.data.strategies import PowerPlexFusion6CStrategy
 from dnanet.data.transformer import (
-    AlleleMetadataTransformer,
     CombinedTransformer,
     SegmentationTransformer,
+    AlleleMetadataTransformer,
 )
 
 

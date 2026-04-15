@@ -21,18 +21,25 @@ from __future__ import annotations
 
 import abc
 from abc import abstractmethod
-from typing import Any, MutableMapping
-from pathlib import Path
 from functools import cached_property
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, MutableMapping
 
 import numpy as np
 from loguru import logger
 
-from dnanet.core.panel import Panel
-from dnanet.core.types import PathLike
 from dnanet.data.parsing import get_peak_data
-from dnanet.core.annotation import Annotation, ClassAnnotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.strategies.scaling import ScalingStrategy
+
+if TYPE_CHECKING:
+    from dnanet.core.panel import Panel
+    from dnanet.core.types import PathLike
+    from dnanet.core.annotation import (
+        Annotation,
+        ClassAnnotation,
+        AlleleAnnotation,
+        ScanpointAnnotation,
+    )
 
 
 # Default RFU detection threshold

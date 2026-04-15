@@ -12,10 +12,10 @@ from dnanet.data.strategies import PowerPlexFusion6CStrategy
 from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.transformer import (
     CombinedTransformer,
-    PeakClassificationTransformer,
-    ReconstructionTransformer,
-    SegmentationTransformer,
     TransformDataCallable,
+    SegmentationTransformer,
+    ReconstructionTransformer,
+    PeakClassificationTransformer,
 )
 
 

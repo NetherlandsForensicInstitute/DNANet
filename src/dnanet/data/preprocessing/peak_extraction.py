@@ -235,7 +235,7 @@ def _label_peak_from_annotation_fast(
         # in any case, "noise" should never be the answer here
         # so we filter the unique and counts below
         unique, counts = map(
-            np.array, zip(*[(u, c) for u, c in zip(unique, counts, strict=True) if u != 0.0])
+            np.array, zip(*[(u, c) for u, c in zip(unique, counts, strict=True) if u != 0.0], strict=True)
         )
 
         sorted_idx = np.lexsort((unique, -counts))
@@ -440,7 +440,8 @@ def _find_peaks_torch_indices(
     threshold: float,
     dim: int = -1,
 ) -> torch.Tensor:
-    """Plateau-aware peak finder matching SciPy `signal.find_peaks(x, height=threshold)`-style local-max logic:
+    """Plateau-aware peak finder matching SciPy `signal.find_peaks(x, height=threshold)`-style local-max logic.
+    
     - A peak is a local maximum.
     - Flat peaks (plateaus) count as one peak.
     - For a plateau peak, return the middle index (rounded down if even).
@@ -541,6 +542,7 @@ def _extract_windows_torch(
     include_maxpool_dyes: bool,
 ) -> torch.Tensor:
     """Extract windows from 2D tensor x centered at specified indices.
+    
     Pads with zeros when out of bounds.
 
     x:        (D, L) tensor, e.g. (5 or 6, 4096)

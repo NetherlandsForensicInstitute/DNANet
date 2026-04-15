@@ -14,13 +14,14 @@ from __future__ import annotations
 
 import typing
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Literal, Mapping, Generator
-
-from torch.utils.data import Subset
+from typing import Any, Dict, List, Tuple, Literal, Mapping, Generator
+from pathlib import Path
 
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
+
+    from annotated_types import T
 
     from dnanet.core.types import PathLike
     from dnanet.core.annotation import Annotation
@@ -28,7 +29,6 @@ if typing.TYPE_CHECKING:
 
 
 FileCategory = Literal['sample', 'ladder', 'control', 'unknown']
-SplitResult = Tuple[Subset, Subset] | List[Tuple[Subset, Subset]]
 
 
 class DatasetStrategy(ABC):
@@ -116,14 +116,41 @@ class DatasetStrategy(ABC):
 
     @classmethod
     @abstractmethod
-    def split(cls, dataset, fraction: float, seed: int | None = None, **kwargs) -> SplitResult:
+    def _split(
+        cls, dataset, **kwargs
+    ) -> Tuple[Any, Any] | Tuple[Any, Any, Any] | List[Tuple[Any, Any]]:
         """Default: simple random fraction split.
 
         Override in strategies that have richer metadata (e.g. replica-aware).
 
         Returns:
-            ``(train_subset, val_subset)`` as :class:`torch.utils.data.Subset`.
+            ``(train_subset, val_subset)`` as :class:`torch.utils.data.Subset`
+            for a 2-way fractional split, or
+            ``(train_subset, val_subset, test_subset)`` when ``test_fraction > 0``, or
+            a list of ``(train_subset, val_subset)`` pairs for k-fold splits.
         """
+
+    @classmethod
+    def split(cls, dataset, **kwargs) -> Tuple[T, T] | Tuple[T, T, T] | List[Tuple[T, T]]:
+        """Splitting wrapper.
+
+        Uses a Strategy's _split implementation to split the data and
+        converts the result to the correct dataset type if needed.
+        """
+        from dnanet.data.peak_dataset import PeakWindowDataset
+
+        result = cls._split(dataset, **kwargs)
+
+        if not isinstance(dataset, PeakWindowDataset):
+            return result
+
+        def convert(splits):
+            return tuple(dataset.subset(s.indices) for s in splits)
+
+        if isinstance(result, list):
+            # K-Fold
+            return [convert(pair) for pair in result]
+        return convert(result)
 
     @property
     def annotation_to_idx(self) -> Dict[str, int]:

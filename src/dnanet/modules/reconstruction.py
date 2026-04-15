@@ -13,14 +13,17 @@ Design pattern: **Mediator**
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
 from torch import Tensor, nn
-from torchmetrics import MetricCollection
 
 from dnanet.modules.base import BaseTaskModule
 from dnanet.data.preprocessing.scaling import inverse_scale_rfu_torch
+
+
+if TYPE_CHECKING:
+    from torchmetrics import MetricCollection
 
 
 class ReconstructionModule(BaseTaskModule):

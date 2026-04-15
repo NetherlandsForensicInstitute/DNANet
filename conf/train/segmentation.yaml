@@ -6,6 +6,7 @@ batch_size: 16
 learning_rate: 0.0001
 weight_decay: 0.0005
 val_fraction: 0.2
+test_fraction: 0.0
 num_workers: 5
 seed: 42
 threshold: 0.5

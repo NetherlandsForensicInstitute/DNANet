@@ -16,14 +16,16 @@ Design pattern: **Mediator**
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
-from torch import Tensor, nn
 from torchmetrics import MetricCollection
 
 from dnanet.modules.base import BaseTaskModule
 
+
+if TYPE_CHECKING:
+    from torch import Tensor, nn
 
 class PeakNetModule(BaseTaskModule):
     """PyTorch Lightning module for combined PeakNet.
