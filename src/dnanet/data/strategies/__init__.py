@@ -12,38 +12,39 @@ Design pattern: **Strategy**
     - ``ScalingStrategy`` (ABC) — kit-specific size standard parsing & rescaling
     - ``DatasetStrategy`` (ABC) — dataset-specific file handling & annotations
 
-    At runtime, the user selects a strategy via Hydra config, and it's injected
-    into the data pipeline. No ``if/elif`` chains needed.
+    At runtime, the user selects strategies via Hydra config. Kit scaling is
+    injected into the data pipeline directly. Dataset strategy is also stored
+    in ``StrategyRegistry`` for shared dataset label and split helpers.
 
 Design pattern: **Registry**
-    ``StrategyRegistry`` is a simple service locator that holds the active
-    strategies. It's configured once at startup and provides global access.
-    This replaces scattered global state and makes dependencies explicit.
+    ``StrategyRegistry`` is a simple service locator for the active dataset
+    strategy only. Scaling strategies are not stored globally.
 """
 
+from dnanet.data.strategies.scaling import (
+    WEN_ILS,
+    GENESCAN_600_LIZ,
+    SCALING_STRATEGIES,
+    SYNTHETIC_GENESCAN_600_LIZ,
+    STRKit,
+    PowerplexY23,
+    SizeStandard,
+    ScalingStrategy,
+    GlobalFilerStrategy,
+    SizeStandardParseResult,
+    PowerPlexFusion6CStrategy,
+    get_scaling_strategy,
+)
 from dnanet.data.strategies.datasets import (
     DATASET_STRATEGIES,
-    DatasetStrategy,
     FileCategory,
     NFIRnDStrategy,
+    DatasetStrategy,
     ProvedItStrategy,
     get_dataset_strategy,
 )
 from dnanet.data.strategies.registry import StrategyRegistry
-from dnanet.data.strategies.scaling import (
-    GENESCAN_600_LIZ,
-    SCALING_STRATEGIES,
-    GlobalFilerStrategy,
-    PowerPlexFusion6CStrategy,
-    PowerplexY23,
-    ScalingStrategy,
-    STRKit,
-    SYNTHETIC_GENESCAN_600_LIZ,
-    SizeStandard,
-    SizeStandardParseResult,
-    WEN_ILS,
-    get_scaling_strategy,
-)
+
 
 __all__ = [
     "DATASET_STRATEGIES",

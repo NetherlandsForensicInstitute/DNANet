@@ -44,6 +44,7 @@ from dnanet.data.dataset import TransformableDataset
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
+from dnanet.data.strategies import ScalingStrategy, DatasetStrategy
 from dnanet.data.strategies.registry import StrategyRegistry
 
 
@@ -81,8 +82,8 @@ class HIDDataset(Dataset, TransformableDataset):
     def __init__(
         self,
         root: PathLike,
-        scaling_strategy: str,
-        dataset_strategy: str,
+        scaling_strategy: ScalingStrategy,
+        dataset_strategy: DatasetStrategy,
         analysis_threshold_type: str = 'DTH',
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
@@ -94,9 +95,6 @@ class HIDDataset(Dataset, TransformableDataset):
     ) -> None:
         super().__init__()
 
-        StrategyRegistry.configure_kit(scaling_strategy)
-        StrategyRegistry.configure_dataset(dataset_strategy)
-
         self.root = Path(root)
         self.analysis_threshold_type = analysis_threshold_type
         self.adjustment_of_annotations = adjustment_of_annotations
@@ -105,6 +103,9 @@ class HIDDataset(Dataset, TransformableDataset):
         self.data_loading_strategy = data_loading_strategy
         self._transform = transform
         self.load_in_memory = load_in_memory
+        self._scaling = scaling_strategy
+        self._dataset_strategy = dataset_strategy
+        self._default_panel = self._scaling.panel
 
         if adjustment_of_annotations and adjustment_of_annotations not in ('top', 'complete'):
             raise ValueError(
@@ -112,19 +113,9 @@ class HIDDataset(Dataset, TransformableDataset):
                 f'got {adjustment_of_annotations!r}'
             )
 
-        # Get strategies from registry
-        self._scaling = StrategyRegistry.get_scaling_strategy()
-        self._dataset_strategy = StrategyRegistry.get_dataset_strategy()
-        self._default_panel = self._scaling.panel
-
-        # Load best ladder paths: sample_stem -> ladder_path
-        # self._ladder_paths: dict[str, Path] = {}
-        # if best_ladder_paths_csv:
-        #     self._ladder_paths = self._load_ladder_paths(Path(best_ladder_paths_csv))
-        #     logger.info("Loaded {} ladder path mappings", len(self._ladder_paths))
 
         # Collect files, apply limit, load images
-        file_entries = list(self._dataset_strategy.collect_dataset_files(self.root))
+        file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
         logger.info('Found {} sample files to process', len(file_entries))
 
 
@@ -170,7 +161,7 @@ class HIDDataset(Dataset, TransformableDataset):
             _current_panel = self._default_panel
             if ladder_path:
                 adjusted = Ladder.create_adjusted_panel(
-                    ladder_path=ladder_path, catalog=self._scaling.kit.ladder_alleles
+                    ladder_path=ladder_path, catalog=self._scaling.kit.ladder_alleles, scaling_strategy=self._scaling,
                 )
                 if adjusted:
                     _current_panel = adjusted
@@ -181,6 +172,7 @@ class HIDDataset(Dataset, TransformableDataset):
             # Create HIDImage
             image = HIDImage(
                 path=path,
+                scaling_strategy=self._scaling,
                 adjusted_panel=_current_panel,
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,
@@ -200,7 +192,8 @@ class HIDDataset(Dataset, TransformableDataset):
                     allele_annotation=annotation,
                     adjusted_panel=_current_panel,
                     scaler=image.scaler,
-                    include_size_standard=self.include_size_standard
+                    include_size_standard=self.include_size_standard,
+                    scaling_strategy=self._scaling,
                 )
             else:
                 scanpoint_annotation = annotation
@@ -228,7 +221,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
     @staticmethod
     def _translate_allele_to_scanpoint_annotation(
-        allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray, include_size_standard: bool
+        allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray, include_size_standard: bool, scaling_strategy: ScalingStrategy
     ) -> ScanpointAnnotation:
         """Translates allele annotation to scanpoint annotation.
 
@@ -243,14 +236,13 @@ class HIDDataset(Dataset, TransformableDataset):
             :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
             :return: ScanpointAnnotation object containing the translated scanpoint annotation.
         """
-        
-        kit_num_dyes = StrategyRegistry.get_scaling_strategy().kit.num_dyes
-        
-        num_dyes = kit_num_dyes if include_size_standard else kit_num_dyes-1
+        kit_num_dyes = scaling_strategy.kit.num_dyes
+
+        num_dyes = kit_num_dyes if include_size_standard else kit_num_dyes - 1
         scanpoint_annotation = np.zeros(
             (
                 num_dyes,
-                StrategyRegistry.get_scaling_strategy().scanpoint_resolution,
+                scaling_strategy.scanpoint_resolution,
             ),
             dtype=np.int8,
         )
@@ -331,7 +323,7 @@ class HIDDataset(Dataset, TransformableDataset):
     @property
     def transform(self) -> TransformDataCallable | None:
         return self._transform
-    
+
     @property
     def images(self) -> List[HIDImage]:
         return self._data

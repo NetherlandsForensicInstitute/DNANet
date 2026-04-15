@@ -31,8 +31,8 @@ from loguru import logger
 from dnanet.core.panel import Panel
 from dnanet.core.types import PathLike
 from dnanet.data.parsing import get_peak_data
-from dnanet.core.annotation import Annotation, ClassAnnotation, ScanpointAnnotation, AlleleAnnotation
-from dnanet.data.strategies.registry import StrategyRegistry
+from dnanet.core.annotation import Annotation, ClassAnnotation, AlleleAnnotation, ScanpointAnnotation
+from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 # Default RFU detection threshold
@@ -76,8 +76,8 @@ class HIDImage(TrainableElement):
     def __init__(
         self,
         path: PathLike,
+        scaling_strategy: ScalingStrategy,
         adjusted_panel: Panel | None = None,
-
         include_size_standard: bool = False,
         annotation: ScanpointAnnotation | None = None,
         allele_annotation: AlleleAnnotation | None = None,
@@ -91,6 +91,7 @@ class HIDImage(TrainableElement):
         self.load_in_memory = load_in_memory
         self.data_loading_strategy = data_loading_strategy
         self.rfu_threshold = rfu_threshold
+        self.scaling_strategy = scaling_strategy
 
         self._adjusted_panel = adjusted_panel
         self._data: np.ndarray | None = None
@@ -155,16 +156,14 @@ class HIDImage(TrainableElement):
         if not self.path.exists():
             raise FileNotFoundError(str(self.path))
 
-        profile = get_peak_data(self.path, self.data_loading_strategy)
+        profile = get_peak_data(self.path, self.scaling_strategy, self.data_loading_strategy)
         if profile is None:
             return None
 
         # Parse size standard and rescale
-        scaling = StrategyRegistry.get_scaling_strategy()
-
         ss_lane = np.array(profile[-1])
         try:
-            ss_result = scaling.parse_size_standard(ss_lane)
+            ss_result = self.scaling_strategy.parse_size_standard(ss_lane)
         except ValueError as e:
             logger.warning("Size standard invalid for {}: {}", self.path.name, e)
             return None

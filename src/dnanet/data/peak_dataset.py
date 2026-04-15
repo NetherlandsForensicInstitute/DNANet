@@ -66,6 +66,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
         self._images = base_dataset.images
         self._transform = base_dataset.transform
+        self.scaling_strategy = base_dataset._scaling
         self.threshold = threshold
         self.window_size = window_size
         self.labels = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
@@ -89,6 +90,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
                 image,
                 threshold=self.threshold,
                 window_size=self.window_size,
+                scaling_strategy=self.scaling_strategy,
                 include_max_pool_dyes=self.include_max_pool_dyes
             )
 
@@ -115,7 +117,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
             )
 
         peak._data = data
-        
+
     @property
     def images(self) -> List[HIDImage]:
         return self._images

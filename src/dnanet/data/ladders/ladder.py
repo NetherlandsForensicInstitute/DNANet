@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 
     from dnanet.core.types import PathLike
     from dnanet.data.ladders import LadderAlleleCatalog
+    from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 class Ladder:
@@ -63,7 +64,7 @@ class Ladder:
     @classmethod
     @cache
     def create_adjusted_panel(
-        cls, ladder_path: PathLike, catalog: LadderAlleleCatalog
+        cls, ladder_path: PathLike, catalog: LadderAlleleCatalog, scaling_strategy: ScalingStrategy
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
 
@@ -72,22 +73,23 @@ class Ladder:
         Args:
             ladder_path: Path to the ladder HID file to use for adjustment
             catalog: The Ladder Catalog that was read from a csv
+            scaling_strategy: The Kit Scaling Strategy to use for scaling
 
         Returns:
             The adjusted panel
         """
         from dnanet.data.image import HIDImage
-        from dnanet.data.strategies.registry import StrategyRegistry
 
         ladder_image = HIDImage(
             path=ladder_path,
+            scaling_strategy=scaling_strategy,
             data_loading_strategy='analyzed', #TODO do not hardcode these values
             include_size_standard=True,
             load_in_memory=False,
         )
         if ladder_image.data is None:
             raise ValueError('Ladder is invalid')
-        scaling_strategy = StrategyRegistry.get_scaling_strategy()
+
         num_dyes = scaling_strategy.kit.num_dyes - 1 # exclude size standard
         default_panel = scaling_strategy.panel
 

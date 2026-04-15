@@ -63,7 +63,7 @@ class TestLadderWithRealData:
         scaling = StrategyRegistry.get_scaling_strategy()
 
         # Load the ladder HID data
-        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', strategy='raw')
+        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', data_loading_strategy='raw')
         assert raw_data is not None
 
         # Parse size standard to get scaler and rescaled indices
@@ -99,7 +99,7 @@ class TestLadderWithRealData:
     def test_adjusted_panel_amel(self, ppf6c, catalog, default_panel):
         """Adjusted panel should have AMEL with calibrated bp values."""
         scaling = StrategyRegistry.get_scaling_strategy()
-        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', strategy='raw')
+        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', data_loading_strategy='raw')
         ss_result = scaling.parse_size_standard(np.array(raw_data[-1]))
         data = raw_data[:, ss_result.rescaled_indices][..., np.newaxis]
 
@@ -129,7 +129,7 @@ class TestLadderWithRealData:
     def test_adjusted_panel_preserves_allele_count(self, ppf6c, catalog, default_panel):
         """Each marker in adjusted panel should have same allele count as default."""
         scaling = StrategyRegistry.get_scaling_strategy()
-        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', strategy='raw')
+        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', data_loading_strategy='raw')
         ss_result = scaling.parse_size_standard(np.array(raw_data[-1]))
         data = raw_data[:, ss_result.rescaled_indices][..., np.newaxis]
 

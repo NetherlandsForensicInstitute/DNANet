@@ -110,7 +110,7 @@ class TestGlobalFilerParseSizeStandard:
         if not ladder_path.exists():
             pytest.skip('ProvedIt test resource not available')
 
-        data = get_peak_data(ladder_path, strategy='raw')
+        data = get_peak_data(ladder_path, data_loading_strategy='raw')
         assert data is not None
         ss_lane = np.array(data[-1])
         result = gf.parse_size_standard(ss_lane)
@@ -126,7 +126,7 @@ class TestGlobalFilerParseSizeStandard:
         if not ladder_path.exists():
             pytest.skip('ProvedIt test resource not available')
 
-        data = get_peak_data(ladder_path, strategy='raw')
+        data = get_peak_data(ladder_path, data_loading_strategy='raw')
         result = gf.parse_size_standard(np.array(data[-1]))
         assert result.rescaled_indices.shape == (4096,)
         assert result.scaler.shape == (4096,)

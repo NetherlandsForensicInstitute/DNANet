@@ -31,6 +31,7 @@ from sklearn.model_selection import (
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.annotation import Annotation, AlleleAnnotation
+from dnanet.data.strategies import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import SplitResult, FileCategory, DatasetStrategy
 
 
@@ -55,6 +56,7 @@ class NFIRnDStrategy(DatasetStrategy):
     def collect_dataset_files(
         cls,
         root_path: PathLike,
+        scaling_strategy: ScalingStrategy,
         analysis_treshold_type: str = 'DTH',
         **kwargs
     ) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
@@ -65,6 +67,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
         Args:
             root_path: The path to the root of this dataset
+            scaling_strategy: The scaling strategy to use for the annotations.
             analysis_treshold_type: Whether to take annotations that were made with high (DTH) or low (DTL) analytical tresholds.
         """
         path = Path(root_path)
@@ -92,7 +95,7 @@ class NFIRnDStrategy(DatasetStrategy):
         annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
         annotation_name_to_annotation: Dict[str, Annotation] = {}
         for txt_file in annotation_txt_files:
-            _annotation = cls.parse_annotations(txt_file)
+            _annotation = cls.parse_annotations(txt_file, scaling_strategy)
 
             if _annotation:
                 annotation_name_to_annotation.update(_annotation)
@@ -214,17 +217,12 @@ class NFIRnDStrategy(DatasetStrategy):
                 mapping[row['image_path']] = Path(row['ladder_path'])
         return mapping
 
-    @staticmethod
-    def _get_scaling_strategy():
-        """Get the active panel from the strategy registry."""
-        from dnanet.data.strategies.registry import StrategyRegistry
-
-        return StrategyRegistry.get_scaling_strategy()
 
     @classmethod
     def parse_annotations(
         cls,
         annotation_source: PathLike,
+        scaling_strategy: ScalingStrategy
     ) -> Dict[str, Annotation]:
         """Parse manually called alleles from an annotation text file.
 
@@ -233,6 +231,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
         Args:
             annotation_source: Path to the annotation CSV/TSV/TXT file.
+            scaling_strategy: The scaling strategy to use for the annotations.
 
         Returns:
             List of Markers with their alleles, or ``None`` if not found.
@@ -251,7 +250,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
             reader = csv.reader(f, delimiter=delimiter)
             for sample, rows in groupby(reader, lambda row: row[0]):
-                sample_annotation = cls._parse_sample_annotations(rows, allele_cols, height_cols)
+                sample_annotation = cls._parse_sample_annotations(rows, allele_cols, height_cols, scaling_strategy)
                 annotation_mapping[sample] = AlleleAnnotation(sample_annotation)
 
         return annotation_mapping
@@ -262,11 +261,12 @@ class NFIRnDStrategy(DatasetStrategy):
         rows,
         allele_cols: Iterable[int],
         height_cols: Iterable[int],
+        scaling_strategy: ScalingStrategy
     ) -> list[Marker]:
         """Parse annotation rows for a single sample into Markers."""
         markers: list[Marker] = []
 
-        marker_2_dye = cls._get_scaling_strategy().marker_name_to_dye_idx()
+        marker_2_dye = scaling_strategy.marker_name_to_dye_idx()
         for row in rows:
             marker_name = row[1]
             dye_row = marker_2_dye[marker_name]

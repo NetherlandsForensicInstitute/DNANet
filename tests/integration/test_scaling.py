@@ -26,7 +26,7 @@ class TestPPF6CSizeStandard:
 
     def test_parse_size_standard_from_ladder(self, ppf6c):
         """Size standard parsing should succeed on a real ladder file."""
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", strategy="raw")
+        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", data_loading_strategy="raw")
         assert data is not None
 
         ss_lane = np.array(data[-1])
@@ -41,7 +41,7 @@ class TestPPF6CSizeStandard:
         Due to discrete pixel→bp mapping, adjacent positions can have the
         same bp value, so we check >= rather than strictly >.
         """
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", strategy="raw")
+        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", data_loading_strategy="raw")
         result = ppf6c.parse_size_standard(np.array(data[-1]))
         assert result is not None
 
@@ -51,7 +51,7 @@ class TestPPF6CSizeStandard:
 
     def test_scaler_range(self, ppf6c):
         """Scaler should cover approximately 65-475 bp for PPF6C."""
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", strategy="raw")
+        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", data_loading_strategy="raw")
         result = ppf6c.parse_size_standard(np.array(data[-1]))
         assert result is not None
 
@@ -64,7 +64,7 @@ class TestPPF6CSizeStandard:
 
         Reference values from original DNANet test_utils.py.
         """
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", strategy="analyzed")
+        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", data_loading_strategy="analyzed")
         assert data is not None
         ss_lane = data[-1]
 
@@ -82,7 +82,7 @@ class TestPPF6CSizeStandard:
 
         From original test: zero out signal after 8200 but keep final peak at 150rfu.
         """
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", strategy="analyzed")
+        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", data_loading_strategy="analyzed")
         assert data is not None
         ss_lane = data[-1].copy()
 

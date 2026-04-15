@@ -55,8 +55,6 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
             'DYS570': 4,
         }
 
-    def dye_channel_colors(self) -> list[str]:
-        return ['blue', 'green', 'black', 'red', 'purple', 'orange']
 
     def parse_size_standard(self, size_standard_lane: np.ndarray) -> SizeStandardParseResult | None:
         """Parse WEN ILS size standard from the PPF6C kit."""

@@ -21,17 +21,18 @@ Design pattern: **Layered Parsing Pipeline**
 
 from __future__ import annotations
 
+from typing import Union, Mapping, Sequence
 from collections import Counter
 from dataclasses import dataclass
-from typing import Mapping, Sequence, Union
 
-import construct
 import numpy as np
+import construct
 from loguru import logger
 
 from dnanet.core.types import PathLike
+from dnanet.data.strategies.scaling import ScalingStrategy
 from dnanet.data.preprocessing.baseline import baseline_superior
-from dnanet.data.strategies import StrategyRegistry
+
 
 # ---------------------------------------------------------------------------
 # Types
@@ -232,12 +233,13 @@ def parse_hid(path: PathLike) -> dict[str, ElementValue | None] | None:
         return None
 
 
-def get_peak_data(path: PathLike, strategy: str = "superior") -> np.ndarray | None:
+def get_peak_data(path: PathLike, scaling_strategy: ScalingStrategy, data_loading_strategy: str = "superior") -> np.ndarray | None:
     """Extract dye channel data from an HID file.
 
     Args:
         path: Path to the HID file.
-        strategy: Data loading strategy — one of:
+        scaling_strategy: Scaling strategy to use for scaling.
+        data_loading_strategy: Data loading strategy — one of:
             - ``"raw"``: Raw unprocessed signal.
             - ``"analyzed"``: Pre-analyzed signal from the instrument.
             - ``"superior"``: Raw signal with superior baseline subtraction.
@@ -246,33 +248,31 @@ def get_peak_data(path: PathLike, strategy: str = "superior") -> np.ndarray | No
         Array of shape ``(6, N)`` containing RFU values for each dye channel
         (5 fluorescence dyes + 1 size standard), or ``None`` on failure.
     """
-    if strategy not in ("raw", "analyzed", "superior"):
+    if data_loading_strategy not in ("raw", "analyzed", "superior"):
         raise ValueError(
-            f"strategy must be 'raw', 'analyzed', or 'superior', got '{strategy}'"
+            f"strategy must be 'raw', 'analyzed', or 'superior', got '{data_loading_strategy}'"
         )
-
-    scaling_strategy = StrategyRegistry.get_scaling_strategy()
 
     data = parse_hid(path)
     if data is None:
         return None
 
     try:
-        if strategy in ("raw", "superior"):
+        if data_loading_strategy in ("raw", "superior"):
             columns = scaling_strategy.kit.hid_file_data_columns_raw
         else:  # analyzed
             columns = scaling_strategy.kit.hid_file_data_columns_analyzed
 
         if columns is None:
-            raise ValueError(f"Kit {scaling_strategy.kit.name} does not support data loading strategy {strategy}. "
+            raise ValueError(f"Kit {scaling_strategy.kit.name} does not support data loading strategy {data_loading_strategy}. "
                              f"Please specify the hid_file_data_columns in the STRKit configuration.")
         dyes = np.array([data[col] for col in columns], dtype=np.int32)
     except KeyError:
         data_keys = [k for k in data if k.startswith("DATA")]
-        logger.warning("Missing {} DATA columns in {}, found: {}", strategy, path, data_keys)
+        logger.warning("Missing {} DATA columns in {}, found: {}", data_loading_strategy, path, data_keys)
         return None
 
-    if strategy == "superior":
+    if data_loading_strategy == "superior":
         baseline = baseline_superior(dyes)
         dyes = dyes - baseline
 
