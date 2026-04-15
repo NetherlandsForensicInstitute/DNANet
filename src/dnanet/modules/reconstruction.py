@@ -15,7 +15,9 @@ from __future__ import annotations
 
 from typing import Any
 
+import torch
 from torch import Tensor, nn
+from torchmetrics import MetricCollection
 
 from dnanet.modules.base import BaseTaskModule
 from dnanet.data.preprocessing.scaling import inverse_scale_rfu_torch
@@ -27,29 +29,38 @@ class ReconstructionModule(BaseTaskModule):
     Args:
         model: Autoencoder network (must have ``encode``/``decode``).
         loss_fn: Loss function (default: ``nn.MSELoss``).
+        optimizer: Optimizer instance for training.
         learning_rate: Initial learning rate.
         weight_decay: L2 regularization.
-        scheduler_gamma: Exponential LR decay. Set to 1.0 to disable.
+        lr_scheduler: Optional learning-rate scheduler.
+        metrics: Metric collection used for train/validation logging.
     """
 
     def __init__(
         self,
         model: nn.Module,
         loss_fn: nn.Module | None = None,
+        *,
+        optimizer: torch.optim.Optimizer,
         learning_rate: float = 1e-3,
         weight_decay: float = 0.0,
-        scheduler_gamma: float = 1.0,
-        metrics_cfg: Any = None,
+        lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        metrics: MetricCollection | None = None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ) -> None:
+        if lr_scheduler is None:
+            lr_scheduler = scheduler
+
         super().__init__(
             model=model,
             loss_fn=loss_fn or nn.MSELoss(),
-            metrics_cfg=metrics_cfg,
+            optimizer=optimizer,
+            metrics=metrics,
+            lr_scheduler=lr_scheduler,
         )
         self.save_hyperparameters({
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
-            "scheduler_gamma": scheduler_gamma,
         })
 
     def compute_step_outputs(
@@ -76,7 +87,7 @@ class ReconstructionModule(BaseTaskModule):
 
         # denormalize
         log_scale = True
-        max_rfu = 33000 ## TODO do not hardcode values
+        max_rfu = 33000  # TODO do not hardcode values
         reconstruction = inverse_scale_rfu_torch(reconstruction, log_scale, max_rfu)
 
         loss = self.loss_fn(reconstruction, target)

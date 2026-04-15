@@ -14,53 +14,18 @@ Usage::
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import List, Mapping
 from pathlib import Path
 
 import numpy as np
 import lightning as L
 from loguru import logger
-from omegaconf import OmegaConf, DictConfig
-from hydra.utils import instantiate
-from torch.utils.data import Subset, Dataset
+from omegaconf import OmegaConf, DictConfig, ListConfig
+from hydra.utils import get_class, instantiate
+from torch.utils.data import Dataset
 
-from dnanet.metric_factory import build_metric_functions
-
-
-def _compute_metrics(
-    metric_cfg: dict[str, Any] | DictConfig | None,
-    *metric_args: Any,
-) -> dict[str, float]:
-    """Compute Hydra-configured metrics over the supplied arguments."""
-    results: dict[str, float] = {}
-    for name, metric_fn in build_metric_functions(metric_cfg).items():
-        value = metric_fn(*metric_args)
-        results[name] = float(value)
-        logger.info("  {}: {:.4f}", name, value)
-    return results
-
-
-def _compute_pixel_metrics(
-    ground_truths: list[np.ndarray],
-    predictions: list[np.ndarray],
-    metric_cfg: dict[str, Any] | DictConfig | None,
-) -> dict[str, float]:
-    """Compute configured pixel-level metrics."""
-    return _compute_metrics(metric_cfg, ground_truths, predictions)
-
-
-def _raw_eval_items(dataset: Dataset) -> list[Any]:
-    """Return untransformed validation items when the dataset exposes them."""
-    if isinstance(dataset, Subset):
-        base_dataset = dataset.dataset
-        if hasattr(base_dataset, "data"):
-            return [base_dataset.data[i] for i in dataset.indices]
-        return [base_dataset[i] for i in dataset.indices]
-
-    if hasattr(dataset, "data"):
-        return list(dataset.data)
-
-    return [dataset[i] for i in range(len(dataset))]
+from dnanet.modules import BaseTaskModule
+from dnanet.tasks.train import _build_logger
 
 
 def _as_2d_array(array: np.ndarray) -> np.ndarray:
@@ -69,59 +34,8 @@ def _as_2d_array(array: np.ndarray) -> np.ndarray:
     return array
 
 
-def _compute_allele_metrics(
-    raw_items: list[Any],
-    predictions: list[np.ndarray],
-    metric_cfg: dict[str, Any] | DictConfig | None,
-    allele_caller_cfg: dict[str, Any] | DictConfig | None,
-) -> dict[str, float]:
-    """Compute configured allele metrics when raw caller inputs are available."""
-    if allele_caller_cfg is None:
-        logger.warning(
-            "Allele metrics are configured, but evaluation.allele_caller is missing.",
-        )
-        return {}
-
-    allele_caller = instantiate(allele_caller_cfg)
-    ground_truth_markers = []
-    predicted_markers = []
-    skipped_items = 0
-
-    for raw_item, prediction in zip(raw_items, predictions, strict=True):
-        meta = getattr(raw_item, "meta", None)
-        called_alleles = meta.get("called_alleles") if hasattr(meta, "get") else None
-        panel = getattr(raw_item, "adjusted_panel", None)
-        signal_image = getattr(raw_item, "data", None)
-
-        if called_alleles is None or panel is None or signal_image is None:
-            skipped_items += 1
-            continue
-
-        predicted_markers.append(
-            allele_caller.call_alleles(
-                prediction_image=_as_2d_array(prediction),
-                signal_image=_as_2d_array(signal_image),
-                scaler=raw_item.scaler,
-                panel=panel,
-            )
-        )
-        ground_truth_markers.append(tuple(called_alleles))
-
-    if skipped_items:
-        logger.warning(
-            "Skipped allele metrics for {} validation samples without raw allele metadata.",
-            skipped_items,
-        )
-
-    if not ground_truth_markers:
-        logger.warning("No allele-call annotations were available for evaluation.")
-        return {}
-
-    return _compute_metrics(metric_cfg, ground_truth_markers, predicted_markers)
-
-
 def _save_results(
-    results: dict[str, float],
+    results: List[Mapping[str, float]],
     output_dir: str,
     filename: str = "metrics.json",
 ) -> Path:
@@ -131,6 +45,24 @@ def _save_results(
     metrics_path = output_path / filename
     metrics_path.write_text(json.dumps(results, indent=2))
     return metrics_path
+
+
+def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
+    """Build test-stage callbacks from evaluation config."""
+    callbacks_cfg = cfg.evaluate.get("callbacks")
+    if not callbacks_cfg:
+        return []
+
+    if isinstance(callbacks_cfg, DictConfig):
+        callback_specs = callbacks_cfg.values()
+    elif isinstance(callbacks_cfg, ListConfig):
+        callback_specs = callbacks_cfg
+    else:
+        raise TypeError(
+            "evaluate.callbacks must be a mapping or list of Hydra callback configs."
+        )
+
+    return [instantiate(callback_cfg, _convert_="partial") for callback_cfg in callback_specs]
 
 
 def run(
@@ -168,15 +100,19 @@ def run(
     network = instantiate(model_cfg.architecture)
     loss_fn = instantiate(model_cfg.loss)
 
-    training_type = cfg.training.get("type", "segmentation")
-    from dnanet.tasks.train import _resolve_module_class
-    ModuleClass = _resolve_module_class(training_type)
+    eval_metrics = instantiate(cfg.evaluate.metrics, _convert_="partial")
 
-    module = ModuleClass.load_from_checkpoint(
-        checkpoint_path,
+    # -- Lightning module --------------------------------------------------
+    # noinspection PyTypeChecker
+    module_class: type[BaseTaskModule] = get_class(cfg.evaluate.lightning_module)
+
+
+    module = module_class.load_from_checkpoint(
+        checkpoint_path=checkpoint_path,
+        metrics=eval_metrics,
         model=network,
-        loss_fn=loss_fn,
-        metrics_cfg=cfg.training.get("metrics"),
+        optimizer=None,
+        loss_fn=loss_fn
     )
     module.eval()
     logger.info("Model loaded: {}", type(network).__name__)
@@ -188,9 +124,9 @@ def run(
 
     datamodule = DNANetDataModule(
         dataset=dataset,
-        batch_size=cfg.training.batch_size,
-        val_fraction=cfg.training.get("val_fraction", 0.2),
-        num_workers=cfg.training.get("num_workers", 0),
+        batch_size=cfg.evaluate.get("batch_size", 1),
+        val_fraction= None, # always use the entire dataset for evaluation
+        num_workers=cfg.evaluate.get("num_workers", 0),
         seed=cfg.seed,
     )
     datamodule.setup("test")
@@ -198,54 +134,16 @@ def run(
     # -- Predict -----------------------------------------------------------
     trainer = L.Trainer(
         default_root_dir=cfg.output_dir,
+        callbacks=_build_callbacks(cfg),
         enable_progress_bar=True,
-        logger=False,
+        logger=_build_logger(cfg),
+        devices=1,
     )
 
     logger.info("Running predictions...")
-    predictions_list = trainer.predict(module, datamodule.val_dataloader())
+    logger.warning("Evaluating on entire dataset (no split applied).")
+    results = trainer.test(module, dataloaders=datamodule.train_dataloader()) # FIXME: use datamodule test dataloader
 
-    # Collect predictions and ground truths as numpy arrays
-    pred_arrays: list[np.ndarray] = []
-    gt_arrays: list[np.ndarray] = []
-
-    for batch_preds in predictions_list:
-        pred_arrays.extend(
-            batch_preds[i].cpu().numpy()
-            for i in range(batch_preds.shape[0])
-        )
-
-    for i in range(len(datamodule._val_dataset)):
-        _, y = datamodule._val_dataset[i]
-        gt_arrays.append(y.numpy())
-
-    # -- Compute metrics ---------------------------------------------------
-    eval_cfg = cfg.get("evaluation", {})
-    pixel_metric_cfg = eval_cfg.get("pixel_metrics")
-    allele_metric_cfg = eval_cfg.get("allele_metrics")
-    results: dict[str, float] = {}
-
-    has_pixel_metrics = pixel_metric_cfg is not None and len(pixel_metric_cfg) > 0
-    has_allele_metrics = allele_metric_cfg is not None and len(allele_metric_cfg) > 0
-
-    if has_pixel_metrics:
-        logger.info("Computing pixel metrics...")
-        results.update(_compute_pixel_metrics(gt_arrays, pred_arrays, pixel_metric_cfg))
-
-    if has_allele_metrics:
-        logger.info("Computing allele metrics...")
-        raw_items = _raw_eval_items(datamodule._val_dataset)
-        results.update(
-            _compute_allele_metrics(
-                raw_items,
-                pred_arrays,
-                allele_metric_cfg,
-                eval_cfg.get("allele_caller"),
-            )
-        )
-
-    if not has_pixel_metrics and not has_allele_metrics:
-        logger.warning("No metrics configured in evaluation config.")
 
     # -- Save results ------------------------------------------------------
     if results:
@@ -258,11 +156,11 @@ def run(
     config_path.write_text(OmegaConf.to_yaml(cfg))
 
     # Optionally save predictions
-    if eval_cfg.get("save_predictions", False):
-        pred_dir = Path(cfg.output_dir) / eval_cfg.get("predictions_dir", "predictions")
-        pred_dir.mkdir(parents=True, exist_ok=True)
-        for i, pred in enumerate(pred_arrays):
-            np.save(pred_dir / f"prediction_{i:04d}.npy", pred)
-        logger.info("Predictions saved to {}", pred_dir)
+    # if cfg.evaluation.get("save_predictions", False):
+    #     pred_dir = Path(cfg.output_dir) / cfg.evaluation.get("predictions_dir", "predictions")
+    #     pred_dir.mkdir(parents=True, exist_ok=True)
+    #     for i, pred in enumerate(pred_arrays):
+    #         np.save(pred_dir / f"prediction_{i:04d}.npy", pred)
+    #     logger.info("Predictions saved to {}", pred_dir)
 
     return results

@@ -31,6 +31,7 @@ from typing import Any
 
 import torch
 from torch import Tensor, nn
+from torchmetrics import MetricCollection
 
 from dnanet.modules.base import BaseTaskModule
 
@@ -47,34 +48,45 @@ class SegmentationModule(BaseTaskModule):
     Args:
         model: The segmentation network (e.g. ``UNet``).
         loss_fn: Loss function (e.g. ``DiceLoss``).
+        optimizer: Optimizer instance for training.
         learning_rate: Initial learning rate for Adam.
         weight_decay: L2 regularization strength.
-        scheduler_gamma: Multiplicative LR decay factor per epoch.
-            Set to ``1.0`` to disable scheduling.
+        lr_scheduler: Optional learning-rate scheduler.
         threshold: Sigmoid threshold for converting logits to binary
             predictions (used for metric computation, not loss).
+        metrics: Metric collection used for train/validation logging.
     """
 
     def __init__(
         self,
         model: nn.Module,
         loss_fn: nn.Module,
+        optimizer: torch.optim.Optimizer | None,
         learning_rate: float = 1e-4,
         weight_decay: float = 5e-4,
-        scheduler_gamma: float = 0.8,
         threshold: float = 0.5,
-        metrics_cfg: Any = None,
+        lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        metrics: MetricCollection | None = None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ) -> None:
-        super().__init__(model=model, loss_fn=loss_fn, metrics_cfg=metrics_cfg)
+        if lr_scheduler is None:
+            lr_scheduler = scheduler
+
+        super().__init__(
+            model=model,
+            loss_fn=loss_fn,
+            optimizer=optimizer,
+            metrics=metrics,
+            lr_scheduler=lr_scheduler,
+        )
         self.save_hyperparameters({
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
-            "scheduler_gamma": scheduler_gamma,
             "threshold": threshold,
         })
 
     def compute_step_outputs(
-        self, batch: tuple[Tensor, Tensor],
+        self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Compute loss and metric inputs for a single batch.
 
@@ -84,13 +96,32 @@ class SegmentationModule(BaseTaskModule):
         Returns:
             Scalar loss plus flattened prediction/target tensors for metrics.
         """
+        loss, preds, y = self._compute_loss_and_probabilities(batch)
+        return loss, preds.reshape(-1), y.reshape(-1).int()
+
+    def compute_test_step_outputs(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        loss, preds, y = self._compute_loss_and_probabilities(batch)
+        return loss, preds.reshape(-1), y.reshape(-1).int(), preds
+
+    @staticmethod
+    def _split_batch(batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]) -> tuple[Tensor, Tensor]:
+        if len(batch) == 3:
+            x, y, _metadata = batch
+            return x, y
         x, y = batch
+        return x, y
+
+    def _compute_loss_and_probabilities(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        x, y = self._split_batch(batch)
         logits = self(x)
         loss = self.loss_fn(logits, y)
-
-        # Update metrics with flattened predictions
-        preds = torch.sigmoid(logits).detach()
-        return loss, preds.reshape(-1), y.reshape(-1).int()
+        return loss, torch.sigmoid(logits).detach(), y
 
     def predict_step(self, batch: Any, batch_idx: int) -> Tensor:
         del batch_idx

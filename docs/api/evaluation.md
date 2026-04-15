@@ -30,9 +30,9 @@ All functions accept lists of numpy arrays (one per sample).
 
 Metrics that evaluate allele-level accuracy after allele calling.
 
-- `allele_precision(gt_markers, pred_markers)` → float
-- `allele_recall(gt_markers, pred_markers)` → float
-- `allele_f1_score(gt_markers, pred_markers)` → float
+- `AllelePrecision().update(gt_markers, pred_markers)` / `compute()` → tensor
+- `AlleleRecall().update(gt_markers, pred_markers)` / `compute()` → tensor
+- `AlleleF1Score().update(gt_markers, pred_markers)` / `compute()` → tensor
 
 ## Allele Caller
 

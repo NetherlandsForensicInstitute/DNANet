@@ -4,6 +4,18 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from torchmetrics import MetricCollection
+from torchmetrics.classification import (
+    BinaryAccuracy,
+    BinaryF1Score,
+    BinaryJaccardIndex,
+    BinaryPrecision,
+    BinaryRecall,
+    MulticlassF1Score,
+    MulticlassPrecision,
+    MulticlassRecall,
+)
+from torchmetrics.regression import MeanSquaredError
 
 from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
@@ -70,80 +82,39 @@ def segmentation_mask() -> np.ndarray:
 
 
 @pytest.fixture
-def segmentation_metrics_cfg() -> dict[str, object]:
-    return {
-        "accuracy": {
-            "_target_": "torchmetrics.classification.BinaryAccuracy",
-            "threshold": 0.5,
-        },
-        "precision": {
-            "_target_": "torchmetrics.classification.BinaryPrecision",
-            "threshold": 0.5,
-        },
-        "recall": {
-            "_target_": "torchmetrics.classification.BinaryRecall",
-            "threshold": 0.5,
-        },
-        "f1": {
-            "_target_": "torchmetrics.classification.BinaryF1Score",
-            "threshold": 0.5,
-        },
-        "iou": {
-            "_target_": "torchmetrics.classification.BinaryJaccardIndex",
-            "threshold": 0.5,
-        },
-    }
+def segmentation_metrics_cfg() -> MetricCollection:
+    return MetricCollection({
+        "accuracy": BinaryAccuracy(threshold=0.5),
+        "precision": BinaryPrecision(threshold=0.5),
+        "recall": BinaryRecall(threshold=0.5),
+        "f1": BinaryF1Score(threshold=0.5),
+        "iou": BinaryJaccardIndex(threshold=0.5),
+    })
 
 
 @pytest.fixture
-def classification_metrics_cfg() -> dict[str, object]:
-    return {
-        "accuracy": {
-            "_target_": "torchmetrics.classification.MulticlassAccuracy",
-            "num_classes": 3,
-            "average": "micro",
-        },
-        "precision": {
-            "_target_": "torchmetrics.classification.MulticlassPrecision",
-            "num_classes": 3,
-            "average": "macro",
-        },
-        "recall": {
-            "_target_": "torchmetrics.classification.MulticlassRecall",
-            "num_classes": 3,
-            "average": "macro",
-        },
-        "f1": {
-            "_target_": "torchmetrics.classification.MulticlassF1Score",
-            "num_classes": 3,
-            "average": "macro",
-        },
-    }
+def classification_metrics_cfg() -> MetricCollection:
+    return MetricCollection({
+        "precision": MulticlassPrecision(num_classes=3, average="macro"),
+        "recall": MulticlassRecall(num_classes=3, average="macro"),
+        "f1": MulticlassF1Score(num_classes=3, average="macro"),
+    })
 
 
 @pytest.fixture
-def reconstruction_metrics_cfg() -> dict[str, object]:
-    return {
-        "mse": {
-            "_target_": "torchmetrics.regression.MeanSquaredError",
-        },
-    }
+def reconstruction_metrics_cfg() -> MetricCollection:
+    return MetricCollection({
+        "mse": MeanSquaredError(),
+    })
 
 
 @pytest.fixture
-def peaknet_metrics_cfg() -> dict[str, object]:
-    return {
-        "accuracy": {
-            "_target_": "torchmetrics.classification.MulticlassAccuracy",
-            "num_classes": 3,
-            "average": "micro",
-        },
-        "f1": {
-            "_target_": "torchmetrics.classification.MulticlassF1Score",
-            "num_classes": 3,
-            "average": "macro",
-        },
-    }
+def peaknet_metrics_cfg() -> MetricCollection:
+    return MetricCollection({
+        "precision": MulticlassPrecision(num_classes=3, average="macro"),
+        "recall": MulticlassRecall(num_classes=3, average="macro"),
+        "f1": MulticlassF1Score(num_classes=3, average="macro"),
+    })
 
 
 @pytest.fixture

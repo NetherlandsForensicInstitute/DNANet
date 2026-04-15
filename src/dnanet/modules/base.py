@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from typing import Any
 
-import torch
 import lightning as L
+import torch
 import torchmetrics
-from torch import Tensor, nn
-from loguru import logger
 from lightning import Callback
+from loguru import logger
+from torch import Tensor, nn
+from torchmetrics import MetricCollection
 
 
 class BaseTaskModule(L.LightningModule, ABC):
@@ -25,15 +27,24 @@ class BaseTaskModule(L.LightningModule, ABC):
         self,
         model: nn.Module,
         loss_fn: nn.Module,
-        metrics_cfg: Any = None,
+        optimizer: torch.optim.Optimizer | None,
+        metrics: torchmetrics.MetricCollection | None = None,
+        lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ) -> None:
         super().__init__()
         self.model = model
         self.loss_fn = loss_fn
-        self.metrics_cfg = metrics_cfg
+        self.lr_scheduler = lr_scheduler
+        self.optimizer = optimizer
+        if metrics is None:
+            metrics = MetricCollection([])
+        self.train_metrics = metrics.clone(prefix="train/")
+        self.val_metrics = metrics.clone(prefix="val/")
+        self.test_metrics = metrics.clone(prefix="test/")
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.model(*args, **kwargs)
+
 
     @abstractmethod
     def compute_step_outputs(
@@ -41,12 +52,35 @@ class BaseTaskModule(L.LightningModule, ABC):
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Return loss, metric predictions, and metric targets for a batch."""
 
+    def compute_test_step_outputs(
+        self,
+        batch: Any,
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor | None]:
+        """Return test loss, metric inputs, and optional callback predictions."""
+        loss, preds, targets = self.compute_step_outputs(batch)
+        return loss, preds, targets, None
+
     def _metrics_for_stage(self, stage: str) -> torchmetrics.MetricCollection:
-        return torchmetrics.MetricCollection([]) # fixme
+        if stage == "train":
+            return self.train_metrics
+        if stage == "val":
+            return self.val_metrics
+        if stage == "test":
+            return self.test_metrics
+        raise ValueError(f"Unsupported stage: {stage}")
 
     def _shared_step(self, batch: Any, stage: str) -> Tensor:
         loss, preds, targets = self.compute_step_outputs(batch)
+        self._log_step_outputs(loss, preds, targets, stage)
+        return loss
 
+    def _log_step_outputs(
+        self,
+        loss: Tensor,
+        preds: Tensor,
+        targets: Tensor,
+        stage: str,
+    ) -> None:
         metrics = self._metrics_for_stage(stage)
         if len(metrics) > 0:
             metrics.update(preds, targets)
@@ -67,7 +101,6 @@ class BaseTaskModule(L.LightningModule, ABC):
                 on_epoch=True,
                 logger=True,
             )
-        return loss
 
     def training_step(self, batch: Any, batch_idx: int) -> Tensor:
         del batch_idx
@@ -77,26 +110,54 @@ class BaseTaskModule(L.LightningModule, ABC):
         del batch_idx
         self._shared_step(batch, "val")
 
+    def test_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor] | None:
+        del batch_idx
+        loss, preds, targets, callback_preds = self.compute_test_step_outputs(batch)
+        self._log_step_outputs(loss, preds, targets, "test")
+        if callback_preds is None:
+            return None
+        return {"preds": callback_preds}
+
+    def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:
+        if self._is_metadata_batch(batch):
+            data_batch = (batch[0], batch[1])
+            moved_data_batch = super().transfer_batch_to_device(
+                data_batch, device, dataloader_idx
+            )
+            return moved_data_batch[0], moved_data_batch[1], batch[2]
+
+        return super().transfer_batch_to_device(batch, device, dataloader_idx)
+
+    @classmethod
+    def _is_metadata_batch(cls, batch: Any) -> bool:
+        return (
+            isinstance(batch, (tuple, list))
+            and len(batch) == 3
+            and cls._is_metadata_sequence(batch[2])
+        )
+
+    @staticmethod
+    def _is_metadata_sequence(metadata: Any) -> bool:
+        return (
+            isinstance(metadata, Sequence)
+            and not isinstance(metadata, (str, bytes))
+            and all(isinstance(sample_metadata, Mapping) for sample_metadata in metadata)
+        )
+
 
 
     def configure_optimizers(self) -> dict[str, Any]:
-        optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.hparams.learning_rate,
-            weight_decay=self.hparams.weight_decay,
-        )
+        if self.optimizer is None:
+            raise ValueError("Optimizer must be provided to configure_optimizers")
 
-        config: dict[str, Any] = {"optimizer": optimizer}
+        config: dict[str, Any] = {"optimizer": self.optimizer}
 
-        if self.hparams.scheduler_gamma < 1.0:
-            scheduler = torch.optim.lr_scheduler.ExponentialLR(
-                optimizer,
-                gamma=self.hparams.scheduler_gamma,
-            )
+        if self.lr_scheduler is not None:
             config["lr_scheduler"] = {
-                "scheduler": scheduler,
-                "interval": "epoch",
+                "scheduler": self.lr_scheduler,
+                "interval": "epoch"
             }
+
 
         return config
 
