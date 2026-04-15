@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
 import torch
+import pytest
 from torch import nn
+from torch.optim import AdamW
+from torch.optim.lr_scheduler import ExponentialLR
 
 from dnanet.models.peak_classifier import PeakClassificationModel
 from dnanet.modules.classification import ClassificationModule
@@ -42,10 +44,13 @@ def model():
 
 
 @pytest.fixture
-def module(model):
+def module(model, classification_metrics_cfg):
+    optimizer = AdamW(model.parameters(), lr=1e-3, weight_decay=0.0)
     return ClassificationModule(
         model=model,
         loss_fn=nn.CrossEntropyLoss(),
+        optimizer=optimizer,
+        metrics=classification_metrics_cfg,
         num_classes=3,
         learning_rate=1e-3,
     )
@@ -78,12 +83,16 @@ class TestClassificationModule:
         assert loss.dim() == 0
         assert loss.requires_grad
 
-    def test_training_step_with_marker(self, batch_with_marker):
+    def test_training_step_with_marker(self, batch_with_marker, classification_metrics_cfg):
         model = PeakClassificationModel(
             num_classes=3, width=120, embedding_dim=8, hidden_channels=[16],
         )
         mod = ClassificationModule(
-            model=model, loss_fn=nn.CrossEntropyLoss(), num_classes=3,
+            model=model,
+            loss_fn=nn.CrossEntropyLoss(),
+            optimizer=AdamW(model.parameters(), lr=1e-3),
+            metrics=classification_metrics_cfg,
+            num_classes=3,
         )
         loss = mod.training_step(batch_with_marker, batch_idx=0)
         assert loss.dim() == 0
@@ -97,18 +106,25 @@ class TestClassificationModule:
         assert logits.shape == (8, 3)
 
     def test_configure_optimizers_no_scheduler(self, module):
-        """gamma=1.0 should not include a scheduler."""
         config = module.configure_optimizers()
         assert "optimizer" in config
+        assert config["optimizer"] is module.optimizer
         assert "lr_scheduler" not in config
 
-    def test_configure_optimizers_with_scheduler(self, model):
+    def test_configure_optimizers_with_scheduler(self, model, classification_metrics_cfg):
+        optimizer = AdamW(model.parameters(), lr=1e-3)
+        scheduler = ExponentialLR(optimizer, gamma=0.95)
         mod = ClassificationModule(
-            model=model, loss_fn=nn.CrossEntropyLoss(),
-            num_classes=3, scheduler_gamma=0.95,
+            model=model,
+            loss_fn=nn.CrossEntropyLoss(),
+            optimizer=optimizer,
+            lr_scheduler=scheduler,
+            metrics=classification_metrics_cfg,
+            num_classes=3,
         )
         config = mod.configure_optimizers()
         assert "lr_scheduler" in config
+        assert config["lr_scheduler"]["scheduler"] is scheduler
 
     def test_predict_step_no_marker(self, module, batch_no_marker):
         probs = module.predict_step(batch_no_marker, batch_idx=0)
@@ -116,22 +132,29 @@ class TestClassificationModule:
         # Should be valid probabilities
         assert torch.allclose(probs.sum(dim=1), torch.ones(8), atol=1e-5)
 
-    def test_predict_step_with_marker(self, batch_with_marker):
+    def test_predict_step_with_marker(self, batch_with_marker, classification_metrics_cfg):
         model = PeakClassificationModel(
             num_classes=3, width=120, embedding_dim=8, hidden_channels=[16],
         )
         mod = ClassificationModule(
-            model=model, loss_fn=nn.CrossEntropyLoss(), num_classes=3,
+            model=model,
+            loss_fn=nn.CrossEntropyLoss(),
+            optimizer=AdamW(model.parameters(), lr=1e-3),
+            metrics=classification_metrics_cfg,
+            num_classes=3,
         )
         probs = mod.predict_step(batch_with_marker, batch_idx=0)
         assert probs.shape == (8, 3)
 
-    def test_predict_step_marker_batch_without_targets(self):
+    def test_predict_step_marker_batch_without_targets(self, classification_metrics_cfg):
         peak_data = torch.randn(4, 1, 120)
         marker_idx = torch.tensor([0, 1, 2, 1], dtype=torch.long)
+        model = MarkerAwarePredictModel()
         mod = ClassificationModule(
-            model=MarkerAwarePredictModel(),
+            model=model,
             loss_fn=nn.CrossEntropyLoss(),
+            optimizer=AdamW(model.parameters(), lr=1e-3),
+            metrics=classification_metrics_cfg,
             num_classes=3,
         )
 
@@ -143,7 +166,9 @@ class TestClassificationModule:
     def test_metrics_update_and_reset(self, module, batch_no_marker):
         module.training_step(batch_no_marker, batch_idx=0)
         computed = module.train_metrics.compute()
-        assert "train/accuracy" in computed
+        assert "train/precision" in computed
+        assert "train/recall" in computed
+        assert "train/f1" in computed
         module.train_metrics.reset()
 
     def test_hparams_saved(self, module):

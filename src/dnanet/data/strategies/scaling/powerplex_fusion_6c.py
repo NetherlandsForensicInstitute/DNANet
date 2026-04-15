@@ -18,11 +18,11 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
     """
 
     def __init__(
-        self, kit: STRKit | None = None, **kwargs
+        self, kit: STRKit | None = None, scanpoint_resolution: int = 4096, **kwargs
     ) -> None:
         if kit is None:
             kit = PPF6C_KIT
-        super().__init__(kit, basepair_start=65, basepair_end=475, scanpoint_resolution=4096)
+        super().__init__(kit, basepair_start=65, basepair_end=475, scanpoint_resolution=scanpoint_resolution)
 
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         return {

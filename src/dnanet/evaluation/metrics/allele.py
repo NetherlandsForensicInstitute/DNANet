@@ -1,129 +1,134 @@
-"""Allele-level segmentation metrics.
+"""TorchMetrics for allele-level segmentation evaluation.
 
 These metrics compare predicted allele calls against ground-truth allele
 calls at the allele granularity (not pixel-level). An allele is correctly
 predicted if the same ``"MarkerName_AlleleName"`` string appears in both
 the prediction and the ground truth.
-
-Design pattern: **Pure Functions**
-    Like the pixel metrics, these are stateless functions that accept
-    pre-flattened allele name sets or Marker sequences.
 """
 
 from __future__ import annotations
 
-from typing import Sequence
+import abc
+from typing import TYPE_CHECKING, Sequence
 
-from dnanet.core.marker import Marker
+import torch
+from torch import Tensor
+from torchmetrics import Metric
+
 from dnanet.evaluation.utils import flatten_markers_to_allele_names
 
 
-def allele_precision(
+if TYPE_CHECKING:
+    from dnanet.core.marker import Marker
+
+
+__all__ = [
+    "AlleleMetric",
+    "AllelePrecision",
+    "AlleleRecall",
+    "AlleleF1Score",
+]
+
+class AlleleMetric(Metric, abc.ABC):
+    """Base class for micro-averaged allele call metrics.
+
+    ``update`` accepts per-sample ground-truth and predicted marker sequences.
+    The metric stores only aggregate true-positive, false-positive, and
+    false-negative counts, so it is cheap to sync across distributed workers.
+    """
+
+    full_state_update = False
+    higher_is_better = True
+    is_differentiable = False
+
+    def __init__(
+        self,
+        *,
+        locus: str | None = None,
+        **kwargs,
+    ) -> None:
+        """Initialize the metric with optional locus filtering."""
+        super().__init__(**kwargs)
+        self.locus = locus
+        self.add_state("tp", default=torch.tensor(0, dtype=torch.long), dist_reduce_fx="sum")
+        self.add_state("fp", default=torch.tensor(0, dtype=torch.long), dist_reduce_fx="sum")
+        self.add_state("fn", default=torch.tensor(0, dtype=torch.long), dist_reduce_fx="sum")
+
+    def update(
+        self,
+        ground_truth_markers: Sequence[Sequence[Marker]],
+        predicted_markers: Sequence[Sequence[Marker]],
+    ) -> None:
+        """Update true-positive, false-positive, and false-negative counts."""
+        tp, fp, fn = _count_allele_matches(
+            ground_truth_markers,
+            predicted_markers,
+            locus=self.locus,
+        )
+        self.tp += torch.as_tensor(tp, dtype=self.tp.dtype, device=self.tp.device)
+        self.fp += torch.as_tensor(fp, dtype=self.fp.dtype, device=self.fp.device)
+        self.fn += torch.as_tensor(fn, dtype=self.fn.dtype, device=self.fn.device)
+
+    @abc.abstractmethod
+    def compute(self) -> Tensor:
+        """Compute the metric value from accumulated counts."""
+
+
+class AllelePrecision(AlleleMetric):
+    """Micro-averaged precision for allele calls."""
+
+    def compute(self) -> Tensor:
+        """Compute precision from accumulated counts."""
+        return _safe_divide(self.tp, self.tp + self.fp)
+
+
+class AlleleRecall(AlleleMetric):
+    """Micro-averaged recall for allele calls."""
+
+    def compute(self) -> Tensor:
+        """Compute recall from accumulated counts."""
+        return _safe_divide(self.tp, self.tp + self.fn)
+
+
+class AlleleF1Score(AlleleMetric):
+    """Micro-averaged F1 score for allele calls."""
+
+    def compute(self) -> Tensor:
+        """Compute F1 score from accumulated counts."""
+        precision = _safe_divide(self.tp, self.tp + self.fp)
+        recall = _safe_divide(self.tp, self.tp + self.fn)
+        return _safe_divide(2 * precision * recall, precision + recall)
+
+
+def _count_allele_matches(
     ground_truth_markers: Sequence[Sequence[Marker]],
     predicted_markers: Sequence[Sequence[Marker]],
     *,
     locus: str | None = None,
-    min_rfu: int | None = None,
-    low_or_high: str | None = None,
-    gt_min_rfu: int | None = None,
-    gt_low_or_high: str | None = None,
-) -> float:
-    """Compute micro-averaged allele-level precision.
+) -> tuple[int, int, int]:
+    """Count true positives, false positives, and false negatives."""
+    if len(ground_truth_markers) != len(predicted_markers):
+        raise ValueError(
+            "ground_truth_markers and predicted_markers must contain the same "
+            f"number of samples, got {len(ground_truth_markers)} and "
+            f"{len(predicted_markers)}."
+        )
 
-    Args:
-        ground_truth_markers: Per-sample ground truth marker sequences.
-        predicted_markers: Per-sample predicted marker sequences.
-        locus: Filter to a specific locus.
-        min_rfu: RFU threshold for predictions.
-        low_or_high: Kit threshold mode for predictions.
-        gt_min_rfu: RFU threshold for ground truth (None = same as predictions,
-            or no threshold if annotations lack heights).
-        gt_low_or_high: Kit threshold mode for ground truth.
-
-    Returns:
-        Precision = TP / (TP + FP). Returns 0 if no positives predicted.
-    """
     tp, fp = 0, 0
-    for gt_markers, pred_markers in zip(ground_truth_markers, predicted_markers):
-        predicted = flatten_markers_to_allele_names(
-            pred_markers, locus=locus, min_rfu=min_rfu, low_or_high=low_or_high,
-        )
-        annotated = flatten_markers_to_allele_names(
-            gt_markers, locus=locus,
-            min_rfu=gt_min_rfu if gt_min_rfu is not None else min_rfu,
-            low_or_high=gt_low_or_high if gt_low_or_high is not None else low_or_high,
-        )
+    fn = 0
+    for gt_markers, pred_markers in zip(
+        ground_truth_markers, predicted_markers, strict=True,
+    ):
+        predicted = flatten_markers_to_allele_names(pred_markers, locus=locus)
+        annotated = flatten_markers_to_allele_names(gt_markers, locus=locus)
         matched = len(predicted & annotated)
         tp += matched
         fp += len(predicted) - matched
-
-    return tp / (tp + fp) if (tp + fp) > 0 else 0.0
-
-
-def allele_recall(
-    ground_truth_markers: Sequence[Sequence[Marker]],
-    predicted_markers: Sequence[Sequence[Marker]],
-    *,
-    locus: str | None = None,
-    min_rfu: int | None = None,
-    low_or_high: str | None = None,
-    gt_min_rfu: int | None = None,
-    gt_low_or_high: str | None = None,
-) -> float:
-    """Compute micro-averaged allele-level recall.
-
-    Args:
-        ground_truth_markers: Per-sample ground truth marker sequences.
-        predicted_markers: Per-sample predicted marker sequences.
-        locus: Filter to a specific locus.
-        min_rfu: RFU threshold for predictions.
-        low_or_high: Kit threshold mode for predictions.
-        gt_min_rfu: RFU threshold for ground truth.
-        gt_low_or_high: Kit threshold mode for ground truth.
-
-    Returns:
-        Recall = TP / (TP + FN). Returns 0 if no positives in ground truth.
-    """
-    tp, fn = 0, 0
-    for gt_markers, pred_markers in zip(ground_truth_markers, predicted_markers):
-        predicted = flatten_markers_to_allele_names(
-            pred_markers, locus=locus, min_rfu=min_rfu, low_or_high=low_or_high,
-        )
-        annotated = flatten_markers_to_allele_names(
-            gt_markers, locus=locus,
-            min_rfu=gt_min_rfu if gt_min_rfu is not None else min_rfu,
-            low_or_high=gt_low_or_high if gt_low_or_high is not None else low_or_high,
-        )
-        matched = len(predicted & annotated)
-        tp += matched
         fn += len(annotated) - matched
 
-    return tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    return tp, fp, fn
 
 
-def allele_f1_score(
-    ground_truth_markers: Sequence[Sequence[Marker]],
-    predicted_markers: Sequence[Sequence[Marker]],
-    *,
-    locus: str | None = None,
-    min_rfu: int | None = None,
-    low_or_high: str | None = None,
-    gt_min_rfu: int | None = None,
-    gt_low_or_high: str | None = None,
-) -> float:
-    """Compute allele-level F1 score.
-
-    Returns:
-        F1 = 2 * P * R / (P + R). Returns 0 if both are 0.
-    """
-    p = allele_precision(
-        ground_truth_markers, predicted_markers,
-        locus=locus, min_rfu=min_rfu, low_or_high=low_or_high,
-        gt_min_rfu=gt_min_rfu, gt_low_or_high=gt_low_or_high,
-    )
-    r = allele_recall(
-        ground_truth_markers, predicted_markers,
-        locus=locus, min_rfu=min_rfu, low_or_high=low_or_high,
-        gt_min_rfu=gt_min_rfu, gt_low_or_high=gt_low_or_high,
-    )
-    return 2 * p * r / (p + r) if (p + r) > 0 else 0.0
+def _safe_divide(numerator: Tensor, denominator: Tensor) -> Tensor:
+    value = numerator.float() / denominator.float().clamp_min(1)
+    return torch.where(denominator > 0, value, torch.zeros_like(value))

@@ -1,0 +1,45 @@
+# Evaluation settings for segmentation models
+batch_size: 16
+num_workers: 4
+threshold: 0.5
+
+metrics:
+  _target_: torchmetrics.MetricCollection
+  metrics:
+    scanpoint_accuracy:
+      _target_: torchmetrics.classification.BinaryAccuracy
+      threshold: ${evaluate.threshold}
+    scanpoint_precision:
+      _target_: torchmetrics.classification.BinaryPrecision
+      threshold: ${evaluate.threshold}
+    scanpoint_recall:
+      _target_: torchmetrics.classification.BinaryRecall
+      threshold: ${evaluate.threshold}
+    scanpoint_f1:
+      _target_: torchmetrics.classification.BinaryF1Score
+      threshold: ${evaluate.threshold}
+    scanpoint_iou:
+      _target_: torchmetrics.classification.BinaryJaccardIndex
+      threshold: ${evaluate.threshold}
+
+lightning_module: dnanet.modules.segmentation.SegmentationModule
+
+allele_caller:
+  _target_: dnanet.evaluation.allele_caller.NearestBasePairCaller
+  threshold: 0.5
+  exclude_non_autosomal: true
+
+callbacks:
+  allele_metrics:
+    _target_: dnanet.evaluation.callbacks.AlleleMetricsCallback
+    allele_caller: ${evaluate.allele_caller}
+
+# Output options
+save_predictions: false
+predictions_dir: predictions/
+visualize: false
+
+data_transform:
+  _target_: dnanet.data.transformer.AlleleMetadataTransformer
+  transformer:
+    _target_: dnanet.data.transformer.SegmentationTransformer

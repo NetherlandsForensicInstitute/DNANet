@@ -12,7 +12,6 @@ def _make_hid_dataset(**kwargs) -> HIDDataset:
         root=RD_DIR,
         scaling_strategy='PPF6C',
         dataset_strategy='NFI_RND',
-        ladder_alleles_csv=LADDER_ALLELES_CSV,
         **kwargs,
     )
 

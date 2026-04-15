@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List, Iterator
 
+from loguru import logger
 from torch.utils.data import IterableDataset
 
 from dnanet.data.dataset import TransformableDataset
@@ -50,7 +51,6 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         smooth_keep_factor: FFT smoothing keep fraction (None to skip).
         log_scale: Apply log1p scaling during preprocessing.
         max_rfu_value: Max RFU for normalization (None to skip).
-        use_ground_truth: Use annotation image for labeling.
     """
 
     def __init__(
@@ -64,7 +64,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         smooth_keep_factor: float | None = 0.4,
         log_scale: bool = True,
         max_rfu_value: int | None = RFU_MAX_VALUE,
-        use_ground_truth: bool = True,
+        # TODO: add load_in_memory option
     ) -> None:
         super().__init__()
 
@@ -80,7 +80,6 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         self.smooth_keep_factor = smooth_keep_factor
         self.log_scale = log_scale
         self.max_rfu_value = max_rfu_value
-        self.use_ground_truth = use_ground_truth
         
     @classmethod
     def from_hid_dataset(cls, base_dataset: HIDDataset, **kwargs):
@@ -153,5 +152,4 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
             smooth_keep_factor=self.smooth_keep_factor,
             log_scale=self.log_scale,
             max_rfu_value=self.max_rfu_value,
-            use_ground_truth=self.use_ground_truth,
         )

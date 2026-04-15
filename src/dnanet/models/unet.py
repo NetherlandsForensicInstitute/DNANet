@@ -15,8 +15,10 @@ Key design decisions:
       The height (dye channels) is preserved throughout.
     - Filter count doubles at each encoder level: 32 → 64 → 128 → 256 → 512
       (for depth=4, num_filters=32).
-    - The output is a single-channel logit map with the same spatial
-      dimensions as the input.
+    - Single-channel inputs are provided as ``(B, H, W)`` and a singleton
+      channel dimension is added internally for the 2D convolutions.
+    - The default output is a single-channel logit map with the same spatial
+      dimensions as the input, returned as ``(B, H, W)``.
 
 Ported from the original DNANet U-Net with improved type safety and
 Hydra-compatible configuration (no ``device`` parameter — Lightning
@@ -129,9 +131,11 @@ class UNet(nn.Module):
         kernel_size: ``(height, width)`` convolution kernel size.
         num_filters: Number of filters in the first encoder level.
             Doubles at each subsequent level.
-        in_channels: Number of input channels (default 1).
+        in_channels: Number of input channels for legacy 4D inputs. Must be 1
+            when using the channel-less ``(B, H, W)`` input convention.
         out_channels: Number of output channels (default 1 for binary
-            segmentation).
+            segmentation). A single output channel is returned as ``(B, H, W)``
+            when the input was provided without an explicit channel dimension.
     """
 
     def __init__(
@@ -145,6 +149,8 @@ class UNet(nn.Module):
         super().__init__()
         if isinstance(kernel_size, list):
             kernel_size = tuple(kernel_size)
+        self.in_channels = in_channels
+        self.out_channels = out_channels
 
         # Encoder path
         self.encoders = nn.ModuleList()
@@ -173,11 +179,28 @@ class UNet(nn.Module):
         """Forward pass.
 
         Args:
-            x: Input tensor of shape ``(B, C_in, H, W)``.
+            x: Input tensor of shape ``(B, H, W)`` for the standard
+                single-channel case, or legacy ``(B, C_in, H, W)``.
 
         Returns:
-            Logits of shape ``(B, C_out, H, W)``.
+            Logits of shape ``(B, H, W)`` for single-channel outputs when the
+            input was channel-less, otherwise ``(B, C_out, H, W)``.
         """
+        added_channel_dim = False
+        if x.ndim == 3:
+            if self.in_channels != 1:
+                raise ValueError(
+                    "Channel-less inputs require in_channels=1; "
+                    f"got in_channels={self.in_channels}."
+                )
+            x = x.unsqueeze(1)
+            added_channel_dim = True
+        elif x.ndim != 4:
+            raise ValueError(
+                "UNet expects input with shape (B, H, W) or (B, C, H, W); "
+                f"got shape {tuple(x.shape)}."
+            )
+
         # Encode — collect skip connections
         skips: list[Tensor] = []
         for encoder in self.encoders:
@@ -191,4 +214,7 @@ class UNet(nn.Module):
         for decoder in self.decoders:
             x = decoder(x, skips.pop())
 
-        return self.head(x)
+        logits = self.head(x)
+        if added_channel_dim and self.out_channels == 1:
+            return logits.squeeze(1)
+        return logits

@@ -13,12 +13,17 @@ Design pattern: **Mediator**
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import torchmetrics
+import torch
 from torch import Tensor, nn
 
 from dnanet.modules.base import BaseTaskModule
+from dnanet.data.preprocessing.scaling import inverse_scale_rfu_torch
+
+
+if TYPE_CHECKING:
+    from torchmetrics import MetricCollection
 
 
 class ReconstructionModule(BaseTaskModule):
@@ -27,30 +32,38 @@ class ReconstructionModule(BaseTaskModule):
     Args:
         model: Autoencoder network (must have ``encode``/``decode``).
         loss_fn: Loss function (default: ``nn.MSELoss``).
+        optimizer: Optimizer instance for training.
         learning_rate: Initial learning rate.
         weight_decay: L2 regularization.
-        scheduler_gamma: Exponential LR decay. Set to 1.0 to disable.
+        lr_scheduler: Optional learning-rate scheduler.
+        metrics: Metric collection used for train/validation logging.
     """
 
     def __init__(
         self,
         model: nn.Module,
         loss_fn: nn.Module | None = None,
+        *,
+        optimizer: torch.optim.Optimizer,
         learning_rate: float = 1e-3,
         weight_decay: float = 0.0,
-        scheduler_gamma: float = 1.0,
+        lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        metrics: MetricCollection | None = None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ) -> None:
-        super().__init__(model=model, loss_fn=loss_fn or nn.MSELoss())
+        if lr_scheduler is None:
+            lr_scheduler = scheduler
+
+        super().__init__(
+            model=model,
+            loss_fn=loss_fn or nn.MSELoss(),
+            optimizer=optimizer,
+            metrics=metrics,
+            lr_scheduler=lr_scheduler,
+        )
         self.save_hyperparameters({
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
-            "scheduler_gamma": scheduler_gamma,
-        })
-        self.initialize_metrics()
-
-    def build_metrics(self) -> torchmetrics.MetricCollection:
-        return torchmetrics.MetricCollection({
-            "mse": torchmetrics.regression.MeanSquaredError(),
         })
 
     def compute_step_outputs(
@@ -74,6 +87,11 @@ class ReconstructionModule(BaseTaskModule):
             reconstruction = reconstruction.squeeze(-1)
         if target.dim() == 4 and target.shape[-1] == 1:
             target = target.squeeze(-1)
+
+        # denormalize
+        log_scale = True
+        max_rfu = 33000  # TODO do not hardcode values
+        reconstruction = inverse_scale_rfu_torch(reconstruction, log_scale, max_rfu)
 
         loss = self.loss_fn(reconstruction, target)
         return loss, reconstruction.detach().reshape(-1), target.reshape(-1)

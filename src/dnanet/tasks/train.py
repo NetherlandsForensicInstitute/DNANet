@@ -30,8 +30,6 @@ from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
-from dnanet.data.datamodule import DNANetDataModule
-
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
@@ -41,44 +39,19 @@ if TYPE_CHECKING:
 # Module registry: maps training type to Lightning module class
 # ---------------------------------------------------------------------------
 
-_MODULE_REGISTRY: dict[str, str] = {
-    'segmentation': 'dnanet.modules.segmentation.SegmentationModule',
-    'classification': 'dnanet.modules.classification.ClassificationModule',
-    'reconstruction': 'dnanet.modules.reconstruction.ReconstructionModule',
-    'peaknet': 'dnanet.modules.peaknet.PeakNetModule',
-}
+if TYPE_CHECKING:
+    from torch.utils.data import Dataset
 
 
-def _resolve_module_class(training_type: str):
-    """Import and return the Lightning module class for the given training type."""
-    if training_type == 'segmentation':
-        from dnanet.modules.segmentation import SegmentationModule
-
-        return SegmentationModule
-    elif training_type == 'classification':
-        from dnanet.modules.classification import ClassificationModule
-
-        return ClassificationModule
-    elif training_type == 'reconstruction':
-        from dnanet.modules.reconstruction import ReconstructionModule
-
-        return ReconstructionModule
-    elif training_type == 'peaknet':
-        from dnanet.modules.peaknet import PeakNetModule
-
-        return PeakNetModule
-    else:
-        raise ValueError(
-            f'Unknown training type: {training_type!r}. Choose from: {list(_MODULE_REGISTRY.keys())}'
-        )
 
 
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
+    # callbacks: list[L.Callback] = [EpochConsoleLogger()]
     callbacks: list[L.Callback] = []
 
     # Early stopping
-    es_cfg = cfg.training.get('early_stopping')
+    es_cfg = cfg.train.get('early_stopping')
     if es_cfg:
         callbacks.append(
             EarlyStopping(
@@ -91,7 +64,7 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
         )
 
     # Model checkpointing
-    ckpt_cfg = cfg.training.get('checkpoint')
+    ckpt_cfg = cfg.train.get('checkpoint')
     if ckpt_cfg:
         callbacks.append(
             ModelCheckpoint(
@@ -99,7 +72,8 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
                 save_top_k=ckpt_cfg.get('save_top_k', 1),
                 mode=ckpt_cfg.get('mode', 'min'),
                 dirpath=f'{cfg.output_dir}/checkpoints',
-                filename='best-{epoch:02d}-{val/loss:.4f}',
+                filename='epoch-{epoch:03d}-val_loss-{val/loss:.4f}',
+                auto_insert_metric_name=False,
             )
         )
 
@@ -138,35 +112,6 @@ def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
         return instantiate(target_cfg)
 
     return None
-
-
-def _build_module(
-    cfg: DictConfig,
-    network,
-    loss_fn,
-) -> L.LightningModule:
-    """Build the appropriate Lightning module for the training type."""
-    training_type = cfg.training.get('type', 'segmentation')
-    ModuleClass = _resolve_module_class(training_type)
-
-    # Common kwargs
-    kwargs = {
-        'model': network,
-        'loss_fn': loss_fn,
-        'learning_rate': cfg.training.learning_rate,
-        'weight_decay': cfg.training.get('weight_decay', 0.0),
-        'scheduler_gamma': cfg.training.get('scheduler', {}).get('gamma', 1.0),
-    }
-
-    # Module-specific kwargs
-    if training_type == 'classification':
-        kwargs['num_classes'] = cfg.model.architecture.get('num_classes', 2)
-    elif training_type == 'peaknet':
-        kwargs['num_classes'] = cfg.model.architecture.get('num_classes', 2)
-    elif training_type == 'segmentation':
-        kwargs['threshold'] = cfg.training.get('threshold', 0.5)
-
-    return ModuleClass(**kwargs)
 
 
 def _load_pretrained_weights(network, cfg: DictConfig) -> None:
@@ -240,7 +185,6 @@ def run(
     # -- Model architecture + loss -----------------------------------------
     model_cfg = cfg.model
     network = instantiate(model_cfg.architecture)
-    loss_fn = instantiate(model_cfg.loss)
 
     # Load pre-trained sub-model weights (e.g. autoencoder, peak classifier)
     _load_pretrained_weights(network, cfg)
@@ -251,16 +195,32 @@ def run(
         sum(p.numel() for p in network.parameters()),
     )
 
+    # -- Optimizer and scheduler -------------------------------------------
+    optimizer = instantiate(cfg.train.optimizer, params=network.parameters())
+
+    if cfg.train.get('scheduler'):
+        scheduler = instantiate(cfg.train.scheduler, optimizer=optimizer)
+    else:
+        scheduler = None
+
+
     # -- Lightning module --------------------------------------------------
-    module = _build_module(cfg, network, loss_fn)
+    module = instantiate(
+        cfg.train.lightning_module,
+        model=network,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        _convert_='partial' # convert OmegaDict to standard dict since this is not a supported type for instantiating
+    )
+
 
     # -- Resume from checkpoint if provided --------------------------------
     ckpt_path = cfg.get('checkpoint')
     if ckpt_path:
         logger.info('Will resume training from checkpoint: {}', ckpt_path)
 
-    # -- Data --------------------------------------------------------------
 
+    # -- Data --------------------------------------------------------------
     if not dataset:
         if (data_cfg := cfg.get('data')) is None:
             raise ValueError(
@@ -269,35 +229,30 @@ def run(
 
         dataset = instantiate(data_cfg.dataset)
 
-    datamodule = DNANetDataModule(
-        dataset=dataset,
-        batch_size=cfg.training.get('batch_size', 16),
-        val_fraction=cfg.training.get('val_fraction', 0.2),
-        test_fraction=cfg.training.get('test_fraction', 0.0),
-        num_workers=cfg.training.get('num_workers', 0),
-        seed=cfg.get('seed', 42),
-    )
+    datamodule = instantiate(cfg.train.data_module, dataset=dataset)
 
     logger.info(
         'Training config: {} epochs, lr={}, batch_size={}',
-        cfg.training.max_epochs,
-        cfg.training.learning_rate,
-        cfg.training.batch_size,
+        cfg.train.max_epochs,
+        cfg.train.learning_rate,
+        cfg.train.batch_size,
     )
 
     # -- Trainer -----------------------------------------------------------
     trainer = L.Trainer(
-        max_epochs=cfg.training.max_epochs,
+        max_epochs=cfg.train.max_epochs,
         callbacks=_build_callbacks(cfg),
         logger=_build_logger(cfg),
         default_root_dir=cfg.output_dir,
         deterministic=False,
         enable_progress_bar=True,
-        log_every_n_steps=10,
+        log_every_n_steps=1,
+        check_val_every_n_epoch=1,
     )
 
     if datamodule is not None:
         ckpt_path = cfg.get('checkpoint')
+        logger.info('Starting training...')
         trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
         logger.info('Training complete!')
         _save_config(cfg, cfg.output_dir)

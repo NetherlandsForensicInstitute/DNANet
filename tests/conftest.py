@@ -4,10 +4,22 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from torchmetrics import MetricCollection
+from torchmetrics.regression import MeanSquaredError
+from torchmetrics.classification import (
+    BinaryRecall,
+    BinaryF1Score,
+    BinaryAccuracy,
+    BinaryPrecision,
+    MulticlassRecall,
+    MulticlassF1Score,
+    BinaryJaccardIndex,
+    MulticlassPrecision,
+)
 
+from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.core.panel import Panel
 from dnanet.data.strategies.registry import StrategyRegistry
 
 
@@ -67,6 +79,68 @@ def sample_panel(sample_marker, amel_marker) -> Panel:
 def segmentation_mask() -> np.ndarray:
     """A small fake segmentation mask."""
     return np.zeros((5, 100), dtype=np.float32)
+
+
+@pytest.fixture
+def segmentation_metrics_cfg() -> MetricCollection:
+    return MetricCollection({
+        "accuracy": BinaryAccuracy(threshold=0.5),
+        "precision": BinaryPrecision(threshold=0.5),
+        "recall": BinaryRecall(threshold=0.5),
+        "f1": BinaryF1Score(threshold=0.5),
+        "iou": BinaryJaccardIndex(threshold=0.5),
+    })
+
+
+@pytest.fixture
+def classification_metrics_cfg() -> MetricCollection:
+    return MetricCollection({
+        "precision": MulticlassPrecision(num_classes=3, average="macro"),
+        "recall": MulticlassRecall(num_classes=3, average="macro"),
+        "f1": MulticlassF1Score(num_classes=3, average="macro"),
+    })
+
+
+@pytest.fixture
+def reconstruction_metrics_cfg() -> MetricCollection:
+    return MetricCollection({
+        "mse": MeanSquaredError(),
+    })
+
+
+@pytest.fixture
+def peaknet_metrics_cfg() -> MetricCollection:
+    return MetricCollection({
+        "precision": MulticlassPrecision(num_classes=3, average="macro"),
+        "recall": MulticlassRecall(num_classes=3, average="macro"),
+        "f1": MulticlassF1Score(num_classes=3, average="macro"),
+    })
+
+
+@pytest.fixture
+def evaluation_pixel_metrics_cfg() -> dict[str, object]:
+    return {
+        "pixel_precision": {
+            "_target_": "dnanet.evaluation.metrics.pixel.pixel_precision",
+            "_partial_": True,
+            "threshold": 0.5,
+        },
+        "pixel_recall": {
+            "_target_": "dnanet.evaluation.metrics.pixel.pixel_recall",
+            "_partial_": True,
+            "threshold": 0.5,
+        },
+        "pixel_f1_score": {
+            "_target_": "dnanet.evaluation.metrics.pixel.pixel_f1_score",
+            "_partial_": True,
+            "threshold": 0.5,
+        },
+        "average_binary_iou": {
+            "_target_": "dnanet.evaluation.metrics.pixel.average_binary_iou",
+            "_partial_": True,
+            "threshold": 0.5,
+        },
+    }
 
 
 # ---------------------------------------------------------------------------

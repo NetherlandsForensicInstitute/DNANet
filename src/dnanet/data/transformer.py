@@ -1,23 +1,29 @@
 import abc
 from abc import abstractmethod
+from typing import Any, Tuple, Generic, TypeVar
 from dataclasses import dataclass
 
-from typing import Tuple
-
-import numpy as np
 import torch
 from torch.utils.data import default_collate
 
-from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.image import HIDImage, TrainableElement
-from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
-from dnanet.data.preprocessing.scaling import scale_rfu_torch
 from dnanet.data.strategies import StrategyRegistry
+from dnanet.data.extracted_peak import ExtractedPeak
+from dnanet.data.preprocessing.scaling import scale_rfu_torch
+from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
 
-
-from typing import Generic, TypeVar
 
 TrainableT = TypeVar('TrainableT', bound=TrainableElement)
+
+def _allele_metadata_from_image(image: HIDImage) -> dict[str, Any]:
+    return {
+        "allele_annotation": image.allele_annotation,
+        "panel": image.adjusted_panel,
+        "path": image.path,
+        "scaler": image.scaler,
+        "signal_image": image.data,
+    }
+
 
 class TransformDataCallable(abc.ABC, Generic[TrainableT]):
 
@@ -33,14 +39,13 @@ class TransformDataCallable(abc.ABC, Generic[TrainableT]):
 @dataclass
 class SegmentationTransformer(TransformDataCallable[HIDImage]):
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
-        # Input: (dyes, signal_length, 1) -> (1, dyes, signal_length)
         data = image.data
-        x = torch.tensor(np.transpose(data, (2, 0, 1)), dtype=torch.float32)
+        x = torch.tensor(data, dtype=torch.float32)
 
         # Target: segmentation mask with same shape
         if image.annotation is not None:
             y = torch.tensor(
-                np.transpose(image.annotation.data, (2, 0, 1)),
+                image.annotation.data,
                 dtype=torch.float32,
             )
         else:
@@ -48,13 +53,33 @@ class SegmentationTransformer(TransformDataCallable[HIDImage]):
 
         return x, y
 
+@dataclass
+class AlleleMetadataTransformer(TransformDataCallable[HIDImage]):
+    transformer: TransformDataCallable[HIDImage]
+
+    def __call__(
+        self,
+        image: HIDImage,
+    ) -> tuple[torch.Tensor | Tuple, torch.Tensor, dict[str, Any]]:
+        inputs, target = self.transformer(image)
+        return inputs, target, _allele_metadata_from_image(image)
+
+    def collate_fn(
+        self,
+        batch: list[tuple[torch.Tensor | Tuple, torch.Tensor, dict[str, Any]]],
+    ) -> tuple[torch.Tensor | Tuple, torch.Tensor, list[dict[str, Any]]]:
+        inputs_and_targets = [(inputs, target) for inputs, target, _metadata in batch]
+        metadata = [metadata for _inputs, _target, metadata in batch]
+        inputs, targets = self.transformer.collate_fn(inputs_and_targets)
+
+        return inputs, targets, metadata
+
 
 @dataclass
 class CombinedTransformer(TransformDataCallable[HIDImage]):
     threshold: int = 25
     window_size: int = 120
     include_max_pool_dyes: bool = False
-    device: torch.device | str = 'cuda'
 
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = image.data
@@ -70,7 +95,6 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         # Extract peaks as tensors
         peak_windows, marker_idxs, peak_centers = extract_peaks_torch(
             image,
-            device=self.device,
             threshold=self.threshold,
             window_size=self.window_size,
             include_max_pool_dyes=self.include_max_pool_dyes,
@@ -120,6 +144,7 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
 
         new_inputs = (full_images, peak_windows, marker_idxs, peak_centers, peak_counts)
         return new_inputs, targets
+
 
 @dataclass
 class ReconstructionTransformer(TransformDataCallable[HIDImage]):

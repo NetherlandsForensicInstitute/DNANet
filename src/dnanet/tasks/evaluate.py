@@ -14,58 +14,33 @@ Usage::
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING, List, Mapping
 from pathlib import Path
 
 import lightning as L
-import numpy as np
-from hydra.utils import instantiate
 from loguru import logger
-from omegaconf import DictConfig, OmegaConf
-from torch.utils.data import Dataset
+from omegaconf import OmegaConf, DictConfig, ListConfig
+from hydra.utils import get_class, instantiate
 
-from dnanet.evaluation.metrics import (
-    allele_f1_score,
-    allele_precision,
-    allele_recall,
-    average_binary_iou,
-    pixel_f1_score,
-    pixel_precision,
-    pixel_recall,
-)
-
-# Metric name -> callable mapping
-_METRIC_REGISTRY: dict[str, callable] = {
-    "pixel_precision": pixel_precision,
-    "pixel_recall": pixel_recall,
-    "pixel_f1_score": pixel_f1_score,
-    "average_binary_iou": average_binary_iou,
-}
-
-# Allele metrics require a different interface (marker sequences)
-_ALLELE_METRIC_REGISTRY: dict[str, callable] = {
-    "allele_precision": allele_precision,
-    "allele_recall": allele_recall,
-    "allele_f1_score": allele_f1_score,
-}
+from dnanet.tasks.train import _build_logger
 
 
-def _compute_pixel_metrics(
-    ground_truths: list[np.ndarray],
-    predictions: list[np.ndarray],
-    metric_names: list[str],
-) -> dict[str, float]:
-    """Compute pixel-level metrics."""
-    results = {}
-    for name in metric_names:
-        if name in _METRIC_REGISTRY:
-            value = _METRIC_REGISTRY[name](ground_truths, predictions)
-            results[name] = float(value)
-            logger.info("  {}: {:.4f}", name, value)
-    return results
+if TYPE_CHECKING:
+    import numpy as np
+    from torch.utils.data import Dataset
+
+    from dnanet.modules import BaseTaskModule
+    
+
+
+def _as_2d_array(array: np.ndarray) -> np.ndarray:
+    if array.ndim == 3 and array.shape[-1] == 1:
+        return array[..., 0]
+    return array
 
 
 def _save_results(
-    results: dict[str, float],
+    results: List[Mapping[str, float]],
     output_dir: str,
     filename: str = "metrics.json",
 ) -> Path:
@@ -75,6 +50,24 @@ def _save_results(
     metrics_path = output_path / filename
     metrics_path.write_text(json.dumps(results, indent=2))
     return metrics_path
+
+
+def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
+    """Build test-stage callbacks from evaluation config."""
+    callbacks_cfg = cfg.evaluate.get("callbacks")
+    if not callbacks_cfg:
+        return []
+
+    if isinstance(callbacks_cfg, DictConfig):
+        callback_specs = callbacks_cfg.values()
+    elif isinstance(callbacks_cfg, ListConfig):
+        callback_specs = callbacks_cfg
+    else:
+        raise TypeError(
+            "evaluate.callbacks must be a mapping or list of Hydra callback configs."
+        )
+
+    return [instantiate(callback_cfg, _convert_="partial") for callback_cfg in callback_specs]
 
 
 def run(
@@ -112,14 +105,19 @@ def run(
     network = instantiate(model_cfg.architecture)
     loss_fn = instantiate(model_cfg.loss)
 
-    training_type = cfg.training.get("type", "segmentation")
-    from dnanet.tasks.train import _resolve_module_class
-    ModuleClass = _resolve_module_class(training_type)
+    eval_metrics = instantiate(cfg.evaluate.metrics, _convert_="partial")
 
-    module = ModuleClass.load_from_checkpoint(
-        checkpoint_path,
+    # -- Lightning module --------------------------------------------------
+    # noinspection PyTypeChecker
+    module_class: type[BaseTaskModule] = get_class(cfg.evaluate.lightning_module)
+
+
+    module = module_class.load_from_checkpoint(
+        checkpoint_path=checkpoint_path,
+        metrics=eval_metrics,
         model=network,
-        loss_fn=loss_fn,
+        optimizer=None,
+        loss_fn=loss_fn
     )
     module.eval()
     logger.info("Model loaded: {}", type(network).__name__)
@@ -131,9 +129,9 @@ def run(
 
     datamodule = DNANetDataModule(
         dataset=dataset,
-        batch_size=cfg.training.batch_size,
-        val_fraction=cfg.training.get("val_fraction", 0.2),
-        num_workers=cfg.training.get("num_workers", 0),
+        batch_size=cfg.evaluate.get("batch_size", 1),
+        val_fraction= None, # always use the entire dataset for evaluation
+        num_workers=cfg.evaluate.get("num_workers", 0),
         seed=cfg.seed,
     )
     datamodule.setup("test")
@@ -141,37 +139,16 @@ def run(
     # -- Predict -----------------------------------------------------------
     trainer = L.Trainer(
         default_root_dir=cfg.output_dir,
+        callbacks=_build_callbacks(cfg),
         enable_progress_bar=True,
-        logger=False,
+        logger=_build_logger(cfg),
+        devices=1,
     )
 
     logger.info("Running predictions...")
-    predictions_list = trainer.predict(module, datamodule.val_dataloader())
+    logger.warning("Evaluating on entire dataset (no split applied).")
+    results = trainer.test(module, dataloaders=datamodule.train_dataloader()) # FIXME: use datamodule test dataloader
 
-    # Collect predictions and ground truths as numpy arrays
-    pred_arrays: list[np.ndarray] = []
-    gt_arrays: list[np.ndarray] = []
-
-    for batch_preds in predictions_list:
-        pred_arrays.extend(
-            batch_preds[i].cpu().numpy()
-            for i in range(batch_preds.shape[0])
-        )
-
-    for i in range(len(datamodule._val_dataset)):
-        _, y = datamodule._val_dataset[i]
-        gt_arrays.append(y.numpy())
-
-    # -- Compute metrics ---------------------------------------------------
-    eval_cfg = cfg.get("evaluation", {})
-    metric_names = list(eval_cfg.get("metrics", []))
-    results: dict[str, float] = {}
-
-    if metric_names:
-        logger.info("Computing metrics...")
-        results = _compute_pixel_metrics(gt_arrays, pred_arrays, metric_names)
-    else:
-        logger.warning("No metrics configured in evaluation config.")
 
     # -- Save results ------------------------------------------------------
     if results:
@@ -184,11 +161,11 @@ def run(
     config_path.write_text(OmegaConf.to_yaml(cfg))
 
     # Optionally save predictions
-    if eval_cfg.get("save_predictions", False):
-        pred_dir = Path(cfg.output_dir) / eval_cfg.get("predictions_dir", "predictions")
-        pred_dir.mkdir(parents=True, exist_ok=True)
-        for i, pred in enumerate(pred_arrays):
-            np.save(pred_dir / f"prediction_{i:04d}.npy", pred)
-        logger.info("Predictions saved to {}", pred_dir)
+    # if cfg.evaluation.get("save_predictions", False):
+    #     pred_dir = Path(cfg.output_dir) / cfg.evaluation.get("predictions_dir", "predictions")
+    #     pred_dir.mkdir(parents=True, exist_ok=True)
+    #     for i, pred in enumerate(pred_arrays):
+    #         np.save(pred_dir / f"prediction_{i:04d}.npy", pred)
+    #     logger.info("Predictions saved to {}", pred_dir)
 
     return results

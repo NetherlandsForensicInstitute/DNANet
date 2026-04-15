@@ -42,10 +42,3 @@ loss:
 # Peak detection settings (used by PeakNetDataModule)
 peak_threshold: 25
 window_size: 120
-
-transform:
-  _target_: dnanet.data.transformer.CombinedTransformer
-  threshold: 25
-  window_size: 120
-  include_max_pool_dyes: False
-  device: cuda

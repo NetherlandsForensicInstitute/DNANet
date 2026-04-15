@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING, Any, List, Tuple, Optional, Generator
 from pathlib import Path
 
 import numpy as np
+from tqdm import tqdm
 from loguru import logger
 from torch.utils.data import Dataset
 
@@ -88,9 +89,9 @@ class HIDDataset(Dataset, TransformableDataset):
         limit: int | None = None,
         skip_if_invalid_ladder: bool = False,
         include_size_standard: bool = False,
-        data_loading_strategy: str = 'superior',
-        load_in_memory: bool = False,
+        data_loading_strategy: str = "superior",
         transform: TransformDataCallable | None = None,
+        load_in_memory: bool = False,
     ) -> None:
         super().__init__()
 
@@ -103,8 +104,8 @@ class HIDDataset(Dataset, TransformableDataset):
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.include_size_standard = include_size_standard
         self.data_loading_strategy = data_loading_strategy
-        self.load_in_memory = load_in_memory
         self._transform = transform
+        self.load_in_memory = load_in_memory
 
         if adjustment_of_annotations and adjustment_of_annotations not in ('top', 'complete'):
             raise ValueError(
@@ -148,15 +149,20 @@ class HIDDataset(Dataset, TransformableDataset):
     ) -> Generator[HIDImage, None, None]:
         """Create HIDImage instances, loading data and filtering invalid ones."""
         ladder_cache: dict[str, Panel | None] = {}
-        loaded = 0
+
         skipped_data = 0
         skipped_alleles = 0
         skipped_ladder = 0
 
-        for entry in file_entries:
+        for entry in tqdm(file_entries, desc='Loading images', total=len(file_entries), ):
             path: Path = entry[0]
             ladder_path: Path | None = entry[2]
             annotation = entry[1]  # (name, file) or None
+
+            if isinstance(annotation, AlleleAnnotation):
+                allele_annotation = annotation
+            else:
+                allele_annotation = None
 
             # Build adjusted panel from ladder
             _current_panel = self._default_panel
@@ -179,10 +185,12 @@ class HIDDataset(Dataset, TransformableDataset):
                 adjusted_panel=_current_panel,
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,
+                allele_annotation=allele_annotation,
                 load_in_memory=self.load_in_memory,
             )
 
             # Trigger lazy load and validate
+            # TODO: should we always force data to be loaded from disk?
             if image.data is None:
                 skipped_data += 1
                 logger.debug('Skipping {}: no data', path.name)
@@ -190,7 +198,10 @@ class HIDDataset(Dataset, TransformableDataset):
 
             if isinstance(annotation, AlleleAnnotation):
                 scanpoint_annotation = self._translate_allele_to_scanpoint_annotation(
-                    allele_annotation=annotation, adjusted_panel=_current_panel, scaler=image.scaler
+                    allele_annotation=annotation,
+                    adjusted_panel=_current_panel,
+                    scaler=image.scaler,
+                    include_size_standard=self.include_size_standard
                 )
             else:
                 scanpoint_annotation = annotation
@@ -198,17 +209,13 @@ class HIDDataset(Dataset, TransformableDataset):
             if self.adjustment_of_annotations:
                 scanpoint_annotation = self._adjust_annotations(
                     [image], [scanpoint_annotation], adjustment_type=self.adjustment_of_annotations
-                )
+                )[0]
 
             image.annotation = scanpoint_annotation
 
             if image.annotation is None:
                 skipped_alleles += 1
                 logger.debug('{}: no annotation/called alleles', path.name)
-
-            loaded += 1
-            if loaded % 50 == 0:
-                logger.info('Loaded {}/{} images...', loaded, len(file_entries))
 
             yield image
 
@@ -221,7 +228,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
     @staticmethod
     def _translate_allele_to_scanpoint_annotation(
-        allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray
+        allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray, include_size_standard: bool
     ) -> ScanpointAnnotation:
         """Translates allele annotation to scanpoint annotation.
 
@@ -236,9 +243,12 @@ class HIDDataset(Dataset, TransformableDataset):
             :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
             :return: ScanpointAnnotation object containing the translated scanpoint annotation.
         """
+        kit_num_dyes = StrategyRegistry.get_scaling_strategy().kit.num_dyes
+        
+        num_dyes = kit_num_dyes if include_size_standard else kit_num_dyes-1
         scanpoint_annotation = np.zeros(
             (
-                StrategyRegistry.get_scaling_strategy().kit.num_dyes,
+                num_dyes,
                 StrategyRegistry.get_scaling_strategy().scanpoint_resolution,
             ),
             dtype=np.int8,
@@ -318,21 +328,25 @@ class HIDDataset(Dataset, TransformableDataset):
         return annotations
 
     @property
+    def transform(self) -> TransformDataCallable | None:
+        return self._transform
+    
+    @property
+    def images(self) -> List[HIDImage]:
+        return self._data
+    @property
     def data(self) -> List[HIDImage]:
         """Protected property list of HIDImages in the dataset."""
         return self._data
 
-    @property
-    def transform(self) -> TransformDataCallable | None:
-        return self._transform
-
-    @property
-    def images(self) -> List[HIDImage]:
-        return self._data
-
     # -- Dunder ----------------------------------------------------------- #
 
+    def __len__(self) -> int:
+        """Length of the dataset."""
+        return len(self._data)
+
     def __repr__(self) -> str:
+        """String representation of the dataset, containing the root path and length."""
         return f'HIDDataset(root={self.root.name}, n={len(self._data)})'
 
     def __getitem__(self, index: int) -> Any:
@@ -342,6 +356,3 @@ class HIDDataset(Dataset, TransformableDataset):
             item = self._transform(item)
 
         return item
-
-    def __len__(self) -> int:
-        return len(self._data)

@@ -24,10 +24,11 @@ class GlobalFilerStrategy(ScalingStrategy):
         self,
         max_shrinkages: int = 10,
         validation_threshold: float = 5.0,
+        scanpoint_resolution: int = 4096,
         **kwargs,
     ) -> None:
         kit = GLOBALFILER_KIT
-        super().__init__(kit, basepair_start=60, basepair_end=480, scanpoint_resolution=4096)
+        super().__init__(kit, basepair_start=60, basepair_end=480, scanpoint_resolution=scanpoint_resolution)
         self._max_shrinkages = max_shrinkages
         self._validation_threshold = validation_threshold
 

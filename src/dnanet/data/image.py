@@ -21,19 +21,27 @@ from __future__ import annotations
 
 import abc
 from abc import abstractmethod
-from typing import Any, MutableMapping
+from typing import TYPE_CHECKING, Any, MutableMapping
 from pathlib import Path
 from functools import cached_property
 
 import numpy as np
 from loguru import logger
 
-from dnanet.core.panel import Panel
-from dnanet.core.types import PathLike
 from dnanet.data.parsing import get_peak_data
-from dnanet.core.annotation import Annotation, ClassAnnotation, ScanpointAnnotation
 from dnanet.data.strategies.registry import StrategyRegistry
 
+
+if TYPE_CHECKING:
+    from dnanet.core.panel import Panel
+    from dnanet.core.types import PathLike
+    from dnanet.core.annotation import (
+        Annotation,
+        ClassAnnotation,
+        AlleleAnnotation,
+        ScanpointAnnotation,
+    )
+    
 
 # Default RFU detection threshold
 _DEFAULT_RFU_THRESHOLD = 40
@@ -80,6 +88,7 @@ class HIDImage(TrainableElement):
 
         include_size_standard: bool = False,
         annotation: ScanpointAnnotation | None = None,
+        allele_annotation: AlleleAnnotation | None = None,
         load_in_memory: bool = True,
         data_loading_strategy: str = "superior",
         rfu_threshold: float = _DEFAULT_RFU_THRESHOLD,
@@ -94,6 +103,7 @@ class HIDImage(TrainableElement):
         self._adjusted_panel = adjusted_panel
         self._data: np.ndarray | None = None
         self._annotation = annotation
+        self._allele_annotation = allele_annotation
         self._meta: MutableMapping[str, Any] = meta or {}
         self._scaler: np.ndarray | None = None
 
@@ -117,6 +127,11 @@ class HIDImage(TrainableElement):
         """``(height, width)`` of the data array."""
         d = self.data
         return (d.shape[0], d.shape[1]) if d is not None else (0, 0)
+
+    @property
+    def allele_annotation(self) -> AlleleAnnotation | None:
+        return self._allele_annotation
+
 
     @property
     def annotation(self) -> ScanpointAnnotation | None:
@@ -167,7 +182,7 @@ class HIDImage(TrainableElement):
             return None
 
         selected = profile if self.include_size_standard else profile[:-1]
-        data = selected[:, ss_result.rescaled_indices][..., np.newaxis]
+        data = selected[:, ss_result.rescaled_indices]
         self._scaler = ss_result.scaler
 
         return data

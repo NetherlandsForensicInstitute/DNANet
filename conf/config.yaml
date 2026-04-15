@@ -13,8 +13,8 @@
 defaults:
   - data: dnanet_rd
   - model: unet
-  - training: segmentation
-  - evaluation: segmentation
+  - train: segmentation
+  - evaluate: segmentation
   - logging: csvlogger
   - _self_
 

@@ -45,7 +45,7 @@ class TestProvedItStrategy:
         assert ProvedItStrategy.categorize_file(
             "B03_RD14-0003-34d1-0.5IP-Q0.75ng_05sec.hid"
         ) == "unknown"
-        
+
     def test_categorize_sample(self):
         assert ProvedItStrategy.categorize_file(
             "A01_RD14-0003-36_37_38-1;2;1-M3e-0.06GF-Q1.6_01.5sec.hid"

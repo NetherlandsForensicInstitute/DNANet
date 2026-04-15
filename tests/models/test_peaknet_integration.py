@@ -167,10 +167,23 @@ class TestPeakNetModule:
             autoencoder=ae, peak_classifier=pc,
             hidden_dims=[32], combiner="mlp",
         )
+        metrics_cfg = {
+            "accuracy": {
+                "_target_": "torchmetrics.classification.MulticlassAccuracy",
+                "num_classes": 2,
+                "average": "micro",
+            },
+            "f1": {
+                "_target_": "torchmetrics.classification.MulticlassF1Score",
+                "num_classes": 2,
+                "average": "macro",
+            },
+        }
 
         module = PeakNetModule(
             model=network,
             loss_fn=torch.nn.CrossEntropyLoss(),
+            metrics_cfg=metrics_cfg,
             num_classes=2,
         )
 
