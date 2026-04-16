@@ -43,26 +43,25 @@ class NFIRnDStrategy(DatasetStrategy):
     # R&D filename pattern: digit + letter + digit (e.g. "1A2")
     _RD_PREFIX_RE = re.compile(r'^\d[A-F]\d')
 
-    _DONORS_PER_DATASET_NR = {'1': ['A', 'B', 'C', 'D', 'E'],
-                             '2': ['F', 'G', 'H', 'I', 'J'],
-                             '3': ['K', 'L', 'M', 'N', 'O'],
-                             '4': ['P', 'Q', 'R', 'S', 'T'],
-                             '5': ['U', 'V', 'W', 'X', 'Y'],
-                             '6': ['Z', 'AA', 'AB', 'AC', 'AD'],
-                             }
+    _DONORS_PER_DATASET_NR = {
+        '1': ['A', 'B', 'C', 'D', 'E'],
+        '2': ['F', 'G', 'H', 'I', 'J'],
+        '3': ['K', 'L', 'M', 'N', 'O'],
+        '4': ['P', 'Q', 'R', 'S', 'T'],
+        '5': ['U', 'V', 'W', 'X', 'Y'],
+        '6': ['Z', 'AA', 'AB', 'AC', 'AD'],
+    }
 
     def __init__(self, annotation_type: str):
         """Initialize the NFI R&D dataset strategy."""
         self.annotation_type = annotation_type
 
-        assert annotation_type in ['DTH', 'DTL', 'ground_truth'], f'Invalid annotation type: {annotation_type}'
-
+        assert annotation_type in ['DTH', 'DTL', 'ground_truth'], (
+            f'Invalid annotation type: {annotation_type}'
+        )
 
     def collect_dataset_files(
-        self,
-        root_path: PathLike,
-        scaling_strategy: ScalingStrategy,
-        **kwargs
+        self, root_path: PathLike, scaling_strategy: ScalingStrategy, **kwargs
     ) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
         """Collect the dataset files for this specific dataset strategy.
 
@@ -72,24 +71,29 @@ class NFIRnDStrategy(DatasetStrategy):
         Args:
             root_path: The path to the root of this dataset
             scaling_strategy: The scaling strategy to use for the annotations.
+            **kwargs: Additional dataset collection options; currently unused.
         """
         path = Path(root_path)
 
         hid_to_ladder_path = list(path.rglob('*best_ladder_paths*'))
         if not hid_to_ladder_path:
-            raise ValueError(
-                'Path does not contain the necessary ladder mapping files ladder'
-            )
+            raise ValueError('Path does not contain the necessary ladder mapping files ladder')
 
         # find all HID files
         hid_files = list(path.rglob('*.hid'))
-        hid_file_samples = list(filter(lambda x: self.categorize_file(x.name) == 'sample', hid_files))
+        hid_file_samples = list(
+            filter(lambda x: self.categorize_file(x.name) == 'sample', hid_files)
+        )
 
         # load and parse annotations
         if self.annotation_type == 'DTH' or self.annotation_type == 'DTL':
-            hid_to_annotation = self._parse_analyst_annotation(path, self.annotation_type, scaling_strategy)
+            hid_to_annotation = self._parse_analyst_annotation(
+                path, self.annotation_type, scaling_strategy
+            )
         elif self.annotation_type == 'ground_truth':
-            hid_to_annotation = self._parse_ground_truth_annotations(path, hid_file_samples, scaling_strategy)
+            hid_to_annotation = self._parse_ground_truth_annotations(
+                path, hid_file_samples, scaling_strategy
+            )
         else:
             raise ValueError(f'Invalid annotation type: {self.annotation_type}')
 
@@ -106,7 +110,15 @@ class NFIRnDStrategy(DatasetStrategy):
             )
 
     @classmethod
-    def _parse_analyst_annotation(cls, path: Path, annotation_type: str, scaling_strategy: ScalingStrategy) -> dict[str, AlleleAnnotation | None]:
+    def _parse_analyst_annotation(
+        cls, path: Path, annotation_type: str, scaling_strategy: ScalingStrategy
+    ) -> dict[str, AlleleAnnotation | None]:
+        """Parse analyst-call annotations and map them back to HID files.
+
+        Analyst annotations are stored as AlleleReport text files. The dataset
+        also contains a HID-to-annotation mapping CSV whose DTH/DTL column
+        identifies which parsed AlleleReport sample belongs to each HID file.
+        """
         hid_to_annotation_path = list(path.rglob('*hid_to_annotation*'))
 
         annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
@@ -138,7 +150,19 @@ class NFIRnDStrategy(DatasetStrategy):
         return hid_to_annotation
 
     @classmethod
-    def _parse_ground_truth_annotations(cls, path: Path, hid_files: List[Path], scaling_strategy: ScalingStrategy) -> dict[str, AlleleAnnotation]:
+    def _parse_ground_truth_annotations(
+        cls, path: Path, hid_files: List[Path], scaling_strategy: ScalingStrategy
+    ) -> dict[str, AlleleAnnotation]:
+        """Parse ground-truth donor references for the requested HID files.
+
+        NFI R&D ground truth is stored as one CSV per donor in the
+        ``References`` directory. Multiple HID files can be technical
+        replicates of the same mixture prefix, so this parser caches both
+        donor-level annotations and fully merged prefix-level annotations.
+
+        Donor annotations are merged with ``AlleleAnnotation.__add__`` so the
+        shared marker/allele merge semantics stay in one place.
+        """
         marker_to_dye = scaling_strategy.marker_name_to_dye_idx()
         donor_annotation_cache: Dict[str, AlleleAnnotation] = {}
         prefix_annotation_cache: Dict[str, AlleleAnnotation] = {}
@@ -160,10 +184,14 @@ class NFIRnDStrategy(DatasetStrategy):
 
     @classmethod
     def _reference_file_stems_for_prefix(cls, prefix: str) -> List[str]:
+        """Return donor reference file stems for an NFI R&D sample prefix.
+
+        For example, prefix ``1A2`` uses the first two donor references from
+        mixture dataset 1, resulting in ``["1A", "1B"]``.
+        """
         dataset_nr, nr_donors = prefix[0], int(prefix[2])
         return [
-            f'{dataset_nr}{letter}'
-            for letter in cls._DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]
+            f'{dataset_nr}{letter}' for letter in cls._DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]
         ]
 
     @classmethod
@@ -174,6 +202,12 @@ class NFIRnDStrategy(DatasetStrategy):
         marker_to_dye: dict[str, int],
         donor_annotation_cache: Dict[str, AlleleAnnotation],
     ) -> AlleleAnnotation:
+        """Build one mixture annotation from donor reference file stems.
+
+        Donor annotations are loaded through ``_read_reference_profile`` at
+        most once per ``_parse_ground_truth_annotations`` call and then reused
+        from ``donor_annotation_cache``.
+        """
         annotation: AlleleAnnotation | None = None
 
         for file_stem in file_stems:
@@ -196,6 +230,12 @@ class NFIRnDStrategy(DatasetStrategy):
         reference_profiles_path: Path,
         marker_to_dye: dict[str, int],
     ) -> AlleleAnnotation:
+        """Read a single donor reference CSV as an ``AlleleAnnotation``.
+
+        Each CSV row contains one marker with two allele columns. Rows are
+        converted immediately to one-marker annotations and merged via
+        ``AlleleAnnotation.__add__`` .
+        """
         annotation: AlleleAnnotation | None = None
 
         with open(reference_profiles_path, 'r', newline='', encoding='utf-8') as f:
@@ -208,8 +248,7 @@ class NFIRnDStrategy(DatasetStrategy):
                             name=marker_name,
                             dye_row=marker_to_dye[marker_name],
                             alleles=frozenset(
-                                Allele(name=allele)
-                                for allele in (row['Allele1'], row['Allele2'])
+                                Allele(name=allele) for allele in (row['Allele1'], row['Allele2'])
                             ),
                         )
                     ]
@@ -217,8 +256,6 @@ class NFIRnDStrategy(DatasetStrategy):
                 annotation = row_annotation if annotation is None else annotation + row_annotation
 
         return annotation or AlleleAnnotation([])
-
-
 
     @classmethod
     def categorize_file(cls, file_name: str) -> FileCategory:
@@ -303,12 +340,9 @@ class NFIRnDStrategy(DatasetStrategy):
                 mapping[row['image_path']] = Path(row['ladder_path'])
         return mapping
 
-
     @classmethod
     def parse_annotations(
-        cls,
-        annotation_source: PathLike,
-        scaling_strategy: ScalingStrategy
+        cls, annotation_source: PathLike, scaling_strategy: ScalingStrategy
     ) -> Dict[str, Annotation]:
         """Parse manually called alleles from an annotation text file.
 
@@ -336,7 +370,9 @@ class NFIRnDStrategy(DatasetStrategy):
 
             reader = csv.reader(f, delimiter=delimiter)
             for sample, rows in groupby(reader, lambda row: row[0]):
-                sample_annotation = cls._parse_sample_annotations(rows, allele_cols, height_cols, scaling_strategy)
+                sample_annotation = cls._parse_sample_annotations(
+                    rows, allele_cols, height_cols, scaling_strategy
+                )
                 annotation_mapping[sample] = AlleleAnnotation(sample_annotation)
 
         return annotation_mapping
@@ -347,7 +383,7 @@ class NFIRnDStrategy(DatasetStrategy):
         rows,
         allele_cols: Iterable[int],
         height_cols: Iterable[int],
-        scaling_strategy: ScalingStrategy
+        scaling_strategy: ScalingStrategy,
     ) -> list[Marker]:
         """Parse annotation rows for a single sample into Markers."""
         markers: list[Marker] = []
@@ -403,6 +439,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
     @staticmethod
     def get_annotation_classes() -> list[str]:
+        """Return the annotation class labels produced by this strategy."""
         return ['noise', 'allele']
 
     @classmethod
