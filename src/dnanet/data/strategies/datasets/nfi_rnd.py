@@ -13,7 +13,6 @@ from __future__ import annotations
 import csv
 import os
 import re
-from collections import defaultdict
 from itertools import groupby
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
@@ -90,7 +89,7 @@ class NFIRnDStrategy(DatasetStrategy):
         if self.annotation_type == 'DTH' or self.annotation_type == 'DTL':
             hid_to_annotation = self._parse_analyst_annotation(path, self.annotation_type, scaling_strategy)
         elif self.annotation_type == 'ground_truth':
-            hid_to_annotation = self._parse_ground_truth_annotation(path, hid_file_samples, scaling_strategy)
+            hid_to_annotation = self._parse_ground_truth_annotations(path, hid_file_samples, scaling_strategy)
         else:
             raise ValueError(f'Invalid annotation type: {self.annotation_type}')
 
@@ -139,39 +138,85 @@ class NFIRnDStrategy(DatasetStrategy):
         return hid_to_annotation
 
     @classmethod
-    def _parse_ground_truth_annotation(cls, path: Path, hid_files: List[Path], scaling_strategy: ScalingStrategy) -> dict[str, AlleleAnnotation]:
-
+    def _parse_ground_truth_annotations(cls, path: Path, hid_files: List[Path], scaling_strategy: ScalingStrategy) -> dict[str, AlleleAnnotation]:
         marker_to_dye = scaling_strategy.marker_name_to_dye_idx()
+        donor_annotation_cache: Dict[str, AlleleAnnotation] = {}
+        prefix_annotation_cache: Dict[str, AlleleAnnotation] = {}
         annotation_dict: Dict[str, AlleleAnnotation] = {}
 
         for hid_file in hid_files:
-            prefix = hid_file.stem.split("_")[0]  # take '1A2'
-            dataset_nr, nr_donors = prefix[0], int(prefix[2])
-            # one file contains alleles of one donor, so find files for all donors of the profile
-            file_stems = [f"{dataset_nr}{letter}" for letter in
-                          cls._DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]]
+            prefix = cls.get_sample_id(hid_file.stem)  # take '1A2'
+            if prefix not in prefix_annotation_cache:
+                prefix_annotation_cache[prefix] = cls._build_ground_truth_annotation(
+                    path,
+                    cls._reference_file_stems_for_prefix(prefix),
+                    marker_to_dye,
+                    donor_annotation_cache,
+                )
 
-            # find the set of all alleles of the donors per marker
-            marker_allele_strings = defaultdict(set)
-            for file_stem in file_stems:
-                reference_profiles_path = os.path.join(f'{path}', 'References', f'{file_stem}.csv')
-                with open(reference_profiles_path, "r") as f:
-                    reader = csv.DictReader(f, delimiter=";")
-                    for row in reader:
-                        marker_allele_strings[row['Marker']].update([row['Allele1'], row['Allele2']])
-
-            # convert the set of alleles to a list of Marker and Allele objects
-
-            marker_list = [Marker(
-                name=str(marker),
-                dye_row=marker_to_dye[str(marker)],
-                alleles=frozenset(Allele(name=allele) for allele in alleles),
-                ) for marker, alleles in marker_allele_strings.items()]
-
-            # add the Marker list to the annotation dict
-            annotation_dict[hid_file.stem] = AlleleAnnotation(marker_list)
+            annotation_dict[hid_file.stem] = prefix_annotation_cache[prefix]
 
         return annotation_dict
+
+    @classmethod
+    def _reference_file_stems_for_prefix(cls, prefix: str) -> List[str]:
+        dataset_nr, nr_donors = prefix[0], int(prefix[2])
+        return [
+            f'{dataset_nr}{letter}'
+            for letter in cls._DONORS_PER_DATASET_NR[dataset_nr][:nr_donors]
+        ]
+
+    @classmethod
+    def _build_ground_truth_annotation(
+        cls,
+        path: Path,
+        file_stems: List[str],
+        marker_to_dye: dict[str, int],
+        donor_annotation_cache: Dict[str, AlleleAnnotation],
+    ) -> AlleleAnnotation:
+        annotation: AlleleAnnotation | None = None
+
+        for file_stem in file_stems:
+            if file_stem not in donor_annotation_cache:
+                donor_annotation_cache[file_stem] = cls._read_reference_profile(
+                    path / 'References' / f'{file_stem}.csv',
+                    marker_to_dye,
+                )
+
+            donor_annotation = donor_annotation_cache[file_stem]
+            annotation = donor_annotation if annotation is None else annotation + donor_annotation
+
+        if annotation is None:
+            raise ValueError(f'Could not build ground truth annotation from {file_stems=}')
+        return annotation
+
+    @classmethod
+    def _read_reference_profile(
+        cls,
+        reference_profiles_path: Path,
+        marker_to_dye: dict[str, int],
+    ) -> AlleleAnnotation:
+        annotation: AlleleAnnotation | None = None
+
+        with open(reference_profiles_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                marker_name = row['Marker']
+                row_annotation = AlleleAnnotation(
+                    [
+                        Marker(
+                            name=marker_name,
+                            dye_row=marker_to_dye[marker_name],
+                            alleles=frozenset(
+                                Allele(name=allele)
+                                for allele in (row['Allele1'], row['Allele2'])
+                            ),
+                        )
+                    ]
+                )
+                annotation = row_annotation if annotation is None else annotation + row_annotation
+
+        return annotation or AlleleAnnotation([])
 
 
 
