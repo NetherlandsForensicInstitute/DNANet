@@ -10,6 +10,7 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
+import io
 import os
 import re
 import csv
@@ -45,10 +46,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
     @classmethod
     def collect_dataset_files(
-        cls,
-        root_path: PathLike,
-        analysis_treshold_type: str = 'DTH',
-        **kwargs
+        cls, root_path: PathLike, analysis_treshold_type: str = 'DTH', **kwargs
     ) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
         """Collect the dataset files for this specific dataset strategy.
 
@@ -223,11 +221,10 @@ class NFIRnDStrategy(DatasetStrategy):
 
         annotation_mapping: Dict[str, Annotation] = {}
         with open(annotation_source, 'r') as f:
-            try:
-                delimiter, allele_cols, height_cols = cls._parse_csv_header(f)
-            except TypeError as e:
-                logger.debug('Could not parse header of {}: {}', annotation_source, e)
-                raise e
+            header_result = cls._parse_csv_header(f)
+            if header_result is None:
+                return {}
+            delimiter, allele_cols, height_cols = header_result
 
             reader = csv.reader(f, delimiter=delimiter)
             for sample, rows in groupby(reader, lambda row: row[0]):
@@ -249,7 +246,7 @@ class NFIRnDStrategy(DatasetStrategy):
         marker_2_dye = cls._get_scaling_strategy().marker_name_to_dye_idx()
         for row in rows:
             marker_name = row[1]
-            dye_row = marker_2_dye[marker_name]
+            dye_row = marker_2_dye.get(marker_name)
             if dye_row is None:
                 continue
 
@@ -266,7 +263,7 @@ class NFIRnDStrategy(DatasetStrategy):
         return markers
 
     @classmethod
-    def _parse_csv_header(cls, file) -> tuple[str, list[int], list[int]]:
+    def _parse_csv_header(cls, file: io.TextIOWrapper) -> tuple[str, list[int], list[int]] | None:
         """Detect delimiter and locate Allele/Height columns in the header."""
         header = next(file)
 
@@ -276,8 +273,8 @@ class NFIRnDStrategy(DatasetStrategy):
             if allele_cols:
                 height_cols = [i for i, col in enumerate(columns) if col.startswith('Height')]
                 return delimiter, allele_cols, height_cols
-
-        raise TypeError(f'No valid delimiter found in header: {header!r}')
+        logger.trace(f'Could not parse Annotation header for: {file.name}')
+        return None
 
     @classmethod
     def _read_csv_file(cls, csv_file: str | Path) -> Tuple[List[str], List[List[str]]]:
