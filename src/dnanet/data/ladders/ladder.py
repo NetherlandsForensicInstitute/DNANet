@@ -78,7 +78,6 @@ class Ladder:
         ladder_path: PathLike,
         catalog: LadderAlleleCatalog,
         data_loading_strategy: str,
-        include_size_standard: bool,
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
 
@@ -87,8 +86,7 @@ class Ladder:
         Args:
             ladder_path: Path to the ladder HID file to use for adjustment
             catalog: The Ladder Catalog that was read from a csv
-            data_loading_strategy: The way the HID file is parsed ('raw', 'analyzed', 'superior')
-            include_size_standard: Whether to include the size standard dye lane
+            data_loading_strategy: Which data columns and whether to use baseline correction for HID Parsing
 
         Returns:
             The adjusted panel
@@ -99,14 +97,12 @@ class Ladder:
         ladder_image = HIDImage(
             path=ladder_path,
             data_loading_strategy=data_loading_strategy,
-            include_size_standard=include_size_standard,
-            load_in_memory=False,
         )
         if ladder_image.data is None:
-            raise ValueError("Ladder is invalid")
+            return None
 
         scaling_strategy = StrategyRegistry.get_scaling_strategy()
-        num_dyes = scaling_strategy.kit.num_dyes - 1 # exclude size standard
+        num_dyes = scaling_strategy.kit.num_dyes - 1  # exclude size standard
         default_panel = scaling_strategy.panel
 
         detected_peaks = cls._find_all_peaks(
