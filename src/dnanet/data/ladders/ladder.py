@@ -34,11 +34,9 @@ import numpy as np
 from loguru import logger
 from scipy.signal import find_peaks
 
-from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.datasets.dataset import DatasetStrategy
-
+from dnanet.core.panel import Panel
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -46,6 +44,7 @@ if TYPE_CHECKING:
     from dnanet.core.types import PathLike
     from dnanet.data.ladders import LadderAlleleCatalog
     from dnanet.data.strategies.scaling import ScalingStrategy
+    from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 
 def classmethod_cache(func):
@@ -102,7 +101,6 @@ class Ladder:
         ladder_image = HIDImage(
             path=ladder_path,
             scaling_strategy=scaling_strategy,
-            dataset_strategy=dataset_strategy,
             data_loading_strategy=data_loading_strategy,
         )
         if ladder_image.data is None:

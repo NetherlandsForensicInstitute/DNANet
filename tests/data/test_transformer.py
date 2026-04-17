@@ -5,10 +5,9 @@ import torch
 from torch.testing import assert_close
 
 import dnanet.data.transformer as transformer_module
-from dnanet.core.annotation import ScanpointAnnotation
-from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.image import HIDImage
-from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
+from dnanet.core.annotation import ScanpointAnnotation
+from dnanet.data.strategies import PowerPlexFusion6CStrategy
 from dnanet.data.transformer import (
     CombinedTransformer,
     TransformDataCallable,
@@ -16,6 +15,7 @@ from dnanet.data.transformer import (
     ReconstructionTransformer,
     PeakClassificationTransformer,
 )
+from dnanet.data.extracted_peak import ExtractedPeak
 
 
 def _make_fake_image(
@@ -26,7 +26,6 @@ def _make_fake_image(
     img = HIDImage(
         path='fake.hid',
         scaling_strategy=PowerPlexFusion6CStrategy(),
-        dataset_strategy=NFIRnDStrategy(),
         load_in_memory=True,
     )
     img._data = data if data is not None else np.zeros((5, 8, 1), dtype=np.float32)

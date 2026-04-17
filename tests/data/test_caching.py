@@ -5,13 +5,13 @@ import json
 import numpy as np
 import pytest
 
-from dnanet.core.allele import Allele
-from dnanet.core.annotation import ScanpointAnnotation
-from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
-from dnanet.data.caching import write_to_cache, load_from_cache, _reconstruct_image
 from dnanet.data.image import HIDImage
-from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
+from dnanet.core.allele import Allele
+from dnanet.core.marker import Marker
+from dnanet.data.caching import write_to_cache, load_from_cache, _reconstruct_image
+from dnanet.core.annotation import ScanpointAnnotation
+from dnanet.data.strategies import PowerPlexFusion6CStrategy
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +40,6 @@ def _make_cached_image(
     img = HIDImage(
         path=name,
         scaling_strategy=PowerPlexFusion6CStrategy(),
-        dataset_strategy=NFIRnDStrategy(),
         adjusted_panel=adjusted_panel,
         load_in_memory=True,
     )
@@ -76,8 +75,8 @@ class TestWriteToCache:
         write_to_cache(tmp_path / "cache", [])
         # Directory may or may not be created
 
-    def test_first_image_no_data_raises(self, tmp_path, ppf6c, nfi_rnd_dataset):
-        img = HIDImage(path="bad.hid", scaling_strategy=ppf6c, dataset_strategy=nfi_rnd_dataset, load_in_memory=True)
+    def test_first_image_no_data_raises(self, tmp_path, ppf6c):
+        img = HIDImage(path="bad.hid", scaling_strategy=ppf6c, load_in_memory=True)
         img._data = None  # Explicitly set to None (bypass lazy load)
         # Patch the data property to return None without trying to load
         with pytest.raises((ValueError, FileNotFoundError)):

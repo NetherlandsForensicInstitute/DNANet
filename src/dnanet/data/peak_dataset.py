@@ -99,6 +99,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
                 threshold=self.threshold,
                 window_size=self.window_size,
                 include_max_pool_dyes=self.include_max_pool_dyes,
+                dataset_strategy=self.dataset_strategy
             )
 
             for peak in peaks:

@@ -49,7 +49,7 @@ def _fake_dataset(stems: list[str]):
     ds = MagicMock()
     ds.images = [_fake_img(s) for s in stems]
     ds.__len__ = MagicMock(return_value=len(stems))
-    return PeakWindowDataset(images=ds.images, dataset_strategy=ds.dataset_strategy)
+    return PeakWindowDataset(images=ds.images, dataset_strategy=NFIRnDStrategy())
 
 
 class TestPeakWindowSplit:
@@ -67,4 +67,4 @@ class TestPeakWindowSplit:
 
         assert len(folds) == 3
         assert len(folds[0][0].images) == 16
-        assert len(folds[0][1].images) == 6
+        assert len(folds[0][1].images) == 8

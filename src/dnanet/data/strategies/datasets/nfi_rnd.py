@@ -10,35 +10,32 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
-import io
 import csv
+import io
 import os
 import re
-from collections import Counter
 from itertools import groupby
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator, Sequence
+from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
 
 from loguru import logger
-from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     StratifiedKFold,
     train_test_split,
 )
-from torch.utils.data import Subset, Dataset
+from torch.utils.data import Subset
 
 from dnanet.core.allele import Allele
 from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.datasets.dataset import  FileCategory, DatasetStrategy
-
-
+from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
     from dnanet.data.strategies import ScalingStrategy
     from dnanet.data.hid_dataset import HIDDataset
+    from dnanet.data.strategies.datasets.dataset import FileCategory
 
 
 class NFIRnDStrategy(DatasetStrategy):
@@ -69,12 +66,14 @@ class NFIRnDStrategy(DatasetStrategy):
         path = Path(root_path)
         csv_files = list(path.rglob('*.csv'))
 
-        hid_to_annotation_path = list(path.rglob('*hid_to_annotation*'))[0]
-        hid_to_ladder_path = list(path.rglob('*best_ladder_paths*'))[0]
-        if not hid_to_annotation_path or not hid_to_ladder_path:
+        hid_to_annotation_paths = list(path.rglob('*hid_to_annotation*'))
+        hid_to_ladder_paths = list(path.rglob('*best_ladder_paths*'))
+        if not hid_to_annotation_paths or not hid_to_ladder_paths:
             raise ValueError(
                 'Path does not contain the neccessary mapping files (annotation & ladder)'
             )
+        hid_to_annotation_path = hid_to_annotation_paths[0]
+        hid_to_ladder_path = hid_to_ladder_paths[0]
 
         # Allele Report for Annotations
         annotation_txt_files = list(path.rglob('*AlleleReport.txt'))
