@@ -164,7 +164,6 @@ class HIDDataset(Dataset, TransformableDataset):
                     ladder_path=ladder_path,
                     catalog=LadderAlleleCatalog.from_panel(self._default_panel),
                     data_loading_strategy=self.data_loading_strategy,
-                    include_size_standard=self.include_size_standard,
                     scaling_strategy=self._scaling,
                     dataset_strategy=self.dataset_strategy
                 )
