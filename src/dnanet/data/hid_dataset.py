@@ -280,6 +280,8 @@ class HIDDataset(Dataset, TransformableDataset):
         """
         # TODO: This function is now called for single images, remove the loop?
 
+        # FIXME this function does not work when the annotation contains multiple classes
+
         assert len(profiles) == len(annotations)
 
         for profile, annotation in zip(profiles, annotations, strict=True):
