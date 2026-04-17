@@ -28,4 +28,4 @@ scaling_strategy:
 # dataset strategy
 dataset_strategy:
   _target_: dnanet.data.strategies.datasets.NFIRnDStrategy
-  annotation_type: ground_truth # DTH (analyst high threshold), or DTL (analyst low threshold), or ground_truth
+  annotation_type: span # DTH (analyst high threshold), or DTL (analyst low threshold), span, or ground_truth

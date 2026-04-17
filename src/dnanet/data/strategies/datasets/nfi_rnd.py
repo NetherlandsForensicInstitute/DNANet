@@ -10,25 +10,29 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
-import csv
 import os
 import re
-from itertools import groupby
-from pathlib import Path
+import csv
 from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
+from pathlib import Path
+from itertools import groupby
 
+import numpy as np
+import pandas as pd
 from loguru import logger
+from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     StratifiedKFold,
     train_test_split,
 )
-from torch.utils.data import Subset
 
+from dnanet.core import LabelCategory, ScanpointAnnotation
 from dnanet.core.allele import Allele
-from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.core.marker import Marker
+from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
+
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
@@ -56,7 +60,7 @@ class NFIRnDStrategy(DatasetStrategy):
         """Initialize the NFI R&D dataset strategy."""
         self.annotation_type = annotation_type
 
-        assert annotation_type in ['DTH', 'DTL', 'ground_truth'], (
+        assert annotation_type in ['DTH', 'DTL', 'ground_truth', 'span'], (
             f'Invalid annotation type: {annotation_type}'
         )
 
@@ -86,16 +90,20 @@ class NFIRnDStrategy(DatasetStrategy):
         )
 
         # load and parse annotations
-        if self.annotation_type == 'DTH' or self.annotation_type == 'DTL':
-            hid_to_annotation = self._parse_analyst_annotation(
-                path, self.annotation_type, scaling_strategy
-            )
-        elif self.annotation_type == 'ground_truth':
-            hid_to_annotation = self._parse_ground_truth_annotations(
-                path, hid_file_samples, scaling_strategy
-            )
-        else:
-            raise ValueError(f'Invalid annotation type: {self.annotation_type}')
+        match self.annotation_type:
+            case 'DTH' | 'DTL':
+                hid_to_annotation = self._parse_analyst_annotation(
+                    path, self.annotation_type, scaling_strategy
+                )
+            case 'ground_truth':
+                hid_to_annotation = self._parse_ground_truth_annotations(
+                    path, hid_file_samples, scaling_strategy
+                )
+            case 'span':
+                hid_to_annotation = self._parse_span_annotation(path, scaling_strategy)
+            case _:
+                raise ValueError(f'Invalid annotation type: {self.annotation_type}')
+
 
         # Hid to Ladder mapping
         _, htl_values = self._read_csv_file(hid_to_ladder_path[0])
@@ -108,6 +116,123 @@ class NFIRnDStrategy(DatasetStrategy):
                 hid_to_annotation.get(str(hid_file.stem)),
                 hid_to_ladder.get(hid_file.stem),
             )
+
+    @classmethod
+    def _parse_span_annotation(
+        cls, path: Path, scaling_strategy: ScalingStrategy
+    ) -> dict[str, ScanpointAnnotation | None]:
+        dye_name_to_dye_idx = {
+            'blue': 0,
+            'green': 1,
+            'yellow': 2,
+            'black': 2,
+            'red': 3,
+            'purple': 4,
+            'orange': 5,
+        }
+
+        span_annotations_path = path / 'span_annotations'
+        csv_files = sorted(span_annotations_path.glob('*.csv'))
+        if not csv_files:
+            logger.warning('No span annotation CSV files found in {}', span_annotations_path)
+            return {}
+
+        df = pd.concat((pd.read_csv(f) for f in csv_files), ignore_index=True)
+        required_columns = {'profile', 'user', 'dye', 'x0', 'x1', 'category'}
+        missing_columns = required_columns.difference(df.columns)
+        if missing_columns:
+            raise ValueError(f'Missing span annotation columns: {sorted(missing_columns)}')
+
+        len_before_drop = len(df)
+        df = df.dropna(subset=['profile', 'user', 'dye', 'x0', 'x1', 'category']).copy()
+        dropped = len_before_drop - len(df)
+
+
+        logger.info(
+            f'Found {len(df)} valid span annotations in {len(df["profile"].unique())} '
+            f'profiles (dropped {dropped} rows)'
+        )
+        logger.info(f'Categories found in annotations: {df["category"].unique()}')
+
+        # convert dye names to dye indices
+        df['dye_idx'] = (
+            df['dye']
+            .astype(str)
+            .str.strip()
+            .str.lower()
+            .map(dye_name_to_dye_idx)
+        )
+        unknown_dyes = df.loc[df['dye_idx'].isna(), 'dye'].unique()
+        if len(unknown_dyes) > 0:
+            raise ValueError(f'Unknown dye values in span annotations: {unknown_dyes}')
+
+        # convert category names to indices
+        df['category_idx'] = df['category'].map(LabelCategory.display_name_to_index)
+        unknown_categories = df.loc[df['category_idx'].isna(), 'category'].unique()
+        if len(unknown_categories) > 0:
+            raise ValueError(f'Unknown category values in span annotations: {unknown_categories}')
+
+        df[['dye_idx', 'category_idx', 'x0', 'x1']] = df[
+            ['dye_idx', 'category_idx', 'x0', 'x1']
+        ].astype(int)
+
+        hid_file_name_to_span_annotations: dict[str, list[np.ndarray]] = {}
+        for (hid_file_name, _annotator), hid_file_df in df.groupby(['profile', 'user'], sort=False):
+            spannotation = cls._df_to_span_annotation(hid_file_df, scaling_strategy)
+            hid_file_name_to_span_annotations.setdefault(hid_file_name, []).append(spannotation)
+
+        hid_to_annotation: dict[str, ScanpointAnnotation | None] = {}
+        for hid_file_name, span_annotations in hid_file_name_to_span_annotations.items():
+            if len(span_annotations) > 1:
+                span_annotation = cls._merge_span_annotations(span_annotations, hid_file_name)
+            else:
+                span_annotation = span_annotations[0]
+
+            hid_to_annotation[hid_file_name] = cls._span_to_scanpoint_annotation(span_annotation, hid_file_name)
+
+        return hid_to_annotation
+
+    @staticmethod
+    def _df_to_span_annotation(df: pd.DataFrame, scaling_strategy: ScalingStrategy) -> np.ndarray:
+        num_dyes = scaling_strategy.kit.num_dyes
+        scanpoints = scaling_strategy.scanpoint_resolution
+        num_classes = len(LabelCategory)
+        spannotation = np.zeros((num_dyes, scanpoints, num_classes), dtype=np.int8)
+
+        for row in df.itertuples(index=False):
+            dye_idx = int(row.dye_idx)
+            category_idx = int(row.category_idx)
+            if not 0 <= dye_idx < num_dyes:
+                raise ValueError(f'Dye index {dye_idx} outside annotation shape')
+            if not 0 <= category_idx < num_classes:
+                raise ValueError(f'Category index {category_idx} outside annotation shape')
+
+            start, stop = sorted((int(row.x0), int(row.x1)))
+            start = max(0, start)
+            stop = min(scanpoints, stop)
+            if start >= stop:
+                continue
+
+            spannotation[dye_idx, start:stop, category_idx] = 1
+
+        return spannotation
+
+    @staticmethod
+    def _merge_span_annotations(spannotations: List[np.ndarray], hid_file_name: str) -> np.ndarray:
+        logger.debug(
+            f'Found multiple span annotations for {hid_file_name}. Merging by taking the first only'
+        )
+        return spannotations[0]
+
+    @staticmethod
+    def _span_to_scanpoint_annotation(span_annotation: np.ndarray, hid_file_name: str) -> ScanpointAnnotation:
+        flattened = span_annotation.argmax(axis=-1)
+
+        if np.any(span_annotation.sum(axis=-1) > 1):
+            logger.debug(f'Found overlapping annotations for {hid_file_name}, taking the lowest class index')
+
+        return ScanpointAnnotation(flattened.astype(np.int8, copy=False))
+
 
     @classmethod
     def _parse_analyst_annotation(
