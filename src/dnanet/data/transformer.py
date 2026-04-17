@@ -7,8 +7,9 @@ import torch
 from torch.utils.data import default_collate
 
 from dnanet.data.image import HIDImage, TrainableElement
-from dnanet.data.strategies import StrategyRegistry
 from dnanet.data.extracted_peak import ExtractedPeak
+from dnanet.data.strategies.scaling import ScalingStrategy
+from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.preprocessing.scaling import scale_rfu_torch
 from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
 
@@ -95,6 +96,7 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         # Extract peaks as tensors
         peak_windows, marker_idxs, peak_centers = extract_peaks_torch(
             image,
+            scaling_strategy=image.scaling_strategy,
             threshold=self.threshold,
             window_size=self.window_size,
             include_max_pool_dyes=self.include_max_pool_dyes,
@@ -173,7 +175,9 @@ class ReconstructionTransformer(TransformDataCallable[HIDImage]):
 
 @dataclass
 class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
+    scaling_strategy: ScalingStrategy
     include_marker: bool = True
+
 
     def __call__(self, peak: ExtractedPeak) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = peak.data
@@ -181,7 +185,7 @@ class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
         peak_tensor = torch.tensor(data, dtype=torch.float32)
 
         if self.include_marker:
-            marker_idx = StrategyRegistry.get_scaling_strategy().marker_to_idx[peak.marker_name]
+            marker_idx = self.scaling_strategy.marker_to_idx[peak.marker_name]
             marker_tensor = torch.tensor([marker_idx], dtype=torch.long)
         else:
             marker_tensor = torch.full(size=(1,), fill_value=-1, dtype=torch.long)

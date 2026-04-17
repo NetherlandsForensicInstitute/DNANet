@@ -104,9 +104,6 @@ class ScalingStrategy(ABC):
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         """Map marker names to 0-based dye channel indices."""
 
-    @abstractmethod
-    def dye_channel_colors(self) -> list[str]:
-        """Return display colors for each dye channel."""
 
     # -- Template method: shared interpolation logic ---------------------- #
 

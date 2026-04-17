@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 
     from dnanet.core.types import PathLike
     from dnanet.data.ladders import LadderAlleleCatalog
+    from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 def classmethod_cache(func):
@@ -78,6 +79,7 @@ class Ladder:
         ladder_path: PathLike,
         catalog: LadderAlleleCatalog,
         data_loading_strategy: str,
+        scaling_strategy: ScalingStrategy
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
 
@@ -87,22 +89,22 @@ class Ladder:
             ladder_path: Path to the ladder HID file to use for adjustment
             catalog: The Ladder Catalog that was read from a csv
             data_loading_strategy: Which data columns and whether to use baseline correction for HID Parsing
+            scaling_strategy: The Kit Scaling Strategy to use for scaling
 
         Returns:
             The adjusted panel
         """
         from dnanet.data.image import HIDImage
-        from dnanet.data.strategies.registry import StrategyRegistry
 
         ladder_image = HIDImage(
             path=ladder_path,
+            scaling_strategy=scaling_strategy,
             data_loading_strategy=data_loading_strategy,
         )
         if ladder_image.data is None:
             return None
 
-        scaling_strategy = StrategyRegistry.get_scaling_strategy()
-        num_dyes = scaling_strategy.kit.num_dyes - 1  # exclude size standard
+        num_dyes = scaling_strategy.kit.num_dyes - 1 # exclude size standard
         default_panel = scaling_strategy.panel
 
         detected_peaks = cls._find_all_peaks(

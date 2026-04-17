@@ -135,7 +135,7 @@ def plot_profile_interactive(
         The last matplotlib Figure, or None if no images had data.
     """
     # Plot colors from the scaling strategy (for line rendering)
-    dye_colors = StrategyRegistry.get_scaling_strategy().dye_channel_colors()
+    dye_colors = ['blue', 'green', 'black', 'red', 'purple', 'orange']
 
     fig = None
     for image in hid_images:

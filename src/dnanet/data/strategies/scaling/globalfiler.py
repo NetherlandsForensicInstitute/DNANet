@@ -43,8 +43,6 @@ class GlobalFilerStrategy(ScalingStrategy):
         }
     # fmt: on
 
-    def dye_channel_colors(self) -> list[str]:
-        return ['blue', 'green', 'black', 'red', 'purple', 'orange']
 
     def parse_size_standard(self, size_standard_lane: np.ndarray) -> SizeStandardParseResult | None:
         """Parse GeneScan 600 LIZ with iterative fit shrinking."""

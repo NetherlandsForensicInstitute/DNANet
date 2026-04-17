@@ -2,16 +2,17 @@
 
 import pytest
 
-from tests.conftest import RD_DIR, LADDER_ALLELES_CSV
 from dnanet.data.hid_dataset import HIDDataset
+from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
+from tests.conftest import RD_DIR
 
 
 def _make_hid_dataset(**kwargs) -> HIDDataset:
     """Build an HIDDataset using the current constructor contract."""
     return HIDDataset(
         root=RD_DIR,
-        scaling_strategy='PPF6C',
-        dataset_strategy='NFI_RND',
+        scaling_strategy=PowerPlexFusion6CStrategy(),
+        dataset_strategy=NFIRnDStrategy(),
         **kwargs,
     )
 
@@ -47,8 +48,8 @@ class TestHIDDatasetValidation:
         with pytest.raises(ValueError, match="Path does not contain the neccessary mapping"):
             HIDDataset(
                 root=empty_dir,
-                scaling_strategy='PPF6C',
-                dataset_strategy='NFI_RND',
+                scaling_strategy=PowerPlexFusion6CStrategy(),
+                dataset_strategy=NFIRnDStrategy(),
             )
 
 
@@ -66,7 +67,7 @@ class TestHIDDatasetIntegration:
         ds = _make_hid_dataset()
         for img in ds:
             assert img.data is not None
-            assert img.data.shape == (5, 4096, 1)
+            assert img.data.shape == (5, 4096)
 
     def test_limit_parameter(self, nfi_rnd_kit):
         ds = _make_hid_dataset(limit=1)
@@ -83,7 +84,7 @@ class TestHIDDatasetIntegration:
         img = ds[0]
 
         assert img.data is not None
-        assert img.data.shape == (5, 4096, 1)
+        assert img.data.shape == (5, 4096)
 
     def test_annotations_populated(self, nfi_rnd_kit):
         """Images with annotation mapping should have non-None annotations."""

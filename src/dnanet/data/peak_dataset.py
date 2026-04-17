@@ -70,6 +70,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
         self._images = images
         self._transform = transform
+        self.scaling_strategy = base_dataset._scaling
         self.threshold = threshold
         self.window_size = window_size
         self.labels = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
@@ -80,7 +81,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         self.smooth_keep_factor = smooth_keep_factor
         self.log_scale = log_scale
         self.max_rfu_value = max_rfu_value
-        
+
     @classmethod
     def from_hid_dataset(cls, base_dataset: HIDDataset, **kwargs):
         """Create a PeakWindowDataset based on a HIDDataset's images and transform."""
@@ -97,6 +98,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
                 image,
                 threshold=self.threshold,
                 window_size=self.window_size,
+                scaling_strategy=self.scaling_strategy,
                 include_max_pool_dyes=self.include_max_pool_dyes,
             )
 

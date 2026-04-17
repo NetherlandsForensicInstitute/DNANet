@@ -1,11 +1,10 @@
 """Tests for the Ladder class."""
 
 import numpy as np
-import pytest
 
-from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
+from dnanet.core.panel import Panel
 from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 
@@ -66,7 +65,21 @@ class TestLadder:
 
         scaler = np.linspace(50, 300, signal_len)
 
-        adjusted_panel = Ladder.create_adjusted_panel(ladder_path='test_ladder.hid', catalog=catalog)
+        peak_indices = Ladder._find_all_peaks(
+            data=data,
+            catalog=catalog,
+            num_dyes=2,
+            path='test_ladder.hid',
+        )
+        assert peak_indices is not None
+
+        adjusted_panel = Ladder._adjust_panel(
+            peak_indices,
+            catalog=catalog,
+            scaler=scaler,
+            default_panel=panel,
+            num_dyes=2,
+        )
         assert adjusted_panel is not None
 
     # def test_mismatched_peaks_returns_none(self):

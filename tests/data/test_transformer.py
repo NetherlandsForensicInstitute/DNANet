@@ -5,8 +5,11 @@ import torch
 from torch.testing import assert_close
 
 import dnanet.data.transformer as transformer_module
-from dnanet.data.image import HIDImage
 from dnanet.core.annotation import ScanpointAnnotation
+from dnanet.data.extracted_peak import ExtractedPeak
+from dnanet.data.image import HIDImage
+from dnanet.data.strategies import PowerPlexFusion6CStrategy
+from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.transformer import (
     CombinedTransformer,
     TransformDataCallable,
@@ -14,8 +17,6 @@ from dnanet.data.transformer import (
     ReconstructionTransformer,
     PeakClassificationTransformer,
 )
-from dnanet.data.extracted_peak import ExtractedPeak
-from dnanet.data.strategies.registry import StrategyRegistry
 
 
 def _make_fake_image(
@@ -23,7 +24,11 @@ def _make_fake_image(
     annotation: np.ndarray | None = None,
 ) -> HIDImage:
     """Build an HIDImage with in-memory data only."""
-    img = HIDImage(path='fake.hid', load_in_memory=True)
+    img = HIDImage(
+        path='fake.hid',
+        scaling_strategy=PowerPlexFusion6CStrategy(),
+        load_in_memory=True,
+    )
     img._data = data if data is not None else np.zeros((5, 8, 1), dtype=np.float32)
     if annotation is not None:
         img._annotation = ScanpointAnnotation(data=annotation)
@@ -84,8 +89,16 @@ class TestCombinedTransformer:
         peak_centers = torch.tensor([[0, 10], [4, 20]], dtype=torch.long)
         captured = {}
 
-        def fake_extract_peaks(image_arg, *, threshold, window_size, include_max_pool_dyes):
+        def fake_extract_peaks(
+            image_arg,
+            *,
+            scaling_strategy,
+            threshold,
+            window_size,
+            include_max_pool_dyes,
+        ):
             captured['image'] = image_arg
+            captured['scaling_strategy'] = scaling_strategy
             captured['threshold'] = threshold
             captured['window_size'] = window_size
             captured['include_max_pool_dyes'] = include_max_pool_dyes
@@ -103,6 +116,7 @@ class TestCombinedTransformer:
 
         assert captured == {
             'image': image,
+            'scaling_strategy': image.scaling_strategy,
             'threshold': 30,
             'window_size': 64,
             'include_max_pool_dyes': True,
@@ -205,7 +219,7 @@ class TestReconstructionTransformer:
 
 class TestPeakClassificationTransformer:
     def test_maps_marker_and_label_with_configured_strategies(self, nfi_rnd_kit):
-        scaling_strategy = StrategyRegistry.get_scaling_strategy()
+        scaling_strategy = nfi_rnd_kit
         dataset_strategy = StrategyRegistry.get_dataset_strategy()
         marker_name = scaling_strategy.marker_names[0]
         peak = ExtractedPeak(
@@ -218,7 +232,10 @@ class TestPeakClassificationTransformer:
             marker_name=marker_name,
         )
 
-        inputs, target = PeakClassificationTransformer(include_marker=True)(peak)
+        inputs, target = PeakClassificationTransformer(
+            scaling_strategy=scaling_strategy,
+            include_marker=True,
+        )(peak)
         peak_tensor, marker_tensor = inputs
 
         assert peak_tensor.shape == (2, 120)
@@ -228,6 +245,7 @@ class TestPeakClassificationTransformer:
         assert target.dtype == torch.long
 
     def test_uses_negative_marker_index_when_marker_embedding_disabled(self, nfi_rnd_kit):
+        scaling_strategy = nfi_rnd_kit
         peak = ExtractedPeak(
             data=np.ones((1, 120), dtype=np.float32),
             dye_index=0,
@@ -238,7 +256,10 @@ class TestPeakClassificationTransformer:
             marker_name='ignored',
         )
 
-        inputs, target = PeakClassificationTransformer(include_marker=False)(peak)
+        inputs, target = PeakClassificationTransformer(
+            scaling_strategy=scaling_strategy,
+            include_marker=False,
+        )(peak)
         _, marker_tensor = inputs
 
         assert marker_tensor.item() == -1

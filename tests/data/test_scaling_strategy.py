@@ -3,12 +3,10 @@
 import numpy as np
 import pytest
 
-from tests.conftest import PROVEDIT_DIR
 from dnanet.data.parsing.hid import get_peak_data
-from dnanet.data.strategies.scaling import get_scaling_strategy
-from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
 from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
+from tests.conftest import PROVEDIT_DIR
 
 
 # ---------------------------------------------------------------------------
@@ -98,9 +96,7 @@ class TestGlobalFilerAttemptFitEdgeCases:
 class TestGlobalFilerParseSizeStandard:
     @pytest.fixture
     def gf(self):
-        StrategyRegistry.configure_kit('GLOBALFILER')
-        yield StrategyRegistry.get_scaling_strategy()
-        StrategyRegistry.reset()
+        return GlobalFilerStrategy()
 
     def test_parse_with_real_provedit_data(self, gf):
         """Parse size standard from a real ProvedIt ladder file."""
@@ -110,7 +106,7 @@ class TestGlobalFilerParseSizeStandard:
         if not ladder_path.exists():
             pytest.skip('ProvedIt test resource not available')
 
-        data = get_peak_data(ladder_path, strategy='raw')
+        data = get_peak_data(ladder_path, gf, data_loading_strategy='raw')
         assert data is not None
         ss_lane = np.array(data[-1])
         result = gf.parse_size_standard(ss_lane)
@@ -126,7 +122,7 @@ class TestGlobalFilerParseSizeStandard:
         if not ladder_path.exists():
             pytest.skip('ProvedIt test resource not available')
 
-        data = get_peak_data(ladder_path, strategy='raw')
+        data = get_peak_data(ladder_path, gf, data_loading_strategy='raw')
         result = gf.parse_size_standard(np.array(data[-1]))
         assert result.rescaled_indices.shape == (4096,)
         assert result.scaler.shape == (4096,)
@@ -162,26 +158,3 @@ class TestPPF6CValidateSSPeaks:
         expected_bps = np.arange(19) * 10 + 60
         result = PowerPlexFusion6CStrategy._validate_ss_peaks(peak_idxs, expected_bps)
         assert result is False
-
-
-# ---------------------------------------------------------------------------
-# Strategy factory
-# ---------------------------------------------------------------------------
-
-
-class TestScalingStrategyFactory:
-    def test_ppf6c(self):
-        s = get_scaling_strategy('PPF6C')
-        assert isinstance(s, PowerPlexFusion6CStrategy)
-
-    def test_globalfiler(self):
-        s = get_scaling_strategy('GLOBALFILER')
-        assert isinstance(s, GlobalFilerStrategy)
-
-    def test_case_insensitive(self):
-        s = get_scaling_strategy('ppf6c')
-        assert isinstance(s, PowerPlexFusion6CStrategy)
-
-    def test_unknown_raises(self):
-        with pytest.raises(ValueError, match='Unknown'):
-            get_scaling_strategy('NONEXISTENT_KIT')

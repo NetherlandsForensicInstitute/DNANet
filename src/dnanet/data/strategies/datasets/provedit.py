@@ -11,21 +11,21 @@ Handles the ProvedIt dataset conventions:
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Dict, List, Tuple, Mapping, Generator
-from pathlib import Path
 from functools import reduce
 from itertools import groupby
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Tuple, Mapping, Generator
 
 import openpyxl
 from loguru import logger
-from torch.utils.data import Subset
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
+from torch.utils.data import Subset
 
 from dnanet.core.allele import Allele
-from dnanet.core.marker import Marker
 from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
+from dnanet.core.marker import Marker
+from dnanet.data.strategies import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
-
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
@@ -34,17 +34,16 @@ if TYPE_CHECKING:
 
 class ProvedItStrategy(DatasetStrategy):
     """Strategy for the ProvedIt dataset (GlobalFiler kit)."""
-
-    # Constant suffix pattern for HID files
+# Constant suffix pattern for HID files
     _HID_SUFFIX = '*.hid'
     # ProvedIt ladder pattern
     _LADDER_PATTERN = re.compile(r'Ladder', re.IGNORECASE)
     # Following pattern layed out in https://lftdi.camden.rutgers.edu/wp-content/uploads/2019/12/PROVEDIt-Database-Naming-Convention-Laboratory-Methodsv1.pdf
     _SAMPLE_PATTERN = re.compile(r'([A-Z]\d{2})_(RD1[24]-0003)-(\d{1,2}(?:_\d{1,2})+)-(\d(?:;\d)+)')
-
     @classmethod
     def collect_dataset_files(
-        cls, root_path: str | Path
+        cls, root_path: str | Path,
+            scaling_strategy: ScalingStrategy,
     ) -> Generator[
         Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
     ]:
@@ -59,7 +58,6 @@ class ProvedItStrategy(DatasetStrategy):
         path = Path(root_path)
 
         dataset_hid_files = path.rglob(cls._HID_SUFFIX)
-
         # Groupy all HID files by their category (control, ladder, sample)
         hid_file_types = {
             key: [*paths]
@@ -71,8 +69,7 @@ class ProvedItStrategy(DatasetStrategy):
 
         # Check for an annotations file and parse it into a dict with Annotations
         annotations_file = cls._find_annotation_file(path)
-        annotation_mapping = cls.parse_annotations(annotations_file)
-
+        annotation_mapping = cls.parse_annotations(annotations_file, scaling_strategy)
         for sample in hid_file_types['sample']:
             sample_annotation = cls._combine_contributors_into_annotation(sample, annotation_mapping)
             sample_ladder = cls.find_ladder_for_sample(sample)
@@ -168,6 +165,7 @@ class ProvedItStrategy(DatasetStrategy):
     def parse_annotations(
         cls,
         annotation_source: PathLike,
+        scaling_strategy: ScalingStrategy,
         multiple_research_ids: bool = False,
     ) -> Mapping[str, AlleleAnnotation]:
         """Load called alleles from the ProvedIt XLSX genotype file.
@@ -190,7 +188,7 @@ class ProvedItStrategy(DatasetStrategy):
         rows = sheet_values[1:]
 
         annotation_mapping: Dict[str, AlleleAnnotation] = {}
-        marker_2_dye = cls._get_scaling_strategy().marker_name_to_dye_idx()
+        marker_2_dye = scaling_strategy.marker_name_to_dye_idx()
         for row in rows:
             markers: List[Marker] = []
             research_id, sample_id = None, None
@@ -216,12 +214,6 @@ class ProvedItStrategy(DatasetStrategy):
                 annotation_mapping[str(sample_id)] = _annotation
 
         return annotation_mapping
-
-    @staticmethod
-    def _get_scaling_strategy():
-        from dnanet.data.strategies.registry import StrategyRegistry
-
-        return StrategyRegistry.get_scaling_strategy()
 
     @classmethod
     def find_ladder_for_sample(

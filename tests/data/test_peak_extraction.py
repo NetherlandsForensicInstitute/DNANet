@@ -1,14 +1,10 @@
 """Tests for peak extraction functions."""
 
 import numpy as np
-import torch
 import pytest
 
-from tests.conftest import PANEL_PATH
-from dnanet.core.panel import Panel
 from dnanet.core.annotation import ScanpointAnnotation
-from dnanet.data.strategies.registry import StrategyRegistry
-from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
+from dnanet.core.panel import Panel
 from dnanet.data.preprocessing.peak_extraction import (
     _build_peak_data,
     _slice_with_padding,
@@ -17,6 +13,7 @@ from dnanet.data.preprocessing.peak_extraction import (
     extract_peak_windows,
     _label_peak_from_annotation,
 )
+from tests.conftest import PANEL_PATH
 
 
 class TestSliceWithPadding:
@@ -111,7 +108,7 @@ class TestMarkerToIdx:
 
     @pytest.fixture
     def setup_mti(self, nfi_rnd_kit):
-        mti, n_markers = setup_marker_to_idx()
+        mti, n_markers = setup_marker_to_idx(nfi_rnd_kit)
         return mti, n_markers
 
     def test_has_out_of_bin(self, setup_mti):
@@ -163,13 +160,13 @@ class TestExtractPeakWindows:
     def test_extracts_peaks(self, nfi_rnd_kit):
         data = self._make_profile_with_peaks()
         image = self.MockImage(data)
-        peaks = extract_peak_windows(image, threshold=100, window_size=120)
+        peaks = extract_peak_windows(image, threshold=100, window_size=120, scaling_strategy=nfi_rnd_kit)
         assert len(peaks) >= 2  # at least the two peaks we created
 
     def test_peak_properties(self, nfi_rnd_kit):
         data = self._make_profile_with_peaks()
         image = self.MockImage(data)
-        peaks = extract_peak_windows(image, threshold=100, window_size=120)
+        peaks = extract_peak_windows(image, threshold=100, window_size=120, scaling_strategy=nfi_rnd_kit)
         for peak in peaks:
             assert peak.data.shape == (120,)
             assert peak.window_size == 120
@@ -184,6 +181,7 @@ class TestExtractPeakWindows:
             image,
             threshold=100,
             window_size=120,
+            scaling_strategy=nfi_rnd_kit,
         )
         dye0_peaks = [p for p in peaks if p.dye_index == 0]
         assert len(dye0_peaks) >= 1
@@ -191,7 +189,7 @@ class TestExtractPeakWindows:
 
     def test_none_data_returns_empty(self, nfi_rnd_kit):
         image = self.MockImage(None)
-        peaks = extract_peak_windows(image, threshold=100, window_size=120)
+        peaks = extract_peak_windows(image, threshold=100, window_size=120, scaling_strategy=nfi_rnd_kit)
         assert peaks == []
 
     def test_include_max_pool_dyes(self, nfi_rnd_kit):
@@ -201,6 +199,7 @@ class TestExtractPeakWindows:
             image,
             threshold=100,
             window_size=120,
+            scaling_strategy=nfi_rnd_kit,
             include_max_pool_dyes=True,
         )
         assert peaks[0].data.shape == (2, 120)
@@ -211,7 +210,7 @@ class TestExtractPeakWindows:
         for i in range(-20, 21):
             data[5, 2000 + i] = max(0, 500 - abs(i) * 20)
         image = self.MockImage(data)
-        peaks = extract_peak_windows(image, threshold=100, window_size=120)
+        peaks = extract_peak_windows(image, threshold=100, window_size=120, scaling_strategy=nfi_rnd_kit)
         assert all(p.dye_index < 5 for p in peaks)
 
 
@@ -235,7 +234,7 @@ class TestExtractPeaksTorch:
         image = self.MockImage(data)
         windows, markers, centers = extract_peaks_torch(
             image,
-            device='cpu',
+            scaling_strategy=nfi_rnd_kit,
             threshold=100,
             window_size=120,
         )
@@ -250,7 +249,7 @@ class TestExtractPeaksTorch:
         image = self.MockImage(data)
         windows, markers, centers = extract_peaks_torch(
             image,
-            device='cpu',
+            scaling_strategy=nfi_rnd_kit,
             threshold=100,
             window_size=120,
         )
@@ -263,7 +262,7 @@ class TestExtractPeaksTorch:
         with pytest.raises(ValueError):
             extract_peaks_torch(
                 image,
-                device='cpu',
+                scaling_strategy=nfi_rnd_kit,
                 threshold=100,
                 window_size=120,
             )

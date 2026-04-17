@@ -21,8 +21,9 @@ import numpy as np
 import scipy
 import torch
 
-from dnanet.data.strategies import StrategyRegistry
 from dnanet.data.extracted_peak import ExtractedPeak
+from dnanet.data.strategies.scaling import ScalingStrategy
+from dnanet.data.strategies.registry import StrategyRegistry
 
 
 if TYPE_CHECKING:
@@ -30,13 +31,12 @@ if TYPE_CHECKING:
     from dnanet.data.image import HIDImage
 
 
-def setup_marker_to_idx() -> Tuple[Dict[str, int], int]:
+def setup_marker_to_idx(scaling_strategy: ScalingStrategy) -> Tuple[Dict[str, int], int]:
     """Generate an index mapping from the kit's loci to an index number.
 
     Returns:
         A tuple with the index mapping and the number of markers.
     """
-    scaling_strategy = StrategyRegistry.get_scaling_strategy()
     marker_to_dye_idx = scaling_strategy.marker_name_to_dye_idx()
 
     _marker_to_idx = {name: idx + 1 for idx, name in enumerate(marker_to_dye_idx.keys())}
@@ -251,7 +251,7 @@ def _label_peak_from_annotation_fast(
 
 
 def extract_peak_windows(
-    image: HIDImage, threshold: float, window_size: int, include_max_pool_dyes: bool = False
+    image: HIDImage, threshold: float, window_size: int, scaling_strategy: ScalingStrategy, include_max_pool_dyes: bool = False
 ) -> list[ExtractedPeak]:
     """Extract peak windows from a HIDImage using NumPy.
 
@@ -263,6 +263,7 @@ def extract_peak_windows(
         image: Source DNA profile.
         threshold: Minimum RFU for peak detection.
         window_size: Width of extraction window in scan points.
+        scaling_strategy: Scaling strategy for the image.
         include_max_pool_dyes: Add max-pooled other-dyes channel.
 
     Returns:
@@ -270,8 +271,6 @@ def extract_peak_windows(
     """
     if window_size <= 0:
         raise ValueError('window_size must be a positive integer')
-
-    scaling_strategy = StrategyRegistry.get_scaling_strategy()
 
     data = image.data
     if data is None:
@@ -287,7 +286,7 @@ def extract_peak_windows(
     data = data_2d[:n_dyes, :]
 
     # Cache marker mapping once (fixes Issue 1)
-    marker_to_idx, _ = setup_marker_to_idx()
+    marker_to_idx, _ = setup_marker_to_idx(scaling_strategy)
 
     annotation_image = image.annotation.data if image.annotation is not None else None
     adjusted_panel = getattr(image, '_panel', None)
@@ -381,6 +380,7 @@ def extract_peak_windows(
 
 def extract_peaks_torch(
     image: HIDImage,
+    scaling_strategy: ScalingStrategy,
     threshold: float,
     window_size: int,
     include_max_pool_dyes: bool = False,
@@ -392,7 +392,7 @@ def extract_peaks_torch(
 
     Args:
         image: Source DNA profile.
-        device: Target device for tensors.
+        scaling_strategy: Scaling strategy for the image.
         threshold: Minimum RFU for peak detection.
         window_size: Width of extraction window.
         include_max_pool_dyes: Add max-pooled other-dyes channel.
@@ -405,7 +405,6 @@ def extract_peaks_torch(
     """
     data = image.data
 
-    scaling_strategy = StrategyRegistry.get_scaling_strategy()
     adjusted_panel = image.adjusted_panel
 
     if data is None:

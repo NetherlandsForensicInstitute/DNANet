@@ -25,6 +25,7 @@ if typing.TYPE_CHECKING:
 
     from dnanet.core.types import PathLike
     from dnanet.core.annotation import Annotation
+    from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 FileCategory = Literal['sample', 'ladder', 'control', 'unknown']
@@ -40,7 +41,7 @@ class DatasetStrategy(ABC):
     @classmethod
     @abstractmethod
     def collect_dataset_files(
-        cls, root_path: PathLike
+        cls, root_path: PathLike, scaling_strategy: ScalingStrategy, **kwargs
     ) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
         """Collect the dataset files for this specific dataset strategy."""
 
@@ -71,12 +72,13 @@ class DatasetStrategy(ABC):
     def parse_annotations(
         cls,
         annotation_source: PathLike,
+        scaling_strategy: ScalingStrategy
     ) -> Mapping[str, Annotation]:
         """Load annotation from annotation sample to Annotation object.
 
         Args:
             annotation_source: Path to annotation file/directory.
-            sample_name: The sample identifier (from ``get_sample_id``).
+            scaling_strategy: Scaling strategy to use for scaling.
 
         Returns:
             Annotation object (either AlleleAnnotation or ScanpointAnnotation)

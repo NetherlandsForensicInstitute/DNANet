@@ -16,5 +16,3 @@ class PowerplexY23(PowerPlexFusion6CStrategy):
             'DYS393': 3, 'DYS458': 3, 'DYS385': 3, 'DYS456': 3, 'YGATAH4': 3,
         }
 
-    def dye_channel_colors(self) -> list[str]:
-        return ['blue', 'green', 'black', 'red', 'orange']
