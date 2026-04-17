@@ -6,28 +6,29 @@ import random
 from types import SimpleNamespace
 
 import numpy as np
-import pytest
 import torch
+import pytest
 
 import dnanet.data.transformer as transformer_module
+from dnanet.data.image import HIDImage
 from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
-from dnanet.data.extracted_peak import ExtractedPeak
-from dnanet.data.image import HIDImage
-from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
+from dnanet.data.strategies import PowerPlexFusion6CStrategy
 from dnanet.data.transformer import (
     CombinedTransformer,
-    PeakClassificationTransformer,
     ReconstructionTransformer,
+    PeakClassificationTransformer,
 )
+from dnanet.data.extracted_peak import ExtractedPeak
 
 
 class SplitPreservingDataset:
     """Test-local dataset double that keeps transforms across splits."""
 
-    def __init__(self, data, transform=None) -> None:
+    def __init__(self, data, transform=None, dataset_strategy=None) -> None:
         self._data = list(data)
         self.transform = transform
+        self.dataset_strategy = dataset_strategy or SplitStrategy()
 
     def __len__(self) -> int:
         return len(self._data)
@@ -46,9 +47,26 @@ class SplitPreservingDataset:
         shuffled = random.Random(seed).sample(self._data, len(self._data))
         split_idx = int(len(shuffled) * fraction)
         return (
-            SplitPreservingDataset(shuffled[:split_idx], transform=self.transform),
-            SplitPreservingDataset(shuffled[split_idx:], transform=self.transform),
+            SplitPreservingDataset(
+                shuffled[:split_idx],
+                transform=self.transform,
+                dataset_strategy=self.dataset_strategy,
+            ),
+            SplitPreservingDataset(
+                shuffled[split_idx:],
+                transform=self.transform,
+                dataset_strategy=self.dataset_strategy,
+            ),
         )
+
+
+class SplitStrategy:
+    """Strategy double that delegates splitting to the dataset under test."""
+
+    @staticmethod
+    def split(dataset, fraction: float, seed: int | None = None, **kwargs):
+        del kwargs
+        return dataset.split(fraction=fraction, seed=seed)
 
 
 def _make_fake_image(
@@ -61,7 +79,6 @@ def _make_fake_image(
     img = HIDImage(
         path=name,
         scaling_strategy=PowerPlexFusion6CStrategy(),
-        dataset_strategy=NFIRnDStrategy(),
         load_in_memory=True,
         meta={"peak_count": peak_count},
     )

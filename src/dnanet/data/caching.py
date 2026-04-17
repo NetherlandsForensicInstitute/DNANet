@@ -209,7 +209,6 @@ def _reconstruct_image(
     image = HIDImage(
         path=path,
         scaling_strategy=scaling_strategy,
-        dataset_strategy=dataset_strategy,
         adjusted_panel=panel,
         include_size_standard=include_size_standard,
         annotation=annotation,

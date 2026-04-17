@@ -177,7 +177,6 @@ class HIDDataset(Dataset, TransformableDataset):
             image = HIDImage(
                 path=path,
                 scaling_strategy=self._scaling,
-                dataset_strategy=self._dataset_strategy,
                 adjusted_panel=_current_panel,
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,

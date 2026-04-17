@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 import pytest
 from torch.utils.data import Subset
 
+import dnanet.data.strategies.datasets.nfi_rnd as nfi_rnd_module
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 
 
@@ -173,20 +174,21 @@ class TestKFoldSplitGrouped:
             (6, False),
         ],
     )
-    def test_different_fold_numbers(self, caplog, k_folds: int, warning: bool):
-        import logging
+    def test_different_fold_numbers(self, monkeypatch, k_folds: int, warning: bool):
+        warning_messages: list[str] = []
+        monkeypatch.setattr(
+            nfi_rnd_module.logger,
+            'warning',
+            lambda message, *args, **kwargs: warning_messages.append(str(message)),
+        )
 
-        caplog.set_level(logging.WARNING)
         folds = NFIRnDStrategy.split(make_dataset(STEMS), k_folds=k_folds, seed=42)
         if warning:
-            assert caplog.record_tuples, 'Did not catch any logs'
-            assert caplog.record_tuples == [
-                (
-                    'dnanet.data.strategies.datasets.nfi_rnd',
-                    30,
-                    f'Splitting the NFI R&D into {k_folds} folds results in uneven splits (2, 3, or 6 will)',
-                )
+            assert warning_messages == [
+                f'Splitting the NFI R&D into {k_folds} folds results in uneven splits (2, 3, or 6 will)'
             ]
+        else:
+            assert warning_messages == []
 
     def test_val_indices_partition_all_samples(self):
         """Each sample appears in exactly one val fold."""
