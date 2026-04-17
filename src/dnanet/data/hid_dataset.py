@@ -84,6 +84,7 @@ class HIDDataset(Dataset, TransformableDataset):
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
         skip_if_invalid_ladder: bool = False,
+        skip_if_no_annotation: bool = True,
         include_size_standard: bool = False,
         data_loading_strategy: str = "superior",
         transform: TransformDataCallable | None = None,
@@ -94,6 +95,7 @@ class HIDDataset(Dataset, TransformableDataset):
         self.root = Path(root)
         self.adjustment_of_annotations = adjustment_of_annotations
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
+        self.skip_if_no_annotation = skip_if_no_annotation
         self.include_size_standard = include_size_standard
         self.data_loading_strategy = data_loading_strategy
         self._transform = transform
@@ -209,9 +211,10 @@ class HIDDataset(Dataset, TransformableDataset):
 
             image.annotation = scanpoint_annotation
 
-            if image.annotation is None:
+            if image.annotation is None and self.skip_if_no_annotation:
                 skipped_alleles += 1
                 logger.debug('{}: no annotation/called alleles', path.name)
+                continue
 
             yield image
 
