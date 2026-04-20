@@ -104,6 +104,13 @@ class ScalingStrategy(ABC):
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         """Map marker names to 0-based dye channel indices."""
 
+    @abstractmethod
+    def cache_signature(self) -> dict:
+        """Return a JSON-serializable dict uniquely identifying this strategy's configuration.
+
+        Used to build the dataset cache key. Must change whenever the strategy
+        configuration changes in a way that affects loaded data.
+        """
 
     # -- Template method: shared interpolation logic ---------------------- #
 
