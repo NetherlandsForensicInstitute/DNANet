@@ -101,7 +101,8 @@ class NFIRnDStrategy(DatasetStrategy):
                     path, hid_file_samples, scaling_strategy
                 )
             case 'span':
-                hid_to_annotation = self._parse_span_annotation(path, scaling_strategy)
+                span_annotations_path = path / 'span_annotations'
+                hid_to_annotation = self._parse_span_annotation(span_annotations_path, scaling_strategy)
             case _:
                 raise ValueError(f'Invalid annotation type: {self.annotation_type}')
 
@@ -117,122 +118,6 @@ class NFIRnDStrategy(DatasetStrategy):
                 hid_to_annotation.get(str(hid_file.stem)),
                 hid_to_ladder.get(hid_file.stem),
             )
-
-    @classmethod
-    def _parse_span_annotation(
-        cls, path: Path, scaling_strategy: ScalingStrategy
-    ) -> dict[str, ScanpointAnnotation | None]:
-        dye_name_to_dye_idx = {
-            'blue': 0,
-            'green': 1,
-            'yellow': 2,
-            'black': 2,
-            'red': 3,
-            'purple': 4,
-            'orange': 5,
-        }
-
-        span_annotations_path = path / 'span_annotations'
-        csv_files = sorted(span_annotations_path.glob('*.csv'))
-        if not csv_files:
-            logger.warning('No span annotation CSV files found in {}', span_annotations_path)
-            return {}
-
-        df = pd.concat((pd.read_csv(f) for f in csv_files), ignore_index=True)
-        required_columns = {'profile', 'user', 'dye', 'x0', 'x1', 'category'}
-        missing_columns = required_columns.difference(df.columns)
-        if missing_columns:
-            raise ValueError(f'Missing span annotation columns: {sorted(missing_columns)}')
-
-        len_before_drop = len(df)
-        df = df.dropna(subset=['profile', 'user', 'dye', 'x0', 'x1', 'category']).copy()
-        dropped = len_before_drop - len(df)
-
-
-        logger.info(
-            f'Found {len(df)} valid span annotations in {len(df["profile"].unique())} '
-            f'profiles (dropped {dropped} rows)'
-        )
-        logger.info(f'Categories found in annotations: {df["category"].unique()}')
-
-        # convert dye names to dye indices
-        df['dye_idx'] = (
-            df['dye']
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .map(dye_name_to_dye_idx)
-        )
-        unknown_dyes = df.loc[df['dye_idx'].isna(), 'dye'].unique()
-        if len(unknown_dyes) > 0:
-            raise ValueError(f'Unknown dye values in span annotations: {unknown_dyes}')
-
-        # convert category names to indices
-        df['category_idx'] = df['category'].map(LabelCategory.display_name_to_index)
-        unknown_categories = df.loc[df['category_idx'].isna(), 'category'].unique()
-        if len(unknown_categories) > 0:
-            raise ValueError(f'Unknown category values in span annotations: {unknown_categories}')
-
-        df[['dye_idx', 'category_idx', 'x0', 'x1']] = df[
-            ['dye_idx', 'category_idx', 'x0', 'x1']
-        ].astype(int)
-
-        hid_file_name_to_span_annotations: dict[str, list[np.ndarray]] = {}
-        for (hid_file_name, _annotator), hid_file_df in df.groupby(['profile', 'user'], sort=False):
-            spannotation = cls._df_to_span_annotation(hid_file_df, scaling_strategy)
-            hid_file_name_to_span_annotations.setdefault(hid_file_name, []).append(spannotation)
-
-        hid_to_annotation: dict[str, ScanpointAnnotation | None] = {}
-        for hid_file_name, span_annotations in hid_file_name_to_span_annotations.items():
-            if len(span_annotations) > 1:
-                span_annotation = cls._merge_span_annotations(span_annotations, hid_file_name)
-            else:
-                span_annotation = span_annotations[0]
-
-            hid_to_annotation[hid_file_name] = cls._span_to_scanpoint_annotation(span_annotation, hid_file_name)
-
-        return hid_to_annotation
-
-    @staticmethod
-    def _df_to_span_annotation(df: pd.DataFrame, scaling_strategy: ScalingStrategy) -> np.ndarray:
-        num_dyes = scaling_strategy.kit.num_dyes
-        scanpoints = scaling_strategy.scanpoint_resolution
-        num_classes = len(LabelCategory)
-        spannotation = np.zeros((num_dyes, scanpoints, num_classes), dtype=np.int8)
-
-        for row in df.itertuples(index=False):
-            dye_idx = int(row.dye_idx)
-            category_idx = int(row.category_idx)
-            if not 0 <= dye_idx < num_dyes:
-                raise ValueError(f'Dye index {dye_idx} outside annotation shape')
-            if not 0 <= category_idx < num_classes:
-                raise ValueError(f'Category index {category_idx} outside annotation shape')
-
-            start, stop = sorted((int(row.x0), int(row.x1)))
-            start = max(0, start)
-            stop = min(scanpoints, stop)
-            if start >= stop:
-                continue
-
-            spannotation[dye_idx, start:stop, category_idx] = 1
-
-        return spannotation
-
-    @staticmethod
-    def _merge_span_annotations(spannotations: List[np.ndarray], hid_file_name: str) -> np.ndarray:
-        logger.debug(
-            f'Found multiple span annotations for {hid_file_name}. Merging by taking the first only'
-        )
-        return spannotations[0]
-
-    @staticmethod
-    def _span_to_scanpoint_annotation(span_annotation: np.ndarray, hid_file_name: str) -> ScanpointAnnotation:
-        flattened = span_annotation.argmax(axis=-1)
-
-        if np.any(span_annotation.sum(axis=-1) > 1):
-            logger.debug(f'Found overlapping annotations for {hid_file_name}, taking the lowest class index')
-
-        return ScanpointAnnotation(flattened.astype(np.int8, copy=False))
 
 
     @classmethod
