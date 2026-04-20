@@ -15,13 +15,13 @@ from __future__ import annotations
 import typing
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple, Literal, Mapping, Generator
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from loguru import logger
 
 from dnanet.core import LabelCategory
+from dnanet.core.annotation import Annotation, ScanpointAnnotation
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -29,7 +29,6 @@ if typing.TYPE_CHECKING:
     from annotated_types import T
 
     from dnanet.core.types import PathLike
-    from dnanet.core.annotation import Annotation, ScanpointAnnotation
     from dnanet.data.strategies.scaling import ScalingStrategy
 
 
