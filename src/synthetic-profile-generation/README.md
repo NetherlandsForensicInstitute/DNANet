@@ -81,6 +81,17 @@ After you generate two sets of EPGs—one with the generator (default) and one w
 
 
 ## Credits
+More details about the generation and this research can be found here:
+```bibtex
+@mastersthesis{mesic_2025_robust,
+  author = {Mesic, Amar.},
+  title = {Robust {DNA} Profiling with Synthetic Electropherograms},
+  school = {Delft University of Technology},
+  year = {2025},
+  type = {Master Thesis},
+  url = {https://resolver.tudelft.nl/uuid:d07c1be2-cfa1-44d5-892f-c2d110e0c9a0}
+}
+```
 The GAN-based generator was designed by Duncan Taylor and Melissa Humphries and is described in:
 ```bibtex
 @article{taylor_simulating_2025,
