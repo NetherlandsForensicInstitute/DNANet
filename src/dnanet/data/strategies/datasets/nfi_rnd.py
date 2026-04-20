@@ -10,32 +10,32 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
+import csv
 import io
 import os
 import re
-import csv
-from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
-from pathlib import Path
 from itertools import groupby
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
 
 from loguru import logger
-from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     StratifiedKFold,
     train_test_split,
 )
+from torch.utils.data import Subset
 
 from dnanet.core.allele import Allele
-from dnanet.core.marker import Marker
 from dnanet.core.annotation import Annotation, AlleleAnnotation
-from dnanet.data.strategies import ScalingStrategy
-from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
-
+from dnanet.core.marker import Marker
+from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
+    from dnanet.data.strategies import ScalingStrategy
     from dnanet.data.hid_dataset import HIDDataset
+    from dnanet.data.strategies.datasets.dataset import FileCategory
 
 
 class NFIRnDStrategy(DatasetStrategy):
@@ -65,9 +65,9 @@ class NFIRnDStrategy(DatasetStrategy):
         """
         path = Path(root_path)
 
-        hid_to_annotation_path = list(path.rglob('*hid_to_annotation*'))
-        hid_to_ladder_path = list(path.rglob('*best_ladder_paths*'))
-        if not hid_to_annotation_path or not hid_to_ladder_path:
+        hid_to_annotation_paths = list(path.rglob('*hid_to_annotation*'))
+        hid_to_ladder_paths = list(path.rglob('*best_ladder_paths*'))
+        if not hid_to_annotation_paths or not hid_to_ladder_paths:
             raise ValueError(
                 'Path does not contain the neccessary mapping files (annotation & ladder)'
             )

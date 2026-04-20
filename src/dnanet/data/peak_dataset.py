@@ -17,21 +17,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List, Iterator
 
-from loguru import logger
 from torch.utils.data import IterableDataset
 
 from dnanet.data.dataset import TransformableDataset
-from dnanet.data.strategies import StrategyRegistry
-from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
 from dnanet.data.preprocessing.baseline import fft_lowpass_smooth
 from dnanet.data.preprocessing.peak_extraction import extract_peak_windows
-
+from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
 
 if TYPE_CHECKING:
     from dnanet.data.image import HIDImage
     from dnanet.data.hid_dataset import HIDDataset
     from dnanet.data.transformer import TransformDataCallable
     from dnanet.data.extracted_peak import ExtractedPeak
+    from dnanet.data.strategies import DatasetStrategy
 
 
 class PeakWindowDataset(IterableDataset, TransformableDataset):
@@ -56,6 +54,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
     def __init__(
         self,
         images: List[HIDImage],
+        dataset_strategy: DatasetStrategy,
         transform: TransformDataCallable | None = None,
         threshold: float = 40,
         window_size: int = 120,
@@ -70,10 +69,10 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
         self._images = images
         self._transform = transform
-        self.scaling_strategy = base_dataset._scaling
+        self._dataset_strategy = dataset_strategy
         self.threshold = threshold
         self.window_size = window_size
-        self.labels = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
+        self.labels = self._dataset_strategy.get_annotation_classes()
         self.label_to_idx = {name: idx for idx, name in enumerate(self.labels)}
         self.idx_to_label = {idx: name for idx, name in enumerate(self.labels)}
         self.include_max_pool_dyes = include_max_pool_dyes
@@ -87,6 +86,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         """Create a PeakWindowDataset based on a HIDDataset's images and transform."""
         return cls.__init__(
             images=base_dataset.images,
+            dataset_strategy=base_dataset.dataset_strategy,
             transform=base_dataset.transform,
             **kwargs
         )
@@ -98,8 +98,8 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
                 image,
                 threshold=self.threshold,
                 window_size=self.window_size,
-                scaling_strategy=self.scaling_strategy,
                 include_max_pool_dyes=self.include_max_pool_dyes,
+                dataset_strategy=self.dataset_strategy
             )
 
             for peak in peaks:
@@ -134,6 +134,10 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
     def transform(self) -> TransformDataCallable | None:
         return self._transform
 
+    @property
+    def dataset_strategy(self) -> DatasetStrategy:
+        return self._dataset_strategy
+
     def __iter__(self) -> Iterator[Any]:
         """Create an iterator for the peaks."""
         for peak in self._iterate_peaks():
@@ -146,6 +150,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         """Create a subset of PeakWindowDataset with only indicated indices."""
         return PeakWindowDataset(
             images=[self._images[idx] for idx in indices],
+            dataset_strategy=self._dataset_strategy,
             transform=self._transform,
             threshold=self.threshold,
             window_size=self.window_size,

@@ -11,22 +11,17 @@ from functools import partial
 from typing import Any, Sequence
 
 import numpy as np
+from loguru import logger
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 from matplotlib.ticker import FixedLocator, FuncFormatter
-
-from loguru import logger
-
 from scipy.signal import find_peaks
 
-from dnanet.core.constants import LabelCategory
 from dnanet.data.image import HIDImage
-from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.tools.labeltool.interactivity import Interactivity
 from dnanet.tools.labeltool.tool import bp_to_scan, scan_to_bp
-
 
 # Canonical dye channel names used in CSV annotation files.
 # These are fixed identifiers (NOT the same as plot colors from the scaling

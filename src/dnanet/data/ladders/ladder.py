@@ -34,10 +34,9 @@ import numpy as np
 from loguru import logger
 from scipy.signal import find_peaks
 
-from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-
+from dnanet.core.panel import Panel
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -45,6 +44,7 @@ if TYPE_CHECKING:
     from dnanet.core.types import PathLike
     from dnanet.data.ladders import LadderAlleleCatalog
     from dnanet.data.strategies.scaling import ScalingStrategy
+    from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 
 def classmethod_cache(func):
@@ -79,7 +79,8 @@ class Ladder:
         ladder_path: PathLike,
         catalog: LadderAlleleCatalog,
         data_loading_strategy: str,
-        scaling_strategy: ScalingStrategy
+        scaling_strategy: ScalingStrategy,
+        dataset_strategy: DatasetStrategy
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
 
@@ -90,6 +91,7 @@ class Ladder:
             catalog: The Ladder Catalog that was read from a csv
             data_loading_strategy: Which data columns and whether to use baseline correction for HID Parsing
             scaling_strategy: The Kit Scaling Strategy to use for scaling
+            dataset_strategy: The Dataset Strategy to use
 
         Returns:
             The adjusted panel

@@ -7,11 +7,11 @@ import torch
 from torch.testing import assert_close
 
 import dnanet.data.transformer as transformer_module
-from dnanet.core.allele import Allele
-from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
-from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
 from dnanet.data.image import HIDImage
+from dnanet.core.allele import Allele
+from dnanet.core.marker import Marker
+from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.strategies import PowerPlexFusion6CStrategy
 from dnanet.data.transformer import (
     CombinedTransformer,

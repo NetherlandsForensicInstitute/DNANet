@@ -3,17 +3,16 @@
 import numpy as np
 import pytest
 
-from dnanet.core.annotation import ScanpointAnnotation
+from tests.conftest import PANEL_PATH
 from dnanet.core.panel import Panel
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.preprocessing.peak_extraction import (
     _build_peak_data,
     _slice_with_padding,
     extract_peaks_torch,
     setup_marker_to_idx,
     extract_peak_windows,
-    _label_peak_from_annotation,
 )
-from tests.conftest import PANEL_PATH
 
 
 class TestSliceWithPadding:
@@ -72,35 +71,6 @@ class TestBuildPeakData:
         assert result[1, 0] == 5.0
 
 
-class TestLabelPeakFromAnnotation:
-    """Tests for _label_peak_from_annotation."""
-
-    def test_none_annotation_returns_noise(self, nfi_rnd_kit):
-        label = _label_peak_from_annotation(None, 0, 50)
-        assert label == 'noise'
-
-    def test_annotated_peak_returns_allele(self, nfi_rnd_kit):
-        ann = np.zeros((5, 100))
-        ann[0, 49:52] = 1  # annotated around position 50
-        label = _label_peak_from_annotation(ann, 0, 50)
-        assert label == 'allele'
-
-    def test_unannotated_peak_returns_noise(self, nfi_rnd_kit):
-        ann = np.zeros((5, 100))
-        label = _label_peak_from_annotation(ann, 0, 50)
-        assert label == 'noise'
-
-    def test_3d_annotation(self, nfi_rnd_kit):
-        ann = np.zeros((5, 100, 1))
-        ann[2, 30, 0] = 1
-        label = _label_peak_from_annotation(ann, 2, 30)
-        assert label == 'allele'
-
-    def test_padding_extends_check_range(self, nfi_rnd_kit):
-        ann = np.zeros((5, 100))
-        ann[0, 52] = 1  # just outside default padding of 1
-        label = _label_peak_from_annotation(ann, 0, 50, padding=2)
-        assert label == 'allele'
 
 
 class TestMarkerToIdx:
@@ -129,9 +99,10 @@ class TestExtractPeakWindows:
     class MockImage:
         """Minimal HIDImage-like object for testing."""
 
-        def __init__(self, data, annotation_image=None):
+        def __init__(self, data, scaling_strategy, annotation_image=None):
             self._data = data
             self._panel = None
+            self.scaling_strategy = scaling_strategy
             if annotation_image is not None:
                 self.annotation = ScanpointAnnotation(data=annotation_image)
             else:
@@ -157,60 +128,80 @@ class TestExtractPeakWindows:
             data[1, 1000 + i] = max(0, 400 - abs(i) * 15)
         return data
 
-    def test_extracts_peaks(self, nfi_rnd_kit):
+    def test_extracts_peaks(self, nfi_rnd_kit, nfi_rnd_dataset):
         data = self._make_profile_with_peaks()
-        image = self.MockImage(data)
-        peaks = extract_peak_windows(image, threshold=100, window_size=120, scaling_strategy=nfi_rnd_kit)
+        image = self.MockImage(data, nfi_rnd_kit)
+        peaks = extract_peak_windows(
+            image,
+            threshold=100,
+            window_size=120,
+            dataset_strategy=nfi_rnd_dataset,
+        )
         assert len(peaks) >= 2  # at least the two peaks we created
 
-    def test_peak_properties(self, nfi_rnd_kit):
+    def test_peak_properties(self, nfi_rnd_kit, nfi_rnd_dataset):
         data = self._make_profile_with_peaks()
-        image = self.MockImage(data)
-        peaks = extract_peak_windows(image, threshold=100, window_size=120, scaling_strategy=nfi_rnd_kit)
+        image = self.MockImage(data, nfi_rnd_kit)
+        peaks = extract_peak_windows(
+            image,
+            threshold=100,
+            window_size=120,
+            dataset_strategy=nfi_rnd_dataset,
+        )
         for peak in peaks:
             assert peak.data.shape == (120,)
             assert peak.window_size == 120
             assert 0 <= peak.dye_index < 5
 
-    def test_labels_from_annotation(self, nfi_rnd_kit):
+    def test_labels_from_annotation(self, nfi_rnd_kit, nfi_rnd_dataset):
         data = self._make_profile_with_peaks()
         ann = np.zeros_like(data)
         ann[0, 1990:2010] = 1  # annotate the peak in dye 0
-        image = self.MockImage(data, annotation_image=ann)
+        image = self.MockImage(data, nfi_rnd_kit, annotation_image=ann)
         peaks = extract_peak_windows(
             image,
             threshold=100,
             window_size=120,
-            scaling_strategy=nfi_rnd_kit,
+            dataset_strategy=nfi_rnd_dataset,
         )
         dye0_peaks = [p for p in peaks if p.dye_index == 0]
         assert len(dye0_peaks) >= 1
         assert dye0_peaks[0].label == 'allele'
 
-    def test_none_data_returns_empty(self, nfi_rnd_kit):
-        image = self.MockImage(None)
-        peaks = extract_peak_windows(image, threshold=100, window_size=120, scaling_strategy=nfi_rnd_kit)
-        assert peaks == []
-
-    def test_include_max_pool_dyes(self, nfi_rnd_kit):
-        data = self._make_profile_with_peaks()
-        image = self.MockImage(data)
+    def test_none_data_returns_empty(self, nfi_rnd_kit, nfi_rnd_dataset):
+        image = self.MockImage(None, nfi_rnd_kit)
         peaks = extract_peak_windows(
             image,
             threshold=100,
             window_size=120,
-            scaling_strategy=nfi_rnd_kit,
+            dataset_strategy=nfi_rnd_dataset,
+        )
+        assert peaks == []
+
+    def test_include_max_pool_dyes(self, nfi_rnd_kit, nfi_rnd_dataset):
+        data = self._make_profile_with_peaks()
+        image = self.MockImage(data, nfi_rnd_kit)
+        peaks = extract_peak_windows(
+            image,
+            threshold=100,
+            window_size=120,
             include_max_pool_dyes=True,
+            dataset_strategy=nfi_rnd_dataset,
         )
         assert peaks[0].data.shape == (2, 120)
 
-    def test_excludes_size_standard(self, nfi_rnd_kit):
+    def test_excludes_size_standard(self, nfi_rnd_kit, nfi_rnd_dataset):
         """Peaks in the 6th channel (size standard) should be excluded."""
         data = np.zeros((6, 4096))
         for i in range(-20, 21):
             data[5, 2000 + i] = max(0, 500 - abs(i) * 20)
-        image = self.MockImage(data)
-        peaks = extract_peak_windows(image, threshold=100, window_size=120, scaling_strategy=nfi_rnd_kit)
+        image = self.MockImage(data, nfi_rnd_kit)
+        peaks = extract_peak_windows(
+            image,
+            threshold=100,
+            window_size=120,
+            dataset_strategy=nfi_rnd_dataset,
+        )
         assert all(p.dye_index < 5 for p in peaks)
 
 

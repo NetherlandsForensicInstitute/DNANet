@@ -1,10 +1,7 @@
 """Tests for strategy infrastructure."""
 
 import numpy as np
-import pytest
 
-from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 from dnanet.data.strategies.scaling.size_standard import WEN_ILS, GENESCAN_600_LIZ
 
@@ -38,23 +35,4 @@ class TestBasepairInterpolator:
         interp = ScalingStrategy.basepair_interpolator(indices, bps, extrapolate=True)
         result = interp(5)  # extrapolate before first point
         assert result[0] != 0.0  # should extrapolate, not zero
-
-
-class TestStrategyRegistry:
-    def setup_method(self):
-        StrategyRegistry.reset()
-
-    def test_unconfigured_raises(self):
-        with pytest.raises(RuntimeError, match='No dataset strategy'):
-            StrategyRegistry.get_dataset_strategy()
-
-    def test_configure_by_string(self):
-        StrategyRegistry.configure_dataset('NFI_RND')
-        assert StrategyRegistry.get_dataset_strategy() is NFIRnDStrategy
-
-    def test_reset(self):
-        StrategyRegistry.configure_dataset('NFI_RND')
-        StrategyRegistry.reset()
-        with pytest.raises(RuntimeError, match='No dataset strategy'):
-            StrategyRegistry.get_dataset_strategy()
 

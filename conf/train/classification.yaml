@@ -54,6 +54,7 @@ checkpoint:
 data_transform:
   _target_: dnanet.data.transformer.PeakClassificationTransformer
   scaling_strategy: ${data.scaling_strategy}
+  dataset_strategy: ${data.dataset_strategy}
   include_marker: false
 
 

@@ -14,7 +14,6 @@ Two implementations are provided:
 
 from __future__ import annotations
 
-import typing
 from typing import TYPE_CHECKING, Dict, Tuple
 
 import numpy as np
@@ -23,10 +22,9 @@ import torch
 
 from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.strategies.scaling import ScalingStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
-
 
 if TYPE_CHECKING:
+    from dnanet.data.strategies import DatasetStrategy
     from dnanet.core.panel import Panel
     from dnanet.data.image import HIDImage
 
@@ -167,45 +165,10 @@ def _find_marker_for_peak(
     return None, 0
 
 
-def _label_peak_from_annotation(
-    annotation_image: np.ndarray | None,
-    dye_index: int,
-    peak_center: int,
-    padding: int = 1,
-) -> str:
-    """Determine peak label from the annotation mask based on the annotation classes specified in the dataset strategy.
-
-    When no annotation is available, we use default class 0.
-    When there are multiple annotation classes, we take the most common class in the slice.
-    If there is a tie, we take the lowest class index.
-
-    Args:
-        annotation_image: Binary mask ``(D, L)`` or ``(D, L, 1)``, or None.
-        dye_index: Dye channel index.
-        peak_center: Scan-point index of peak apex.
-        padding: Number of positions around the center to check.
-
-    Returns:
-        The annotation class name corresponding to the most common class in the slice.
-    """
-    annotation_classes = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
-
-    if annotation_image is None:
-        return annotation_classes[
-            0
-        ]  # default to first class (e.g. "noise") if no annotation available
-
-    if annotation_image.ndim == 3:
-        ann = annotation_image[dye_index, :, 0]
-    else:
-        ann = annotation_image[dye_index]
-
-    return _label_peak_from_annotation_fast(ann, peak_center, padding)
-
-
 def _label_peak_from_annotation_fast(
     ann_channel: np.ndarray | None,
     peak_center: int,
+    dataset_strategy: DatasetStrategy,
     padding: int = 1,
 ) -> str:
     """Fast path that operates on a single channel slice.
@@ -219,7 +182,7 @@ def _label_peak_from_annotation_fast(
         ``"allele"`` if any annotated position is within padding of center,
         ``"noise"`` otherwise.
     """
-    annotation_classes = StrategyRegistry.get_dataset_strategy().get_annotation_classes()
+    annotation_classes = dataset_strategy.get_annotation_classes()
     if ann_channel is None:
         return annotation_classes[0]
 
@@ -251,7 +214,11 @@ def _label_peak_from_annotation_fast(
 
 
 def extract_peak_windows(
-    image: HIDImage, threshold: float, window_size: int, scaling_strategy: ScalingStrategy, include_max_pool_dyes: bool = False
+        image: HIDImage,
+        threshold: float,
+        window_size: int,
+        dataset_strategy: DatasetStrategy,
+        include_max_pool_dyes: bool = False,
 ) -> list[ExtractedPeak]:
     """Extract peak windows from a HIDImage using NumPy.
 
@@ -260,10 +227,11 @@ def extract_peak_windows(
     centered on each peak.
 
     Args:
-        image: Source DNA profile.
+        image: Source DNA profile. Its ``scaling_strategy`` and
+            ``dataset_strategy`` are used for marker and label handling.
         threshold: Minimum RFU for peak detection.
         window_size: Width of extraction window in scan points.
-        scaling_strategy: Scaling strategy for the image.
+        dataset_strategy: Dataset strategy for annotation handling.
         include_max_pool_dyes: Add max-pooled other-dyes channel.
 
     Returns:
@@ -280,6 +248,8 @@ def extract_peak_windows(
         data_2d = data[:, :, 0]
     else:
         data_2d = data
+
+    scaling_strategy = image.scaling_strategy
 
     n_dyes = scaling_strategy.kit.num_dyes - 1  # exclude size standard
     assert n_dyes <= data_2d.shape[0], 'Image has fewer dye channels than expected'
@@ -359,7 +329,7 @@ def extract_peak_windows(
             )
 
             # Fast annotation check without function call overhead
-            peak_label = _label_peak_from_annotation_fast(ann_channel, peak_scanpoint, padding=2)
+            peak_label = _label_peak_from_annotation_fast(ann_channel, peak_scanpoint, padding=2, dataset_strategy=dataset_strategy)
 
             peaks.append(
                 ExtractedPeak(
@@ -441,7 +411,7 @@ def _find_peaks_torch_indices(
     dim: int = -1,
 ) -> torch.Tensor:
     """Plateau-aware peak finder matching SciPy `signal.find_peaks(x, height=threshold)`-style local-max logic.
-    
+
     - A peak is a local maximum.
     - Flat peaks (plateaus) count as one peak.
     - For a plateau peak, return the middle index (rounded down if even).
@@ -542,7 +512,7 @@ def _extract_windows_torch(
     include_maxpool_dyes: bool,
 ) -> torch.Tensor:
     """Extract windows from 2D tensor x centered at specified indices.
-    
+
     Pads with zeros when out of bounds.
 
     x:        (D, L) tensor, e.g. (5 or 6, 4096)

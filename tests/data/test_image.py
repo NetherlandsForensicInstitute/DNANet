@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
+from tests.conftest import RD_DIR
 from dnanet.data.image import HIDImage
 from dnanet.data.strategies import PowerPlexFusion6CStrategy
-from tests.conftest import RD_DIR
 
 
 @pytest.fixture

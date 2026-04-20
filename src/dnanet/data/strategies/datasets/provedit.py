@@ -24,13 +24,13 @@ from torch.utils.data import Subset
 from dnanet.core.allele import Allele
 from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.core.marker import Marker
-from dnanet.data.strategies import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
     from dnanet.data.dataset import TransformableDataset
 
+    from dnanet.data.strategies.scaling import ScalingStrategy
 
 class ProvedItStrategy(DatasetStrategy):
     """Strategy for the ProvedIt dataset (GlobalFiler kit)."""

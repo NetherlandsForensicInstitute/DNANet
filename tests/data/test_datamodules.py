@@ -6,29 +6,29 @@ import random
 from types import SimpleNamespace
 
 import numpy as np
-import pytest
 import torch
+import pytest
 
 import dnanet.data.transformer as transformer_module
+from dnanet.data.image import HIDImage
 from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
-from dnanet.data.extracted_peak import ExtractedPeak
-from dnanet.data.image import HIDImage
 from dnanet.data.strategies import PowerPlexFusion6CStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.transformer import (
     CombinedTransformer,
-    PeakClassificationTransformer,
     ReconstructionTransformer,
+    PeakClassificationTransformer,
 )
+from dnanet.data.extracted_peak import ExtractedPeak
 
 
 class SplitPreservingDataset:
     """Test-local dataset double that keeps transforms across splits."""
 
-    def __init__(self, data, transform=None) -> None:
+    def __init__(self, data, transform=None, dataset_strategy=None) -> None:
         self._data = list(data)
         self.transform = transform
+        self.dataset_strategy = dataset_strategy or SplitStrategy()
 
     def __len__(self) -> int:
         return len(self._data)
@@ -47,9 +47,26 @@ class SplitPreservingDataset:
         shuffled = random.Random(seed).sample(self._data, len(self._data))
         split_idx = int(len(shuffled) * fraction)
         return (
-            SplitPreservingDataset(shuffled[:split_idx], transform=self.transform),
-            SplitPreservingDataset(shuffled[split_idx:], transform=self.transform),
+            SplitPreservingDataset(
+                shuffled[:split_idx],
+                transform=self.transform,
+                dataset_strategy=self.dataset_strategy,
+            ),
+            SplitPreservingDataset(
+                shuffled[split_idx:],
+                transform=self.transform,
+                dataset_strategy=self.dataset_strategy,
+            ),
         )
+
+
+class SplitStrategy:
+    """Strategy double that delegates splitting to the dataset under test."""
+
+    @staticmethod
+    def split(dataset, fraction: float, seed: int | None = None, **kwargs):
+        del kwargs
+        return dataset.split(fraction=fraction, seed=seed)
 
 
 def _make_fake_image(
@@ -92,13 +109,7 @@ def _make_mock_peaks(n: int = 8) -> list[ExtractedPeak]:
 def ppf6c() -> PowerPlexFusion6CStrategy:
     return PowerPlexFusion6CStrategy()
 
-@pytest.fixture
-def configured_peak_registry(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        StrategyRegistry,
-        "_dataset_strategy",
-        SimpleNamespace(get_annotation_classes=lambda: ["noise", "allele"]),
-    )
+
 
 
 @pytest.fixture
@@ -125,16 +136,17 @@ def fake_peak_extractor(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 class TestPeakClassificationTransformer:
-    @pytest.mark.usefixtures("configured_peak_registry")
     def test_datamodule_batches_marker_and_target_tensors(
         self,
         ppf6c,
+        nfi_rnd_dataset,
     ) -> None:
         peaks = _make_mock_peaks(10)
         dataset = SplitPreservingDataset(
             peaks,
             transform=PeakClassificationTransformer(
                 scaling_strategy=ppf6c,
+                dataset_strategy=nfi_rnd_dataset,
                 include_marker=True,
             ),
         )
@@ -150,16 +162,17 @@ class TestPeakClassificationTransformer:
         assert targets.shape[0] == peak_data.shape[0]
         assert targets.dtype == torch.long
 
-    @pytest.mark.usefixtures("configured_peak_registry")
     def test_datamodule_batches_negative_marker_when_disabled(
         self,
         ppf6c,
+        nfi_rnd_dataset,
     ) -> None:
         peaks = _make_mock_peaks(10)
         dataset = SplitPreservingDataset(
             peaks,
             transform=PeakClassificationTransformer(
                 scaling_strategy=ppf6c,
+                dataset_strategy=nfi_rnd_dataset,
                 include_marker=False,
             ),
         )

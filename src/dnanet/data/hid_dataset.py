@@ -15,39 +15,34 @@ Design pattern: **Template Method** (inherited)
 
 Usage::
 
-    from dnanet.data.strategies.registry import StrategyRegistry
-    StrategyRegistry.configure_kit("PPF6C")
-    StrategyRegistry.configure_dataset("NFI_RND")
+    from dnanet.data.strategies import NFIRnDStrategy, PowerPlexFusion6CStrategy
 
     dataset = HIDDataset(
         root="data/2p_5p_Dataset_NFI/Raw data .HID files",
-        annotations_path="data/2p_5p_Dataset_NFI/txt_annotations_2024",
-        hid_to_annotations_path="data/2p_5p_Dataset_NFI/2p_5p_hid_to_annotation.csv",
-        best_ladder_paths_csv="data/2p_5p_Dataset_NFI/best_ladder_paths_DTH.csv",
-        ladder_alleles_csv="data/2p_5p_Dataset_NFI/ladder_alleles.csv",
+        scaling_strategy=PowerPlexFusion6CStrategy(),
+        dataset_strategy=NFIRnDStrategy(),
     )
 """
 
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, List, Tuple, Optional, Generator
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, List, Tuple, Optional, Generator
 
 import numpy as np
-from tqdm import tqdm
 from loguru import logger
 from torch.utils.data import Dataset
+from tqdm import tqdm
 
-from dnanet.data.image import HIDImage
-from dnanet.data.dataset import TransformableDataset
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
+from dnanet.data.dataset import TransformableDataset
+from dnanet.data.image import HIDImage
 from dnanet.data.ladders.ladder import Ladder
-from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
-from dnanet.data.strategies import ScalingStrategy, DatasetStrategy
-from dnanet.data.strategies.registry import StrategyRegistry
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
-
+from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
+from dnanet.data.strategies.datasets import DatasetStrategy
+from dnanet.data.strategies.scaling import ScalingStrategy
 
 if TYPE_CHECKING:
     from dnanet.core.panel import Panel
@@ -65,8 +60,9 @@ class HIDDataset(Dataset, TransformableDataset):
     4. Builds an adjusted panel from the ladder
     5. Creates ``HIDImage`` instances and filters out invalid ones
 
-    Requires ``StrategyRegistry`` to be configured with a kit (scaling)
-    strategy before construction.
+    Requires a kit scaling strategy and dataset strategy to be passed during
+    construction. The dataset strategy provides dataset-specific file
+    collection, annotations, labels, and split helpers.
 
     Args:
         root: Root directory containing HID files (searched recursively).
@@ -128,7 +124,7 @@ class HIDDataset(Dataset, TransformableDataset):
         if len(self._data) == 0:
             raise ValueError(
                 f'No valid HID images found in {self.root}. '
-                f'Check paths and StrategyRegistry configuration.'
+                f'Check paths and strategy configuration.'
             )
 
         logger.info(
@@ -168,7 +164,8 @@ class HIDDataset(Dataset, TransformableDataset):
                     ladder_path=ladder_path,
                     catalog=LadderAlleleCatalog.from_panel(self._default_panel),
                     data_loading_strategy=self.data_loading_strategy,
-                    scaling_strategy=self._scaling
+                    scaling_strategy=self._scaling,
+                    dataset_strategy=self.dataset_strategy
                 )
                 if adjusted:
                     _current_panel = adjusted
@@ -337,6 +334,11 @@ class HIDDataset(Dataset, TransformableDataset):
     def data(self) -> List[HIDImage]:
         """Protected property list of HIDImages in the dataset."""
         return self._data
+
+    @property
+    def dataset_strategy(self) -> DatasetStrategy:
+        """Protected property for the dataset strategy."""
+        return self._dataset_strategy
 
     # -- Dunder ----------------------------------------------------------- #
 

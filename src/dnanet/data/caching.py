@@ -12,28 +12,30 @@ Design pattern: **Adapter**
 
 from __future__ import annotations
 
-import os
 import json
-from typing import Sequence, Generator
-from pathlib import Path
+import os
 from itertools import chain, islice
+from pathlib import Path
+from typing import Sequence, Generator
 
-import numpy as np
 import datasets
-from tqdm import tqdm
-from loguru import logger
-from datasets import Value, Array3D, Features, load_from_disk
+import numpy as np
 from datasets import Dataset as HFDataset
+from datasets import Value, Array3D, Features, load_from_disk
+from loguru import logger
+from tqdm import tqdm
 
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.core.types import PathLike
 from dnanet.data.image import HIDImage
-from dnanet.core.annotation import ScanpointAnnotation
+from dnanet.data.strategies import DatasetStrategy
 from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 def load_from_cache(
     cache_path: PathLike,
     scaling_strategy: ScalingStrategy,
+    dataset_strategy: DatasetStrategy,
     limit: int | None = None,
     include_size_standard: bool = False,
 ) -> list[HIDImage]:
@@ -54,7 +56,7 @@ def load_from_cache(
     entries = os.listdir(cache_path)
 
     if any(f.endswith(".arrow") for f in entries):
-        count, gen = _read_shard(str(cache_path), scaling_strategy, include_size_standard)
+        count, gen = _read_shard(str(cache_path), scaling_strategy, dataset_strategy, include_size_standard)
     else:
         generators = []
         count = 0
@@ -62,6 +64,7 @@ def load_from_cache(
             shard_count, shard_gen = _read_shard(
                 os.path.join(cache_path, subdir),
                 scaling_strategy,
+                dataset_strategy,
                 include_size_standard,
             )
             generators.append(shard_gen)
@@ -148,6 +151,7 @@ def write_to_cache(
 def _read_shard(
     directory: str,
     scaling_strategy: ScalingStrategy,
+    dataset_strategy: DatasetStrategy,
     include_size_standard: bool,
     batch_size: int = 256,
 ) -> tuple[int, Generator[HIDImage, None, None]]:
@@ -174,6 +178,7 @@ def _read_shard(
                     ca_json,
                     include_size_standard,
                     scaling_strategy,
+                    dataset_strategy
                 )
 
     return len(ds), gen()
@@ -188,6 +193,7 @@ def _reconstruct_image(
     alleles_json,
     include_size_standard,
     scaling_strategy: ScalingStrategy,
+    dataset_strategy: DatasetStrategy
 ) -> HIDImage:
     """Reconstruct an HIDImage from cached column data."""
     from dnanet.core.panel import Panel

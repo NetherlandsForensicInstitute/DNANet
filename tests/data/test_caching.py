@@ -5,12 +5,12 @@ import json
 import numpy as np
 import pytest
 
-from dnanet.core.allele import Allele
-from dnanet.core.annotation import ScanpointAnnotation
-from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
-from dnanet.data.caching import write_to_cache, load_from_cache, _reconstruct_image
 from dnanet.data.image import HIDImage
+from dnanet.core.allele import Allele
+from dnanet.core.marker import Marker
+from dnanet.data.caching import write_to_cache, load_from_cache, _reconstruct_image
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.strategies import PowerPlexFusion6CStrategy
 
 
@@ -88,59 +88,59 @@ class TestWriteToCache:
 # ---------------------------------------------------------------------------
 
 class TestLoadFromCache:
-    def test_roundtrip_image_count(self, cached_images, tmp_path, ppf6c):
+    def test_roundtrip_image_count(self, cached_images, tmp_path, ppf6c, nfi_rnd_dataset):
         cache = tmp_path / "cache"
         write_to_cache(cache, cached_images)
-        loaded = load_from_cache(cache, ppf6c)
+        loaded = load_from_cache(cache, ppf6c, nfi_rnd_dataset)
         assert len(loaded) == len(cached_images)
 
-    def test_roundtrip_data_preserved(self, cached_images, tmp_path, ppf6c):
+    def test_roundtrip_data_preserved(self, cached_images, tmp_path, ppf6c, nfi_rnd_dataset):
         cache = tmp_path / "cache"
         write_to_cache(cache, cached_images)
-        loaded = load_from_cache(cache, ppf6c)
+        loaded = load_from_cache(cache, ppf6c, nfi_rnd_dataset)
         np.testing.assert_array_equal(loaded[0].data, cached_images[0].data)
 
-    def test_roundtrip_annotation_preserved(self, cached_images, tmp_path, ppf6c):
+    def test_roundtrip_annotation_preserved(self, cached_images, tmp_path, ppf6c, nfi_rnd_dataset):
         cache = tmp_path / "cache"
         write_to_cache(cache, cached_images)
-        loaded = load_from_cache(cache, ppf6c)
+        loaded = load_from_cache(cache, ppf6c, nfi_rnd_dataset)
         np.testing.assert_array_equal(
             loaded[0].annotation.data, cached_images[0].annotation.data
         )
 
-    def test_roundtrip_scaler_preserved(self, cached_images, tmp_path, ppf6c):
+    def test_roundtrip_scaler_preserved(self, cached_images, tmp_path, ppf6c, nfi_rnd_dataset):
         cache = tmp_path / "cache"
         write_to_cache(cache, cached_images)
-        loaded = load_from_cache(cache, ppf6c)
+        loaded = load_from_cache(cache, ppf6c, nfi_rnd_dataset)
         np.testing.assert_array_almost_equal(
             loaded[0]._scaler, cached_images[0]._scaler
         )
 
-    def test_roundtrip_panel_preserved(self, cached_images, tmp_path, ppf6c):
+    def test_roundtrip_panel_preserved(self, cached_images, tmp_path, ppf6c, nfi_rnd_dataset):
         cache = tmp_path / "cache"
         write_to_cache(cache, cached_images)
-        loaded = load_from_cache(cache, ppf6c)
+        loaded = load_from_cache(cache, ppf6c, nfi_rnd_dataset)
         assert loaded[0].adjusted_panel is not None
         assert loaded[0].adjusted_panel.markers[0].name == "D3S1358"
 
-    def test_roundtrip_called_alleles_preserved(self, cached_images, tmp_path, ppf6c):
+    def test_roundtrip_called_alleles_preserved(self, cached_images, tmp_path, ppf6c, nfi_rnd_dataset):
         cache = tmp_path / "cache"
         write_to_cache(cache, cached_images)
-        loaded = load_from_cache(cache, ppf6c)
+        loaded = load_from_cache(cache, ppf6c, nfi_rnd_dataset)
         called = loaded[0].meta.get("called_alleles", [])
         assert len(called) == 1
         assert called[0].name == "D3S1358"
 
-    def test_limit_parameter(self, cached_images, tmp_path, ppf6c):
+    def test_limit_parameter(self, cached_images, tmp_path, ppf6c, nfi_rnd_dataset):
         cache = tmp_path / "cache"
         write_to_cache(cache, cached_images)
-        loaded = load_from_cache(cache, ppf6c, limit=2)
+        loaded = load_from_cache(cache, ppf6c, nfi_rnd_dataset, limit=2)
         assert len(loaded) == 2
 
-    def test_hid_path_preserved(self, cached_images, tmp_path, ppf6c):
+    def test_hid_path_preserved(self, cached_images, tmp_path, ppf6c, nfi_rnd_dataset):
         cache = tmp_path / "cache"
         write_to_cache(cache, cached_images)
-        loaded = load_from_cache(cache, ppf6c)
+        loaded = load_from_cache(cache, ppf6c, nfi_rnd_dataset)
         assert loaded[0].path == cached_images[0].path
 
 
@@ -149,7 +149,7 @@ class TestLoadFromCache:
 # ---------------------------------------------------------------------------
 
 class TestReconstructImage:
-    def test_basic_reconstruction(self, ppf6c):
+    def test_basic_reconstruction(self, ppf6c, nfi_rnd_dataset):
         img_data = np.zeros((5, 100, 1), dtype=np.int16)
         ann_data = np.zeros((5, 100, 1), dtype=np.int8)
         scaler = np.linspace(60, 480, 100).tolist()
@@ -160,13 +160,21 @@ class TestReconstructImage:
         alleles_json = "[]"
 
         img = _reconstruct_image(
-            img_data, ann_data, "test.hid", scaler, panel_json, alleles_json, False, ppf6c
+            img_data,
+            ann_data,
+            "test.hid",
+            scaler,
+            panel_json,
+            alleles_json,
+            False,
+            ppf6c,
+            nfi_rnd_dataset,
         )
         assert isinstance(img, HIDImage)
         assert img.data is not None
         assert img.adjusted_panel is not None
 
-    def test_empty_panel_json(self, ppf6c):
+    def test_empty_panel_json(self, ppf6c,nfi_rnd_dataset):
         img = _reconstruct_image(
             np.zeros((5, 100, 1), dtype=np.int16),
             np.zeros((5, 100, 1), dtype=np.int8),
@@ -176,10 +184,11 @@ class TestReconstructImage:
             "[]",
             False,
             ppf6c,
+            nfi_rnd_dataset
         )
         assert img.adjusted_panel is None
 
-    def test_empty_alleles_json(self, ppf6c):
+    def test_empty_alleles_json(self, ppf6c, nfi_rnd_dataset):
         img = _reconstruct_image(
             np.zeros((5, 100, 1), dtype=np.int16),
             np.zeros((5, 100, 1), dtype=np.int8),
@@ -189,5 +198,6 @@ class TestReconstructImage:
             "[]",
             False,
             ppf6c,
+            nfi_rnd_dataset
         )
         assert img.meta.get("called_alleles") is None

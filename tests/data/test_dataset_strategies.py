@@ -2,7 +2,6 @@
 
 import pytest
 
-from dnanet.data.strategies.datasets import get_dataset_strategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 from dnanet.data.strategies.datasets.provedit import ProvedItStrategy
 
@@ -26,8 +25,9 @@ class TestNFIRnDStrategy:
         assert NFIRnDStrategy.get_number_of_contributors('1A2_A01_01.hid') == 2
         assert NFIRnDStrategy.get_number_of_contributors('3B5_C03_12.hid') == 5
 
-    def test_get_number_of_contributors_non_rd(self):
-        assert NFIRnDStrategy.get_number_of_contributors('ladder_01.hid') is None
+    def test_get_number_of_contributors_non_rd_raises(self):
+        with pytest.raises(ValueError):
+            NFIRnDStrategy.get_number_of_contributors('ladder_01.hid')
 
     def test_get_sample_id(self):
         assert NFIRnDStrategy.get_sample_id('1A2_A01_01.hid') == '1A2'
@@ -59,20 +59,7 @@ class TestProvedItStrategy:
         assert sample_id == 'RD14-0003-34d1-0.5IP-Q0.75ng'
 
     def test_get_number_of_contributors(self):
-        # "34d1" has 2 digits before "d" → 2 contributors
         noc = ProvedItStrategy.get_number_of_contributors(
-            'B03_RD14-0003-34d1-0.5IP-Q0.75ng_05sec.hid'
+            'A01_RD14-0003-36_37_38-1;2;1-M3e-0.06GF-Q1.6_01.5sec.hid'
         )
-        assert noc == '2p'
-
-
-class TestStrategyLookup:
-    def test_lookup_nfi_rnd(self):
-        assert get_dataset_strategy('NFI_RND') is NFIRnDStrategy
-
-    def test_lookup_provedit(self):
-        assert get_dataset_strategy('PROVEDIT') is ProvedItStrategy
-
-    def test_unknown_raises(self):
-        with pytest.raises(ValueError, match='Unknown dataset strategy'):
-            get_dataset_strategy('NONEXISTENT')
+        assert noc == 3

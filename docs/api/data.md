@@ -11,11 +11,12 @@ PyTorch-ready tensors.
 ```
 
 The central data container. Wraps a path to a HID file with lazy loading.
+`HIDImage` receives the kit scaling strategy directly.
 
 **Properties:**
-- `data` → `np.ndarray | None` — Shape `(num_dyes, signal_length, 1)`. Triggers load on first access.
+- `data` → `np.ndarray | None` — Shape `(num_dyes, signal_length)`. Triggers load on first access.
 - `annotation` → `Annotation | None` — Ground-truth segmentation mask
-- `scaler` → `np.ndarray` — Shape `(1, signal_length)`. Maps pixel → base pair.
+- `scaler` → `np.ndarray` — Shape `(signal_length,)`. Maps pixel → base pair.
 - `panel` → `Panel | None` — Reference panel
 - `dimensions` → `(height, width)` — Data array shape
 - `meta` → `dict` — Metadata (NOC, ladder path, etc.)
@@ -61,8 +62,6 @@ Lightweight wrapper around a list of `HIDImage` objects. Returned by
 ```{eval-rst}
 .. autoclass:: dnanet.data.datamodule.DNANetDataModule
    :members:
-.. autoclass:: dnanet.data.datamodule.HIDTorchDataset
-   :members:
 ```
 
 ### DNANetDataModule
@@ -75,12 +74,6 @@ Lightning DataModule bridging `InMemoryDataset` → PyTorch DataLoaders.
 - `val_fraction` — Train/val split ratio
 - `num_workers` — DataLoader workers
 - `seed` — Random seed for reproducible splits
-
-### HIDTorchDataset
-
-Adapts `list[HIDImage]` to PyTorch `Dataset[tuple[Tensor, Tensor]]`.
-
-Transposes data from `(D, L, 1)` to `(1, D, L)` for Conv2d compatibility.
 
 ## Parsing
 
@@ -135,9 +128,11 @@ AlleleReport TXT file and return called alleles for a specific sample.
    :members:
 .. autoclass:: dnanet.data.strategies.scaling.GlobalFilerStrategy
    :members:
-.. autoclass:: dnanet.data.strategies.dataset.DatasetStrategy
+.. autoclass:: dnanet.data.strategies.datasets.DatasetStrategy
    :members:
-.. autoclass:: dnanet.data.strategies.registry.StrategyRegistry
+.. autoclass:: dnanet.data.strategies.datasets.NFIRnDStrategy
+   :members:
+.. autoclass:: dnanet.data.strategies.datasets.ProvedItStrategy
    :members:
 ```
 
@@ -157,15 +152,8 @@ Abstract base for dataset-specific file handling.
 - `NFIRnDStrategy` — NFI R&D 2p/5p dataset
 - `ProvedItStrategy` — PROVEDIt court validation dataset
 
-### StrategyRegistry
-
-Singleton holding the active kit and dataset strategies.
-
-```python
-StrategyRegistry.configure_kit("PPF6C")
-StrategyRegistry.configure_dataset("NFI_RND")
-scaling = StrategyRegistry.get_scaling_strategy()
-```
+Dataset strategies are instantiated from config and passed directly to
+`HIDDataset`, `HIDImage`, parsing helpers, and transformers.
 
 ## Convenience
 

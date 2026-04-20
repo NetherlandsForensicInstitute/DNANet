@@ -6,8 +6,8 @@ Design pattern: **Strategy** (abstract base for dataset variants)
     metadata. This ABC defines the contract; concrete implementations (in
     ``dnanet.data.strategies.datasets``) provide the details.
 
-    To support a new dataset, create a new subclass and register it in the
-    ``DATASET_STRATEGIES`` dict at the bottom of this file.
+    To support a new dataset, create a new subclass and pass it explicitly
+    where a ``DatasetStrategy`` is required.
 """
 
 from __future__ import annotations
@@ -99,12 +99,6 @@ class DatasetStrategy(ABC):
             Path to the ladder file, or ``None`` if not found.
         """
 
-    @classmethod
-    @abstractmethod
-    def find_annotation_for_sample(
-        cls, sample_path: Path, annotation_mapping: Dict[str, Path] | None = None
-    ) -> Path | None:
-        """Find the appropriate annotation for a given sample."""
 
     @staticmethod
     @abstractmethod
