@@ -40,9 +40,7 @@ from dnanet.data.image import HIDImage
 from dnanet.data.dataset import TransformableDataset
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.ladders.ladder import Ladder
-from dnanet.data.strategies.scaling import ScalingStrategy
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
-from dnanet.data.strategies.datasets import DatasetStrategy
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 
 
@@ -50,6 +48,8 @@ if TYPE_CHECKING:
     from dnanet.core.panel import Panel
     from dnanet.core.types import PathLike
     from dnanet.data.transformer import TransformDataCallable
+    from dnanet.data.strategies.scaling import ScalingStrategy
+    from dnanet.data.strategies.datasets import DatasetStrategy
 
 
 class HIDDataset(Dataset, TransformableDataset):
@@ -112,46 +112,13 @@ class HIDDataset(Dataset, TransformableDataset):
                 f'got {adjustment_of_annotations!r}'
             )
 
-        # Cache setup
-        _cache_path: Path | None = None
-        if cache_dir is not None:
-            key = compute_key(
-                root=self.root,
-                scaling_strategy=scaling_strategy,
-                dataset_strategy=dataset_strategy,
-                data_loading_strategy=data_loading_strategy,
-                include_size_standard=include_size_standard,
-                adjustment_of_annotations=adjustment_of_annotations,
-                skip_if_invalid_ladder=skip_if_invalid_ladder,
-            )
-            _cache_path = Path(cache_dir) / f'{key}.parquet'
-
-        # Try loading from cache
-        if _cache_path is not None and _cache_path.exists():
-            try:
-                self._data: List[HIDImage] = read_cache(
-                    _cache_path,
-                    scaling_strategy=self._scaling,
-                    mode=cache_mode,
-                    include_size_standard=include_size_standard,
-                    load_in_memory=load_in_memory,
-                )
-                logger.info('Cache hit: loaded {} images from {}', len(self._data), _cache_path)
-            except Exception as exc:
-                logger.warning('Cache read failed ({}), falling through to fresh load', exc)
-                _cache_path.unlink(missing_ok=True)
-                self._data = []
-
+        # When a cache dir is given, try to load from cache
+        _cache_path = (
+            self._load_cache(cache_dir=Path(cache_dir), cache_mode=cache_mode) if cache_dir else None
+        )
         # Fresh load (on cache miss or failed read)
         if not getattr(self, '_data', None):
-            file_entries = list(
-                self._dataset_strategy.collect_dataset_files(self.root, self._scaling)
-            )
-            logger.info('Found {} sample files to process', len(file_entries))
-            self._data = list(self._load_images(file_entries))
-            if _cache_path is not None:
-                Path(cache_dir).mkdir(parents=True, exist_ok=True)
-                write_cache(_cache_path, self._data, mode=cache_mode)
+            self._fresh_load(cache_path=_cache_path, cache_mode=cache_mode)
 
         if limit:
             self._data = random.sample(self._data, min(limit, len(self._data)))
@@ -169,6 +136,48 @@ class HIDDataset(Dataset, TransformableDataset):
         )
 
         logger.info('Loaded {} valid HID images', len(self._data))
+
+    # -- Cache and file loading -------------------------------------------- #
+
+    def _load_cache(self, cache_dir: Path, cache_mode: CacheMode):
+        # Cache setup
+        _cache_path: Path | None = None
+        if cache_dir is not None:
+            key = compute_key(
+                root=self.root,
+                scaling_strategy=self._scaling,
+                dataset_strategy=self._dataset_strategy,
+                data_loading_strategy=self.data_loading_strategy,
+                include_size_standard=self.include_size_standard,
+                adjustment_of_annotations=self.adjustment_of_annotations,
+                skip_if_invalid_ladder=self.skip_if_invalid_ladder,
+            )
+            _cache_path = Path(cache_dir) / f'{key}.parquet'
+
+        # Try loading from cache
+        if _cache_path is not None and _cache_path.exists():
+            try:
+                self._data: List[HIDImage] = read_cache(
+                    _cache_path,
+                    scaling_strategy=self._scaling,
+                    mode=cache_mode,
+                    include_size_standard=self.include_size_standard,
+                    load_in_memory=self.load_in_memory,
+                )
+                logger.info('Cache hit: loaded {} images from {}', len(self._data), _cache_path)
+            except Exception as exc:
+                logger.warning('Cache read failed ({}), falling through to fresh load', exc)
+                _cache_path.unlink(missing_ok=True)
+                self._data = []
+        return _cache_path
+
+    def _fresh_load(self, cache_path: Path | None, cache_mode: CacheMode):
+        file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
+        logger.info('Found {} sample files to process', len(file_entries))
+        self._data = list(self._load_images(file_entries))
+        if cache_path is not None:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            write_cache(cache_path, self._data, mode=cache_mode)
 
     # -- Image loading ----------------------------------------------------- #
 
