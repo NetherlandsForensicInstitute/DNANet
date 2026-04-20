@@ -21,10 +21,10 @@ import scipy
 import torch
 
 from dnanet.data.extracted_peak import ExtractedPeak
-from dnanet.data.strategies import DatasetStrategy
 from dnanet.data.strategies.scaling import ScalingStrategy
 
 if TYPE_CHECKING:
+    from dnanet.data.strategies import DatasetStrategy
     from dnanet.core.panel import Panel
     from dnanet.data.image import HIDImage
 
@@ -214,7 +214,11 @@ def _label_peak_from_annotation_fast(
 
 
 def extract_peak_windows(
-    image: HIDImage, threshold: float, window_size: int, include_max_pool_dyes: bool = False
+        image: HIDImage,
+        threshold: float,
+        window_size: int,
+        dataset_strategy: DatasetStrategy,
+        include_max_pool_dyes: bool = False,
 ) -> list[ExtractedPeak]:
     """Extract peak windows from a HIDImage using NumPy.
 
@@ -227,6 +231,7 @@ def extract_peak_windows(
             ``dataset_strategy`` are used for marker and label handling.
         threshold: Minimum RFU for peak detection.
         window_size: Width of extraction window in scan points.
+        dataset_strategy: Dataset strategy for annotation handling.
         include_max_pool_dyes: Add max-pooled other-dyes channel.
 
     Returns:
@@ -245,7 +250,6 @@ def extract_peak_windows(
         data_2d = data
 
     scaling_strategy = image.scaling_strategy
-    dataset_strategy = image.dataset_strategy
 
     n_dyes = scaling_strategy.kit.num_dyes - 1  # exclude size standard
     assert n_dyes <= data_2d.shape[0], 'Image has fewer dye channels than expected'
@@ -407,7 +411,7 @@ def _find_peaks_torch_indices(
     dim: int = -1,
 ) -> torch.Tensor:
     """Plateau-aware peak finder matching SciPy `signal.find_peaks(x, height=threshold)`-style local-max logic.
-    
+
     - A peak is a local maximum.
     - Flat peaks (plateaus) count as one peak.
     - For a plateau peak, return the middle index (rounded down if even).
@@ -508,7 +512,7 @@ def _extract_windows_torch(
     include_maxpool_dyes: bool,
 ) -> torch.Tensor:
     """Extract windows from 2D tensor x centered at specified indices.
-    
+
     Pads with zeros when out of bounds.
 
     x:        (D, L) tensor, e.g. (5 or 6, 4096)

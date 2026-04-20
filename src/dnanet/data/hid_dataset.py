@@ -162,7 +162,6 @@ class HIDDataset(Dataset, TransformableDataset):
                     ladder_path=ladder_path,
                     catalog=LadderAlleleCatalog.from_panel(self._default_panel),
                     data_loading_strategy=self.data_loading_strategy,
-                    include_size_standard=self.include_size_standard,
                     scaling_strategy=self._scaling,
                     dataset_strategy=self.dataset_strategy
                 )
@@ -176,7 +175,6 @@ class HIDDataset(Dataset, TransformableDataset):
             image = HIDImage(
                 path=path,
                 scaling_strategy=self._scaling,
-                dataset_strategy=self._dataset_strategy,
                 adjusted_panel=_current_panel,
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,
@@ -269,7 +267,7 @@ class HIDDataset(Dataset, TransformableDataset):
         profiles: List[HIDImage],
         annotations: List[Optional[ScanpointAnnotation]],
         adjustment_type: str = 'top',
-        threshold: int = 40,
+        threshold: int = 0,
     ) -> List[Optional[ScanpointAnnotation]]:
         """Adjust the annotation of the image.
 

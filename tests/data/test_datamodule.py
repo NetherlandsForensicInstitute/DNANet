@@ -5,22 +5,32 @@ from __future__ import annotations
 import random
 
 import numpy as np
-import pytest
 import torch
+import pytest
 from torch.utils.data import Dataset
 
+from dnanet.data.image import HIDImage
 from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
-from dnanet.data.image import HIDImage
 from dnanet.data.transformer import SegmentationTransformer
+
+
+class SplitStrategy:
+    """Strategy double that delegates splitting to the dataset under test."""
+
+    @staticmethod
+    def split(dataset, fraction: float, seed: int | None = None, **kwargs):
+        del kwargs
+        return dataset.split(fraction=fraction, seed=seed)
 
 
 class SplitPreservingDataset(Dataset):
     """Test-local dataset double that keeps transforms across splits."""
 
-    def __init__(self, data, transform=None) -> None:
+    def __init__(self, data, transform=None, dataset_strategy=None) -> None:
         self._data = list(data)
         self.transform = transform
+        self.dataset_strategy = dataset_strategy or SplitStrategy()
 
     def __len__(self) -> int:
         return len(self._data)
@@ -39,8 +49,16 @@ class SplitPreservingDataset(Dataset):
         shuffled = random.Random(seed).sample(self._data, len(self._data))
         split_idx = int(len(shuffled) * fraction)
         return (
-            SplitPreservingDataset(shuffled[:split_idx], transform=self.transform),
-            SplitPreservingDataset(shuffled[split_idx:], transform=self.transform),
+            SplitPreservingDataset(
+                shuffled[:split_idx],
+                transform=self.transform,
+                dataset_strategy=self.dataset_strategy,
+            ),
+            SplitPreservingDataset(
+                shuffled[split_idx:],
+                transform=self.transform,
+                dataset_strategy=self.dataset_strategy,
+            ),
         )
 
 
@@ -55,7 +73,6 @@ def _make_fake_image(
     img = HIDImage(
         path=name,
         scaling_strategy=scaling_strategy,
-        dataset_strategy=dataset_strategy,
         load_in_memory=True,
     )
     img._data = np.random.rand(num_dyes, signal_length, 1).astype(np.float32)
@@ -72,7 +89,11 @@ def _make_fake_image(
 @pytest.fixture
 def segmentation_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservingDataset:
     images = [_make_fake_image(ppf6c_kit, nfi_rnd_dataset, f"fake_{i}.hid") for i in range(10)]
-    return SplitPreservingDataset(images, transform=SegmentationTransformer())
+    return SplitPreservingDataset(
+        images,
+        transform=SegmentationTransformer(),
+        dataset_strategy=SplitStrategy(),
+    )
 
 
 @pytest.fixture
@@ -81,7 +102,11 @@ def unlabeled_segmentation_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservin
         _make_fake_image(ppf6c_kit, nfi_rnd_dataset, f"fake_{i}.hid", with_annotation=False)
         for i in range(10)
     ]
-    return SplitPreservingDataset(images, transform=SegmentationTransformer())
+    return SplitPreservingDataset(
+        images,
+        transform=SegmentationTransformer(),
+        dataset_strategy=SplitStrategy(),
+    )
 
 
 class TestDNANetDataModule:

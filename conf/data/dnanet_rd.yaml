@@ -4,7 +4,7 @@ name: dnanet_rd
 # Dataset loading options
 dataset:
   _target_: dnanet.data.hid_dataset.HIDDataset
-  root: resources/data/2p_5p_Dataset_NFI
+  root: data/2p_5p_Dataset_NFI
   scaling_strategy: ${data.scaling_strategy}
   dataset_strategy: ${data.dataset_strategy}
   limit: null  # Set to integer to limit number of loaded images

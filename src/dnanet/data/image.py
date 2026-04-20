@@ -23,13 +23,12 @@ import abc
 from abc import abstractmethod
 from functools import cached_property
 from pathlib import Path
-from typing import Any, MutableMapping, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, MutableMapping
 
 import numpy as np
 from loguru import logger
 
 from dnanet.data.parsing import get_peak_data
-from dnanet.data.strategies import DatasetStrategy
 from dnanet.data.strategies.scaling import ScalingStrategy
 
 if TYPE_CHECKING:
@@ -85,7 +84,6 @@ class HIDImage(TrainableElement):
         self,
         path: PathLike,
         scaling_strategy: ScalingStrategy,
-        dataset_strategy: DatasetStrategy,
         adjusted_panel: Panel | None = None,
         include_size_standard: bool = False,
         annotation: ScanpointAnnotation | None = None,
@@ -101,7 +99,6 @@ class HIDImage(TrainableElement):
         self.data_loading_strategy = data_loading_strategy
         self.rfu_threshold = rfu_threshold
         self.scaling_strategy = scaling_strategy
-        self.dataset_strategy = dataset_strategy
 
         self._adjusted_panel = adjusted_panel
         self._data: np.ndarray | None = None

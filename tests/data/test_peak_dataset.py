@@ -3,18 +3,17 @@
 import numpy as np
 
 from dnanet.core.annotation import ScanpointAnnotation
-from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.peak_dataset import PeakWindowDataset
+from dnanet.data.extracted_peak import ExtractedPeak
 
 
 class MockImage:
     """Minimal HIDImage-like object."""
 
-    def __init__(self, data, scaling_strategy, dataset_strategy, annotation_image=None):
+    def __init__(self, data, scaling_strategy, annotation_image=None):
         self._raw_data = data
         self._panel = None
         self.scaling_strategy = scaling_strategy
-        self.dataset_strategy = dataset_strategy
         if annotation_image is not None:
             self.annotation = ScanpointAnnotation(data=annotation_image)
         else:
@@ -63,24 +62,29 @@ class TestPeakWindowDataset:
             data, centers = _make_profile_with_peaks(n_peaks=n_peaks)
             ann = np.zeros_like(data)
             ann[0, centers[0] - 2 : centers[0] + 3] = 1
-            images.append(MockImage(data, scaling_strategy, dataset_strategy, annotation_image=ann))
+            images.append(MockImage(data, scaling_strategy, annotation_image=ann))
         return MockBaseDataset(images, scaling_strategy, dataset_strategy)
 
     def test_extracts_peaks_from_images(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=2, n_peaks=3)
         ds = PeakWindowDataset(
-            base_dataset=base,
+            images=base.images,
+            dataset_strategy=base.dataset_strategy,
             threshold=100,
             window_size=120,
             preprocess=False,
         )
         # Each image has 3 peaks in dye 0
-        assert len(ds) >= 6
+        assert len(list(ds)) >= 6
 
     def test_items_are_extracted_peaks(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds = PeakWindowDataset(
-            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120, preprocess=False,
+            images=base.images,
+            dataset_strategy=base.dataset_strategy,
+            threshold=100,
+            window_size=120,
+            preprocess=False,
         )
         for peak in ds:
             assert isinstance(peak, ExtractedPeak)
@@ -89,7 +93,10 @@ class TestPeakWindowDataset:
     def test_label_mapping(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds = PeakWindowDataset(
-            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120,
+            images=base.images,
+            dataset_strategy=base.dataset_strategy,
+            threshold=100,
+            window_size=120,
             preprocess=False,
         )
         assert ds.label_to_idx["noise"] == 0
@@ -99,10 +106,17 @@ class TestPeakWindowDataset:
     def test_preprocessing_changes_data(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds_raw = PeakWindowDataset(
-            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120, preprocess=False,
+            images=base.images,
+            dataset_strategy=base.dataset_strategy,
+            threshold=100,
+            window_size=120,
+            preprocess=False,
         )
         ds_prep = PeakWindowDataset(
-            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120,
+            images=base.images,
+            dataset_strategy=base.dataset_strategy,
+            threshold=100,
+            window_size=120,
             preprocess=True, log_scale=True,
         )
         # Preprocessed data should be different (scaled)
@@ -115,7 +129,10 @@ class TestPeakWindowDataset:
     def test_include_max_pool_dyes(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
         ds = PeakWindowDataset(
-            images=base.images, dataset_strategy=base.images, threshold=100, window_size=120,
+            images=base.images,
+            dataset_strategy=base.dataset_strategy,
+            threshold=100,
+            window_size=120,
             include_max_pool_dyes=True, preprocess=False,
         )
-        assert ds[0].data.shape == (2, 120)
+        assert next(iter(ds)).data.shape == (2, 120)
