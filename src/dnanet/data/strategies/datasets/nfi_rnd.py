@@ -447,9 +447,11 @@ class NFIRnDStrategy(DatasetStrategy):
         headers, values = rows[0], filter(lambda r: len(r) > 0, rows[1:])
         return headers, list(values)
 
-    @staticmethod
-    def get_annotation_classes() -> list[str]:
+
+    def get_annotation_classes(self) -> list[str]:
         """Return the annotation class labels produced by this strategy."""
+        if self.annotation_type == 'span':
+            return LabelCategory.label_names()
         return ['noise', 'allele']
 
     @classmethod
