@@ -29,14 +29,14 @@ metrics:
 
 optimizer:
   _target_: torch.optim.AdamW
-  lr: ${learning_rate}
-  weight_decay: ${weight_decay}
+  lr: ${train.learning_rate}
+  weight_decay: ${train.weight_decay}
 
 # Learning rate scheduler
 scheduler:
   _target_: torch.optim.lr_scheduler.ExponentialLR
   gamma: 0.8
-  optimizer: ${optimizer}
+  optimizer: ${train.optimizer}
 
 # Early stopping
 early_stopping:
@@ -61,18 +61,18 @@ data_transform:
 # module initialization. You shouldn't need to change this
 lightning_module:
   _target_: src.dnanet.modules.classification.ClassificationModule
-  learning_rate: ${learning_rate}
-  weight_decay: ${weight_decay}
+  learning_rate: ${train.learning_rate}
+  weight_decay: ${train.weight_decay}
   loss_fn: ${model.loss}
   num_classes: ${model.architecture.num_classes}
-  scheduler: ${scheduler}
-  metrics: ${metrics}
+  scheduler: ${train.scheduler}
+  metrics: ${train.metrics}
 
 data_module:
   _target_: src.dnanet.data.datamodule.DNANetDataModule
-  batch_size: ${batch_size}
-  val_fraction: ${val_fraction}
-  num_workers: ${num_workers}
-  seed: ${seed}
+  batch_size: ${train.batch_size}
+  val_fraction: ${train.val_fraction}
+  num_workers: ${train.num_workers}
+  seed: ${train.seed}
   stratify_noc: ${oc.select:data.stratify_noc,false}
   group_by_replica: ${oc.select:data.group_by_replica,false}
