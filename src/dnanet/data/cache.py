@@ -93,7 +93,7 @@ def write_cache(path: Path, images: list[HIDImage], mode: CacheMode) -> None:
         rows['path'].append(str(img.path))
 
         if img._scaler is not None:
-            arr = np.asarray(img._scaler, dtype=np.float64)
+            arr = np.asarray(img._scaler, dtype=np.float32)
             rows['scaler'].append(arr.tobytes())
             rows['scaler_shape'].append(list(arr.shape))
         else:
@@ -195,7 +195,7 @@ def _reconstruct(
     scaler: np.ndarray | None = None
     if row['scaler'] is not None:
         shape = row['scaler_shape']
-        scaler = np.frombuffer(row['scaler'], dtype=np.float64).reshape(shape).copy()
+        scaler = np.frombuffer(row['scaler'], dtype=np.float32).reshape(shape).copy()
 
     allele_annotation: AlleleAnnotation | None = None
     if row.get('allele_annotation_json'):
