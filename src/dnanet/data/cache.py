@@ -79,8 +79,6 @@ def write_cache(path: Path, images: list[HIDImage], mode: CacheMode) -> None:
         'path': [],
         'scaler': [],
         'scaler_shape': [],
-        'annotation': [],
-        'annotation_shape': [],
         'allele_annotation_json': [],
         'adjusted_panel_json': [],
         'meta_json': [],
@@ -88,6 +86,8 @@ def write_cache(path: Path, images: list[HIDImage], mode: CacheMode) -> None:
     if mode == 'full':
         rows['data'] = []
         rows['data_shape'] = []
+        rows['annotation'] = []
+        rows['annotation_shape'] = []
 
     for img in images:
         rows['path'].append(str(img.path))
@@ -99,14 +99,6 @@ def write_cache(path: Path, images: list[HIDImage], mode: CacheMode) -> None:
         else:
             rows['scaler'].append(None)
             rows['scaler_shape'].append(None)
-
-        if img._annotation is not None:
-            arr = np.asarray(img._annotation.data, dtype=np.int8)
-            rows['annotation'].append(arr.tobytes())
-            rows['annotation_shape'].append(list(arr.shape))
-        else:
-            rows['annotation'].append(None)
-            rows['annotation_shape'].append(None)
 
         if img._allele_annotation is not None:
             rows['allele_annotation_json'].append(
@@ -132,13 +124,20 @@ def write_cache(path: Path, images: list[HIDImage], mode: CacheMode) -> None:
             else:
                 rows['data'].append(None)
                 rows['data_shape'].append(None)
+            
+            if img._annotation is not None:
+                arr = np.asarray(img._annotation.data, dtype=np.int8)
+                rows['annotation'].append(arr.tobytes())
+                rows['annotation_shape'].append(list(arr.shape))
+            else:
+                rows['annotation'].append(None)
+                rows['annotation_shape'].append(None)
+
 
     schema_fields = [
         pa.field('path', pa.string()),
         pa.field('scaler', pa.binary()),
         pa.field('scaler_shape', pa.list_(pa.int32())),
-        pa.field('annotation', pa.binary()),
-        pa.field('annotation_shape', pa.list_(pa.int32())),
         pa.field('allele_annotation_json', pa.string()),
         pa.field('adjusted_panel_json', pa.string()),
         pa.field('meta_json', pa.string()),
@@ -147,6 +146,8 @@ def write_cache(path: Path, images: list[HIDImage], mode: CacheMode) -> None:
         schema_fields += [
             pa.field('data', pa.binary()),
             pa.field('data_shape', pa.list_(pa.int32())),
+            pa.field('annotation', pa.binary()),
+            pa.field('annotation_shape', pa.list_(pa.int32())),
         ]
 
     table = pa.table(rows, schema=pa.schema(schema_fields))
@@ -196,12 +197,6 @@ def _reconstruct(
         shape = row['scaler_shape']
         scaler = np.frombuffer(row['scaler'], dtype=np.float64).reshape(shape).copy()
 
-    annotation: ScanpointAnnotation | None = None
-    if row['annotation'] is not None:
-        shape = row['annotation_shape']
-        ann_data = np.frombuffer(row['annotation'], dtype=np.int8).reshape(shape).copy()
-        annotation = ScanpointAnnotation(data=ann_data)
-
     allele_annotation: AlleleAnnotation | None = None
     if row.get('allele_annotation_json'):
         allele_annotation = AlleleAnnotation(
@@ -221,7 +216,6 @@ def _reconstruct(
         scaling_strategy=scaling_strategy,
         adjusted_panel=adjusted_panel,
         include_size_standard=include_size_standard,
-        annotation=annotation,
         allele_annotation=allele_annotation,
         load_in_memory=load_in_memory,
         meta=meta,
@@ -231,5 +225,8 @@ def _reconstruct(
     if mode == 'full' and row.get('data') is not None:
         shape = row['data_shape']
         img._data = np.frombuffer(row['data'], dtype=np.int16).reshape(shape).copy()
-
+    if mode == 'full' and row.get('annotation') is not None:
+        annotation_shape = row['annotation_shape']
+        ann_data = np.frombuffer(row['annotation'], dtype=np.int16).reshape(annotation_shape).copy()
+        img.annotation = ScanpointAnnotation(data=ann_data)
     return img
