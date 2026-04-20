@@ -159,6 +159,27 @@ class DatasetStrategy(ABC):
     def _parse_span_annotation(
             cls, span_annotations_path: Path, scaling_strategy: ScalingStrategy
     ) -> dict[str, ScanpointAnnotation | None]:
+        """Parse span-annotation CSV files into per-profile scanpoint annotations.
+
+        Span annotations are expected to contain ``profile``, ``user``, ``dye``,
+        ``x0``, ``x1``, and ``category`` columns. Rows are grouped by profile and
+        annotator, converted to span tensors, optionally merged when multiple
+        annotators labeled the same profile, and finally flattened to
+        :class:`ScanpointAnnotation` instances.
+
+        Args:
+            span_annotations_path: Directory containing span-annotation CSV files.
+            scaling_strategy: Scaling strategy that defines dye count and
+                scanpoint resolution.
+
+        Returns:
+            Mapping from HID profile filename to scanpoint annotation. Returns an
+            empty mapping when no CSV files are found.
+
+        Raises:
+            ValueError: If required columns are missing, dyes are unknown, or
+                categories cannot be mapped to :class:`LabelCategory`.
+        """
 
         _dye_name_to_dye_idx = {
             'blue': 0,
@@ -237,6 +258,21 @@ class DatasetStrategy(ABC):
 
     @staticmethod
     def _df_to_span_annotation(df: pd.DataFrame, scaling_strategy: ScalingStrategy) -> np.ndarray:
+        """Convert one profile/annotator dataframe to a one-hot span tensor.
+
+        Args:
+            df: Span rows for a single profile and annotator. The dataframe must
+                already contain integer ``dye_idx`` and ``category_idx`` columns.
+            scaling_strategy: Scaling strategy that defines the output shape.
+
+        Returns:
+            A ``(num_dyes, scanpoints, num_classes)`` array with annotated spans
+            marked as ``1``.
+
+        Raises:
+            ValueError: If a row contains a dye or category index outside the
+                output tensor shape.
+        """
         num_dyes = scaling_strategy.kit.num_dyes
         scanpoints = scaling_strategy.scanpoint_resolution
         num_classes = len(LabelCategory)
@@ -262,6 +298,18 @@ class DatasetStrategy(ABC):
 
     @staticmethod
     def _merge_span_annotations(spannotations: List[np.ndarray], hid_file_name: str) -> np.ndarray:
+        """Merge multiple annotator span tensors for the same HID profile.
+
+        The current merge policy keeps the first annotation and logs that
+        multiple annotations were present.
+
+        Args:
+            spannotations: Span tensors collected for one HID profile.
+            hid_file_name: HID profile filename used for logging.
+
+        Returns:
+            The selected span annotation tensor.
+        """
         logger.debug(
             f'Found multiple span annotations for {hid_file_name}. Merging by taking the first only'
         )
@@ -269,6 +317,17 @@ class DatasetStrategy(ABC):
 
     @staticmethod
     def _span_to_scanpoint_annotation(span_annotation: np.ndarray, hid_file_name: str) -> ScanpointAnnotation:
+        """Flatten a one-hot span tensor to class indices per dye and scanpoint.
+
+        Args:
+            span_annotation: ``(num_dyes, scanpoints, num_classes)`` span tensor.
+            hid_file_name: HID profile filename used for overlap logging.
+
+        Returns:
+            A :class:`ScanpointAnnotation` containing a ``(num_dyes, scanpoints)``
+            integer label array.
+        """
+        # TODO this should optionally adjust annotations to top to avoid overlap
         flattened = span_annotation.argmax(axis=-1)
 
         if np.any(span_annotation.sum(axis=-1) > 1):
