@@ -32,7 +32,7 @@ from dnanet.core import LabelCategory
 from dnanet.core.allele import Allele
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.datasets.dataset import DatasetStrategy
+from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
@@ -141,7 +141,7 @@ class NFIRnDStrategy(DatasetStrategy):
                 annotation_name_to_annotation.update(_annotation)
 
         # HID to Annotation mapping
-        hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path)
+        hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path[0])
         analysis_treshold_type_column = [
             i for i, head in enumerate(hta_header) if annotation_type in head
         ]
