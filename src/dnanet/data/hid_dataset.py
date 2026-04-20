@@ -167,7 +167,8 @@ class HIDDataset(Dataset, TransformableDataset):
                 logger.info('Cache hit: loaded {} images from {}', len(self._data), _cache_path)
             except Exception as exc:
                 logger.warning('Cache read failed ({}), falling through to fresh load', exc)
-                _cache_path.unlink(missing_ok=True)
+                # Do we want to remove cache if reading fails?
+                # _cache_path.unlink(missing_ok=True)
                 self._data = []
         return _cache_path
 

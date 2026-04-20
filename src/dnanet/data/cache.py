@@ -222,11 +222,18 @@ def _reconstruct(
     )
     img._scaler = scaler
 
-    if mode == 'full' and row.get('data') is not None:
-        shape = row['data_shape']
-        img._data = np.frombuffer(row['data'], dtype=np.int16).reshape(shape).copy()
-    if mode == 'full' and row.get('annotation') is not None:
-        annotation_shape = row['annotation_shape']
-        ann_data = np.frombuffer(row['annotation'], dtype=np.int16).reshape(annotation_shape).copy()
-        img.annotation = ScanpointAnnotation(data=ann_data)
+    if mode == 'full':
+        # Check if the cache was saved with 'full' mode
+        if 'data' not in row.keys():
+            raise ValueError('Loading cache as `full` but no `data` is present')
+        if 'annotation' not in row.keys():
+            raise ValueError('Loading cache as `full` but no `annotation` is present')
+    
+        if row.get('data') is not None:
+            shape = row['data_shape']
+            img._data = np.frombuffer(row['data'], dtype=np.int16).reshape(shape).copy()
+        if row.get('annotation') is not None:
+            annotation_shape = row['annotation_shape']
+            ann_data = np.frombuffer(row['annotation'], dtype=np.int16).reshape(annotation_shape).copy()
+            img.annotation = ScanpointAnnotation(data=ann_data)
     return img
