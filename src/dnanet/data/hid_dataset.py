@@ -272,7 +272,7 @@ class HIDDataset(Dataset, TransformableDataset):
         profiles: List[HIDImage],
         annotations: List[Optional[ScanpointAnnotation]],
         adjustment_type: str = 'top',
-        threshold: int = 40,
+        threshold: int = 0,
     ) -> List[Optional[ScanpointAnnotation]]:
         """Adjust the annotation of the image.
 
