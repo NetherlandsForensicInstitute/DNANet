@@ -10,27 +10,28 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
-import csv
 import io
 import os
 import re
-from itertools import groupby
-from pathlib import Path
+import csv
 from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
+from pathlib import Path
+from itertools import groupby
 
 from loguru import logger
+from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     StratifiedKFold,
     train_test_split,
 )
-from torch.utils.data import Subset
 
 from dnanet.core import LabelCategory
 from dnanet.core.allele import Allele
-from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.core.marker import Marker
+from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.data.strategies.datasets.dataset import DatasetStrategy
+
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
@@ -62,6 +63,9 @@ class NFIRnDStrategy(DatasetStrategy):
         assert annotation_type in ['DTH', 'DTL', 'ground_truth', 'span'], (
             f'Invalid annotation type: {annotation_type}'
         )
+
+    def cache_signature(self) -> dict:
+        return {'class': self.__class__.__name__, 'annotation_type': self.annotation_type}
 
     def collect_dataset_files(
         self, root_path: PathLike, scaling_strategy: ScalingStrategy, **kwargs

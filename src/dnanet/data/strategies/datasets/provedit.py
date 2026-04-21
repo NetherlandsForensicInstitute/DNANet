@@ -11,39 +11,46 @@ Handles the ProvedIt dataset conventions:
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING, Dict, List, Tuple, Mapping, Generator
+from pathlib import Path
 from functools import reduce
 from itertools import groupby
-from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Tuple, Mapping, Generator
 
 import openpyxl
 from loguru import logger
-from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from torch.utils.data import Subset
+from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 
 from dnanet.core.allele import Allele
-from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.core.marker import Marker
+from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
+
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
     from dnanet.data.dataset import TransformableDataset
-
     from dnanet.data.strategies.scaling import ScalingStrategy
+
 
 class ProvedItStrategy(DatasetStrategy):
     """Strategy for the ProvedIt dataset (GlobalFiler kit)."""
-# Constant suffix pattern for HID files
+
+    # Constant suffix pattern for HID files
     _HID_SUFFIX = '*.hid'
     # ProvedIt ladder pattern
     _LADDER_PATTERN = re.compile(r'Ladder', re.IGNORECASE)
     # Following pattern layed out in https://lftdi.camden.rutgers.edu/wp-content/uploads/2019/12/PROVEDIt-Database-Naming-Convention-Laboratory-Methodsv1.pdf
     _SAMPLE_PATTERN = re.compile(r'([A-Z]\d{2})_(RD1[24]-0003)-(\d{1,2}(?:_\d{1,2})+)-(\d(?:;\d)+)')
+
+    def cache_signature(self) -> dict:
+        return {'class': self.__class__.__name__}
+
     @classmethod
     def collect_dataset_files(
-        cls, root_path: str | Path,
-            scaling_strategy: ScalingStrategy,
+        cls,
+        root_path: str | Path,
+        scaling_strategy: ScalingStrategy,
     ) -> Generator[
         Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
     ]:

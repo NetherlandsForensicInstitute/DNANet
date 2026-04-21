@@ -27,27 +27,29 @@ Usage::
 from __future__ import annotations
 
 import random
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, List, Tuple, Optional, Generator
+from pathlib import Path
 
 import numpy as np
+from tqdm import tqdm
 from loguru import logger
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
-from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
-from dnanet.data.dataset import TransformableDataset
+from dnanet.data.cache import CacheMode, read_cache, compute_key, write_cache
 from dnanet.data.image import HIDImage
+from dnanet.data.dataset import TransformableDataset
+from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.ladders.ladder import Ladder
-from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
-from dnanet.data.strategies.datasets import DatasetStrategy
-from dnanet.data.strategies.scaling import ScalingStrategy
+from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
+
 
 if TYPE_CHECKING:
     from dnanet.core.panel import Panel
     from dnanet.core.types import PathLike
     from dnanet.data.transformer import TransformDataCallable
+    from dnanet.data.strategies.scaling import ScalingStrategy
+    from dnanet.data.strategies.datasets import DatasetStrategy
 
 
 class HIDDataset(Dataset, TransformableDataset):
@@ -86,9 +88,11 @@ class HIDDataset(Dataset, TransformableDataset):
         skip_if_invalid_ladder: bool = False,
         skip_if_no_annotation: bool = True,
         include_size_standard: bool = False,
-        data_loading_strategy: str = "superior",
+        data_loading_strategy: str = 'superior',
         transform: TransformDataCallable | None = None,
         load_in_memory: bool = False,
+        cache_dir: PathLike | None = None,
+        cache_mode: CacheMode = 'full',
     ) -> None:
         super().__init__()
 
@@ -110,12 +114,13 @@ class HIDDataset(Dataset, TransformableDataset):
                 f'got {adjustment_of_annotations!r}'
             )
 
-
-        # Collect files, apply limit, load images
-        file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
-        logger.info('Found {} sample files to process', len(file_entries))
-
-        self._data: List[HIDImage] = list(self._load_images(file_entries))
+        # When a cache dir is given, try to load from cache
+        _cache_path = (
+            self._load_cache(cache_dir=Path(cache_dir), cache_mode=cache_mode) if cache_dir else None
+        )
+        # Fresh load (on cache miss or failed read)
+        if not getattr(self, '_data', None):
+            self._fresh_load(cache_path=_cache_path, cache_mode=cache_mode)
 
         if limit:
             self._data = random.sample(self._data, min(limit, len(self._data)))
@@ -123,8 +128,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
         if len(self._data) == 0:
             raise ValueError(
-                f'No valid HID images found in {self.root}. '
-                f'Check paths and strategy configuration.'
+                f'No valid HID images found in {self.root}. Check paths and strategy configuration.'
             )
 
         logger.info(
@@ -134,6 +138,49 @@ class HIDDataset(Dataset, TransformableDataset):
         )
 
         logger.info('Loaded {} valid HID images', len(self._data))
+
+    # -- Cache and file loading -------------------------------------------- #
+
+    def _load_cache(self, cache_dir: Path, cache_mode: CacheMode):
+        # Cache setup
+        _cache_path: Path | None = None
+        if cache_dir is not None:
+            key = compute_key(
+                root=self.root,
+                scaling_strategy=self._scaling,
+                dataset_strategy=self._dataset_strategy,
+                data_loading_strategy=self.data_loading_strategy,
+                include_size_standard=self.include_size_standard,
+                adjustment_of_annotations=self.adjustment_of_annotations,
+                skip_if_invalid_ladder=self.skip_if_invalid_ladder,
+            )
+            _cache_path = Path(cache_dir) / f'{key}.parquet'
+
+        # Try loading from cache
+        if _cache_path is not None and _cache_path.exists():
+            try:
+                self._data: List[HIDImage] = read_cache(
+                    _cache_path,
+                    scaling_strategy=self._scaling,
+                    mode=cache_mode,
+                    include_size_standard=self.include_size_standard,
+                    load_in_memory=self.load_in_memory,
+                )
+                logger.info('Cache hit: loaded {} images from {}', len(self._data), _cache_path)
+            except Exception as exc:
+                logger.warning('Cache read failed ({}), falling through to fresh load', exc)
+                # Do we want to remove cache if reading fails?
+                # _cache_path.unlink(missing_ok=True)
+                self._data = []
+        return _cache_path
+
+    def _fresh_load(self, cache_path: Path | None, cache_mode: CacheMode):
+        file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
+        logger.info('Found {} sample files to process', len(file_entries))
+        self._data = list(self._load_images(file_entries))
+        if cache_path is not None:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            write_cache(cache_path, self._data, mode=cache_mode)
 
     # -- Image loading ----------------------------------------------------- #
 
@@ -147,7 +194,11 @@ class HIDDataset(Dataset, TransformableDataset):
         skipped_alleles = 0
         skipped_ladder = 0
 
-        for entry in tqdm(file_entries, desc='Loading images', total=len(file_entries), ):
+        for entry in tqdm(
+            file_entries,
+            desc='Loading images',
+            total=len(file_entries),
+        ):
             path: Path = entry[0]
             ladder_path: Path | None = entry[2]
             annotation = entry[1]  # (name, file) or None
@@ -165,7 +216,7 @@ class HIDDataset(Dataset, TransformableDataset):
                     catalog=LadderAlleleCatalog.from_panel(self._default_panel),
                     data_loading_strategy=self.data_loading_strategy,
                     scaling_strategy=self._scaling,
-                    dataset_strategy=self.dataset_strategy
+                    dataset_strategy=self.dataset_strategy,
                 )
                 if adjusted:
                     _current_panel = adjusted
@@ -225,7 +276,11 @@ class HIDDataset(Dataset, TransformableDataset):
 
     @staticmethod
     def _translate_allele_to_scanpoint_annotation(
-        allele_annotation: AlleleAnnotation, adjusted_panel: Panel, scaler: np.ndarray, include_size_standard: bool, scaling_strategy: ScalingStrategy
+        allele_annotation: AlleleAnnotation,
+        adjusted_panel: Panel,
+        scaler: np.ndarray,
+        include_size_standard: bool,
+        scaling_strategy: ScalingStrategy,
     ) -> ScanpointAnnotation:
         """Translates allele annotation to scanpoint annotation.
 
@@ -333,6 +388,7 @@ class HIDDataset(Dataset, TransformableDataset):
     @property
     def images(self) -> List[HIDImage]:
         return self._data
+
     @property
     def data(self) -> List[HIDImage]:
         """Protected property list of HIDImages in the dataset."""

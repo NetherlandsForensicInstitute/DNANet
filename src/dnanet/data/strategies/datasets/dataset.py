@@ -42,7 +42,6 @@ class DatasetStrategy(ABC):
     the behavior depends only on the dataset conventions, not on instance state.
     """
 
-    @classmethod
     @abstractmethod
     def collect_dataset_files(
         cls, root_path: PathLike, scaling_strategy: ScalingStrategy, **kwargs
@@ -74,9 +73,7 @@ class DatasetStrategy(ABC):
     @classmethod
     @abstractmethod
     def parse_annotations(
-        cls,
-        annotation_source: PathLike,
-        scaling_strategy: ScalingStrategy
+        cls, annotation_source: PathLike, scaling_strategy: ScalingStrategy
     ) -> Mapping[str, Annotation]:
         """Load annotation from annotation sample to Annotation object.
 
@@ -103,13 +100,20 @@ class DatasetStrategy(ABC):
             Path to the ladder file, or ``None`` if not found.
         """
 
-
     @staticmethod
     @abstractmethod
     def get_annotation_classes() -> list[str]:
         """Return the list of annotation classes supported by this dataset.
 
         The first class is assumed to be the default (noise) class.
+        """
+
+    @abstractmethod
+    def cache_signature(self) -> dict:
+        """Return a JSON-serializable dict uniquely identifying this strategy's configuration.
+
+        Used to build the dataset cache key. Must change whenever the strategy
+        configuration changes in a way that affects collected files or annotations.
         """
 
     @classmethod
