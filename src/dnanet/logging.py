@@ -16,10 +16,39 @@ Usage in any module:
     >>> logger.info("Training started with lr={}", lr)
 """
 
+import logging
 import sys
 from pathlib import Path
 
 from loguru import logger
+
+
+class _InterceptHandler(logging.Handler):
+    """Forward standard-library logging records to loguru"""
+    
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+        
+        frame, depth = logging.currentframe(), 2
+        while frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+        
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
+
+
+_THIRD_PARTY_LOGGERS = [
+    'lightning',
+    'lightning.pytorch',
+    'pytorch_lightning',
+    'hydra',
+    'omegaconf'
+]
 
 
 def configure(
@@ -73,4 +102,19 @@ def configure(
             ),
         )
 
+    _intercept_third_party_loggers(verbosity)
     logger.debug("Logging configured: verbosity={}, log_file={}", verbosity, log_file)
+
+
+def _intercept_third_party_loggers(verbosity: str) -> None:
+    handler = _InterceptHandler()
+    
+    root = logging.getLogger()
+    root.handlers = [handler]
+    root.setLevel(verbosity.upper())
+    
+    for name in _THIRD_PARTY_LOGGERS:
+        lg = logging.getLogger(name)
+        lg.handlers = [handler]
+        lg.propagate = False
+        lg.setLevel(verbosity.upper())

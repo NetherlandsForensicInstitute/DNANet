@@ -19,6 +19,7 @@ Usage:
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 from pathlib import Path
 
@@ -37,8 +38,13 @@ WORKSPACE_FOLDER = Path(__file__).parents[2]
 @hydra.main(version_base=None, config_path=str(WORKSPACE_FOLDER / "conf"), config_name="config")
 def main(cfg: DictConfig) -> None:
     """DNANet CLI — train, evaluate, or cross-validate DNA profile models."""
+    # Configure Hydra to pass the full error stacktrace
+    os.environ['HYDRA_FULL_ERROR'] = '1'
     # Configure logging first (before any other import triggers log messages)
-    dnanet_logging.configure(verbosity=cfg.get("verbosity", "INFO"))
+    dnanet_logging.configure(
+        verbosity=cfg.get("verbosity", "INFO"),
+        log_file=Path(cfg.get('output_dir', './')) / 'cli.log'
+    )
 
     task = cfg.get("task", "train")
     if torch.cuda.is_available():
@@ -55,7 +61,12 @@ def main(cfg: DictConfig) -> None:
             f"Unknown task: '{task}'. Choose from: train, evaluate, cross_validate"
         )
 
-    run(cfg)
+    try:
+        run(cfg)
+    except Exception:
+        from loguru import logger
+        logger.exception("Fatal error during execution")
+        raise
 
 
 if __name__ == "__main__":
