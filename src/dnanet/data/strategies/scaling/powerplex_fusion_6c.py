@@ -22,7 +22,9 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
     ) -> None:
         if kit is None:
             kit = PPF6C_KIT
-        super().__init__(kit, basepair_start=65, basepair_end=475, scanpoint_resolution=scanpoint_resolution)
+        super().__init__(
+            kit, basepair_start=65, basepair_end=475, scanpoint_resolution=scanpoint_resolution
+        )
 
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         return {
@@ -55,6 +57,8 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
             'DYS570': 4,
         }
 
+    def cache_signature(self) -> dict:
+        return {'class': self.__class__.__name__, 'scanpoint_resolution': self._scanpoint_resolution}
 
     def parse_size_standard(self, size_standard_lane: np.ndarray) -> SizeStandardParseResult | None:
         """Parse WEN ILS size standard from the PPF6C kit."""

@@ -20,8 +20,7 @@ dependencies = [
     "numpy>=2.2.4",
     "scipy>=1.15.1",
     "construct>=2.10.70",
-    "datasets>=4.0.0",
-    "huggingface-hub[hf_xet]>=0.35.0",
+    "pyarrow>=15.0.0",
     "pydantic>=2.12.5",
 
     # Visualization

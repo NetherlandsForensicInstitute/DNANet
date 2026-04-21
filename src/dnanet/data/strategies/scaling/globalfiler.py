@@ -28,7 +28,9 @@ class GlobalFilerStrategy(ScalingStrategy):
         **kwargs,
     ) -> None:
         kit = GLOBALFILER_KIT
-        super().__init__(kit, basepair_start=60, basepair_end=480, scanpoint_resolution=scanpoint_resolution)
+        super().__init__(
+            kit, basepair_start=60, basepair_end=480, scanpoint_resolution=scanpoint_resolution
+        )
         self._max_shrinkages = max_shrinkages
         self._validation_threshold = validation_threshold
 
@@ -43,6 +45,13 @@ class GlobalFilerStrategy(ScalingStrategy):
         }
     # fmt: on
 
+    def cache_signature(self) -> dict:
+        return {
+            'class': self.__class__.__name__,
+            'max_shrinkages': self._max_shrinkages,
+            'validation_threshold': self._validation_threshold,
+            'scanpoint_resolution': self._scanpoint_resolution,
+        }
 
     def parse_size_standard(self, size_standard_lane: np.ndarray) -> SizeStandardParseResult | None:
         """Parse GeneScan 600 LIZ with iterative fit shrinking."""
