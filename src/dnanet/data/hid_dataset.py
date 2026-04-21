@@ -35,7 +35,13 @@ from tqdm import tqdm
 from loguru import logger
 from torch.utils.data import Dataset
 
-from dnanet.data.cache import CacheMode, read_cache, compute_key, write_cache
+from dnanet.data.cache import (
+    CacheMode,
+    CacheWriter,
+    read_cache,
+    compute_key,
+    is_complete,
+)
 from dnanet.data.image import HIDImage
 from dnanet.data.dataset import TransformableDataset
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
@@ -112,13 +118,14 @@ class HIDDataset(Dataset, TransformableDataset):
                 f'got {adjustment_of_annotations!r}'
             )
 
-        # When a cache dir is given, try to load from cache
-        _cache_path = (
-            self._load_cache(cache_dir=Path(cache_dir), cache_mode=cache_mode) if cache_dir else None
-        )
-        # Fresh load (on cache miss or failed read)
-        if not getattr(self, '_data', None):
-            self._fresh_load(cache_path=_cache_path, cache_mode=cache_mode)
+        if cache_dir is not None:
+            self._data = self._load_or_build_cache(cache_dir=Path(cache_dir), cache_mode=cache_mode)
+        else:
+            file_entries = list(
+                self._dataset_strategy.collect_dataset_files(self.root, self._scaling)
+            )
+            logger.info('Found {} sample files to process', len(file_entries))
+            self._data = list(self._load_images(file_entries))
 
         if limit:
             self._data = random.sample(self._data, min(limit, len(self._data)))
@@ -139,46 +146,69 @@ class HIDDataset(Dataset, TransformableDataset):
 
     # -- Cache and file loading -------------------------------------------- #
 
-    def _load_cache(self, cache_dir: Path, cache_mode: CacheMode):
-        # Cache setup
-        _cache_path: Path | None = None
-        if cache_dir is not None:
-            key = compute_key(
-                root=self.root,
-                scaling_strategy=self._scaling,
-                dataset_strategy=self._dataset_strategy,
-                data_loading_strategy=self.data_loading_strategy,
-                include_size_standard=self.include_size_standard,
-                adjustment_of_annotations=self.adjustment_of_annotations,
-                skip_if_invalid_ladder=self.skip_if_invalid_ladder,
-            )
-            _cache_path = Path(cache_dir) / f'{key}.parquet'
+    def _cache_key_dir(self, cache_dir: Path) -> Path:
+        key = compute_key(
+            root=self.root,
+            scaling_strategy=self._scaling,
+            dataset_strategy=self._dataset_strategy,
+            data_loading_strategy=self.data_loading_strategy,
+            include_size_standard=self.include_size_standard,
+            adjustment_of_annotations=self.adjustment_of_annotations,
+            skip_if_invalid_ladder=self.skip_if_invalid_ladder,
+        )
+        return cache_dir / key
 
-        # Try loading from cache
-        if _cache_path is not None and _cache_path.exists():
+    def _load_or_build_cache(self, cache_dir: Path, cache_mode: CacheMode) -> List[HIDImage]:
+        """Return images from cache, building (or resuming) on disk if needed."""
+        key_dir = self._cache_key_dir(cache_dir)
+
+        if is_complete(key_dir):
             try:
-                self._data: List[HIDImage] = read_cache(
-                    _cache_path,
+                images = read_cache(
+                    key_dir,
                     scaling_strategy=self._scaling,
                     mode=cache_mode,
                     include_size_standard=self.include_size_standard,
                     load_in_memory=self.load_in_memory,
                 )
-                logger.info('Cache hit: loaded {} images from {}', len(self._data), _cache_path)
+                logger.info('Cache hit: loaded {} images from {}', len(images), key_dir)
+                return images
             except Exception as exc:
-                logger.warning('Cache read failed ({}), falling through to fresh load', exc)
-                # Do we want to remove cache if reading fails?
-                # _cache_path.unlink(missing_ok=True)
-                self._data = []
-        return _cache_path
+                logger.warning('Cache read failed ({}); rebuilding', exc)
 
-    def _fresh_load(self, cache_path: Path | None, cache_mode: CacheMode):
+        self._build_cache(key_dir=key_dir, cache_mode=cache_mode)
+        return read_cache(
+            key_dir,
+            scaling_strategy=self._scaling,
+            mode=cache_mode,
+            include_size_standard=self.include_size_standard,
+            load_in_memory=self.load_in_memory,
+        )
+
+    def _build_cache(self, key_dir: Path, cache_mode: CacheMode) -> None:
+        """Stream images from disk into a chunked parquet cache.
+
+        Resumes from any already-written chunks in ``key_dir``. Images are
+        written one chunk at a time so peak memory is bounded and a crash
+        after N chunks preserves those N chunks for the next run.
+        """
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
         logger.info('Found {} sample files to process', len(file_entries))
-        self._data = list(self._load_images(file_entries))
-        if cache_path is not None:
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            write_cache(cache_path, self._data, mode=cache_mode)
+
+        with CacheWriter(key_dir, mode=cache_mode) as writer:
+            resume = writer.cached_paths()
+            if resume:
+                before = len(file_entries)
+                file_entries = [e for e in file_entries if str(e[0]) not in resume]
+                logger.info(
+                    'Resuming cache build: {} already cached, {} remaining',
+                    before - len(file_entries),
+                    len(file_entries),
+                )
+
+            for image in self._load_images(file_entries):
+                writer.add(image)
+            writer.finalize()
 
     # -- Image loading ----------------------------------------------------- #
 
@@ -382,11 +412,6 @@ class HIDDataset(Dataset, TransformableDataset):
 
     @property
     def images(self) -> List[HIDImage]:
-        return self._data
-
-    @property
-    def data(self) -> List[HIDImage]:
-        """Protected property list of HIDImages in the dataset."""
         return self._data
 
     @property
