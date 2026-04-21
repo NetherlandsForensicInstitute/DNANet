@@ -18,8 +18,6 @@ from itertools import groupby
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
 
-import numpy as np
-import pandas as pd
 from loguru import logger
 from sklearn.model_selection import (
     KFold,
@@ -30,9 +28,9 @@ from torch.utils.data import Subset
 
 from dnanet.core import LabelCategory
 from dnanet.core.allele import Allele
-from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
+from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
+from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike

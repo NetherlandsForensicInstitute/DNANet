@@ -16,8 +16,8 @@ import typing
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple, Literal, Mapping, Generator
 
+import csv
 import numpy as np
-import pandas as pd
 from loguru import logger
 
 from dnanet.core import LabelCategory
@@ -197,50 +197,66 @@ class DatasetStrategy(ABC):
             return {}
 
         # read csv files
-        df = pd.concat((pd.read_csv(f) for f in csv_files), ignore_index=True)
-        columns = df.columns.tolist()
+        rows = []
         required_columns = {'profile', 'user', 'dye', 'x0', 'x1', 'category'}
-        missing_columns = required_columns.difference(df.columns)
-        if missing_columns:
-            raise ValueError(f'Missing span annotation columns: {sorted(missing_columns)}, found columns: {sorted(columns)}')
+        for f in csv_files:
+            with open(f, newline='', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                if reader.fieldnames is None:
+                    continue
+                columns = set(reader.fieldnames)
+                missing_columns = required_columns.difference(columns)
+                if missing_columns:
+                    raise ValueError(f'Missing span annotation columns: {sorted(missing_columns)}, found columns: {sorted(columns)} in {f}')
+                for row in reader:
+                    # check for NaNs (empty strings in csv.DictReader)
+                    if any(not row.get(col) for col in required_columns):
+                        continue
+                    rows.append(row)
 
-        len_before_drop = len(df)
-        df = df.dropna(subset=['profile', 'user', 'dye', 'x0', 'x1', 'category']).copy()
-        dropped = len_before_drop - len(df)
+        if not rows:
+            return {}
 
+        profiles = {row['profile'] for row in rows}
+        categories = {row['category'] for row in rows}
 
         logger.info(
-            f'Found {len(df)} valid span annotations in {len(df["profile"].unique())} '
-            f'profiles (dropped {dropped} rows)'
+            f'Found {len(rows)} valid span annotations in {len(profiles)} '
+            f'profiles'
         )
-        logger.info(f'Categories found in annotations: {df["category"].unique()}')
+        logger.info(f'Categories found in annotations: {categories}')
 
-        # convert dye names to dye indices
-        df['dye_idx'] = (
-            df['dye']
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .map(_dye_name_to_dye_idx)
-        )
-        unknown_dyes = df.loc[df['dye_idx'].isna(), 'dye'].unique()
-        if len(unknown_dyes) > 0:
-            raise ValueError(f'Unknown dye values in span annotations: {unknown_dyes}')
+        # convert dye names to dye indices and category names to indices
+        valid_rows = []
+        for row in rows:
+            dye_idx = _dye_name_to_dye_idx.get(str(row['dye']).strip().lower())
+            if dye_idx is None:
+                raise ValueError(f"Unknown dye values in span annotations: {row['dye']}")
 
-        # convert category names to indices
-        df['category_idx'] = df['category'].map(LabelCategory.display_name_to_index)
-        unknown_categories = df.loc[df['category_idx'].isna(), 'category'].unique()
-        if len(unknown_categories) > 0:
-            raise ValueError(f'Unknown category values in span annotations: {unknown_categories}')
+            category_idx = LabelCategory.display_name_to_index(row['category'])
+            if category_idx is None:
+                raise ValueError(f"Unknown category values in span annotations: {row['category']}")
 
-        df[['dye_idx', 'category_idx', 'x0', 'x1']] = df[
-            ['dye_idx', 'category_idx', 'x0', 'x1']
-        ].astype(int)
+            row['dye_idx'] = int(dye_idx)
+            row['category_idx'] = int(category_idx)
+            row['x0'] = int(row['x0'])
+            row['x1'] = int(row['x1'])
+            valid_rows.append(row)
 
         # create span annotations grouped by file and annotator
         hid_file_name_to_span_annotations: dict[str, list[np.ndarray]] = {}
-        for (hid_file_name, _annotator), hid_file_df in df.groupby(['profile', 'user'], sort=False):
-            spannotation = cls._df_to_span_annotation(hid_file_df, scaling_strategy)
+
+        # grouping logic
+        groups: dict[tuple[str, str], list[dict]] = {}
+        for row in valid_rows:
+            profile = row['profile']
+            if profile.lower().endswith('.hid'):
+                profile = profile[:-4]
+            key = (profile, row['user'])
+            groups.setdefault(key, []).append(row)
+
+        for (hid_file_name, _annotator), group_rows in groups.items():
+            spannotation = cls._df_to_span_annotation(group_rows, scaling_strategy)
             hid_file_name_to_span_annotations.setdefault(hid_file_name, []).append(spannotation)
 
         # merge span annotations into a scanpoint annotation
@@ -256,12 +272,12 @@ class DatasetStrategy(ABC):
         return hid_to_annotation
 
     @staticmethod
-    def _df_to_span_annotation(df: pd.DataFrame, scaling_strategy: ScalingStrategy) -> np.ndarray:
-        """Convert one profile/annotator dataframe to a one-hot span tensor.
+    def _df_to_span_annotation(rows: list[dict], scaling_strategy: ScalingStrategy) -> np.ndarray:
+        """Convert one profile/annotator rows to a one-hot span tensor.
 
         Args:
-            df: Span rows for a single profile and annotator. The dataframe must
-                already contain integer ``dye_idx`` and ``category_idx`` columns.
+            rows: Span rows for a single profile and annotator. Each row must
+                already contain integer ``dye_idx`` and ``category_idx``.
             scaling_strategy: Scaling strategy that defines the output shape.
 
         Returns:
@@ -277,15 +293,15 @@ class DatasetStrategy(ABC):
         num_classes = len(LabelCategory)
         spannotation = np.zeros((num_dyes, scanpoints, num_classes), dtype=np.int8)
 
-        for row in df.itertuples(index=False):
-            dye_idx = int(row.dye_idx)
-            category_idx = int(row.category_idx)
+        for row in rows:
+            dye_idx = int(row['dye_idx'])
+            category_idx = int(row['category_idx'])
             if not 0 <= dye_idx < num_dyes:
                 raise ValueError(f'Dye index {dye_idx} outside annotation shape')
             if not 0 <= category_idx < num_classes:
                 raise ValueError(f'Category index {category_idx} outside annotation shape')
 
-            start, stop = sorted((int(row.x0), int(row.x1)))
+            start, stop = sorted((int(row['x0']), int(row['x1'])))
             start = max(0, start)
             stop = min(scanpoints, stop)
             if start >= stop:

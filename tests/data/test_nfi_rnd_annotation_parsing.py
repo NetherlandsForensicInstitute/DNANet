@@ -162,7 +162,7 @@ def test_parse_span_annotation_merges_multiple_annotators(monkeypatch, tmp_path)
     )
     merge_calls: list[int] = []
 
-    def fake_merge_span_annotations(span_annotations: list[np.ndarray]) -> np.ndarray:
+    def fake_merge_span_annotations(span_annotations: list[np.ndarray], hid_file_name: str) -> np.ndarray:
         merge_calls.append(len(span_annotations))
         return np.maximum.reduce(span_annotations)
 

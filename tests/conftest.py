@@ -164,7 +164,7 @@ def globalfiler_kit():
 
 @pytest.fixture
 def nfi_rnd_dataset():
-    return NFIRnDStrategy()
+    return NFIRnDStrategy(annotation_type='ground_truth')
 
 @pytest.fixture
 def provedit_dataset():
