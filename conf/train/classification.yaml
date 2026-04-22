@@ -55,24 +55,24 @@ data_transform:
   _target_: dnanet.data.transformer.PeakClassificationTransformer
   scaling_strategy: ${data.scaling_strategy}
   dataset_strategy: ${data.dataset_strategy}
-  include_marker: false
+  include_marker: ${model.architecture.use_embedding}
 
 
 # module initialization. You shouldn't need to change this
 lightning_module:
-  _target_: src.dnanet.modules.classification.ClassificationModule
+  _target_: dnanet.modules.classification.ClassificationModule
   learning_rate: ${train.learning_rate}
   weight_decay: ${train.weight_decay}
   loss_fn: ${model.loss}
   num_classes: ${model.architecture.num_classes}
-  scheduler: ${train.scheduler}
   metrics: ${train.metrics}
 
 data_module:
-  _target_: src.dnanet.data.datamodule.DNANetDataModule
+  _target_: dnanet.data.datamodule.DNANetDataModule
   batch_size: ${train.batch_size}
   val_fraction: ${train.val_fraction}
   num_workers: ${train.num_workers}
   seed: ${train.seed}
   stratify_noc: ${oc.select:data.stratify_noc,false}
   group_by_replica: ${oc.select:data.group_by_replica,false}
+  shuffle_train: ${oc.select:data.shuffle_train,true}
