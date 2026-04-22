@@ -150,7 +150,7 @@ def _save_config(cfg: DictConfig, output_dir: str) -> None:
     output_path.mkdir(parents=True, exist_ok=True)
 
     config_path = output_path / 'config.yaml'
-    config_path.write_text(OmegaConf.to_yaml(cfg))
+    config_path.write_text(OmegaConf.to_yaml(cfg, resolve=True))
     logger.info('Config saved to {}', config_path)
 
 
@@ -236,9 +236,9 @@ def run(
     if ckpt_path := cfg.get('checkpoint'):
         logger.info('Will resume training from checkpoint: {}', ckpt_path)
 
+    _save_config(cfg, cfg.output_dir)
     logger.info('Starting training...')
     trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
     logger.info('Training complete!')
-    _save_config(cfg, cfg.output_dir)
 
     return trainer, module
