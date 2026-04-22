@@ -13,7 +13,7 @@ dataset:
   data_loading_strategy: superior  # raw, analyzed, or superior
   adjustment_of_annotations: top  # top, complete, or null
   transform: ${oc.select:${task}.data_transform,null}  # get transform from training/evaluation task, or null if not defined
-  load_in_memory: true
+  load_in_memory: false
   cache_dir: data/cache/dnanet_rd
 
 # splitting options
