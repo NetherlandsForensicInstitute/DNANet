@@ -8,6 +8,7 @@ import lightning as L
 from torch.utils.data import Dataset, DataLoader, default_collate
 
 from dnanet.data.dataset import TransformableDataset
+from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 
 class DNANetDataModule(L.LightningDataModule):
@@ -27,14 +28,39 @@ class DNANetDataModule(L.LightningDataModule):
         self,
         dataset: TransformableDataset,
         batch_size: int = 16,
-        val_fraction: float = 0.2,
-        test_fraction: float = 0.0,
         num_workers: int = 0,
-        seed: int | None = None,
-        stratify_noc: bool = False,
-        group_by_replica: bool = False,
+        dataset_strategy: DatasetStrategy | None = None
     ) -> None:
         super().__init__()
+
+        self._dataset = dataset
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.dataset_strategy = dataset_strategy if dataset_strategy else self._dataset.dataset_strategy
+
+        self._train_dataset: Dataset | None = None
+        self._val_dataset: Dataset | None = None
+        self._test_dataset: Dataset | None = None
+        self._collate_fn = default_collate
+
+    def setup(self, stage: str | None = None, **split_kwargs) -> None:
+        """Split the dataset and wrap in PyTorch Datasets."""
+        
+        # Setup dataset transform as a collate function
+        if hasattr(self._dataset, 'transform') and self._dataset.transform is not None:
+            self._collate_fn = self._dataset.transform.collate_fn
+        
+        # Get splitting kwargs
+        val_fraction = split_kwargs.get("val_fraction")
+        test_fraction = split_kwargs.get("test_fraction")
+        seed = split_kwargs.get("seed")
+        k_folds = split_kwargs.get("k_folds")
+        
+        # If no splitting logic is provided, we only set the train loader
+        if val_fraction is None and test_fraction is None and k_folds is None:
+            self._train_dataset = self._dataset
+            return 
+        
         if val_fraction + test_fraction >= 1.0:
             raise ValueError(
                 f'val_fraction ({val_fraction}) + test_fraction ({test_fraction}) must be < 1.0'
@@ -44,42 +70,24 @@ class DNANetDataModule(L.LightningDataModule):
         if test_fraction < 0.0:
             raise ValueError(f'test_fraction must be >= 0, got {test_fraction}')
 
-        self._dataset = dataset
-        self.batch_size = batch_size
-        self.val_fraction = val_fraction
-        self.test_fraction = test_fraction
-        self.num_workers = num_workers
-        self.seed = seed
-        self.stratify_noc = stratify_noc
-        self.group_by_replica = group_by_replica
-        self.dataset_strategy = self._dataset.dataset_strategy
-
-        self._train_dataset: Dataset | None = None
-        self._val_dataset: Dataset | None = None
-        self._test_dataset: Dataset | None = None
-        self._collate_fn = default_collate
-
-    def setup(self, stage: str | None = None) -> None:
-        """Split the dataset and wrap in PyTorch Datasets."""
         if self._train_dataset is not None:
             return  # already set up
 
 
-        train_fraction = 1.0 - self.val_fraction - self.test_fraction
+        train_fraction = 1.0 - val_fraction - test_fraction
 
-        if self.test_fraction > 0.0:
+        if test_fraction > 0.0:
             train_data, val_data, test_data = self.dataset_strategy.split(
                 self._dataset,
                 fraction=train_fraction,
-                test_fraction=self.test_fraction,
-                seed=self.seed,
+                **split_kwargs
             )
             self._test_dataset = test_data
-        elif self.val_fraction > 0.0:
+        elif val_fraction > 0.0:
             train_data, val_data = self.dataset_strategy.split(
                 self._dataset,
                 fraction=train_fraction,
-                seed=self.seed,
+                **split_kwargs
             )
         else:
             train_data = self._dataset
@@ -87,9 +95,6 @@ class DNANetDataModule(L.LightningDataModule):
 
         self._train_dataset = train_data
         self._val_dataset = val_data
-
-        if hasattr(self._dataset, 'transform') and self._dataset.transform is not None:
-            self._collate_fn = self._dataset.transform.collate_fn
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(

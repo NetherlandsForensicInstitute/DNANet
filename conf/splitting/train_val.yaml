@@ -1,0 +1,5 @@
+val_fraction: 0.2
+test_fraction: 0.0
+seed: ${seed}
+stratify_noc: ${oc.select:data.stratify_noc,null}
+genotype_aware: ${oc.select:data.genotype_aware,null}

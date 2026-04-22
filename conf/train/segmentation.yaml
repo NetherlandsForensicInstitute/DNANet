@@ -5,10 +5,7 @@ max_epochs: 15
 batch_size: 16
 learning_rate: 0.0001
 weight_decay: 0.0005
-val_fraction: 0.2
-test_fraction: 0.0
 num_workers: 5
-seed: 42
 threshold: 0.5
 
 metrics:
@@ -69,11 +66,6 @@ lightning_module:
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule
   batch_size: ${train.batch_size}
-  val_fraction: ${train.val_fraction}
   num_workers: ${train.num_workers}
-  seed: ${train.seed}
-  stratify_noc: ${oc.select:data.stratify_noc,false}
-  group_by_replica: ${oc.select:data.group_by_replica,false}
 
-# Cross-validation (only used with task=cross_validate)
-n_folds: 5
+

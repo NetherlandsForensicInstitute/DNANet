@@ -16,6 +16,7 @@ defaults:
   - train: segmentation
   - evaluate: segmentation
   - logging: csvlogger
+  - splitting: train_val
   - _self_
   - override hydra/hydra_logging: disabled
   - override hydra/job_logging: disabled

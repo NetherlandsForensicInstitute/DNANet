@@ -6,9 +6,6 @@ batch_size: 16
 learning_rate: 0.001
 weight_decay: 0.0
 num_workers: 7
-val_fraction: 0.2
-test_fraction: 0.0
-seed: 42
 
 metrics:
   _target_: torchmetrics.MetricCollection
@@ -57,8 +54,4 @@ lightning_module:
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule
   batch_size: ${train.batch_size}
-  val_fraction: ${train.val_fraction}
   num_workers: ${train.num_workers}
-  seed: ${train.seed}
-  stratify_noc: ${oc.select:data.stratify_noc,false}
-  group_by_replica: ${oc.select:data.group_by_replica,false}

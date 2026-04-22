@@ -230,7 +230,7 @@ def run(
         dataset = instantiate(data_cfg.dataset)
 
     datamodule = instantiate(cfg.train.data_module, dataset=dataset)
-    datamodule.setup('fit')
+    datamodule.setup('fit', **cfg.splitting)
 
     logger.info(
         'Training config: {} epochs, lr={}, batch_size={}',
