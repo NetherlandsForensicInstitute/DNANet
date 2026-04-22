@@ -32,6 +32,7 @@ def _config_payload(
     include_size_standard: bool,
     adjustment_of_annotations: str | None,
     skip_if_invalid_ladder: bool,
+    allow_missing_annotations: bool,
 ) -> dict[str, Any]:
     return {
         'cache_version': CACHE_VERSION,
@@ -42,6 +43,7 @@ def _config_payload(
         'include_size_standard': include_size_standard,
         'adjustment_of_annotations': adjustment_of_annotations,
         'skip_if_invalid_ladder': skip_if_invalid_ladder,
+        'allow_missing_annotations': allow_missing_annotations,
     }
 
 
@@ -53,6 +55,7 @@ def compute_key(
     include_size_standard: bool,
     adjustment_of_annotations: str | None,
     skip_if_invalid_ladder: bool,
+    allow_missing_annotations: bool,
 ) -> str:
     """16-char hex cache key derived from config only."""
     payload = _config_payload(
@@ -63,6 +66,7 @@ def compute_key(
         include_size_standard=include_size_standard,
         adjustment_of_annotations=adjustment_of_annotations,
         skip_if_invalid_ladder=skip_if_invalid_ladder,
+        allow_missing_annotations=allow_missing_annotations,
     )
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
 
@@ -129,6 +133,7 @@ def build_config_payload(
     include_size_standard: bool,
     adjustment_of_annotations: str | None,
     skip_if_invalid_ladder: bool,
+    allow_missing_annotations: bool,
 ) -> dict[str, Any]:
     """Public helper so HIDDataset can compute the payload once."""
     return _config_payload(
@@ -139,4 +144,5 @@ def build_config_payload(
         include_size_standard=include_size_standard,
         adjustment_of_annotations=adjustment_of_annotations,
         skip_if_invalid_ladder=skip_if_invalid_ladder,
+        allow_missing_annotations=allow_missing_annotations,
     )

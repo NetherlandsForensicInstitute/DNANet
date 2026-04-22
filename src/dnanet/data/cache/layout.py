@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-CACHE_VERSION = 3  # bump when the on-disk layout changes
+CACHE_VERSION = 5  # bump when the on-disk layout changes
 
 _COMPLETE_MARKER = '_COMPLETE'
 
@@ -16,6 +16,11 @@ INDEX_PARQUET = 'index.parquet'
 SHAPES_JSON = 'shapes.json'
 FINGERPRINT_JSON = 'fingerprint.json'
 MANIFEST_JSONL = 'manifest.jsonl'
+# Deduped sidecars — panels and allele annotations are heavily repeated across
+# rows (all replicas of the same sample share one annotation; many samples
+# share one ladder-adjusted panel), so we intern them once and reference by key.
+PANELS_JSON = 'panels.json'
+ALLELES_JSON = 'alleles.json'
 
 
 def cache_key_dir(cache_root: Path, key: str) -> Path:

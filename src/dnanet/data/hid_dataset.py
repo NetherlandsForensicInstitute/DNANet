@@ -23,6 +23,7 @@ Usage::
 
 from __future__ import annotations
 
+import os
 import json
 import random
 from typing import TYPE_CHECKING, Any, List, Tuple, Optional, Generator
@@ -88,8 +89,10 @@ class HIDDataset(Dataset, TransformableDataset):
         include_size_standard: bool = False,
         data_loading_strategy: str = 'superior',
         transform: TransformDataCallable | None = None,
-        # Retained for config-backwards-compat; the cache is always on-disk now.
+        # When True, the cache is fully realized into RAM after build/load.
         load_in_memory: bool = False,
+        # When True, HIDs without annotations are still cached (for eval/labeltool).
+        allow_missing_annotations: bool = False,
     ) -> None:
         super().__init__()
 
@@ -100,6 +103,7 @@ class HIDDataset(Dataset, TransformableDataset):
         self.data_loading_strategy = data_loading_strategy
         self._transform = transform
         self.load_in_memory = load_in_memory
+        self.allow_missing_annotations = allow_missing_annotations
         self._scaling = scaling_strategy
         self._dataset_strategy = dataset_strategy
         self._default_panel = self._scaling.panel
@@ -119,6 +123,7 @@ class HIDDataset(Dataset, TransformableDataset):
             include_size_standard=self.include_size_standard,
             adjustment_of_annotations=self.adjustment_of_annotations,
             skip_if_invalid_ladder=self.skip_if_invalid_ladder,
+            allow_missing_annotations=self.allow_missing_annotations,
         )
         self._cache_dir = cache_key_dir(Path(cache_dir), key)
 
@@ -130,6 +135,7 @@ class HIDDataset(Dataset, TransformableDataset):
             include_size_standard=self.include_size_standard,
             adjustment_of_annotations=self.adjustment_of_annotations,
             skip_if_invalid_ladder=self.skip_if_invalid_ladder,
+            allow_missing_annotations=self.allow_missing_annotations,
         )
 
         file_entries = self._resolve_cache(config_payload)
@@ -159,12 +165,45 @@ class HIDDataset(Dataset, TransformableDataset):
             if self.transform is not None
             else 'No transform applied to samples'
         )
+        if self.load_in_memory:
+            self._load_cache_into_ram()
+
         logger.info(
             'HIDDataset ready: {} indexed samples (cache {})', len(self._index), self._cache_dir
         )
 
         # Unused; just keeping the warning path silent.
         del file_entries
+
+    # -- In-memory materialization ---------------------------------------- #
+
+    _RAM_BUDGET_FRACTION = 0.5  # refuse if cache exceeds this fraction of total RAM.
+
+    def _load_cache_into_ram(self) -> None:
+        """Copy the three memmaps into RAM-resident arrays, with a hard RAM guard."""
+        estimated = self._reader.memmap_bytes()
+        total_ram = self._total_ram_bytes()
+        budget = int(total_ram * self._RAM_BUDGET_FRACTION) if total_ram else 0
+
+        if budget and estimated > budget:
+            raise RuntimeError(
+                f'load_in_memory=True refused: cache would use '
+                f'{estimated / 1e9:.2f} GB which exceeds '
+                f'{self._RAM_BUDGET_FRACTION:.0%} of total RAM '
+                f'({total_ram / 1e9:.2f} GB). Set load_in_memory=False '
+                f'and stream from the memmap instead.'
+            )
+
+        logger.info('Materializing cache into RAM: ~{:.2f} GB', estimated / 1e9)
+        self._reader.materialize()
+
+    @staticmethod
+    def _total_ram_bytes() -> int:
+        """Best-effort total physical RAM in bytes; 0 if not determinable."""
+        try:
+            return os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+        except (ValueError, AttributeError, OSError):
+            return 0
 
     # -- Cache resolution -------------------------------------------------- #
 
@@ -213,9 +252,11 @@ class HIDDataset(Dataset, TransformableDataset):
                 remaining = file_entries
 
             for image in self._load_images(remaining):
-                if image.data is None or image.scaler is None or image.annotation is None:
-                    # Skip incomplete samples rather than crashing the build.
-                    logger.debug('Skipping {} during cache build (incomplete)', image.path)
+                if image.data is None or image.scaler is None:
+                    logger.debug('Skipping {} during cache build (no data/scaler)', image.path)
+                    continue
+                if image.annotation is None and not self.allow_missing_annotations:
+                    logger.debug('Skipping {} during cache build (no annotation)', image.path)
                     continue
                 writer.write(image)
             writer.finalize(config_payload, source_paths)
@@ -286,7 +327,7 @@ class HIDDataset(Dataset, TransformableDataset):
             else:
                 scanpoint_annotation = annotation
 
-            if self.adjustment_of_annotations:
+            if self.adjustment_of_annotations and scanpoint_annotation is not None:
                 scanpoint_annotation = self._adjust_annotations(
                     [image],
                     [scanpoint_annotation],
@@ -295,7 +336,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
             image.annotation = scanpoint_annotation
 
-            if image.annotation is None:
+            if image.annotation is None and not self.allow_missing_annotations:
                 skipped_alleles += 1
                 logger.debug('{}: no annotation/called alleles', path.name)
                 continue
@@ -446,17 +487,17 @@ class HIDDataset(Dataset, TransformableDataset):
         from dnanet.core.panel import Panel
         from dnanet.core.marker import Marker
 
+        allele_json = self._reader.allele_json(entry.allele_key)
         allele_annotation: AlleleAnnotation | None = None
-        if entry.allele_annotation_json:
-            markers: list[Marker] = [
-                Marker.from_dict(d) for d in json.loads(entry.allele_annotation_json)
-            ]
+        if allele_json:
+            markers: list[Marker] = [Marker.from_dict(d) for d in json.loads(allele_json)]
             allele_annotation = AlleleAnnotation(data=markers)
 
+        panel_json = self._reader.panel_json(entry.panel_key)
         adjusted_panel: Panel | None = None
-        if entry.adjusted_panel_json:
+        if panel_json:
             adjusted_panel = Panel(
-                markers=tuple(Marker.from_dict(d) for d in json.loads(entry.adjusted_panel_json))
+                markers=tuple(Marker.from_dict(d) for d in json.loads(panel_json))
             )
 
         meta = json.loads(entry.meta_json) if entry.meta_json else {}
@@ -472,5 +513,5 @@ class HIDDataset(Dataset, TransformableDataset):
         )
         image._data = data
         image._scaler = scaler
-        image.annotation = ScanpointAnnotation(data=annotation_arr)
+        image.annotation = ScanpointAnnotation(data=annotation_arr) if entry.has_annotation else None
         return image

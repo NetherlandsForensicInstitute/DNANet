@@ -6,7 +6,9 @@ The cache for a given key lives under:
         data.bin           # (N, D, L)       int16    — fluorescence signal
         annotation.bin     # (N, D, L)       int8     — scanpoint mask
         scaler.bin         # (N, L)          float32  — base-pair scaler
-        index.parquet      # N rows of path + JSON metadata (allele ann, panel, meta)
+        index.parquet      # N rows of path + small keys into sidecars + meta_json
+        panels.json        # {panel_key: adjusted_panel_json}  — deduped
+        alleles.json       # {allele_key: allele_annotation_json}  — deduped
         shapes.json        # row counts, per-array shapes and dtypes
         fingerprint.json   # hash of source files + config; checked on load
         manifest.jsonl     # append-only writer log (removed at finalize)

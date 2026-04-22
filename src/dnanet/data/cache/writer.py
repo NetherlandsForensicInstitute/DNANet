@@ -36,7 +36,9 @@ from loguru import logger
 from dnanet.data.cache.layout import (
     DATA_BIN,
     SCALER_BIN,
+    PANELS_JSON,
     SHAPES_JSON,
+    ALLELES_JSON,
     INDEX_PARQUET,
     ANNOTATION_BIN,
     MANIFEST_JSONL,
@@ -154,8 +156,10 @@ class MemmapCacheWriter:
     def write(self, image: HIDImage) -> None:
         """Append one sample to the cache.
 
-        Expects ``image.data``, ``image.scaler``, and ``image.annotation`` all
-        to be populated. Samples whose arrays are missing or mis-shaped raise.
+        ``image.data`` and ``image.scaler`` are required. ``image.annotation``
+        may be ``None`` — a zero-filled placeholder of matching shape is
+        written to ``annotation.bin`` and ``has_annotation=False`` is recorded
+        in the manifest for that row.
         """
         data = image.data
         scaler = image.scaler
@@ -165,12 +169,17 @@ class MemmapCacheWriter:
             raise ValueError(f'Refusing to cache {image.path}: data is None')
         if scaler is None:
             raise ValueError(f'Refusing to cache {image.path}: scaler is None')
-        if ann is None:
-            raise ValueError(f'Refusing to cache {image.path}: annotation is None')
 
         data_arr = np.ascontiguousarray(data, dtype=_DATA_DTYPE)
-        ann_arr = np.ascontiguousarray(ann, dtype=_ANN_DTYPE)
         scaler_arr = np.ascontiguousarray(scaler, dtype=_SCALER_DTYPE)
+
+        has_annotation = ann is not None
+        if has_annotation:
+            ann_arr = np.ascontiguousarray(ann, dtype=_ANN_DTYPE)
+        else:
+            # Annotation arrays always match the data shape (same num_dyes×L).
+            # Write zeros so the memmap stays uniform across rows.
+            ann_arr = np.zeros(data_arr.shape, dtype=_ANN_DTYPE)
 
         # Lock shapes on first write; validate on every subsequent write.
         if self._data_shape is None:
@@ -225,6 +234,7 @@ class MemmapCacheWriter:
             'data_shape': list(self._data_shape),
             'ann_shape': list(self._ann_shape),
             'scaler_shape': list(self._scaler_shape),
+            'has_annotation': has_annotation,
             'allele_annotation_json': allele_json,
             'adjusted_panel_json': panel_json,
             'meta_json': meta_json,
@@ -249,14 +259,21 @@ class MemmapCacheWriter:
         config_payload: dict[str, Any],
         source_paths: Iterable[Path],
     ) -> None:
-        """Convert the manifest into index.parquet, write shapes+fingerprint, mark complete."""
+        """Convert the manifest into index.parquet + sidecars, write shapes+fingerprint, mark complete.
+
+        The manifest stores allele_annotation_json and adjusted_panel_json
+        inline per row for simple crash-recovery. At finalize time we
+        stream-dedupe those strings into ``panels.json`` and ``alleles.json``
+        sidecars and the parquet only keeps small integer keys — reducing
+        index-in-RAM from ``rows * panel_size`` to ``unique_panels * panel_size``
+        (typically 2–3 orders of magnitude smaller).
+        """
         self._close()
 
         if self._row_count == 0:
             raise ValueError(f'Cannot finalize empty cache at {self._dir}')
 
-        rows = self._read_manifest()
-        self._write_index_parquet(rows)
+        self._build_index_and_sidecars()
         self._write_shapes_json()
         write_fingerprint(self._dir, compute_fingerprint(config_payload, source_paths))
 
@@ -266,28 +283,86 @@ class MemmapCacheWriter:
         mark_complete(self._dir)
         logger.info('Cache finalized: {} rows at {}', self._row_count, self._dir)
 
-    def _read_manifest(self) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
+    def _build_index_and_sidecars(self) -> None:
+        """Stream the manifest → dedupe JSON → write sidecars + index.parquet.
+
+        Peak RAM is bounded by the unique-value set sizes, not row count.
+        """
+        panels: dict[str, int] = {}
+        alleles: dict[str, int] = {}
+
+        # Row buffers for parquet. These hold only small scalars.
+        rows_col: list[int] = []
+        paths_col: list[str] = []
+        has_ann_col: list[bool] = []
+        panel_key_col: list[int | None] = []
+        allele_key_col: list[int | None] = []
+        meta_col: list[str | None] = []
+
+        def _intern(s: str | None, table: dict[str, int]) -> int | None:
+            if s is None:
+                return None
+            k = table.get(s)
+            if k is None:
+                k = len(table)
+                table[s] = k
+            return k
+
         with (self._dir / MANIFEST_JSONL).open('r') as f:
             for line in f:
                 line = line.strip()
-                if line:
-                    rows.append(json.loads(line))
-        return rows
+                if not line:
+                    continue
+                r = json.loads(line)
+                rows_col.append(int(r['row']))
+                paths_col.append(str(r['path']))
+                has_ann_col.append(bool(r.get('has_annotation', True)))
+                panel_key_col.append(_intern(r.get('adjusted_panel_json'), panels))
+                allele_key_col.append(_intern(r.get('allele_annotation_json'), alleles))
+                meta_col.append(r.get('meta_json'))
 
-    def _write_index_parquet(self, rows: list[dict[str, Any]]) -> None:
+        # Write sidecars first so the parquet commit implies they exist.
+        self._write_sidecar(PANELS_JSON, panels)
+        self._write_sidecar(ALLELES_JSON, alleles)
+
         schema = pa.schema(
             [
                 pa.field('row', pa.int64()),
                 pa.field('path', pa.string()),
-                pa.field('allele_annotation_json', pa.string()),
-                pa.field('adjusted_panel_json', pa.string()),
+                pa.field('has_annotation', pa.bool_()),
+                pa.field('panel_key', pa.int32()),
+                pa.field('allele_key', pa.int32()),
                 pa.field('meta_json', pa.string()),
             ]
         )
-        cols = {name: [r.get(name) for r in rows] for name in schema.names}
-        table = pa.table(cols, schema=schema)
+        table = pa.table(
+            {
+                'row': rows_col,
+                'path': paths_col,
+                'has_annotation': has_ann_col,
+                'panel_key': panel_key_col,
+                'allele_key': allele_key_col,
+                'meta_json': meta_col,
+            },
+            schema=schema,
+        )
         pq.write_table(table, self._dir / INDEX_PARQUET, compression='snappy')
+
+        logger.info(
+            'Deduped sidecars: {} unique panels, {} unique allele annotations (from {} rows)',
+            len(panels),
+            len(alleles),
+            self._row_count,
+        )
+
+    def _write_sidecar(self, name: str, table: dict[str, int]) -> None:
+        """Write ``{key: json_string}`` sidecar.
+
+        Keys are stored as strings in the JSON object (JSON's only allowed
+        key type); the reader parses them back to ``int``.
+        """
+        inv = {str(k): s for s, k in table.items()}
+        (self._dir / name).write_text(json.dumps(inv))
 
     def _write_shapes_json(self) -> None:
         assert self._data_shape is not None
