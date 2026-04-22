@@ -46,7 +46,7 @@ class AlleleCaller(abc.ABC):
         Args:
             prediction_image: (C, L) predicted mask (probabilities or binary).
             signal_image: (C, L) raw EPG signal data (for RFU extraction).
-            scaler: (L,) or (1, L) array mapping scan positions to base pairs.
+            scaler: (L, ) or (1, L) array mapping scan positions to base pairs.
             panel: Reference panel with allele definitions.
 
         Returns:
@@ -109,7 +109,7 @@ class NearestBasePairCaller(AlleleCaller):
         if scaler.ndim == 1:
             scaler = scaler[np.newaxis, :]
 
-        loci_dict: dict[tuple[int, str], set[str]] = defaultdict(set)
+        loci_dict: dict[tuple[int, str], set[tuple[str, float]]] = defaultdict(set)
         rfus: dict[tuple[str, str], int] = defaultdict(int)
 
         for dye_index, dye_pred in enumerate(prediction_image):
@@ -125,11 +125,19 @@ class NearestBasePairCaller(AlleleCaller):
             )
 
             for prediction_bin in predicted_bins:
-                mean_bp = float(np.mean(scaler[:, prediction_bin]))
+                bin_basepairs = scaler[:, prediction_bin]
+                bin_start, bin_end = np.min(bin_basepairs), np.max(bin_basepairs)
+
+                mean_bp = float(np.mean(bin_basepairs))
                 marker_name, allele_name = self._get_nearest_allele(
                     dye_index, mean_bp, panel,
                 )
-                loci_dict[(dye_index, marker_name)].add(allele_name)
+                _, allele_start, allele_end = panel.get_allele_basepair_and_bins(marker_name, allele_name)
+                if not (bin_start >= allele_start and bin_end <= allele_end):
+                    # Predicted bin does not fall inside matched allele bin, therefore set name to "Out of Bin".
+                    allele_name = "OB"
+                # Also store the mean_bp the allele was found on, as we may find multiple "OB" peaks.
+                loci_dict[(dye_index, marker_name)].add((allele_name, mean_bp))
 
                 # Track highest RFU for this allele
                 max_rfu = int(np.max(signal_image[dye_index, prediction_bin]))
@@ -142,8 +150,8 @@ class NearestBasePairCaller(AlleleCaller):
                 name=marker_name,
                 dye_row=dye_index,
                 alleles=frozenset(
-                    Allele(name=allele_name, height=rfus[(marker_name, allele_name)])
-                    for allele_name in sorted(alleles)
+                    Allele(name=allele_name, height=rfus[(marker_name, allele_name)], base_pair=bp)
+                    for allele_name, bp in sorted(alleles)
                 ),
             )
             for (dye_index, marker_name), alleles in loci_dict.items()
@@ -167,7 +175,7 @@ class NearestBasePairCaller(AlleleCaller):
         """
         dye_mapping = panel.dye_bp_to_allele_mapping.get(dye_index, {})
         if not dye_mapping:
-            return ("Unknown", "Unknown")
+            return "Unknown", "Unknown"
 
         nearest_bp = min(dye_mapping.keys(), key=lambda k: abs(k - base_pair))
         return dye_mapping[nearest_bp]

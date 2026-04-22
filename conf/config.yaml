@@ -21,8 +21,8 @@ defaults:
   - override hydra/job_logging: disabled
 
 # -- Global settings --
-task: train          # One of: train, evaluate, cross_validate
+task: evaluate          # One of: train, evaluate, cross_validate
 seed: 42
 output_dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
 verbosity: INFO      # Logging level: DEBUG, INFO, WARNING, ERROR
-checkpoint: null     # Path to checkpoint for resume/evaluation
+checkpoint: outputs/2026-04-22/15-20-30/checkpoints/epoch-005-val_loss-0.9835.ckpt     # Path to checkpoint for resume/evaluation

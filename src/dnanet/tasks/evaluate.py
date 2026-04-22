@@ -130,7 +130,7 @@ def run(
     datamodule = DNANetDataModule(
         dataset=dataset,
         batch_size=cfg.evaluate.get("batch_size", 1),
-        val_fraction= None, # always use the entire dataset for evaluation
+        val_fraction=0.2, # always use the entire dataset for evaluation
         num_workers=cfg.evaluate.get("num_workers", 0),
         seed=cfg.seed,
     )
