@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List, Iterator
 
-from torch.utils.data import IterableDataset
+from torch.utils.data import IterableDataset, get_worker_info
 
 from dnanet.data.dataset import TransformableDataset
 from dnanet.data.preprocessing.baseline import fft_lowpass_smooth
@@ -93,7 +93,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
     def _iterate_peaks(self) -> Iterator[ExtractedPeak]:
         """Extract and optionally preprocess peaks from all images."""
-        for image in self._images:
+        for image in self._worker_images():
             peaks = extract_peak_windows(
                 image,
                 threshold=self.threshold,
@@ -106,6 +106,13 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
                 if self.preprocess:
                     self._preprocess_peak(peak)
                 yield peak
+
+    def _worker_images(self) -> List[HIDImage]:
+        """Return the image subset assigned to the current dataloader worker."""
+        worker_info = get_worker_info()
+        if worker_info is None:
+            return self._images
+        return self._images[worker_info.id::worker_info.num_workers]
 
     def _preprocess_peak(self, peak: ExtractedPeak) -> None:
         """Apply in-place preprocessing to a peak's data.

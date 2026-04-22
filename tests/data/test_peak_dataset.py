@@ -1,5 +1,9 @@
 """Tests for PeakWindowDataset."""
 
+from collections import Counter
+from pathlib import Path
+from types import SimpleNamespace
+
 import numpy as np
 
 from dnanet.core.annotation import ScanpointAnnotation
@@ -10,9 +14,10 @@ from dnanet.data.extracted_peak import ExtractedPeak
 class MockImage:
     """Minimal HIDImage-like object."""
 
-    def __init__(self, data, scaling_strategy, annotation_image=None):
+    def __init__(self, data, scaling_strategy, annotation_image=None, name="mock"):
         self._raw_data = data
         self._panel = None
+        self.path = Path(f"{name}.hid")
         self.scaling_strategy = scaling_strategy
         if annotation_image is not None:
             self.annotation = ScanpointAnnotation(data=annotation_image)
@@ -58,11 +63,18 @@ class TestPeakWindowDataset:
     def _make_base_dataset(self, scaling_strategy, dataset_strategy, n_images=3, n_peaks=3):
         """Create a SimpleDataset of mock images."""
         images = []
-        for _ in range(n_images):
+        for idx in range(n_images):
             data, centers = _make_profile_with_peaks(n_peaks=n_peaks)
             ann = np.zeros_like(data)
             ann[0, centers[0] - 2 : centers[0] + 3] = 1
-            images.append(MockImage(data, scaling_strategy, annotation_image=ann))
+            images.append(
+                MockImage(
+                    data,
+                    scaling_strategy,
+                    annotation_image=ann,
+                    name=f"mock_{idx}",
+                )
+            )
         return MockBaseDataset(images, scaling_strategy, dataset_strategy)
 
     def test_extracts_peaks_from_images(self, nfi_rnd_kit, nfi_rnd_dataset):
@@ -88,7 +100,7 @@ class TestPeakWindowDataset:
         )
         for peak in ds:
             assert isinstance(peak, ExtractedPeak)
-            assert peak.data.shape == (120,)
+            assert peak.data.shape == (1, 120)
 
     def test_label_mapping(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
@@ -136,3 +148,82 @@ class TestPeakWindowDataset:
             include_max_pool_dyes=True, preprocess=False,
         )
         assert next(iter(ds)).data.shape == (2, 120)
+
+    def test_worker_images_returns_all_images_without_worker_info(
+        self,
+        nfi_rnd_kit,
+        nfi_rnd_dataset,
+        monkeypatch,
+    ):
+        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=4)
+        ds = PeakWindowDataset(
+            images=base.images,
+            dataset_strategy=base.dataset_strategy,
+            preprocess=False,
+        )
+
+        monkeypatch.setattr("dnanet.data.peak_dataset.get_worker_info", lambda: None)
+
+        assert ds._worker_images() == base.images
+
+    def test_worker_images_are_sharded_across_workers(
+        self,
+        nfi_rnd_kit,
+        nfi_rnd_dataset,
+        monkeypatch,
+    ):
+        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=7)
+        ds = PeakWindowDataset(
+            images=base.images,
+            dataset_strategy=base.dataset_strategy,
+            preprocess=False,
+        )
+
+        seen = []
+        for worker_id in range(3):
+            monkeypatch.setattr(
+                "dnanet.data.peak_dataset.get_worker_info",
+                lambda worker_id=worker_id: SimpleNamespace(id=worker_id, num_workers=3),
+            )
+            worker_images = ds._worker_images()
+            assert worker_images == base.images[worker_id::3]
+            seen.extend(worker_images)
+
+        counts = Counter(map(id, seen))
+        assert len(seen) == len(base.images)
+        assert set(counts) == {id(image) for image in base.images}
+        assert all(count == 1 for count in counts.values())
+
+    def test_subset_iteration_uses_worker_shard_before_transform(
+        self,
+        nfi_rnd_kit,
+        nfi_rnd_dataset,
+        monkeypatch,
+    ):
+        base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=5)
+        ds = PeakWindowDataset(
+            images=base.images,
+            dataset_strategy=base.dataset_strategy,
+            transform=lambda peak: f"transformed:{peak}",
+            preprocess=False,
+        )
+        subset = ds.subset([1, 2, 4])
+
+        monkeypatch.setattr(
+            "dnanet.data.peak_dataset.get_worker_info",
+            lambda: SimpleNamespace(id=1, num_workers=2),
+        )
+
+        extracted_from = []
+
+        def fake_extract_peak_windows(image, **_kwargs):
+            extracted_from.append(image.path.stem)
+            return [image.path.stem]
+
+        monkeypatch.setattr(
+            "dnanet.data.peak_dataset.extract_peak_windows",
+            fake_extract_peak_windows,
+        )
+
+        assert list(subset) == ["transformed:mock_2"]
+        assert extracted_from == ["mock_2"]
