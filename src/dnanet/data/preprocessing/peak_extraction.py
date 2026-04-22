@@ -321,7 +321,8 @@ def extract_peak_windows(
                 peak_data[0] = padded_data[dye_index, start_padded:end_padded]
                 peak_data[1] = padded_max_pool[dye_index, start_padded:end_padded]
             else:
-                peak_data = padded_data[dye_index, start_padded:end_padded]
+                peak_data = np.empty((1, window_size), dtype=data.dtype)
+                peak_data[0] = padded_data[dye_index, start_padded:end_padded]
 
             # Use cached marker_to_idx
             peak_marker_name, peak_marker_index = _find_marker_for_peak(

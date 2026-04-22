@@ -37,3 +37,5 @@ Thumbs.db
 .ruff_cache/
 
 annotations.csv
+
+conv/logging/mlflow.yaml

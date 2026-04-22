@@ -209,7 +209,7 @@ def run(
         cfg.train.lightning_module,
         model=network,
         optimizer=optimizer,
-        scheduler=scheduler,
+        lr_scheduler=scheduler,
         _convert_='partial' # convert OmegaDict to standard dict since this is not a supported type for instantiating
     )
 

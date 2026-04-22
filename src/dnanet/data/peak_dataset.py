@@ -84,7 +84,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
     @classmethod
     def from_hid_dataset(cls, base_dataset: HIDDataset, **kwargs):
         """Create a PeakWindowDataset based on a HIDDataset's images and transform."""
-        return cls.__init__(
+        return PeakWindowDataset(
             images=base_dataset.images,
             dataset_strategy=base_dataset.dataset_strategy,
             transform=base_dataset.transform,
