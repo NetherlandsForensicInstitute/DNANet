@@ -35,16 +35,6 @@ if TYPE_CHECKING:
     from torch.utils.data import Dataset
 
 
-# ---------------------------------------------------------------------------
-# Module registry: maps training type to Lightning module class
-# ---------------------------------------------------------------------------
-
-if TYPE_CHECKING:
-    from torch.utils.data import Dataset
-
-
-
-
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
     # callbacks: list[L.Callback] = [EpochConsoleLogger()]
@@ -114,45 +104,44 @@ def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
     return None
 
 
+def _load_state_dict(checkpoint: str):
+    """Load a PyTorch state dict from a checkpoint file.
+
+    Handles both plain PyTorch checkpoints and PyTorch Lightning checkpoints. For the latter, strip ``model.`` prefix
+    from parameters and discard parameters not belonging to the model.
+    """
+    import torch
+    state = torch.load(checkpoint, map_location='cpu', weights_only=True)
+    # Handle Lightning checkpoint wrapping
+    if 'state_dict' in state:
+        prefix = 'model.'
+        state_dict = {
+            k.removeprefix(prefix): v
+            for k, v in state['state_dict'].items()
+            if k.startswith(prefix)
+        }
+        return state_dict
+
+    return state
+
+
 def _load_pretrained_weights(network, cfg: DictConfig) -> None:
     """Load pre-trained sub-model weights if checkpoint paths are given.
 
     Supports loading pre-trained autoencoder and/or peak classifier weights
     into a CombinedClassifier before training the combiner.
     """
-    import torch
-
     ae_ckpt = cfg.model.get('autoencoder_checkpoint')
-    pc_ckpt = cfg.model.get('peak_classifier_checkpoint')
-
     if ae_ckpt and hasattr(network, 'autoencoder'):
         logger.info('Loading pre-trained autoencoder from: {}', ae_ckpt)
-        state = torch.load(ae_ckpt, map_location='cpu', weights_only=True)
-        # Handle Lightning checkpoint wrapping
-        if 'state_dict' in state:
-            prefix = 'model.'
-            ae_state = {
-                k.removeprefix(prefix): v
-                for k, v in state['state_dict'].items()
-                if k.startswith(prefix)
-            }
-            network.autoencoder.load_state_dict(ae_state, strict=False)
-        else:
-            network.autoencoder.load_state_dict(state, strict=False)
+        ae_state = _load_state_dict(ae_ckpt)
+        network.autoencoder.load_state_dict(ae_state, strict=False)
 
+    pc_ckpt = cfg.model.get('peak_classifier_checkpoint')
     if pc_ckpt and hasattr(network, 'peak_classifier'):
         logger.info('Loading pre-trained peak classifier from: {}', pc_ckpt)
-        state = torch.load(pc_ckpt, map_location='cpu', weights_only=True)
-        if 'state_dict' in state:
-            prefix = 'model.'
-            pc_state = {
-                k.removeprefix(prefix): v
-                for k, v in state['state_dict'].items()
-                if k.startswith(prefix)
-            }
-            network.peak_classifier.load_state_dict(pc_state, strict=False)
-        else:
-            network.peak_classifier.load_state_dict(state, strict=False)
+        pc_state = _load_state_dict(pc_ckpt)
+        network.peak_classifier.load_state_dict(pc_state, strict=False)
 
 
 def _save_config(cfg: DictConfig, output_dir: str) -> None:
@@ -203,7 +192,6 @@ def run(
     else:
         scheduler = None
 
-
     # -- Lightning module --------------------------------------------------
     module = instantiate(
         cfg.train.lightning_module,
@@ -212,13 +200,6 @@ def run(
         scheduler=scheduler,
         _convert_='partial' # convert OmegaDict to standard dict since this is not a supported type for instantiating
     )
-
-
-    # -- Resume from checkpoint if provided --------------------------------
-    ckpt_path = cfg.get('checkpoint')
-    if ckpt_path:
-        logger.info('Will resume training from checkpoint: {}', ckpt_path)
-
 
     # -- Data --------------------------------------------------------------
     if not dataset:
@@ -251,16 +232,13 @@ def run(
         check_val_every_n_epoch=1,
     )
 
-    if datamodule is not None:
-        ckpt_path = cfg.get('checkpoint')
-        logger.info('Starting training...')
-        trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
-        logger.info('Training complete!')
-        _save_config(cfg, cfg.output_dir)
-    else:
-        logger.info(
-            'No data config found. Use run_with_data() or '
-            'pass a data config group (e.g. data=dnanet_rd).'
-        )
+    # Resume training from checkpoint path if provided
+    if ckpt_path := cfg.get('checkpoint'):
+        logger.info('Will resume training from checkpoint: {}', ckpt_path)
+
+    logger.info('Starting training...')
+    trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
+    logger.info('Training complete!')
+    _save_config(cfg, cfg.output_dir)
 
     return trainer, module
