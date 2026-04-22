@@ -22,6 +22,7 @@ from __future__ import annotations
 import abc
 
 import torch
+from loguru import logger
 from torch import Tensor, nn
 
 
@@ -76,6 +77,7 @@ class PeakClassificationModel(BackboneModule):
         width: int = 120,
         n_markers: int = 28,
         embedding_dim: int = 8,
+        use_embedding: bool = True,
         include_max_pool_dyes: bool = False,
         hidden_channels: list[int] | None = None,
         kernel_size: int = 3,
@@ -98,6 +100,12 @@ class PeakClassificationModel(BackboneModule):
             raise ValueError(f"downsample must be 'maxpool' or 'conv', got '{downsample}'")
         if activation not in {"relu", "tanh", "gelu"}:
             raise ValueError(f"activation must be 'relu', 'tanh', or 'gelu', got '{activation}'")
+
+        if embedding_dim <= 0 and use_embedding:
+            raise ValueError("embedding_dim must be > 0 if use_embedding=True")
+
+        if not use_embedding and embedding_dim > 0:
+            logger.warning("embedding_dim > 0 but use_embedding=False. Ignoring.")
 
         self.pooling = pooling
         in_channels = 2 if include_max_pool_dyes else 1
@@ -134,7 +142,7 @@ class PeakClassificationModel(BackboneModule):
             self.attn_proj = nn.Linear(self._out_channels, 1)
 
         # Optional marker embedding
-        self.use_embedding = embedding_dim > 0
+        self.use_embedding = use_embedding
         if self.use_embedding:
             self.embed = nn.Embedding(
                 num_embeddings=n_markers, embedding_dim=embedding_dim
@@ -178,17 +186,30 @@ class PeakClassificationModel(BackboneModule):
         Returns:
             Feature tensor of shape ``(B, F)``.
         """
-        if isinstance(x, tuple):
-            peak_data, marker_idx = x
-        else:
-            peak_data = x
-            marker_idx = None
+        match x:
+            case (peak_data, marker_idx):
+                pass
+            case _:
+                peak_data = x
+                marker_idx = None
 
-        features = self._pool(self.conv(peak_data))
+        # peak_data: (B, C, W), where C = 1 or 2 (dye + max-pooled other dyes)
+        # marker_idx: (B, 1), or None
 
-        if self.use_embedding and marker_idx is not None:
-            emb = self.embed(marker_idx)
-            features = torch.cat((features, emb), dim=1)
+        features = self._pool(self.conv(peak_data)) # (B, F_p)
+
+        if self.use_embedding:
+            if marker_idx is None:
+                raise ValueError("Marker index is required for embedding")
+            if torch.any(marker_idx < 0) or torch.any(marker_idx >= self.embed.num_embeddings):
+                raise ValueError(
+                    f"marker_idx out of range: min={marker_idx.min().item()}, "
+                    f"max={marker_idx.max().item()}, "
+                    f"allowed=[0, {self.embed.num_embeddings - 1}]"
+                )
+            marker_idx = marker_idx.squeeze(-1) # (B,)
+            emb = self.embed(marker_idx) # (B, F_e), where F_e = embedding_dim
+            features = torch.cat((features, emb), dim=1) # (B, F), where F = F_p + F_e
 
         return features
 

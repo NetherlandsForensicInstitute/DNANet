@@ -184,12 +184,6 @@ class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
 
         peak_tensor = torch.tensor(data, dtype=torch.float32)
 
-        if self.include_marker:
-            marker_idx = self.scaling_strategy.marker_to_idx[peak.marker_name]
-            marker_tensor = torch.tensor([marker_idx], dtype=torch.long)
-        else:
-            marker_tensor = torch.full(size=(1,), fill_value=-1, dtype=torch.long)
-
         ann_label: str = peak.annotation.data
         annotation_to_idx = {
             name: idx for idx, name in enumerate(self.dataset_strategy.get_annotation_classes())
@@ -197,5 +191,11 @@ class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
         annotation_idx = annotation_to_idx[ann_label]
         target = torch.tensor(annotation_idx, dtype=torch.long)
 
-        inputs = (peak_tensor, marker_tensor)
+        if self.include_marker:
+            marker_idx = self.scaling_strategy.marker_to_idx[peak.marker_name]
+            marker_tensor = torch.tensor([marker_idx], dtype=torch.long)
+            inputs = (peak_tensor, marker_tensor)
+        else:
+            inputs = peak_tensor
+
         return inputs, target
