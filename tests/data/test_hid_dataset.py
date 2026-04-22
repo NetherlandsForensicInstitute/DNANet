@@ -12,7 +12,7 @@ def _make_hid_dataset(**kwargs) -> HIDDataset:
     return HIDDataset(
         root=RD_DIR,
         scaling_strategy=PowerPlexFusion6CStrategy(),
-        dataset_strategy=NFIRnDStrategy(),
+        dataset_strategy=NFIRnDStrategy("DTH"),
         **kwargs,
     )
 
@@ -45,11 +45,11 @@ class TestHIDDatasetValidation:
     def test_empty_root_raises(self, nfi_rnd_kit, tmp_path):
         empty_dir = tmp_path / 'empty'
         empty_dir.mkdir()
-        with pytest.raises(ValueError, match="Path does not contain the neccessary mapping"):
+        with pytest.raises(ValueError, match="Path does not contain the necessary ladder mapping"):
             HIDDataset(
                 root=empty_dir,
                 scaling_strategy=PowerPlexFusion6CStrategy(),
-                dataset_strategy=NFIRnDStrategy(),
+                dataset_strategy=NFIRnDStrategy("DTH"),
             )
 
 
@@ -60,8 +60,8 @@ class TestHIDDatasetValidation:
 class TestHIDDatasetIntegration:
     def test_load_from_rd_dir(self, nfi_rnd_kit):
         """Load from test resources — should find 2 sample HID files."""
-        ds = _make_hid_dataset(analysis_threshold_type='DTH')
-        assert len(ds) >= 1  # at least one sample should load
+        ds = _make_hid_dataset()
+        assert len(ds) == 2
 
     def test_images_have_correct_shape(self, nfi_rnd_kit):
         ds = _make_hid_dataset()
