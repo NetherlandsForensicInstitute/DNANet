@@ -29,7 +29,7 @@ from torch.utils.data import Subset
 from dnanet.core.allele import Allele
 from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.core.marker import Marker
-from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
+from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
@@ -101,7 +101,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
         # Hid to Ladder mapping
         _, htl_values = self._read_csv_file(hid_to_ladder_path[0])
-        hid_to_ladder = {hid: Path(ladder) for hid, ladder in htl_values}
+        hid_to_ladder = {hid: Path(root_path) / Path(ladder) for hid, ladder in htl_values}
 
         # collect all files
         for hid_file in hid_file_samples:
@@ -133,18 +133,18 @@ class NFIRnDStrategy(DatasetStrategy):
 
         # HID to Annotation mapping
         hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path[0])
-        analysis_treshold_type_column = [
+        analysis_threshold_type_column = [
             i for i, head in enumerate(hta_header) if annotation_type in head
         ]
-        if len(analysis_treshold_type_column) != 1:
+        if len(analysis_threshold_type_column) != 1:
             raise RuntimeError(
-                f'Could not infer the analysis treshold type column for annotation mapping: {hta_header}'
+                f'Could not infer the analysis threshold type column for annotation mapping: {hta_header}'
             )
         hid_to_annotation = dict(
             [
                 (
                     v[0].replace('.hid', ''),
-                    annotation_name_to_annotation.get(v[analysis_treshold_type_column[0]]),
+                    annotation_name_to_annotation.get(v[analysis_threshold_type_column[0]]),
                 )
                 for v in hta_values
             ]

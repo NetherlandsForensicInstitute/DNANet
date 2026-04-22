@@ -15,8 +15,8 @@ from __future__ import annotations
 import typing
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple, Literal, Mapping, Generator
-from pathlib import Path
 
+from dnanet.data.strategies.scaling import ScalingStrategy
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -25,7 +25,6 @@ if typing.TYPE_CHECKING:
 
     from dnanet.core.types import PathLike
     from dnanet.core.annotation import Annotation
-    from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 FileCategory = Literal['sample', 'ladder', 'control', 'unknown']
