@@ -36,7 +36,7 @@ class TransformDataCallable(abc.ABC, Generic[TrainableT]):
         return default_collate(batch)
 
 
-@dataclass
+@dataclass(frozen=True)
 class SegmentationTransformer(TransformDataCallable[HIDImage]):
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = image.data
@@ -53,7 +53,7 @@ class SegmentationTransformer(TransformDataCallable[HIDImage]):
 
         return x, y
 
-@dataclass
+@dataclass(frozen=True)
 class AlleleMetadataTransformer(TransformDataCallable[HIDImage]):
     transformer: TransformDataCallable[HIDImage]
 
@@ -75,7 +75,7 @@ class AlleleMetadataTransformer(TransformDataCallable[HIDImage]):
         return inputs, targets, metadata
 
 
-@dataclass
+@dataclass(frozen=True)
 class CombinedTransformer(TransformDataCallable[HIDImage]):
     threshold: int = 25
     window_size: int = 120
@@ -147,7 +147,7 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         return new_inputs, targets
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReconstructionTransformer(TransformDataCallable[HIDImage]):
     n_dyes: int = 5
     log_scale: bool = True
@@ -172,7 +172,7 @@ class ReconstructionTransformer(TransformDataCallable[HIDImage]):
         # reconstruction module)
         return preprocessed, raw
 
-@dataclass
+@dataclass(frozen=True)
 class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
     scaling_strategy: ScalingStrategy
     dataset_strategy: DatasetStrategy

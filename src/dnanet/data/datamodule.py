@@ -4,18 +4,23 @@
 
 from __future__ import annotations
 
+from typing import Tuple, Optional
+
 import lightning as L
-from torch.utils.data import Dataset, DataLoader, default_collate
+from torch.utils.data import ConcatDataset, Dataset, DataLoader, default_collate, Subset
 
 from dnanet.data.dataset import TransformableDataset
 from dnanet.data.strategies.datasets.dataset import DatasetStrategy
+
+
+
 
 
 class DNANetDataModule(L.LightningDataModule):
     """Lightning DataModule for DNA profiles.
 
     Args:
-        dataset: A loaded dataset (e.g. HIDDataset).
+        dataset: A loaded dataset (e.g. HIDDataset or torch ConcatDataset).
         batch_size: Batch size for DataLoaders.
         val_fraction: Fraction of total data to use for validation.
         test_fraction: Fraction of total data to hold out as a test set.
@@ -73,6 +78,13 @@ class DNANetDataModule(L.LightningDataModule):
         if self._train_dataset is not None:
             return  # already set up
 
+        if isinstance(self._dataset, ConcatDataset):
+            # Demand uniform collate_fn among all datasets of the ConcatDataset.
+            collate_fns = [getattr(ds, 'transform', None) for ds in self._dataset.datasets]
+            if len(set(collate_fns)) != 1:
+                raise ValueError(f"Found multiple collate functions for ConcatDataset ({collate_fns}), but expected same function for all datasets.")
+            if collate_fns[0] is not None:
+                self._collate_fn = collate_fns[0].collate_fn
 
         train_fraction = 1.0 - val_fraction - test_fraction
 
@@ -90,8 +102,10 @@ class DNANetDataModule(L.LightningDataModule):
                 **split_kwargs
             )
         else:
-            train_data = self._dataset
-            val_data = None
+            if transform := getattr(self._dataset, 'transform', None):
+                self._collate_fn = transform.collate_fn
+
+            train_data, val_data, test_data = self.apply_single_dataset_splitting(self._dataset)
 
         self._train_dataset = train_data
         self._val_dataset = val_data
