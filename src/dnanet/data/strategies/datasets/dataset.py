@@ -16,6 +16,7 @@ import typing
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple, Literal, Mapping, Generator
 
+from dnanet.data.strategies.scaling import ScalingStrategy
 import csv
 import numpy as np
 from loguru import logger
@@ -29,7 +30,7 @@ if typing.TYPE_CHECKING:
     from annotated_types import T
 
     from dnanet.core.types import PathLike
-    from dnanet.data.strategies.scaling import ScalingStrategy
+    from dnanet.core.annotation import Annotation
 
 
 FileCategory = Literal['sample', 'ladder', 'control', 'unknown']

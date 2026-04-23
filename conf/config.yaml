@@ -17,6 +17,8 @@ defaults:
   - evaluate: segmentation
   - logging: csvlogger
   - _self_
+  - override hydra/hydra_logging: disabled
+  - override hydra/job_logging: disabled
 
 # -- Global settings --
 task: train          # One of: train, evaluate, cross_validate

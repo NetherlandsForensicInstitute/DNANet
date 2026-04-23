@@ -55,7 +55,8 @@ if TYPE_CHECKING:
 class HIDDataset(Dataset, TransformableDataset):
     """Load HID files from a directory into an in-memory dataset.
 
-    This is the primary dataset class for forensic DNA profiles. It:
+    This is the primary dataset class for forensic DNA profiles. It can either load already parsed images (including
+    labels and ladders) from a cache directory or parses them from raw files. In the latter case, the following steps are taken:
     1. Walks a root directory for ``.hid`` files
     2. Filters to sample files (excluding ladders, controls)
     3. Matches each sample to its annotation and best ladder
@@ -68,14 +69,20 @@ class HIDDataset(Dataset, TransformableDataset):
 
     Args:
         root: Root directory containing HID files (searched recursively).
-        ladder_alleles_csv: CSV with expected ladder alleles per dye.
-        analysis_threshold_type: ``"DTH"`` (high) or ``"DTL"`` (low).
-        adjustment_of_annotations: ``"top"`` or ``"complete"`` peak adjustment,
+        scaling_strategy: Strategy to be used to scale the HID images, based on kit information.
+        dataset_strategy: Strategy to be used to collect files, annotations and other dataset related settings.
+        adjustment_of_annotations: How/whether to adjust the peak annotations: ``"top"`` or ``"complete"`` peak adjustment,
             or ``None`` to skip.
         limit: Maximum number of images to load.
-        skip_if_invalid_ladder: Skip images whose ladder fails to parse.
+        skip_if_invalid_ladder: If set to True, skip images whose ladder fails to parse.
         include_size_standard: Include the 6th dye channel in the data.
-        data_loading_strategy: ``"raw"``, ``"analyzed"``, or ``"superior"``.
+        data_loading_strategy: Determines which data columns to use when loading HID images: ``"raw"``, ``"analyzed"``,
+            or ``"superior"``.
+        transform: The transformation to be applied to the HID images.
+        load_in_memory: Whether to store the HID image data in memory.
+        cache_dir: The (optional) directory where a cache of the dataset is stored or where the cache will be written
+            to if loading from cache fails.
+        cache_mode: Whether to cache the entire data or only the object's structure: ``"full"`` or ``"shell"``.
     """
 
     def __init__(
@@ -141,7 +148,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
     # -- Cache and file loading -------------------------------------------- #
 
-    def _load_cache(self, cache_dir: Path, cache_mode: CacheMode):
+    def _load_cache(self, cache_dir: Path, cache_mode: CacheMode) -> Optional[Path]:
         # Cache setup
         _cache_path: Path | None = None
         if cache_dir is not None:
@@ -169,7 +176,7 @@ class HIDDataset(Dataset, TransformableDataset):
                 logger.info('Cache hit: loaded {} images from {}', len(self._data), _cache_path)
             except Exception as exc:
                 logger.warning('Cache read failed ({}), falling through to fresh load', exc)
-                # Do we want to remove cache if reading fails?
+                # TODO: Do we want to remove cache if reading fails?
                 # _cache_path.unlink(missing_ok=True)
                 self._data = []
         return _cache_path
@@ -188,21 +195,15 @@ class HIDDataset(Dataset, TransformableDataset):
         self, file_entries: List[Tuple[Path, Annotation | None, Path | None]]
     ) -> Generator[HIDImage, None, None]:
         """Create HIDImage instances, loading data and filtering invalid ones."""
-        ladder_cache: dict[str, Panel | None] = {}
-
         skipped_data = 0
         skipped_alleles = 0
         skipped_ladder = 0
 
-        for entry in tqdm(
+        for path, annotation, ladder_path in tqdm(
             file_entries,
             desc='Loading images',
             total=len(file_entries),
         ):
-            path: Path = entry[0]
-            ladder_path: Path | None = entry[2]
-            annotation = entry[1]  # (name, file) or None
-
             if isinstance(annotation, AlleleAnnotation):
                 allele_annotation = annotation
             else:
@@ -387,11 +388,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
     @property
     def images(self) -> List[HIDImage]:
-        return self._data
-
-    @property
-    def data(self) -> List[HIDImage]:
-        """Protected property list of HIDImages in the dataset."""
+        """Protected property for the list of HIDImages in the dataset."""
         return self._data
 
     @property

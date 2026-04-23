@@ -7,12 +7,12 @@ import random
 import numpy as np
 import torch
 import pytest
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, ConcatDataset
 
 from dnanet.data.image import HIDImage
 from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
-from dnanet.data.transformer import SegmentationTransformer
+from dnanet.data.transformer import SegmentationTransformer, CombinedTransformer
 
 
 class SplitStrategy:
@@ -95,6 +95,14 @@ def segmentation_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservingDataset:
         dataset_strategy=SplitStrategy(),
     )
 
+@pytest.fixture
+def combined_transformer_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservingDataset:
+    images = [_make_fake_image(ppf6c_kit, nfi_rnd_dataset, f"fake_{i}.hid") for i in range(10)]
+    return SplitPreservingDataset(
+        images,
+        transform=CombinedTransformer(),
+        dataset_strategy=SplitStrategy(),
+    )
 
 @pytest.fixture
 def unlabeled_segmentation_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservingDataset:
@@ -135,3 +143,30 @@ class TestDNANetDataModule:
         dm.setup("fit")
         _, y = next(iter(dm.train_dataloader()))
         assert torch.all(y == 0)
+
+    def test_concat_dataset_transform(self, segmentation_dataset) -> None:
+        concat_dataset = ConcatDataset(datasets=[segmentation_dataset, segmentation_dataset])
+        assert len(concat_dataset) == 20
+
+        dm = DNANetDataModule(
+            concat_dataset,
+            batch_size=4,
+            val_fraction=0.2,
+            seed=42,
+        )
+        dm.setup("fit")
+        assert len(dm._train_dataset) == 20 * 0.8
+        assert 'TransformDataCallable.collate_fn' in str(dm._collate_fn)
+
+    def test_concat_dataset_transform_raises(self, segmentation_dataset, combined_transformer_dataset) -> None:
+        concat_dataset = ConcatDataset(datasets=[segmentation_dataset, combined_transformer_dataset])
+        assert len(concat_dataset) == 20
+
+        dm = DNANetDataModule(
+            concat_dataset,
+            batch_size=4,
+            val_fraction=0.2,
+            seed=42,
+        )
+        with pytest.raises(ValueError, match="Found multiple collate functions for ConcatDataset"):
+            dm.setup("fit")
