@@ -140,7 +140,7 @@ class HIDDataset(Dataset, TransformableDataset):
             allow_missing_annotations=self.allow_missing_annotations,
         )
 
-        file_entries = self._resolve_cache(config_payload)
+        self._resolve_cache(config_payload)
 
         self._reader = MemmapCacheReader(self._cache_dir)
         self._index: List[IndexEntry] = self._reader.load_index()
@@ -174,9 +174,6 @@ class HIDDataset(Dataset, TransformableDataset):
             'HIDDataset ready: {} indexed samples (cache {})', len(self._index), self._cache_dir
         )
 
-        # Unused; just keeping the warning path silent.
-        del file_entries
-
     # -- In-memory materialization ---------------------------------------- #
 
     _RAM_BUDGET_FRACTION = 0.5  # refuse if cache exceeds this fraction of total RAM.
@@ -209,7 +206,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
     # -- Cache resolution -------------------------------------------------- #
 
-    def _resolve_cache(self, config_payload: dict[str, Any]) -> list:
+    def _resolve_cache(self, config_payload: dict[str, Any]) -> None:
         """Ensure the cache for our key exists and matches current sources.
 
         Returns the final list of source file entries (may be empty on a warm
@@ -224,7 +221,7 @@ class HIDDataset(Dataset, TransformableDataset):
             source_paths = [e[0] for e in file_entries]
             if validate_fingerprint(self._cache_dir, config_payload, source_paths):
                 logger.info('Cache hit: {}', self._cache_dir)
-                return file_entries
+                return
             logger.warning('Cache fingerprint stale at {}; rebuilding', self._cache_dir)
 
         logger.info(
@@ -233,7 +230,7 @@ class HIDDataset(Dataset, TransformableDataset):
             len(file_entries),
         )
         self._build_cache(file_entries, config_payload)
-        return file_entries
+        return
 
     def _build_cache(
         self,

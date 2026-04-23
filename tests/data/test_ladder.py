@@ -1,5 +1,7 @@
 """Tests for the Ladder class."""
 
+from types import SimpleNamespace
+
 import numpy as np
 
 from dnanet.core.allele import Allele
@@ -20,6 +22,29 @@ class TestLadderAlleleCatalog:
         assert catalog.expected_count(0) == 3
         assert catalog.expected_count(1) == 2
         assert catalog.expected_count(2) == 0  # unknown dye
+
+    def test_from_panel_sorts_ladder_alleles_by_basepair(self):
+        panel = SimpleNamespace(
+            markers=[
+                SimpleNamespace(
+                    name='M1',
+                    dye_row=0,
+                    alleles=(
+                        SimpleNamespace(name='A3', base_pair=130.0, in_ladder=True),
+                        SimpleNamespace(name='A1', base_pair=110.0, in_ladder=True),
+                        SimpleNamespace(name='A2', base_pair=120.0, in_ladder=True),
+                    ),
+                )
+            ]
+        )
+
+        catalog = LadderAlleleCatalog.from_panel(panel)
+
+        assert catalog.alleles_by_dye[0] == [
+            ('M1', 'A1'),
+            ('M1', 'A2'),
+            ('M1', 'A3'),
+        ]
 
 
 class TestLadder:
