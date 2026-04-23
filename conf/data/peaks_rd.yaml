@@ -9,8 +9,8 @@ shuffle_train: false # PeakDataset does not support shuffling
 
 # Re-export the wrapped HID dataset settings so other configs can keep
 # referring to the standard data.* keys.
-scaling_strategy: ${data.hid.scaling_strategy}
-dataset_strategy: ${data.hid.dataset_strategy}
+scaling_strategy: ${data.hid.dataset.scaling_strategy}
+dataset_strategy: ${data.hid.dataset.dataset_strategy}
 stratify_noc: ${oc.select:data.hid.stratify_noc,false}
 group_by_replica: ${oc.select:data.hid.group_by_replica,false}
 
@@ -25,3 +25,4 @@ dataset:
   smooth_keep_factor: null
   log_scale: false
   max_rfu_value: null
+  load_in_memory: false
