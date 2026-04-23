@@ -21,22 +21,23 @@ import sys
 from pathlib import Path
 
 from loguru import logger
+from tqdm import tqdm
 
 
 class _InterceptHandler(logging.Handler):
     """Forward standard-library logging records to loguru"""
-    
+
     def emit(self, record: logging.LogRecord) -> None:
         try:
             level = logger.level(record.levelname).name
         except ValueError:
             level = record.levelno
-        
+
         frame, depth = logging.currentframe(), 2
         while frame.f_code.co_filename == logging.__file__:
             frame = frame.f_back
             depth += 1
-        
+
         logger.opt(depth=depth, exception=record.exc_info).log(
             level, record.getMessage()
         )
@@ -70,10 +71,12 @@ def configure(
     """
     # Remove default sink so we don't get duplicate output
     logger.remove()
+    def _tqdm_sink(msg: str) -> None:
+        tqdm.write(msg, end="")
 
     # Console sink — human-readable with colors
     logger.add(
-        sys.stderr,
+        _tqdm_sink,
         level=verbosity.upper(),
         format=(
             "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
@@ -83,6 +86,7 @@ def configure(
         ),
         colorize=True,
     )
+
 
     # Optional file sink — rotated, with full detail
     if log_file is not None:
@@ -108,11 +112,11 @@ def configure(
 
 def _intercept_third_party_loggers(verbosity: str) -> None:
     handler = _InterceptHandler()
-    
+
     root = logging.getLogger()
     root.handlers = [handler]
     root.setLevel(verbosity.upper())
-    
+
     for name in _THIRD_PARTY_LOGGERS:
         lg = logging.getLogger(name)
         lg.handlers = [handler]
