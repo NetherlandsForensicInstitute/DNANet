@@ -6,26 +6,21 @@ name: provedit
 dataset:
   _target_: dnanet.data.hid_dataset.HIDDataset
   root: data/PROVEDIt/
-  scaling_strategy: ${data.scaling_strategy}
-  dataset_strategy: ${data.dataset_strategy}
+  scaling_strategy:
+    _target_: dnanet.data.strategies.scaling.globalfiler.GlobalFilerStrategy
+    scanpoint_resolution: 4096
+  dataset_strategy:
+    _target_: dnanet.data.strategies.datasets.ProvedItStrategy
   limit: null  # Set to integer to limit number of loaded images
-  skip_if_invalid_ladder: true
+  skip_if_invalid_ladder: false
   include_size_standard: true
   data_loading_strategy: superior  # raw, analyzed, or superior
   adjustment_of_annotations: top  # top, complete, or null
   transform: ${oc.select:${task}.data_transform,null}  # get transform from training/evaluation task, or null if not defined
-  load_in_memory: true
+  load_in_memory: false
+  cache_dir: data/cache/provedit
 
 
 # splitting options
 stratify_noc: false
 group_by_replica: false
-
-# scaling strategy
-scaling_strategy:
-  _target_: dnanet.data.strategies.scaling.globalfiler.GlobalFilerStrategy
-  scanpoint_resolution: 4096
-
-# dataset strategy
-dataset_strategy:
-  _target_: dnanet.data.strategies.datasets.ProvedItStrategy

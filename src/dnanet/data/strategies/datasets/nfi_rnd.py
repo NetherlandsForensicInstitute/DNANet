@@ -144,18 +144,18 @@ class NFIRnDStrategy(DatasetStrategy):
 
         # HID to Annotation mapping
         hta_header, hta_values = cls._read_csv_file(hid_to_annotation_path[0])
-        analysis_treshold_type_column = [
+        analysis_threshold_type_column = [
             i for i, head in enumerate(hta_header) if annotation_type in head
         ]
-        if len(analysis_treshold_type_column) != 1:
+        if len(analysis_threshold_type_column) != 1:
             raise RuntimeError(
-                f'Could not infer the analysis treshold type column for annotation mapping: {hta_header}'
+                f'Could not infer the analysis threshold type column for annotation mapping: {hta_header}'
             )
         hid_to_annotation = dict(
             [
                 (
                     v[0].replace('.hid', ''),
-                    annotation_name_to_annotation.get(v[analysis_treshold_type_column[0]]),
+                    annotation_name_to_annotation.get(v[analysis_threshold_type_column[0]]),
                 )
                 for v in hta_values
             ]
