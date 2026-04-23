@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import lightning as L
+from tqdm import tqdm
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
@@ -59,7 +60,8 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
                 patience=es_cfg.patience,
                 min_delta=es_cfg.get('min_delta', 0.0),
                 mode=es_cfg.get('mode', 'min'),
-                verbose=True,
+                verbose=False,
+                check_finite=True,
             )
         )
 
@@ -250,6 +252,9 @@ def run(
         log_every_n_steps=1,
         check_val_every_n_epoch=1,
     )
+
+    if trainer.logger is not None:
+        trainer.logger.log_hyperparams(cfg)
 
     if datamodule is not None:
         ckpt_path = cfg.get('checkpoint')
