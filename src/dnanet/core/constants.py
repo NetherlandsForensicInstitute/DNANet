@@ -12,8 +12,9 @@ Note:
     and ``ScalingStrategy``, NOT here. This module only holds constants that
     are truly universal across all kits and datasets.
 """
-
+import re
 from enum import Enum, unique
+from functools import lru_cache
 
 
 @unique
@@ -98,8 +99,25 @@ class LabelCategory(Enum):
         """Return all label names in order (matches original LABEL_CATEGORIES_STR)."""
         return [member.label_name for member in cls]
 
+    @classmethod
+    @lru_cache()
+    def display_name_to_index(cls, search_name: str) -> int:
+        """Look up a category by any of its names (case-insensitive)."""
+        name = re.sub(r'[^a-z0-9]', '', search_name.strip().lower()).replace('artifact', 'artefact')
+
+        for i, member in enumerate(cls):
+            display_name = re.sub(r'[^a-z0-9]', '', member.display_name.strip().lower()).replace('artifact', 'artefact')
+            label_name = re.sub(r'[^a-z0-9]', '', member.label_name.strip().lower()).replace('artifact', 'artefact')
+            member_name = re.sub(r'[^a-z0-9]', '', member.name.strip().lower()).replace('artifact', 'artefact')
+            if display_name == name or label_name == name or member_name == name:
+                return i
+        raise ValueError(f"Unknown label name: {search_name!r}")
+
+
+
 
 # Default signal length (number of scan points per dye channel)
+# FIXME should be retrieved from scaling strategy
 DEFAULT_SIGNAL_LENGTH: int = 4096
 
 # Label tool format version

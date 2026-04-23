@@ -2,9 +2,12 @@
 
 from pathlib import Path
 
+import numpy as np
+
 from dnanet.core.allele import Allele
-from dnanet.core.annotation import AlleleAnnotation
 from dnanet.core.marker import Marker
+from dnanet.core.constants import LabelCategory
+from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 
 
@@ -13,6 +16,19 @@ class FakeScalingStrategy:
 
     def marker_name_to_dye_idx(self) -> dict[str, int]:
         return {'AMEL': 0, 'D3S1358': 0, 'D21S11': 2}
+
+
+class FakeSpanKit:
+    """Minimal kit for scanpoint span annotation tests."""
+
+    num_dyes = 3
+
+
+class FakeSpanScalingStrategy(FakeScalingStrategy):
+    """Minimal scaling strategy for scanpoint span annotation tests."""
+
+    kit = FakeSpanKit()
+    scanpoint_resolution = 10
 
 
 def marker_alleles(annotation: AlleleAnnotation, marker_name: str) -> set[str]:
@@ -108,3 +124,58 @@ def test_parse_ground_truth_annotations_caches_donor_and_prefix_annotations(monk
     assert calls == ['1A.csv', '1B.csv', '1C.csv']
     assert annotations['1A2_A01_01'] is annotations['1A2_A01_02']
     assert marker_alleles(annotations['1A3_A01_01'], 'AMEL') == {'1A', '1B', '1C'}
+
+
+def test_parse_span_annotation_returns_scanpoint_annotations(tmp_path):
+    span_annotations = tmp_path / 'span_annotations'
+    span_annotations.mkdir()
+    (span_annotations / 'annotations.csv').write_text(
+        'user,date,profile,dye,x0,x1,peak_idx,category,version\n'
+        'Jan,2025-11-18 12:35:14,1A2_A01_01.hid,blue,2,5,3,Allele,0.2\n'
+        'Jan,2025-11-18 12:35:14,1A2_A01_01.hid,green,6,8,7,BleedThrough,0.2\n',
+        encoding='utf-8',
+    )
+
+    annotations = NFIRnDStrategy._parse_span_annotation(tmp_path, FakeSpanScalingStrategy())
+
+    annotation = annotations['1A2_A01_01']
+    assert isinstance(annotation, ScanpointAnnotation)
+    assert annotation.data.shape == (
+        FakeSpanKit.num_dyes,
+        FakeSpanScalingStrategy.scanpoint_resolution,
+    )
+    assert np.all(annotation.data[0, 2:5] == list(LabelCategory).index(LabelCategory.ALLELE))
+    assert np.all(
+        annotation.data[1, 6:8] == list(LabelCategory).index(LabelCategory.BLEED_THROUGH)
+    )
+    assert annotation.data[0, 1] == list(LabelCategory).index(LabelCategory.UNLABELED)
+
+
+def test_parse_span_annotation_merges_multiple_annotators(monkeypatch, tmp_path):
+    span_annotations = tmp_path / 'span_annotations'
+    span_annotations.mkdir()
+    (span_annotations / 'annotations.csv').write_text(
+        'user,date,profile,dye,x0,x1,peak_idx,category,version\n'
+        'Jan,2025-11-18 12:35:14,1A2_A01_01,blue,2,5,3,Allele,0.2\n'
+        'Piet,2025-11-18 12:35:14,1A2_A01_01,blue,6,8,7,Stutter,0.2\n',
+        encoding='utf-8',
+    )
+    merge_calls: list[int] = []
+
+    def fake_merge_span_annotations(span_annotations: list[np.ndarray], hid_file_name: str) -> np.ndarray:
+        merge_calls.append(len(span_annotations))
+        return np.maximum.reduce(span_annotations)
+
+    monkeypatch.setattr(
+        NFIRnDStrategy,
+        '_merge_span_annotations',
+        staticmethod(fake_merge_span_annotations),
+    )
+
+    annotations = NFIRnDStrategy._parse_span_annotation(tmp_path, FakeSpanScalingStrategy())
+
+    annotation = annotations['1A2_A01_01']
+    assert merge_calls == [2]
+    assert annotation is not None
+    assert np.all(annotation.data[0, 2:5] == list(LabelCategory).index(LabelCategory.ALLELE))
+    assert np.all(annotation.data[0, 6:8] == list(LabelCategory).index(LabelCategory.STUTTER))
