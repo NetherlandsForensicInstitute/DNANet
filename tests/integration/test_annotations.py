@@ -1,9 +1,14 @@
 """Integration tests for annotation parsing with real AlleleReport files."""
 
+import numpy as np
 import pytest
 
 from dnanet.core.panel import Panel
-from dnanet.data.strategies import PowerPlexFusion6CStrategy
+from dnanet.data.hid_dataset import HIDDataset
+from dnanet.data.image import HIDImage
+from dnanet.data.ladders.ladder import Ladder
+from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
+from dnanet.data.strategies import NFIRnDStrategy, PowerPlexFusion6CStrategy
 from tests.conftest import PANEL_PATH, RD_DIR
 
 
@@ -100,3 +105,52 @@ class TestParseCalledAlleles:
             assert marker.dye_row == expected_dye, (
                 f"{marker.name}: expected dye {expected_dye}, got {marker.dye_row}"
             )
+
+    def test_ladder_adjusted_scanpoint_annotation_matches_reference_mask(self, nfi_rnd_kit):
+        """Adjusted-panel annotations should stay aligned with the reference mask."""
+        image = HIDImage(
+            path=RD_DIR / '1A2_A01_01.hid',
+            scaling_strategy=nfi_rnd_kit,
+            load_in_memory=True,
+        )
+        assert image.data is not None
+
+        allele_report = RD_DIR / 'Dataset 1 DTH_AlleleReport.txt'
+        dth_strategy = NFIRnDStrategy(annotation_type='DTH')
+        dth_annotations = dth_strategy.parse_annotations(allele_report, nfi_rnd_kit)
+        sample_annotation = dth_annotations['1_11148_1A2']
+
+        default_scanpoint = HIDDataset._translate_allele_to_scanpoint_annotation(
+            allele_annotation=sample_annotation,
+            adjusted_panel=nfi_rnd_kit.panel,
+            scaler=image.scaler,
+            include_size_standard=False,
+            scaling_strategy=nfi_rnd_kit,
+        ).data
+
+        adjusted_panel = Ladder.create_adjusted_panel(
+            ladder_path=RD_DIR / 'Ladder_G03_21.hid',
+            catalog=LadderAlleleCatalog.from_panel(nfi_rnd_kit.panel),
+            data_loading_strategy='superior',
+            scaling_strategy=nfi_rnd_kit,
+            dataset_strategy=dth_strategy,
+        )
+        assert adjusted_panel is not None
+
+        adjusted_scanpoint = HIDDataset._translate_allele_to_scanpoint_annotation(
+            allele_annotation=sample_annotation,
+            adjusted_panel=adjusted_panel,
+            scaler=image.scaler,
+            include_size_standard=False,
+            scaling_strategy=nfi_rnd_kit,
+        ).data
+
+        reference = np.load(RD_DIR / '1A2_A01_01_annotation.npy')
+        if reference.ndim == 3:
+            reference = reference[:, :, 0]
+
+        default_diff = int(np.abs(default_scanpoint.astype(int) - reference.astype(int)).sum())
+        adjusted_diff = int(np.abs(adjusted_scanpoint.astype(int) - reference.astype(int)).sum())
+
+        assert adjusted_diff < default_diff
+        assert adjusted_diff <= 100
