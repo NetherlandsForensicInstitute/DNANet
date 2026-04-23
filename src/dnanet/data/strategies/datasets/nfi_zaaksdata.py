@@ -18,9 +18,16 @@ import itertools
 from typing import Dict, Tuple, Mapping, Sequence, Generator
 from pathlib import Path
 
+import numpy as np
 from loguru import logger
+from torch.utils.data import Subset
+from sklearn.model_selection import (
+    KFold,
+    train_test_split,
+)
 
 from dnanet.core.types import PathLike
+from dnanet.core.constants import LabelCategory
 from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
@@ -107,23 +114,15 @@ class NFICaseStrategy(DatasetStrategy):
             _run_id = _file.stem.split('_')[0]
             _annotation = annotation_mapping.get(_run_id)
 
-            _ladders = list(_file.parent.glob('*ladder*.hid', case_sensitive=False))
-            match len(_ladders):
-                case 0:
-                    _ladder = None
-                case 1:
-                    _ladder = _ladders[0]
-                case _:
-                    # logger.warning(f'Multiple ladders found, taking first: {_file.stem} -> {tuple(map(lambda x: x.stem, _ladders))}')
-                    _ladder = _ladders[0]
+            _ladder = self.find_ladder_for_sample(_file)
 
             file_statistics['Total files'] += 1
             file_statistics['Missing Annotation'] += 1 if _annotation is None else 0
-            file_statistics['Missing Ladder(s)'] += 1 if not _ladders else 0
+            file_statistics['Missing Ladder(s)'] += 1 if not _ladder else 0
 
             _allele_annotation = None
             if _annotation:
-                _allele_annotation_map = NFIRnDStrategy.parse_annotations(
+                _allele_annotation_map = self.parse_annotations(
                     _annotation, scaling_strategy=scaling_strategy
                 )
                 if _allele_annotation_map:
@@ -220,22 +219,81 @@ class NFICaseStrategy(DatasetStrategy):
                     yield from cls._scan_directory_structure_uncached(entry.path)
 
     @classmethod
-    def _split(cls, dataset, **kwargs):
-        raise NotImplementedError('Splitting not configured yet')
+    def _split(
+        cls,
+        dataset,
+        fraction: float | None = None,
+        seed: int | None = None,
+        k_folds: int | None = None,
+        test_fraction: float = .0,
+        **kwargs
+    ):
+        dataset_indices = np.arange(len(dataset.images))
+        match (fraction, k_folds):
+            # Case: only train/val split, no folds, no test fraction
+            case (float(), None) if test_fraction == .0:
+                train_idx, val_idx = train_test_split(dataset_indices, train_size=fraction, random_state=seed)
+                return Subset(dataset, train_idx), Subset(dataset, val_idx)
+            # Case: train/val/test split, no folds
+            case (float(), None):
+                train_val_idx, test_idx = train_test_split(dataset_indices, test_size=test_fraction, random_state=seed)
+                train_idx, val_idx = train_test_split(train_val_idx, train_size=fraction, random_state=seed)
+                
+                return (
+                    Subset(dataset, train_idx),
+                    Subset(dataset, val_idx),
+                    Subset(dataset, test_idx),
+                )
+            
+            # Case: K-folds without test_fraction
+            case (None, int()) if test_fraction == .0:
+                k_fold_indices = KFold(n_splits=k_folds, random_state=seed, shuffle=True).split(dataset_indices)
+                
+                return [
+                    (Subset(dataset, train), Subset(dataset, val))
+                    for train, val in k_fold_indices
+                ]
+            
+            # Case: K-Folds with test-fraction
+            case (None, int()):
+                to_be_folded, test_idx = train_test_split(dataset_indices, test_size=test_fraction)
+                k_fold_indices = KFold(n_splits=k_folds, shuffle=True, random_state=seed).split(dataset_indices)
+                
+                return [
+                    (Subset(dataset, train), Subset(dataset, val))
+                    for train, val in k_fold_indices
+                ], Subset(dataset, test_idx)
+            
+            case _:
+                raise ValueError(
+                    f'Provide either a fraction in (0, 1) or 2 <= k_folds <= len(dataset), not both. Got {fraction=}, {k_folds=}'
+                )
+        
 
     @classmethod
     def find_ladder_for_sample(
         cls, sample_path: Path, ladder_mapping: Dict[str, Path] | None = None
     ) -> Path | None:
-        return super().find_ladder_for_sample(sample_path, ladder_mapping)
+        _ladders = list(sample_path.parent.glob('*ladder*.hid', case_sensitive=False))
+        match len(_ladders):
+            case 0:
+                _ladder = None
+            case 1:
+                _ladder = _ladders[0]
+            case _:
+                # logger.warning(f'Multiple ladders found, taking first: {_file.stem} -> {tuple(map(lambda x: x.stem, _ladders))}')
+                _ladder = _ladders[0]
+        return _ladder
 
-    @staticmethod
-    def get_annotation_classes() -> list[str]:
-        pass
+    def get_annotation_classes(self) -> list[str]:
+        """Return the annotation class labels produced by this strategy."""
+        if self.annotation_type == 'span':
+            return LabelCategory.label_names()
+        return ['noise', 'allele']
 
     @classmethod
     def get_number_of_contributors(cls, file_name: str) -> int | None:
-        return super().get_number_of_contributors(file_name)
+        raise AttributeError("Casework profiles don't have a known NoC")
 
     @classmethod
     def get_sample_id(cls, file_name: str) -> str:
@@ -245,4 +303,6 @@ class NFICaseStrategy(DatasetStrategy):
     def parse_annotations(
         cls, annotation_source: str | Path, scaling_strategy: ScalingStrategy
     ) -> Mapping[str, ScanpointAnnotation | AlleleAnnotation]:
-        return super().parse_annotations(annotation_source, scaling_strategy)
+        return NFIRnDStrategy.parse_annotations(
+            annotation_source=annotation_source, scaling_strategy=scaling_strategy
+        )
