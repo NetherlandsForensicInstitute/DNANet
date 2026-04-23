@@ -259,7 +259,7 @@ def extract_peak_windows(
     marker_to_idx, _ = setup_marker_to_idx(scaling_strategy)
 
     annotation_image = image.annotation.data if image.annotation is not None else None
-    adjusted_panel = getattr(image, '_panel', None)
+    adjusted_panel = getattr(image, 'adjusted_panel', None)
 
     # OPTIMIZATION 2: Pre-compute max-pooled signals per dye (fixes Issue 3)
     max_pool_data = None
