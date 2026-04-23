@@ -16,7 +16,7 @@ from torchmetrics import MetricCollection
 if TYPE_CHECKING:
     import torch
     from torch import Tensor, nn
-    
+
 
 class BaseTaskModule(L.LightningModule, ABC):
     """Common Lightning scaffolding for DNANet training tasks.
@@ -99,7 +99,7 @@ class BaseTaskModule(L.LightningModule, ABC):
         if len(metrics) > 0:
             self.log_dict(
                 metrics,
-                prog_bar=False,
+                prog_bar=True,
                 on_step=False,
                 on_epoch=True,
                 logger=True,
