@@ -129,7 +129,7 @@ def _build_peak_data(
 
 
 def _find_marker_for_peak(
-    peak_bp: float, dye_index: int, panel: HIDImage | Panel, marker_to_idx: Dict[str, int]
+    peak_bp: float, dye_index: int, panel: Panel | None, marker_to_idx: Dict[str, int]
 ) -> tuple[str | None, int]:
     """Find the marker a peak falls within.
 
@@ -139,28 +139,18 @@ def _find_marker_for_peak(
         panel: Panel object with marker definitions.
 
     Returns:
-        ``(marker_name, marker_index)`` or ``(None, 0)`` if out of bin.
+        ``(marker_name, marker_index)`` or ``(None, 0)`` if out of bin or ``(None, -1)`` if no panel.
     """
     if panel is None:
-        return None, 0
+        return None, -1
 
-    try:
-        markers = panel.adjusted_panel if hasattr(panel, 'adjusted_panel') else panel.markers
-    except AttributeError:
-        return None, 0
-
-    for marker in markers:
-        if getattr(marker, 'dye_row', None) != dye_index:
+    for marker in panel.markers:
+        if marker.dye_row != dye_index:
             continue
 
-        # Check if peak falls within marker bin
-        alleles = getattr(marker, 'alleles', [])
-        if alleles:
-            left = min(a.left_bin for a in alleles if hasattr(a, 'left_bin'))
-            right = max(a.right_bin for a in alleles if hasattr(a, 'right_bin'))
-            if left <= peak_bp <= right:
-                name = getattr(marker, 'name', str(marker))
-                return name, marker_to_idx.get(name, 0)
+        if marker.min_bp <= peak_bp <= marker.max_bp:
+            name = marker.name
+            return name, marker_to_idx.get(name, 0)
 
     return None, 0
 
@@ -394,13 +384,24 @@ def extract_peaks_torch(
 
     peak_windows = _extract_windows_torch(x, peak_centers, window_size, include_max_pool_dyes)
 
-    marker_to_idx = scaling_strategy.marker_name_to_dye_idx()
+    marker_to_idx, _ = setup_marker_to_idx(scaling_strategy)
 
-    marker_idxs = [
-        marker_to_idx.get(adjusted_panel.get_marker_name_by_dye_and_bp(dye, bp), len(marker_to_idx))
-        for dye, bp in peak_centers.tolist()
-    ]
-    marker_idxs = torch.tensor(marker_idxs, dtype=torch.long)
+    if adjusted_panel is None:
+        marker_idxs = torch.zeros((peak_centers.shape[0],), dtype=torch.long)
+    else:
+        marker_idxs = torch.tensor(
+            [
+                marker_to_idx.get(
+                    adjusted_panel.get_marker_name_by_dye_and_bp(
+                        dye_row=dye,
+                        base_pair=float(image.scaler[scanpoint]),
+                    ),
+                    0,
+                )
+                for dye, scanpoint in peak_centers.tolist()
+            ],
+            dtype=torch.long,
+        )
 
     return peak_windows, marker_idxs, peak_centers
 

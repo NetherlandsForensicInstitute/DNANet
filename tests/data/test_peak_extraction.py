@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+import torch
 
 from tests.conftest import PANEL_PATH
 from dnanet.core.panel import Panel
@@ -99,15 +100,27 @@ class TestExtractPeakWindows:
     class MockImage:
         """Minimal HIDImage-like object for testing."""
 
-        def __init__(self, data, scaling_strategy, annotation_image=None):
+        def __init__(
+            self,
+            data,
+            scaling_strategy,
+            annotation_image=None,
+            adjusted_panel=None,
+            scaler=None,
+        ):
             self._data = data
-            self._panel = None
+            self.adjusted_panel = adjusted_panel
             self.scaling_strategy = scaling_strategy
             if annotation_image is not None:
                 self.annotation = ScanpointAnnotation(data=annotation_image)
             else:
                 self.annotation = None
-            self._scaler = np.arange(4096)
+            if scaler is not None:
+                self._scaler = scaler
+            elif data is not None:
+                self._scaler = np.arange(data.shape[1])
+            else:
+                self._scaler = np.arange(4096)
 
         @property
         def scaler(self):
@@ -149,7 +162,7 @@ class TestExtractPeakWindows:
             dataset_strategy=nfi_rnd_dataset,
         )
         for peak in peaks:
-            assert peak.data.shape == (120,)
+            assert peak.data.shape == (1, 120)
             assert peak.window_size == 120
             assert 0 <= peak.dye_index < 5
 
@@ -204,19 +217,56 @@ class TestExtractPeakWindows:
         )
         assert all(p.dye_index < 5 for p in peaks)
 
+    def test_maps_marker_index_from_marker_allele_bounds(
+        self,
+        nfi_rnd_kit,
+        nfi_rnd_dataset,
+        sample_panel,
+    ):
+        data = np.zeros((5, 4096))
+        for i in range(-20, 21):
+            data[0, 2000 + i] = max(0, 500 - abs(i) * 20)
+
+        scaler = np.zeros(4096, dtype=float)
+        scaler[2000] = 120.0
+        image = self.MockImage(
+            data,
+            nfi_rnd_kit,
+            adjusted_panel=sample_panel,
+            scaler=scaler,
+        )
+
+        peaks = extract_peak_windows(
+            image,
+            threshold=100,
+            window_size=120,
+            dataset_strategy=nfi_rnd_dataset,
+        )
+
+        d3s1358_peaks = [p for p in peaks if p.marker_name == 'D3S1358']
+        assert d3s1358_peaks
+        assert all(p.marker_index == setup_marker_to_idx(nfi_rnd_kit)[0]['D3S1358'] for p in d3s1358_peaks)
+
 
 class TestExtractPeaksTorch:
     """Tests for extract_peaks_torch."""
 
     class MockImage:
-        def __init__(self, data):
+        def __init__(self, data, adjusted_panel=None, scaler=None):
             self._data = data
-            self.adjusted_panel = Panel.from_xml(PANEL_PATH)
+            self.adjusted_panel = adjusted_panel or Panel.from_xml(PANEL_PATH)
             self.annotation = None
+            if scaler is None and data is not None:
+                scaler = np.arange(data.shape[1], dtype=float)
+            self._scaler = scaler
 
         @property
         def data(self):
             return self._data
+
+        @property
+        def scaler(self):
+            return self._scaler
 
     def test_returns_correct_shapes(self, nfi_rnd_kit):
         data = np.zeros((5, 4096))
@@ -257,3 +307,28 @@ class TestExtractPeaksTorch:
                 threshold=100,
                 window_size=120,
             )
+
+    def test_maps_marker_index_from_scaler_basepairs(self, nfi_rnd_kit, sample_panel):
+        data = np.zeros((5, 4096))
+        for i in range(-20, 21):
+            data[0, 2000 + i] = max(0, 500 - abs(i) * 20)
+
+        scaler = np.zeros(4096, dtype=float)
+        scaler[2000] = 120.0
+        image = self.MockImage(
+            data,
+            adjusted_panel=sample_panel,
+            scaler=scaler,
+        )
+
+        windows, markers, centers = extract_peaks_torch(
+            image,
+            scaling_strategy=nfi_rnd_kit,
+            threshold=100,
+            window_size=120,
+        )
+
+        assert windows.shape[0] == 1
+        assert centers.tolist() == [[0, 2000]]
+        assert markers.dtype == torch.long
+        assert markers.tolist() == [setup_marker_to_idx(nfi_rnd_kit)[0]['D3S1358']]
