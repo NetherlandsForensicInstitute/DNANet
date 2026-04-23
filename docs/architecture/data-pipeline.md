@@ -70,6 +70,13 @@ run-specific instrument drift:
 This produces an **adjusted panel** that is more accurate than the default
 XML panel for each specific electrophoresis run.
 
+## Persistent cache
+
+Parsed and pre-processed profiles are persisted to an on-disk memmap-backed
+cache so that subsequent runs only open a small index and stream single rows
+on demand. See [Dataset Caching](caching.md) for the layout, fingerprint
+invalidation, deduped sidecars, RAM guard, and the `cache-inspect` tool.
+
 ## HIDDataset Construction
 
 `HIDDataset` orchestrates the full loading pipeline:

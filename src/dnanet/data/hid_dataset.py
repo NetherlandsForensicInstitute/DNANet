@@ -1,31 +1,30 @@
-"""HIDDataset — loads HID files from disk into an InMemoryDataset.
+"""HIDDataset — lazy, cache-first dataset of forensic DNA profiles.
 
-Design pattern: **Facade**
-    ``HIDDataset`` is the single entry point for loading forensic DNA profiles
-    from a directory of HID files. It orchestrates:
-    - File discovery and filtering (via ``DatasetStrategy``)
-    - Annotation mapping (CSV lookup)
-    - Ladder loading and panel adjustment
-    - HIDImage construction with lazy data loading
-    - Filtering of invalid images
+Design pattern: **Facade + Lazy Loading**
+    ``HIDDataset`` is the single entry point for loading HID files. At
+    construction time it only builds (or validates) an on-disk memmap cache
+    and loads a lightweight index into memory. No pixel/signal data is read
+    at init. ``__getitem__`` memmaps the single requested row per call.
 
 Design pattern: **Template Method** (inherited)
-    ``split()`` and ``split_k_fold()`` are inherited from ``InMemoryDataset``
-    and can be overridden for replica-aware splitting.
+    ``DatasetStrategy.split`` operates on ``__len__`` and lightweight path
+    access via ``HIDDataset.images``, which returns stub ``HIDImage`` objects
+    with just the path populated.
 
 Usage::
-
-    from dnanet.data.strategies import NFIRnDStrategy, PowerPlexFusion6CStrategy
 
     dataset = HIDDataset(
         root="data/2p_5p_Dataset_NFI/Raw data .HID files",
         scaling_strategy=PowerPlexFusion6CStrategy(),
         dataset_strategy=NFIRnDStrategy(),
+        cache_dir="data/cache/dnanet_rd",
     )
 """
 
 from __future__ import annotations
 
+import os
+import json
 import random
 from typing import TYPE_CHECKING, Any, List, Tuple, Optional, Generator
 from pathlib import Path
@@ -35,11 +34,20 @@ from tqdm import tqdm
 from loguru import logger
 from torch.utils.data import Dataset
 
-from dnanet.data.cache import CacheMode, read_cache, compute_key, write_cache
+from dnanet.data.cache import (
+    IndexEntry,
+    MemmapCacheReader,
+    MemmapCacheWriter,
+    compute_key,
+    is_complete,
+    cache_key_dir,
+    validate_fingerprint,
+)
 from dnanet.data.image import HIDImage
 from dnanet.data.dataset import TransformableDataset
-from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
+from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.ladders.ladder import Ladder
+from dnanet.data.cache.fingerprint import build_config_payload
 from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 
@@ -47,42 +55,26 @@ from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 if TYPE_CHECKING:
     from dnanet.core.panel import Panel
     from dnanet.core.types import PathLike
+    from dnanet.core.marker import Marker
     from dnanet.data.transformer import TransformDataCallable
     from dnanet.data.strategies.scaling import ScalingStrategy
     from dnanet.data.strategies.datasets import DatasetStrategy
 
 
 class HIDDataset(Dataset, TransformableDataset):
-    """Load HID files from a directory into an in-memory dataset.
+    """Lazy, cache-backed dataset of HID profiles.
 
-    This is the primary dataset class for forensic DNA profiles. It can either load already parsed images (including
-    labels and ladders) from a cache directory or parses them from raw files. In the latter case, the following steps are taken:
-    1. Walks a root directory for ``.hid`` files
-    2. Filters to sample files (excluding ladders, controls)
-    3. Matches each sample to its annotation and best ladder
-    4. Builds an adjusted panel from the ladder
-    5. Creates ``HIDImage`` instances and filters out invalid ones
+    On construction:
+      1. A cache directory keyed by config hash is located (or created).
+      2. If the cache is complete and its stored fingerprint still matches the
+         current source files, only the index parquet is loaded.
+      3. Otherwise, source HIDs are parsed once, fully pre-processed
+         (rescaling + scanpoint annotation + optional annotation adjustment),
+         and streamed into the memmap cache.
 
-    Requires a kit scaling strategy and dataset strategy to be passed during
-    construction. The dataset strategy provides dataset-specific file
-    collection, annotations, labels, and split helpers.
-
-    Args:
-        root: Root directory containing HID files (searched recursively).
-        scaling_strategy: Strategy to be used to scale the HID images, based on kit information.
-        dataset_strategy: Strategy to be used to collect files, annotations and other dataset related settings.
-        adjustment_of_annotations: How/whether to adjust the peak annotations: ``"top"`` or ``"complete"`` peak adjustment,
-            or ``None`` to skip.
-        limit: Maximum number of images to load.
-        skip_if_invalid_ladder: If set to True, skip images whose ladder fails to parse.
-        include_size_standard: Include the 6th dye channel in the data.
-        data_loading_strategy: Determines which data columns to use when loading HID images: ``"raw"``, ``"analyzed"``,
-            or ``"superior"``.
-        transform: The transformation to be applied to the HID images.
-        load_in_memory: Whether to store the HID image data in memory.
-        cache_dir: The (optional) directory where a cache of the dataset is stored or where the cache will be written
-            to if loading from cache fails.
-        cache_mode: Whether to cache the entire data or only the object's structure: ``"full"`` or ``"shell"``.
+    At read time (``__getitem__``) three memmaps are opened lazily (once per
+    worker process) and a single row is copied out to build a fresh
+    ``HIDImage``.
     """
 
     def __init__(
@@ -90,6 +82,7 @@ class HIDDataset(Dataset, TransformableDataset):
         root: PathLike,
         scaling_strategy: ScalingStrategy,
         dataset_strategy: DatasetStrategy,
+        cache_dir: PathLike,
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
         skip_if_invalid_ladder: bool = False,
@@ -97,9 +90,10 @@ class HIDDataset(Dataset, TransformableDataset):
         include_size_standard: bool = False,
         data_loading_strategy: str = 'superior',
         transform: TransformDataCallable | None = None,
+        # When True, the cache is fully realized into RAM after build/load.
         load_in_memory: bool = False,
-        cache_dir: PathLike | None = None,
-        cache_mode: CacheMode = 'full',
+        # When True, HIDs without annotations are still cached (for eval/labeltool).
+        allow_missing_annotations: bool = False,
     ) -> None:
         super().__init__()
 
@@ -111,6 +105,7 @@ class HIDDataset(Dataset, TransformableDataset):
         self.data_loading_strategy = data_loading_strategy
         self._transform = transform
         self.load_in_memory = load_in_memory
+        self.allow_missing_annotations = allow_missing_annotations
         self._scaling = scaling_strategy
         self._dataset_strategy = dataset_strategy
         self._default_panel = self._scaling.panel
@@ -121,19 +116,48 @@ class HIDDataset(Dataset, TransformableDataset):
                 f'got {adjustment_of_annotations!r}'
             )
 
-        # When a cache dir is given, try to load from cache
-        _cache_path = (
-            self._load_cache(cache_dir=Path(cache_dir), cache_mode=cache_mode) if cache_dir else None
+        # ----- Cache discovery / build -------------------------------------
+        key = compute_key(
+            root=self.root,
+            scaling_strategy=self._scaling,
+            dataset_strategy=self._dataset_strategy,
+            data_loading_strategy=self.data_loading_strategy,
+            include_size_standard=self.include_size_standard,
+            adjustment_of_annotations=self.adjustment_of_annotations,
+            skip_if_invalid_ladder=self.skip_if_invalid_ladder,
+            allow_missing_annotations=self.allow_missing_annotations,
         )
-        # Fresh load (on cache miss or failed read)
-        if not getattr(self, '_data', None):
-            self._fresh_load(cache_path=_cache_path, cache_mode=cache_mode)
+        self._cache_dir = cache_key_dir(Path(cache_dir), key)
 
-        if limit:
-            self._data = random.sample(self._data, min(limit, len(self._data)))
-            logger.info('Limiting to {} files (random sample)', len(self._data))
+        config_payload = build_config_payload(
+            root=self.root,
+            scaling_strategy=self._scaling,
+            dataset_strategy=self._dataset_strategy,
+            data_loading_strategy=self.data_loading_strategy,
+            include_size_standard=self.include_size_standard,
+            adjustment_of_annotations=self.adjustment_of_annotations,
+            skip_if_invalid_ladder=self.skip_if_invalid_ladder,
+            allow_missing_annotations=self.allow_missing_annotations,
+        )
 
-        if len(self._data) == 0:
+        self._resolve_cache(config_payload)
+
+        self._reader = MemmapCacheReader(self._cache_dir)
+        self._index: List[IndexEntry] = self._reader.load_index()
+        self._paths: List[Path] = [Path(e.path) for e in self._index]
+
+        # ----- Optional downsample (indexes only; cache stays intact) ------
+        if limit is not None and limit < len(self._index):
+            sampled = random.sample(range(len(self._index)), limit)
+            sampled.sort()
+            self._index = [self._index[i] for i in sampled]
+            self._paths = [self._paths[i] for i in sampled]
+            self._row_remap: list[int] = sampled
+            logger.info('Limiting to {} files (random sample)', len(self._index))
+        else:
+            self._row_remap = list(range(len(self._index)))
+
+        if len(self._index) == 0:
             raise ValueError(
                 f'No valid HID images found in {self.root}. Check paths and strategy configuration.'
             )
@@ -143,101 +167,149 @@ class HIDDataset(Dataset, TransformableDataset):
             if self.transform is not None
             else 'No transform applied to samples'
         )
+        if self.load_in_memory:
+            self._load_cache_into_ram()
 
-        logger.info('Loaded {} valid HID images', len(self._data))
+        logger.info(
+            'HIDDataset ready: {} indexed samples (cache {})', len(self._index), self._cache_dir
+        )
 
-    # -- Cache and file loading -------------------------------------------- #
+    # -- In-memory materialization ---------------------------------------- #
 
-    def _load_cache(self, cache_dir: Path, cache_mode: CacheMode) -> Optional[Path]:
-        # Cache setup
-        _cache_path: Path | None = None
-        if cache_dir is not None:
-            key = compute_key(
-                root=self.root,
-                scaling_strategy=self._scaling,
-                dataset_strategy=self._dataset_strategy,
-                data_loading_strategy=self.data_loading_strategy,
-                include_size_standard=self.include_size_standard,
-                adjustment_of_annotations=self.adjustment_of_annotations,
-                skip_if_invalid_ladder=self.skip_if_invalid_ladder,
+    _RAM_BUDGET_FRACTION = 0.5  # refuse if cache exceeds this fraction of total RAM.
+
+    def _load_cache_into_ram(self) -> None:
+        """Copy the three memmaps into RAM-resident arrays, with a hard RAM guard."""
+        estimated = self._reader.memmap_bytes()
+        total_ram = self._total_ram_bytes()
+        budget = int(total_ram * self._RAM_BUDGET_FRACTION) if total_ram else 0
+
+        if budget and estimated > budget:
+            raise RuntimeError(
+                f'load_in_memory=True refused: cache would use '
+                f'{estimated / 1e9:.2f} GB which exceeds '
+                f'{self._RAM_BUDGET_FRACTION:.0%} of total RAM '
+                f'({total_ram / 1e9:.2f} GB). Set load_in_memory=False '
+                f'and stream from the memmap instead.'
             )
-            _cache_path = Path(cache_dir) / f'{key}.parquet'
 
-        # Try loading from cache
-        if _cache_path is not None and _cache_path.exists():
-            try:
-                self._data: List[HIDImage] = read_cache(
-                    _cache_path,
-                    scaling_strategy=self._scaling,
-                    mode=cache_mode,
-                    include_size_standard=self.include_size_standard,
-                    load_in_memory=self.load_in_memory,
-                )
-                logger.info('Cache hit: loaded {} images from {}', len(self._data), _cache_path)
-            except Exception as exc:
-                logger.warning('Cache read failed ({}), falling through to fresh load', exc)
-                # TODO: Do we want to remove cache if reading fails?
-                # _cache_path.unlink(missing_ok=True)
-                self._data = []
-        return _cache_path
+        logger.info('Materializing cache into RAM: ~{:.2f} GB', estimated / 1e9)
+        self._reader.materialize()
 
-    def _fresh_load(self, cache_path: Path | None, cache_mode: CacheMode):
+    @staticmethod
+    def _total_ram_bytes() -> int:
+        """Best-effort total physical RAM in bytes; 0 if not determinable."""
+        try:
+            return os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+        except (ValueError, AttributeError, OSError):
+            return 0
+
+    # -- Cache resolution -------------------------------------------------- #
+
+    def _resolve_cache(self, config_payload: dict[str, Any]) -> None:
+        """Ensure the cache for our key exists and matches current sources.
+
+        Returns the final list of source file entries (may be empty on a warm
+        cache hit). The list is only computed when needed for either
+        fingerprint validation on a hit, or a full/partial build on a miss.
+        """
+        # Collect sources. This is used for (a) fingerprint validation and
+        # (b) driving a fresh build; it's a cheap walk (stat-only).
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
-        logger.info('Found {} sample files to process', len(file_entries))
-        self._data = list(self._load_images(file_entries))
-        if cache_path is not None:
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            write_cache(cache_path, self._data, mode=cache_mode)
 
-    # -- Image loading ----------------------------------------------------- #
+        if is_complete(self._cache_dir):
+            source_paths = [e[0] for e in file_entries]
+            if validate_fingerprint(self._cache_dir, config_payload, source_paths):
+                logger.info('Cache hit: {}', self._cache_dir)
+                return
+            logger.warning('Cache fingerprint stale at {}; rebuilding', self._cache_dir)
+
+        logger.info(
+            'Building cache at {} from {} source files',
+            self._cache_dir,
+            len(file_entries),
+        )
+        self._build_cache(file_entries, config_payload)
+        return
+
+    def _build_cache(
+        self,
+        file_entries: list,
+        config_payload: dict[str, Any],
+    ) -> None:
+        source_paths = [e[0] for e in file_entries]
+        with MemmapCacheWriter(self._cache_dir) as writer:
+            resume = writer.resume_paths()
+            if resume:
+                remaining = [e for e in file_entries if str(e[0]) not in resume]
+                logger.info(
+                    'Resuming build: {} already cached, {} remaining',
+                    len(file_entries) - len(remaining),
+                    len(remaining),
+                )
+            else:
+                remaining = file_entries
+
+            for image in self._load_images(remaining):
+                if image.data is None or image.scaler is None:
+                    logger.debug('Skipping {} during cache build (no data/scaler)', image.path)
+                    continue
+                if image.annotation is None and not self.allow_missing_annotations:
+                    logger.debug('Skipping {} during cache build (no annotation)', image.path)
+                    continue
+                writer.write(image)
+            writer.finalize(config_payload, source_paths)
+
+    # -- Source → fully-preprocessed HIDImage ------------------------------ #
 
     def _load_images(
-        self, file_entries: List[Tuple[Path, Annotation | None, Path | None]]
+        self,
+        file_entries: list[Tuple[Path, Any, Path | None]],
     ) -> Generator[HIDImage, None, None]:
-        """Create HIDImage instances, loading data and filtering invalid ones."""
+        """Parse source HIDs and yield fully pre-processed HIDImages.
+
+        All heavy preprocessing (profile parsing, size-standard rescaling,
+        scaler extraction, allele→scanpoint translation, annotation
+        adjustment) happens here so the resulting image is cache-ready.
+        """
         skipped_data = 0
         skipped_alleles = 0
         skipped_ladder = 0
 
-        for path, annotation, ladder_path in tqdm(
-            file_entries,
-            desc='Loading images',
-            total=len(file_entries),
-        ):
-            if isinstance(annotation, AlleleAnnotation):
-                allele_annotation = annotation
-            else:
-                allele_annotation = None
+        for entry in tqdm(file_entries, desc='Building cache', total=len(file_entries)):
+            path: Path = entry[0]
+            annotation = entry[1]
+            ladder_path: Path | None = entry[2]
 
-            # Build adjusted panel from ladder
-            _current_panel = self._default_panel
-            if ladder_path:
+            allele_annotation: AlleleAnnotation | None = (
+                annotation if isinstance(annotation, AlleleAnnotation) else None
+            )
+
+            current_panel: Panel = self._default_panel
+            if ladder_path is not None:
                 adjusted = Ladder.create_adjusted_panel(
                     ladder_path=ladder_path,
                     catalog=LadderAlleleCatalog.from_panel(self._default_panel),
                     data_loading_strategy=self.data_loading_strategy,
                     scaling_strategy=self._scaling,
-                    dataset_strategy=self.dataset_strategy,
+                    dataset_strategy=self._dataset_strategy,
                 )
                 if adjusted:
-                    _current_panel = adjusted
+                    current_panel = adjusted
                 elif self.skip_if_invalid_ladder:
                     skipped_ladder += 1
                     continue
 
-            # Create HIDImage
             image = HIDImage(
                 path=path,
                 scaling_strategy=self._scaling,
-                adjusted_panel=_current_panel,
+                adjusted_panel=current_panel,
                 include_size_standard=self.include_size_standard,
                 data_loading_strategy=self.data_loading_strategy,
                 allele_annotation=allele_annotation,
-                load_in_memory=self.load_in_memory,
+                load_in_memory=True,  # force in-memory just long enough to write it
             )
 
-            # Trigger lazy load and validate
-            # TODO: should we always force data to be loaded from disk?
             if image.data is None:
                 skipped_data += 1
                 logger.debug('Skipping {}: no data', path.name)
@@ -246,7 +318,7 @@ class HIDDataset(Dataset, TransformableDataset):
             if isinstance(annotation, AlleleAnnotation):
                 scanpoint_annotation = self._translate_allele_to_scanpoint_annotation(
                     allele_annotation=annotation,
-                    adjusted_panel=_current_panel,
+                    adjusted_panel=current_panel,
                     scaler=image.scaler,
                     include_size_standard=self.include_size_standard,
                     scaling_strategy=self._scaling,
@@ -254,14 +326,16 @@ class HIDDataset(Dataset, TransformableDataset):
             else:
                 scanpoint_annotation = annotation
 
-            if self.adjustment_of_annotations:
+            if self.adjustment_of_annotations and scanpoint_annotation is not None:
                 scanpoint_annotation = self._adjust_annotations(
-                    [image], [scanpoint_annotation], adjustment_type=self.adjustment_of_annotations
+                    [image],
+                    [scanpoint_annotation],
+                    adjustment_type=self.adjustment_of_annotations,
                 )[0]
 
             image.annotation = scanpoint_annotation
 
-            if image.annotation is None and self.skip_if_no_annotation:
+            if image.annotation is None and not self.allow_missing_annotations:
                 skipped_alleles += 1
                 logger.debug('{}: no annotation/called alleles', path.name)
                 continue
@@ -283,40 +357,21 @@ class HIDDataset(Dataset, TransformableDataset):
         include_size_standard: bool,
         scaling_strategy: ScalingStrategy,
     ) -> ScanpointAnnotation:
-        """Translates allele annotation to scanpoint annotation.
-
-        Achieves this by finding the closest scanpoint indices for the left and right bins
-        of each allele using the provided scaler and adjusted panel. The entire allelic bin is annotated as 1.
-
-        All non-annotated scanpoints are labeled as 0, while annotated scanpoints are labeled as 1.
-        The resulting scanpoint annotation is a binary matrix of shape (num_dyes, num_scanpoints)
-
-            :param allele_annotation: AlleleAnnotation object containing the allele annotations to be translated.
-            :param adjusted_panel: Panel object containing the adjusted panel information to be used for translation.
-            :param scaler: numpy array containing the scaler values to be used for finding the closest scanpoint indices.
-            :return: ScanpointAnnotation object containing the translated scanpoint annotation.
-        """
+        """Translate allele-level annotation to a scanpoint binary mask."""
         kit_num_dyes = scaling_strategy.kit.num_dyes
 
         num_dyes = kit_num_dyes if include_size_standard else kit_num_dyes - 1
         scanpoint_annotation = np.zeros(
-            (
-                num_dyes,
-                scaling_strategy.scanpoint_resolution,
-            ),
+            (num_dyes, scaling_strategy.scanpoint_resolution),
             dtype=np.int8,
         )
         for locus in allele_annotation.data:
             for allele in locus.alleles:
-                # for each allele, find the left and right bin of the allele using the panel that has been adjusted by the corresponding ladder.
                 _, left_bin, right_bin = adjusted_panel.get_allele_basepair_and_bins(
                     locus.name, allele.name
                 )
-
-                # use the scaler to find the closest scanpoint indices for the left and right bins of the allele
                 left_scanpoint = np.argmin(np.abs(scaler - left_bin))
                 right_scanpoint = np.argmin(np.abs(scaler - right_bin))
-
                 scanpoint_annotation[locus.dye_row, left_scanpoint:right_scanpoint] = 1
 
         return ScanpointAnnotation(data=scanpoint_annotation)
@@ -328,16 +383,7 @@ class HIDDataset(Dataset, TransformableDataset):
         adjustment_type: str = 'top',
         threshold: int = 0,
     ) -> List[Optional[ScanpointAnnotation]]:
-        """Adjust the annotation of the image.
-
-        If `adjustment_type` is 'top', (by default) we label the top of the peak, instead of the
-        entire bin. If the type is 'complete', we find the entire peak and label this.
-        Note that the original image annotations are overwritten in place.
-        """
-        # TODO: This function is now called for single images, remove the loop?
-
-        # FIXME this function does not work when the annotation contains multiple classes
-
+        """Adjust annotations to mark peak tops ('top') or full peak extents ('complete')."""
         assert len(profiles) == len(annotations)
 
         for profile, annotation in zip(profiles, annotations, strict=True):
@@ -347,9 +393,8 @@ class HIDDataset(Dataset, TransformableDataset):
                 continue
 
             for dye_idx, dye_data in enumerate(profile.data):
-                # find indices of groups of positive annotations
                 _annotations = np.where(annotation.data[dye_idx] == 1)[0]
-                if _annotations.size == 0:  # no annotation present in this dye
+                if _annotations.size == 0:
                     continue
                 annotation_groups = np.split(
                     _annotations, np.where(np.diff(_annotations) != 1)[0] + 1
@@ -368,11 +413,9 @@ class HIDDataset(Dataset, TransformableDataset):
                         )
                     else:
                         if adjustment_type == 'complete':
-                            # find the boundary of the peak and annotate the range
                             start, end = find_peak_boundary(dye_data, int(peak_idx), threshold)
                             annotation.data[dye_idx, np.arange(start, end + 1)] = 1.0
                         elif adjustment_type == 'top':
-                            # label only the top of the peak
                             annotation.data[dye_idx, peak_idx] = 1.0
                         else:
                             raise ValueError(
@@ -382,34 +425,92 @@ class HIDDataset(Dataset, TransformableDataset):
                             )
         return annotations
 
+    # -- Properties -------------------------------------------------------- #
+
     @property
     def transform(self) -> TransformDataCallable | None:
         return self._transform
 
     @property
     def images(self) -> List[HIDImage]:
-        """Protected property for the list of HIDImages in the dataset."""
-        return self._data
+        """Lightweight stub images exposing just ``.path`` for split logic.
+
+        Full ``HIDImage`` objects are only materialized by ``__getitem__``.
+        """
+        return [self._stub_image(i) for i in range(len(self._index))]
 
     @property
     def dataset_strategy(self) -> DatasetStrategy:
-        """Protected property for the dataset strategy."""
         return self._dataset_strategy
 
-    # -- Dunder ----------------------------------------------------------- #
+    # -- Dunder ------------------------------------------------------------ #
 
     def __len__(self) -> int:
-        """Length of the dataset."""
-        return len(self._data)
+        return len(self._index)
 
     def __repr__(self) -> str:
-        """String representation of the dataset, containing the root path and length."""
-        return f'HIDDataset(root={self.root.name}, n={len(self._data)})'
+        return f'HIDDataset(root={self.root.name}, n={len(self._index)})'
 
     def __getitem__(self, index: int) -> Any:
-        item = self._data[index]
+        entry = self._index[index]
+        row = self._row_remap[index]
+
+        data, annotation_arr, scaler = self._reader.get_row(row)
+
+        image = self._materialize(entry, data, annotation_arr, scaler)
 
         if self._transform:
-            item = self._transform(item)
+            return self._transform(image)
+        return image
 
-        return item
+    # -- Internal helpers -------------------------------------------------- #
+
+    def _stub_image(self, idx: int) -> HIDImage:
+        """Empty HIDImage with only ``.path`` set, for split-logic consumers."""
+        entry = self._index[idx]
+        return HIDImage(
+            path=entry.path,
+            scaling_strategy=self._scaling,
+            include_size_standard=self.include_size_standard,
+            load_in_memory=False,
+        )
+
+    def _materialize(
+        self,
+        entry: IndexEntry,
+        data: np.ndarray,
+        annotation_arr: np.ndarray,
+        scaler: np.ndarray,
+    ) -> HIDImage:
+        """Build a full HIDImage from cache arrays + sidecar JSON metadata."""
+        from dnanet.core.panel import Panel
+        from dnanet.core.marker import Marker
+
+        allele_json = self._reader.allele_json(entry.allele_key)
+        allele_annotation: AlleleAnnotation | None = None
+        if allele_json:
+            markers: list[Marker] = [Marker.from_dict(d) for d in json.loads(allele_json)]
+            allele_annotation = AlleleAnnotation(data=markers)
+
+        panel_json = self._reader.panel_json(entry.panel_key)
+        adjusted_panel: Panel | None = None
+        if panel_json:
+            adjusted_panel = Panel(
+                markers=tuple(Marker.from_dict(d) for d in json.loads(panel_json))
+            )
+
+        meta = json.loads(entry.meta_json) if entry.meta_json else {}
+
+        image = HIDImage(
+            path=entry.path,
+            scaling_strategy=self._scaling,
+            adjusted_panel=adjusted_panel,
+            include_size_standard=self.include_size_standard,
+            allele_annotation=allele_annotation,
+            load_in_memory=False,
+            meta=meta,
+        )
+        image._data = data
+        image._scaler = scaler
+        image.annotation = ScanpointAnnotation(data=annotation_arr) if entry.has_annotation else None
+        return image
