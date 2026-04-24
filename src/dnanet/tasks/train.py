@@ -86,6 +86,11 @@ def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
             experiment_name=mlflow_cfg.get('experiment_name', 'dnanet'),
             tracking_uri=mlflow_cfg.get('tracking_uri', 'mlruns'),
             log_model=mlflow_cfg.get('log_model', False),
+            tags={
+                'model' : cfg.get('model', {}).get('name', 'Unknown'),
+                'data': cfg.data.get('name', 'Unknown'),
+                'task': cfg.get('train', {}).get('type', 'Unknown'),
+            }
         )
     elif logger_type == 'tensorboard':
         return L.pytorch.loggers.TensorBoardLogger(
