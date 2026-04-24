@@ -1,9 +1,14 @@
 # Per-dye Conv1d autoencoder for EPG reconstruction
 name: autoencoder
 
+# preprocessing
+autoencoder_log_scale: true
+autoencoder_max_rfu: 33000
+num_dyes: 6
+
 architecture:
   _target_: dnanet.models.autoencoder.PerDyeConv1dAutoencoder
-  in_channels: 5
+  in_channels: ${model.num_dyes}
   hidden_channels: 64
   depth: 3
   input_length: 4096

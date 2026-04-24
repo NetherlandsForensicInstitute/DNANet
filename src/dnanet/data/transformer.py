@@ -80,6 +80,8 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
     threshold: int = 25
     window_size: int = 120
     include_max_pool_dyes: bool = False
+    autoencoder_log_scale: bool = True
+    autoencoder_max_rfu: int | None = None
 
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = image.data
@@ -90,8 +92,6 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         else:
             data_2d = data
 
-        full_image = torch.tensor(data_2d, dtype=torch.float32)
-
         # Extract peaks as tensors
         peak_windows, marker_idxs, peak_centers = extract_peaks_torch(
             image,
@@ -101,6 +101,10 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
             include_max_pool_dyes=self.include_max_pool_dyes,
         )
         n_peaks = peak_windows.shape[0]
+
+        ## preprocess image for autoencoder
+        full_image = torch.tensor(data_2d, dtype=torch.float32)
+        full_image = scale_rfu_torch(full_image, log_scale=self.autoencoder_log_scale, max_rfu=self.autoencoder_max_rfu)
 
         # Target: per-position annotation (D, L)
         if image.annotation is not None:
@@ -150,8 +154,8 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
 @dataclass(frozen=True)
 class ReconstructionTransformer(TransformDataCallable[HIDImage]):
     n_dyes: int = 5
-    log_scale: bool = True
-    max_rfu: int | None = None
+    autoencoder_log_scale: bool = True
+    autoencoder_max_rfu: int | None = None
 
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = image.data
@@ -165,7 +169,7 @@ class ReconstructionTransformer(TransformDataCallable[HIDImage]):
         data_2d = data_2d[: self.n_dyes]
 
         raw = torch.tensor(data_2d, dtype=torch.float32)
-        preprocessed = scale_rfu_torch(raw, self.log_scale, self.max_rfu)
+        preprocessed = scale_rfu_torch(raw, self.autoencoder_log_scale, self.autoencoder_max_rfu)
 
         # Input is preprocessed, target is the raw data (loss in
         # non-preprocessed space; inverse scaling is done in the
@@ -192,7 +196,7 @@ class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
         target = torch.tensor(annotation_idx, dtype=torch.long)
 
         if self.include_marker:
-            marker_idx = self.scaling_strategy.marker_to_idx[peak.marker_name]
+            marker_idx = peak.marker_index
             marker_tensor = torch.tensor([marker_idx], dtype=torch.long)
             inputs = (peak_tensor, marker_tensor)
         else:
