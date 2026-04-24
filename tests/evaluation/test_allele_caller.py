@@ -92,7 +92,7 @@ class TestNearestBasePairCaller:
     def test_allele_name_resolution(self, simple_panel, scaler, signal_image):
         caller = NearestBasePairCaller(threshold=0.5)
         pred = np.zeros((2, 300), dtype=float)
-        pred[0, 99:101] = 1.0  # centered around bp=100 -> allele "10"
+        pred[0, 100:102] = 1.0  # centered around bp=101 -> allele "10"
 
         markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
         marker_a = [m for m in markers if m.name == "MarkerA"][0]
@@ -102,7 +102,7 @@ class TestNearestBasePairCaller:
     def test_rfu_extraction(self, simple_panel, scaler, signal_image):
         caller = NearestBasePairCaller(threshold=0.5)
         pred = np.zeros((2, 300), dtype=float)
-        pred[0, 98:102] = 1.0
+        pred[0, 100:102] = 1.0
 
         markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
         marker_a = [m for m in markers if m.name == "MarkerA"][0]
@@ -190,3 +190,41 @@ class TestNearestBasePairCaller:
         markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
         assert isinstance(markers, tuple)
         assert all(isinstance(m, Marker) for m in markers)
+
+    def test_call_ob_peaks(self, simple_panel, scaler, signal_image):
+        caller = NearestBasePairCaller()
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 95:98] = 1.0
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+
+        assert len(markers) == 1
+
+        called_alleles = [a for a in markers[0].alleles]
+        assert len(called_alleles) == 1
+        assert called_alleles[0].name == "OB"
+
+    def test_call_multiple_ob_peaks(self, simple_panel, scaler, signal_image):
+        caller = NearestBasePairCaller()
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 95:98] = 1.0
+        pred[1, 10:20] = 1.0
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+        assert len(markers) == 2
+
+        called_alleles = [a.name for m in markers for a in m.alleles]
+        assert len(called_alleles) == 2
+        assert len(set(called_alleles)) == 1
+
+    def test_no_dye_mapping(self, simple_panel, scaler):
+        signal_image = np.zeros((3, 300), dtype=float)
+        signal_image[2, 98:102] = 500
+
+        caller = NearestBasePairCaller(threshold=0.5)
+        pred = np.zeros((3, 300), dtype=float)
+        pred[2, 100:102] = 1.0
+
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+        assert len(markers) == 1
+        called_alleles = [a.name for m in markers for a in m.alleles]
+        assert len(called_alleles) == 1
+        assert called_alleles[0] == "Unknown"

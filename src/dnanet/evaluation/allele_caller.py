@@ -58,9 +58,11 @@ class NearestBasePairCaller(AlleleCaller):
     """Call alleles by nearest base-pair matching.
 
     For each connected component of positive predictions:
-    1. Compute the mean base-pair position (via the scaler).
+    1. Compute the base-pair position of the highest rfu value of the prediction (via the scaler).
     2. Find the closest allele in the panel for that dye channel.
-    3. Record the peak height (max RFU in the component).
+    3. Check whether the base pair of the highest rfu and the base pair of the closest allele differ
+    at most 0.3 base pairs. If not, regard the prediction as Out of Bin (OB) peak.
+    4. Record the peak height (max RFU in the component).
 
     Args:
         threshold: Probability threshold for positive predictions.
@@ -110,7 +112,7 @@ class NearestBasePairCaller(AlleleCaller):
             scaler = scaler[np.newaxis, :]
 
         loci_dict: dict[tuple[int, str], set[tuple[str, float]]] = defaultdict(set)
-        rfus: dict[tuple[str, str], int] = defaultdict(int)
+        rfus: dict[tuple[str, str, float], int] = defaultdict(int)
 
         for dye_index, dye_pred in enumerate(prediction_image):
             positives = np.where(dye_pred >= self.threshold)[0]
@@ -125,24 +127,27 @@ class NearestBasePairCaller(AlleleCaller):
             )
 
             for prediction_bin in predicted_bins:
-                bin_basepairs = scaler[:, prediction_bin]
-                bin_start, bin_end = np.min(bin_basepairs), np.max(bin_basepairs)
+                bin_basepairs = scaler[:, prediction_bin]  # Use the scaler to translate pixels to base pairs.
+                bin_rfus = signal_image[dye_index, prediction_bin]  # Find the rfu values inside the predicted bin.
+                bp_max_rfu = float(bin_basepairs[:, np.argmax(bin_rfus)][0])  # Find the base pair of the highest rfu.
 
-                mean_bp = float(np.mean(bin_basepairs))
                 marker_name, allele_name = self._get_nearest_allele(
-                    dye_index, mean_bp, panel,
+                    dye_index, bp_max_rfu, panel,
                 )
-                _, allele_start, allele_end = panel.get_allele_basepair_and_bins(marker_name, allele_name)
-                if not (bin_start >= allele_start and bin_end <= allele_end):
-                    # Predicted bin does not fall inside matched allele bin, therefore set name to "Out of Bin".
+                allele_bp, _, _ = panel.get_allele_basepair_and_bins(marker_name, allele_name)
+                if allele_name!= "Unknown" and abs(allele_bp - bp_max_rfu) > 0.3:
+                    # Distance between the base pair of highest rfu and the base pair of the closest allele is too big,
+                    # therefore set allele name to "Out of Bin".
                     allele_name = "OB"
-                # Also store the mean_bp the allele was found on, as we may find multiple "OB" peaks.
-                loci_dict[(dye_index, marker_name)].add((allele_name, mean_bp))
+
+                # Store the allele_name and also the mean_bp the allele was found on, as we may find multiple "OB"
+                # peaks on different locations.
+                loci_dict[(dye_index, marker_name)].add((allele_name, bp_max_rfu))
 
                 # Track highest RFU for this allele
-                max_rfu = int(np.max(signal_image[dye_index, prediction_bin]))
-                rfus[(marker_name, allele_name)] = max(
-                    rfus[(marker_name, allele_name)], max_rfu,
+                max_rfu = int(np.max(bin_rfus))
+                rfus[(marker_name, allele_name, bp_max_rfu)] = max(
+                    rfus[(marker_name, allele_name, bp_max_rfu)], max_rfu,
                 )
 
         return tuple(
@@ -150,7 +155,7 @@ class NearestBasePairCaller(AlleleCaller):
                 name=marker_name,
                 dye_row=dye_index,
                 alleles=frozenset(
-                    Allele(name=allele_name, height=rfus[(marker_name, allele_name)], base_pair=bp)
+                    Allele(name=allele_name, height=rfus[(marker_name, allele_name, bp)], base_pair=bp)
                     for allele_name, bp in sorted(alleles)
                 ),
             )
@@ -163,11 +168,12 @@ class NearestBasePairCaller(AlleleCaller):
         base_pair: float,
         panel: Panel,
     ) -> tuple[str, str]:
-        """Find the nearest allele in the panel for a given dye and base-pair.
+        """Find the nearest allele in the panel for a given dye and base-pair and returns its allele name and
+        marker name. If no alleles can be found, return 'Unknown' for both names.
 
         Args:
             dye_index: 0-based dye channel index.
-            base_pair: Mean base-pair position of the predicted region.
+            base_pair: Base-pair position of the predicted region.
             panel: Reference panel.
 
         Returns:
@@ -175,6 +181,7 @@ class NearestBasePairCaller(AlleleCaller):
         """
         dye_mapping = panel.dye_bp_to_allele_mapping.get(dye_index, {})
         if not dye_mapping:
+            logger.error("No dye mapping available for dye row {}", dye_index)
             return "Unknown", "Unknown"
 
         nearest_bp = min(dye_mapping.keys(), key=lambda k: abs(k - base_pair))
