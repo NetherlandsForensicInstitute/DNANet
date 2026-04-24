@@ -2,7 +2,7 @@
 
 import pytest
 
-from dnanet.data.splitting import split_data_in_k_folds
+
 
 
 class TestSplitKFolds:

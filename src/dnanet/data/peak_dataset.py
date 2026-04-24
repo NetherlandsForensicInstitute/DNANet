@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, List, Iterator
 
 from loguru import logger
-from torch.utils.data import IterableDataset
+from torch.utils.data import IterableDataset, get_worker_info
 
 from dnanet.data.dataset import TransformableDataset
 from dnanet.data.preprocessing.baseline import fft_lowpass_smooth
@@ -105,7 +105,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
     @classmethod
     def from_hid_dataset(cls, base_dataset: HIDDataset, **kwargs):
         """Create a PeakWindowDataset backed by cached HID rows."""
-        return cls.__init__(
+        return cls(
             dataset_strategy=base_dataset.dataset_strategy,
             base_dataset=base_dataset,
             transform=base_dataset.transform,
