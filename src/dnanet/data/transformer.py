@@ -102,6 +102,8 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         )
         n_peaks = peak_windows.shape[0]
 
+        # TODO: preprocess peaks and image
+
         # Target: per-position annotation (D, L)
         if image.annotation is not None:
             ann = image.annotation.data
