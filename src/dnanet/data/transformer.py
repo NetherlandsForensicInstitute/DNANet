@@ -106,6 +106,8 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         full_image = torch.tensor(data_2d, dtype=torch.float32)
         full_image = scale_rfu_torch(full_image, log_scale=self.autoencoder_log_scale, max_rfu=self.autoencoder_max_rfu)
 
+        # TODO: preprocess peaks
+
         # Target: per-position annotation (D, L)
         if image.annotation is not None:
             ann = image.annotation.data
