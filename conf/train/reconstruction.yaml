@@ -3,10 +3,10 @@ type: reconstruction
 
 max_epochs: 150
 batch_size: 16
-learning_rate: 0.001
+learning_rate: 0.0001
 weight_decay: 0.0
 num_workers: 7
-val_fraction: 0.2
+val_fraction: 0.1
 test_fraction: 0.0
 seed: 42
 
@@ -22,10 +22,10 @@ optimizer:
   weight_decay: ${train.weight_decay}
 
 # No LR scheduler by default for reconstruction
-scheduler:
-  _target_: torch.optim.lr_scheduler.ExponentialLR
-  gamma: 1.0  # effectively disabled
-  optimizer: ${train.optimizer}
+#scheduler:
+#  _target_: torch.optim.lr_scheduler.ExponentialLR
+#  gamma: 1.0  # effectively disabled
+#  optimizer: ${train.optimizer}
 
 # No early stopping by default (long training benefits AE)
 # early_stopping:

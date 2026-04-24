@@ -9,9 +9,9 @@ num_dyes: 6
 architecture:
   _target_: dnanet.models.autoencoder.PerDyeConv1dAutoencoder
   in_channels: ${model.num_dyes}
+  input_length: ${data.dataset.scaling_strategy.scanpoint_resolution}
   hidden_channels: 64
-  depth: 3
-  input_length: 4096
+  depth: 4
   kernel_size: 5
   compression: 8
   use_sigmoid: true
