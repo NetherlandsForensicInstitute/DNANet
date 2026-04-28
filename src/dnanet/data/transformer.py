@@ -180,22 +180,14 @@ class ReconstructionTransformer(TransformDataCallable[HIDImage]):
 
 @dataclass(frozen=True)
 class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
-    scaling_strategy: ScalingStrategy
-    dataset_strategy: DatasetStrategy
     include_marker: bool = True
-
 
     def __call__(self, peak: ExtractedPeak) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = peak.data
 
         peak_tensor = torch.tensor(data, dtype=torch.float32)
 
-        # noinspection PyTypeChecker
-        ann_label: str = peak.annotation.data
-        annotation_to_idx = {
-            name: idx for idx, name in enumerate(self.dataset_strategy.get_annotation_classes())
-        }
-        annotation_idx = annotation_to_idx[ann_label]
+        annotation_idx = peak.annotation_idx
         target = torch.tensor(annotation_idx, dtype=torch.long)
 
         if self.include_marker:
