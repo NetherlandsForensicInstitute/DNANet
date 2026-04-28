@@ -7,7 +7,7 @@ dataset:
   root: data/2p_5p_Dataset_NFI
   scaling_strategy: ${data.scaling_strategy}
   dataset_strategy: ${data.dataset_strategy}
-  limit: 50  # Set to integer to limit number of loaded images
+  limit: null  # Set to integer to limit number of loaded images
   skip_if_invalid_ladder: true
   include_size_standard: true
   data_loading_strategy: superior  # raw, analyzed, or superior
