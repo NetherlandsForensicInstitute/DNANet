@@ -21,7 +21,7 @@ defaults:
   - override hydra/job_logging: disabled
 
 # -- Global settings --
-task: evaluate          # One of: train, evaluate, cross_validate
+task: train          # One of: train, evaluate, cross_validate
 seed: 42
 output_dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
 verbosity: INFO      # Logging level: DEBUG, INFO, WARNING, ERROR

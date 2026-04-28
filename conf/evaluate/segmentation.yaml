@@ -25,7 +25,7 @@ metrics:
 lightning_module: dnanet.modules.segmentation.SegmentationModule
 
 allele_caller:
-  _target_: dnanet.evaluation.allele_calling.allele_caller.NearestBasePairCaller
+  _target_: dnanet.evaluation.allele_caller.NearestBasePairCaller
   threshold: 0.5
   exclude_non_autosomal: true
 
