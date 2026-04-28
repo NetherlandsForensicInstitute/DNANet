@@ -47,6 +47,7 @@ class ExtractedPeak(TrainableElement):
         "window_size",
         "peak_height",
         "label",
+        "annotation_idx",
         "marker_name",
         "marker_index",
         "peak_basepair",
@@ -61,6 +62,7 @@ class ExtractedPeak(TrainableElement):
         window_size: int,
         peak_height: float,
         label: str | None = None,
+        annotation_idx: int | None = None,
         marker_name: str | None = None,
         peak_basepair: float | None = None,
         marker_index: int = -1,
@@ -71,6 +73,7 @@ class ExtractedPeak(TrainableElement):
         self.window_size = window_size
         self.peak_height = float(peak_height)
         self.label = label
+        self.annotation_idx = annotation_idx
         self.marker_name = marker_name
         self.marker_index = marker_index
         self.peak_basepair = peak_basepair

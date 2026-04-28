@@ -274,6 +274,10 @@ def extract_peak_windows(
             constant_values=0,
         )
 
+    annotation_to_idx = {
+        name: idx for idx, name in enumerate(dataset_strategy.get_annotation_classes())
+    }
+
     peaks: list[ExtractedPeak] = []
 
     # Flattened loop with faster slice extraction
@@ -311,7 +315,8 @@ def extract_peak_windows(
                 peak_data[0] = padded_data[dye_index, start_padded:end_padded]
                 peak_data[1] = padded_max_pool[dye_index, start_padded:end_padded]
             else:
-                peak_data = padded_data[dye_index, start_padded:end_padded]
+                peak_data = np.empty((1, window_size), dtype=data.dtype)
+                peak_data[0] = padded_data[dye_index, start_padded:end_padded]
 
             # Use cached marker_to_idx
             peak_marker_name, peak_marker_index = _find_marker_for_peak(
@@ -319,7 +324,8 @@ def extract_peak_windows(
             )
 
             # Fast annotation check without function call overhead
-            peak_label = _label_peak_from_annotation_fast(ann_channel, peak_scanpoint, padding=2, dataset_strategy=dataset_strategy)
+            peak_annotation = _label_peak_from_annotation_fast(ann_channel, peak_scanpoint, padding=2, dataset_strategy=dataset_strategy)
+            peak_annotation_idx = annotation_to_idx[peak_annotation]
 
             peaks.append(
                 ExtractedPeak(
@@ -329,7 +335,8 @@ def extract_peak_windows(
                     peak_basepair=peak_basepair,
                     window_size=window_size,
                     peak_height=peak_height,
-                    label=peak_label,
+                    label=peak_annotation,
+                    annotation_idx=peak_annotation_idx,
                     marker_name=peak_marker_name,
                     marker_index=peak_marker_index,
                 )

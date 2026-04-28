@@ -39,7 +39,6 @@ optimizer:
 scheduler:
   _target_: torch.optim.lr_scheduler.ExponentialLR
   gamma: 0.8
-  optimizer: ${train.optimizer}
 
 # Early stopping
 early_stopping:
@@ -63,7 +62,6 @@ lightning_module:
   weight_decay: ${train.weight_decay}
   threshold: ${train.threshold}
   loss_fn: ${model.loss}
-  scheduler: ${train.scheduler}
   metrics: ${train.metrics}
 
 data_module:

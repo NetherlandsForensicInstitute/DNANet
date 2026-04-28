@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import lightning as L
-from tqdm import tqdm
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
@@ -199,7 +198,7 @@ def run(
         cfg.train.lightning_module,
         model=network,
         optimizer=optimizer,
-        scheduler=scheduler,
+        lr_scheduler=scheduler,
         _convert_='partial' # convert OmegaDict to standard dict since this is not a supported type for instantiating
     )
 
