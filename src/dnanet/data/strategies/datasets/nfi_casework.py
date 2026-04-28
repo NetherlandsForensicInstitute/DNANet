@@ -92,6 +92,7 @@ class NFICaseStrategy(DatasetStrategy):
         self,
         root_path: str | Path,
         scaling_strategy: ScalingStrategy,
+        folder_cache: bool = True,
     ) -> Generator[
         Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
     ]:
@@ -99,7 +100,11 @@ class NFICaseStrategy(DatasetStrategy):
 
         # Collect all .HID files from the robot folders
         hids_folder = path / 'hids'
-        robots = self.find_robot_files(hids_folder, self._robot_selection)
+        robots = self.find_robot_files(
+            hids_folder,
+            self._robot_selection,
+            cache=folder_cache,
+        )
 
         # Collect all annotation .txt/.csv files and map from run_id -> annotation file
         annotations_folder = path / 'annotations'
@@ -161,6 +166,7 @@ class NFICaseStrategy(DatasetStrategy):
         robots_folder: Path,
         selected_robots: Sequence[str] | None = None,
         robot_limit: int | None = None,
+        cache: bool = True,
     ) -> Generator[Path, None, None]:
         """Collect all files in the robot's casework folders.
 
@@ -178,7 +184,7 @@ class NFICaseStrategy(DatasetStrategy):
             if not robot_folder.exists():
                 continue
             logger.info(f'Retrieving files from {robot_name}')
-            yield from itertools.islice(cls._scan_directory_structure(robot_folder), robot_limit)
+            yield from itertools.islice(cls._scan_directory_structure(robot_folder, cache=cache), robot_limit)
 
     @classmethod
     def find_annotation_files(cls, annotations_folder: Path):
@@ -257,7 +263,7 @@ class NFICaseStrategy(DatasetStrategy):
             # Case: K-Folds with test-fraction
             case (None, int()):
                 to_be_folded, test_idx = train_test_split(dataset_indices, test_size=test_fraction)
-                k_fold_indices = KFold(n_splits=k_folds, shuffle=True, random_state=seed).split(dataset_indices)
+                k_fold_indices = KFold(n_splits=k_folds, shuffle=True, random_state=seed).split(to_be_folded)
                 
                 return [
                     (Subset(dataset, train), Subset(dataset, val))

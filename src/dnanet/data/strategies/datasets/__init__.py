@@ -3,7 +3,7 @@
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 from dnanet.data.strategies.datasets.provedit import ProvedItStrategy
-from dnanet.data.strategies.datasets.nfi_zaaksdata import NFICaseStrategy
+from dnanet.data.strategies.datasets.nfi_casework import NFICaseStrategy
 
 
 __all__ = [
