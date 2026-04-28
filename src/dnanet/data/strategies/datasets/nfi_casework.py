@@ -295,7 +295,7 @@ class NFICaseStrategy(DatasetStrategy):
             case 1:
                 _ladder = _ladders[0]
             case _:
-                # logger.warning(f'Multiple ladders found, taking first: {_file.stem} -> {tuple(map(lambda x: x.stem, _ladders))}')
+                logger.trace(f'Multiple ladders found, taking first: {sample_path.stem} -> {tuple(map(lambda x: x.stem, _ladders))}')
                 _ladder = _ladders[0]
         return _ladder
 
