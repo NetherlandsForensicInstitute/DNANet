@@ -452,12 +452,7 @@ class HIDDataset(Dataset, TransformableDataset):
         return f'HIDDataset(root={self.root.name}, n={len(self._index)})'
 
     def __getitem__(self, index: int) -> Any:
-        entry = self._index[index]
-        row = self._row_remap[index]
-
-        data, annotation_arr, scaler = self._reader.get_row(row)
-
-        image = self._materialize(entry, data, annotation_arr, scaler)
+        image = self.get_image(index)
 
         if self._transform:
             return self._transform(image)
@@ -474,6 +469,17 @@ class HIDDataset(Dataset, TransformableDataset):
             include_size_standard=self.include_size_standard,
             load_in_memory=False,
         )
+
+    def get_stub_image(self, index: int) -> HIDImage:
+        """Return a lightweight image object with only split metadata populated."""
+        return self._stub_image(index)
+
+    def get_image(self, index: int) -> HIDImage:
+        """Materialize a single cached HID image without applying transforms."""
+        entry = self._index[index]
+        row = self._row_remap[index]
+        data, annotation_arr, scaler = self._reader.get_row(row)
+        return self._materialize(entry, data, annotation_arr, scaler)
 
     def _materialize(
         self,

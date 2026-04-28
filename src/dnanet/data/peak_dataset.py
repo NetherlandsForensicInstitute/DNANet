@@ -17,12 +17,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List, Iterator
 
-from torch.utils.data import IterableDataset
+from loguru import logger
+from torch.utils.data import IterableDataset, get_worker_info
 
 from dnanet.data.dataset import TransformableDataset
 from dnanet.data.preprocessing.baseline import fft_lowpass_smooth
 from dnanet.data.preprocessing.peak_extraction import extract_peak_windows
 from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
+from tqdm import tqdm
 
 if TYPE_CHECKING:
     from dnanet.data.image import HIDImage
@@ -49,12 +51,15 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         smooth_keep_factor: FFT smoothing keep fraction (None to skip).
         log_scale: Apply log1p scaling during preprocessing.
         max_rfu_value: Max RFU for normalization (None to skip).
+        load_in_memory: Eagerly extract and cache all peaks at init time.
     """
 
     def __init__(
         self,
-        images: List[HIDImage],
         dataset_strategy: DatasetStrategy,
+        images: List[HIDImage] | None = None,
+        base_dataset: HIDDataset | None = None,
+        image_indices: List[int] | None = None,
         transform: TransformDataCallable | None = None,
         threshold: float = 40,
         window_size: int = 120,
@@ -63,11 +68,20 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         smooth_keep_factor: float | None = 0.4,
         log_scale: bool = True,
         max_rfu_value: int | None = RFU_MAX_VALUE,
-        # TODO: add load_in_memory option
+        load_in_memory: bool = False,
+        _cached_peak_lists: list[list[ExtractedPeak]] | None = None,
     ) -> None:
         super().__init__()
 
+        if (images is None) == (base_dataset is None):
+            raise ValueError('Provide exactly one of `images` or `base_dataset`.')
+
         self._images = images
+        self._base_dataset = base_dataset
+        if image_indices is None:
+            source_len = len(images) if images is not None else len(base_dataset)  # type: ignore[arg-type]
+            image_indices = list(range(source_len))
+        self._image_indices = list(image_indices)
         self._transform = transform
         self._dataset_strategy = dataset_strategy
         self.threshold = threshold
@@ -80,32 +94,98 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         self.smooth_keep_factor = smooth_keep_factor
         self.log_scale = log_scale
         self.max_rfu_value = max_rfu_value
+        self.load_in_memory = load_in_memory
+        self._cached_peak_lists = None
+
+        if self.load_in_memory:
+            self._cached_peak_lists = (
+                _cached_peak_lists if _cached_peak_lists is not None else self._materialize_peaks()
+            )
 
     @classmethod
     def from_hid_dataset(cls, base_dataset: HIDDataset, **kwargs):
-        """Create a PeakWindowDataset based on a HIDDataset's images and transform."""
-        return cls.__init__(
-            images=base_dataset.images,
+        """Create a PeakWindowDataset backed by cached HID rows."""
+        return cls(
             dataset_strategy=base_dataset.dataset_strategy,
+            base_dataset=base_dataset,
             transform=base_dataset.transform,
             **kwargs
         )
 
     def _iterate_peaks(self) -> Iterator[ExtractedPeak]:
         """Extract and optionally preprocess peaks from all images."""
-        for image in self._images:
-            peaks = extract_peak_windows(
-                image,
-                threshold=self.threshold,
-                window_size=self.window_size,
-                include_max_pool_dyes=self.include_max_pool_dyes,
-                dataset_strategy=self.dataset_strategy
-            )
+        for image in self._iter_worker_images():
+            yield from self._extract_peaks(image)
 
-            for peak in peaks:
-                if self.preprocess:
-                    self._preprocess_peak(peak)
-                yield peak
+    def _extract_peaks(self, image: HIDImage) -> Iterator[ExtractedPeak]:
+        """Extract peaks from one image and apply optional preprocessing."""
+        peaks = extract_peak_windows(
+            image,
+            threshold=self.threshold,
+            window_size=self.window_size,
+            include_max_pool_dyes=self.include_max_pool_dyes,
+            dataset_strategy=self.dataset_strategy
+        )
+
+        for peak in peaks:
+            if self.preprocess:
+                self._preprocess_peak(peak)
+            yield peak
+
+    def _materialize_peaks(self) -> list[list[ExtractedPeak]]:
+        """Eagerly extract peaks for each image in this dataset."""
+        logger.info("Eagerly extracting peaks for all images...")
+        return [
+            list(self._extract_peaks(self._materialize_image(index)))
+            for index in tqdm(self._image_indices, desc='Extracting peaks', unit='image')
+        ]
+
+    def _materialize_image(self, index: int) -> HIDImage:
+        if self._base_dataset is not None:
+            return self._base_dataset.get_image(index)
+        assert self._images is not None
+        return self._images[index]
+
+    def _worker_image_indices(self) -> List[int]:
+        """Return the image indices assigned to the current DataLoader worker.
+
+        ``get_worker_info()`` returns ``None`` when the dataset is iterated in
+        the main process. When used through a multi-worker DataLoader, it
+        returns the current worker's zero-based ``id`` and total
+        ``num_workers``. We use stride slicing to shard the work so worker 0
+        gets indices ``[0, n, 2n, ...]``, worker 1 gets ``[1, n + 1, ...]``,
+        and so on.
+        """
+        worker_info = get_worker_info()
+        if worker_info is None:
+            return self._image_indices
+        return self._image_indices[worker_info.id::worker_info.num_workers]
+
+    def _iter_worker_images(self) -> Iterator[HIDImage]:
+        """Yield only the images needed by the current worker."""
+        for index in self._worker_image_indices():
+            yield self._materialize_image(index)
+
+    def _worker_images(self) -> List[HIDImage]:
+        """Return the worker shard as a list of materialized images."""
+        return list(self._iter_worker_images())
+
+    def _iter_worker_peak_lists(self) -> Iterator[list[ExtractedPeak]]:
+        """Yield the cached peak lists assigned to the current worker.
+
+        This mirrors :meth:`_worker_image_indices` so the cached peak lists stay
+        aligned with the image shard. In a multi-worker DataLoader, worker
+        ``i`` reads ``self._cached_peak_lists[i::num_workers]``; without worker
+        processes we yield the full cache.
+        """
+        assert self._cached_peak_lists is not None
+
+        worker_info = get_worker_info()
+        if worker_info is None:
+            yield from self._cached_peak_lists
+            return
+
+        yield from self._cached_peak_lists[worker_info.id::worker_info.num_workers]
 
     def _preprocess_peak(self, peak: ExtractedPeak) -> None:
         """Apply in-place preprocessing to a peak's data.
@@ -128,7 +208,11 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
     @property
     def images(self) -> List[HIDImage]:
-        return self._images
+        if self._base_dataset is not None:
+            return [self._base_dataset.get_stub_image(idx) for idx in self._image_indices]
+        if self._images is None:
+            raise ValueError("PeakWindowDataset has no .images")
+        return [self._images[idx] for idx in self._image_indices]
 
     @property
     def transform(self) -> TransformDataCallable | None:
@@ -140,7 +224,13 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
     def __iter__(self) -> Iterator[Any]:
         """Create an iterator for the peaks."""
-        for peak in self._iterate_peaks():
+        peaks = (
+            (peak for peak_list in self._iter_worker_peak_lists() for peak in peak_list)
+            if self._cached_peak_lists is not None
+            else self._iterate_peaks()
+        )
+
+        for peak in peaks:
             if self.transform:
                 yield self.transform(peak)
             else:
@@ -148,9 +238,16 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
     def subset(self, indices: List[int]) -> PeakWindowDataset:
         """Create a subset of PeakWindowDataset with only indicated indices."""
+        subset_indices = [self._image_indices[idx] for idx in indices]
+        subset_peak_lists = None
+        if self._cached_peak_lists is not None:
+            subset_peak_lists = [self._cached_peak_lists[idx] for idx in indices]
+
         return PeakWindowDataset(
-            images=[self._images[idx] for idx in indices],
             dataset_strategy=self._dataset_strategy,
+            images=self._images,
+            base_dataset=self._base_dataset,
+            image_indices=subset_indices,
             transform=self._transform,
             threshold=self.threshold,
             window_size=self.window_size,
@@ -159,4 +256,6 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
             smooth_keep_factor=self.smooth_keep_factor,
             log_scale=self.log_scale,
             max_rfu_value=self.max_rfu_value,
+            load_in_memory=self.load_in_memory,
+            _cached_peak_lists=subset_peak_lists,
         )
