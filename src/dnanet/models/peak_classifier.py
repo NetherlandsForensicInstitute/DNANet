@@ -187,7 +187,9 @@ class PeakClassificationModel(BackboneModule):
             Feature tensor of shape ``(B, F)``.
         """
         match x:
-            case (peak_data, marker_idx):
+            case (pd, mixd):
+                peak_data = pd
+                marker_idx = mixd
                 pass
             case _:
                 peak_data = x
