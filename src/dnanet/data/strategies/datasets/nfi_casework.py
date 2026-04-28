@@ -109,12 +109,13 @@ class NFICaseStrategy(DatasetStrategy):
         # Collect all annotation .txt/.csv files and map from run_id -> annotation file
         annotations_folder = path / 'annotations'
         annotation_mapping = self.find_annotation_files(annotations_folder)
-        
+
         for _file in robots:
             if self.categorize_file(_file.name) != 'sample':
                 continue
 
             _run_id = _file.stem.split('_')[0]
+            _sample_name = _file.stem.rsplit('_', 1)[0]
             _annotation = annotation_mapping.get(_run_id)
 
             _ladder = self.find_ladder_for_sample(_file)
@@ -124,8 +125,12 @@ class NFICaseStrategy(DatasetStrategy):
                 _allele_annotation_map = self.parse_annotations(
                     _annotation, scaling_strategy=scaling_strategy
                 )
-                if _allele_annotation_map:
+
+                # Usually there's only one sample <-> annotation per annotation file
+                if len(_allele_annotation_map) == 1:
                     _allele_annotation = list(_allele_annotation_map.values())[0]
+                elif len(_allele_annotation_map) > 1:
+                    _allele_annotation = _allele_annotation_map[_sample_name]
 
             yield (_file, _allele_annotation, _ladder)
 
