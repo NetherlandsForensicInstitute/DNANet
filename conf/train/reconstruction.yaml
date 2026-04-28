@@ -54,6 +54,7 @@ lightning_module:
   metrics: ${train.metrics}
   autoencoder_log_scale: ${model.autoencoder_log_scale}
   autoencoder_max_rfu: ${model.autoencoder_max_rfu}
+  batch_size: ${train.batch_size}
 
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule

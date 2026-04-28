@@ -62,6 +62,7 @@ lightning_module:
   num_classes: ${model.architecture.num_classes}
   scheduler: ${train.scheduler}
   metrics: ${train.metrics}
+  batch_size: ${train.batch_size}
 
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule

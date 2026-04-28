@@ -59,6 +59,7 @@ class PeakNetModule(BaseTaskModule):
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         metrics: MetricCollection | None = None,
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        batch_size: int | None = None,
     ) -> None:
         if lr_scheduler is None:
             lr_scheduler = scheduler
@@ -69,6 +70,7 @@ class PeakNetModule(BaseTaskModule):
             optimizer=optimizer,
             metrics=metrics,
             lr_scheduler=lr_scheduler,
+            batch_size=batch_size,
         )
         self.allele_class_index = allele_class_index
         self.save_hyperparameters({

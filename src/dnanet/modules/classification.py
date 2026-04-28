@@ -50,8 +50,15 @@ class ClassificationModule(BaseTaskModule):
         weight_decay: float = 5e-4,
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         metrics: MetricCollection | None = None,
+        batch_size: int | None = None,
     ) -> None:
-        super().__init__(model=model, loss_fn=loss_fn, metrics=metrics, optimizer=optimizer, lr_scheduler=lr_scheduler)
+        super().__init__(model=model,
+                         loss_fn=loss_fn,
+                         metrics=metrics,
+                         optimizer=optimizer,
+                         lr_scheduler=lr_scheduler,
+                         batch_size=batch_size,
+                         )
         self.save_hyperparameters({
             "num_classes": num_classes,
             "learning_rate": learning_rate,
