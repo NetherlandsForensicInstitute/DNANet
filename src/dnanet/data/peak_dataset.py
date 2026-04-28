@@ -147,7 +147,15 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         return self._images[index]
 
     def _worker_image_indices(self) -> List[int]:
-        """Return the image indices assigned to the current dataloader worker."""
+        """Return the image indices assigned to the current DataLoader worker.
+
+        ``get_worker_info()`` returns ``None`` when the dataset is iterated in
+        the main process. When used through a multi-worker DataLoader, it
+        returns the current worker's zero-based ``id`` and total
+        ``num_workers``. We use stride slicing to shard the work so worker 0
+        gets indices ``[0, n, 2n, ...]``, worker 1 gets ``[1, n + 1, ...]``,
+        and so on.
+        """
         worker_info = get_worker_info()
         if worker_info is None:
             return self._image_indices
@@ -163,7 +171,13 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         return list(self._iter_worker_images())
 
     def _iter_worker_peak_lists(self) -> Iterator[list[ExtractedPeak]]:
-        """Yield only the cached peak lists needed by the current worker."""
+        """Yield the cached peak lists assigned to the current worker.
+
+        This mirrors :meth:`_worker_image_indices` so the cached peak lists stay
+        aligned with the image shard. In a multi-worker DataLoader, worker
+        ``i`` reads ``self._cached_peak_lists[i::num_workers]``; without worker
+        processes we yield the full cache.
+        """
         assert self._cached_peak_lists is not None
 
         worker_info = get_worker_info()
@@ -196,7 +210,8 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
     def images(self) -> List[HIDImage]:
         if self._base_dataset is not None:
             return [self._base_dataset.get_stub_image(idx) for idx in self._image_indices]
-        assert self._images is not None
+        if self._images is None:
+            raise ValueError("PeakWindowDataset has no .images")
         return [self._images[idx] for idx in self._image_indices]
 
     @property
