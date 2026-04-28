@@ -2,7 +2,7 @@
 name = "dnanet"
 version = "0.1.0"
 description = "A clean, extensible deep learning framework for forensic DNA profile analysis."
-requires-python = ">=3.11,<3.15"
+requires-python = ">=3.12,<3.15"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 
