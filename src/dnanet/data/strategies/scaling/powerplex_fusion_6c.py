@@ -68,6 +68,13 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
         peak_idxs = self._extract_ss_peaks(lane)
         peak_idxs = peak_idxs[-20:-1]  # last 19 peaks, excluding final
 
+        import matplotlib.pyplot as plt
+        lane2 = lane[2400:]
+        peak_idxs2 = peak_idxs - 2400
+        plt.plot(lane2)
+        plt.scatter(peak_idxs2, lane2[peak_idxs2], color="orange")
+        plt.show()
+
         if not self._validate_ss_peaks(peak_idxs, expected_bps):
             return None
 
@@ -77,9 +84,9 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
         )
 
     @staticmethod
-    def _extract_ss_peaks(signal: np.ndarray) -> np.ndarray:
+    def _extract_ss_peaks(signal: np.ndarray, threshold=180) -> np.ndarray:
         """Find size-standard peaks with adaptive thresholding for tail peaks."""
-        peak_idxs = find_peaks_above_threshold(signal, 180)
+        peak_idxs = find_peaks_above_threshold(signal, threshold)
 
         # The final two SS peaks are often lower — search with reduced threshold
         split_idx = 8200
