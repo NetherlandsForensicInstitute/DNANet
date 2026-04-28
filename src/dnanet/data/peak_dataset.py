@@ -196,7 +196,8 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
     def images(self) -> List[HIDImage]:
         if self._base_dataset is not None:
             return [self._base_dataset.get_stub_image(idx) for idx in self._image_indices]
-        assert self._images is not None
+        if self._images is None:
+            raise ValueError("PeakWindowDataset has no .images")
         return [self._images[idx] for idx in self._image_indices]
 
     @property
