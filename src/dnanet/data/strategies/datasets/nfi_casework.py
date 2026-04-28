@@ -109,9 +109,7 @@ class NFICaseStrategy(DatasetStrategy):
         # Collect all annotation .txt/.csv files and map from run_id -> annotation file
         annotations_folder = path / 'annotations'
         annotation_mapping = self.find_annotation_files(annotations_folder)
-
-        file_statistics = {'Total files': 0, 'Missing Annotation': 0, 'Missing Ladder(s)': 0}
-
+        
         for _file in robots:
             if self.categorize_file(_file.name) != 'sample':
                 continue
@@ -120,10 +118,6 @@ class NFICaseStrategy(DatasetStrategy):
             _annotation = annotation_mapping.get(_run_id)
 
             _ladder = self.find_ladder_for_sample(_file)
-
-            file_statistics['Total files'] += 1
-            file_statistics['Missing Annotation'] += 1 if _annotation is None else 0
-            file_statistics['Missing Ladder(s)'] += 1 if not _ladder else 0
 
             _allele_annotation = None
             if _annotation:
@@ -134,9 +128,8 @@ class NFICaseStrategy(DatasetStrategy):
                     _allele_annotation = list(_allele_annotation_map.values())[0]
 
             yield (_file, _allele_annotation, _ladder)
-        logger.info(file_statistics)
 
-    def cache_signature(self) -> dict:
+    def cache_signature(self) -> dict:  # noqa: D102
         return {
             'class': self.__class__.__name__,
             'annotation_type': self.annotation_type,
@@ -148,7 +141,7 @@ class NFICaseStrategy(DatasetStrategy):
         }
 
     @classmethod
-    def categorize_file(cls, file_name: str) -> FileCategory:
+    def categorize_file(cls, file_name: str) -> FileCategory:  # noqa: D102
         if not file_name.endswith('.hid'):
             logger.warning(f'Encountered non-HID file: {file_name}')
             return 'unknown'
@@ -174,6 +167,7 @@ class NFICaseStrategy(DatasetStrategy):
             robots_folder: The root in which the robot folders reside
             selected_robots: Allows for a subselection of robot folder names (e.g. `('3500XL_A',)`). Defaults to None.
             robot_limit: Limits the amount of files returned from a robot. Defaults to None.
+            cache: Whether to use cache saved in /tmp/ to prevent walking the whole folder again between runs.
 
         Yields:
             File paths of .hid's found in the robot folders.
@@ -184,10 +178,12 @@ class NFICaseStrategy(DatasetStrategy):
             if not robot_folder.exists():
                 continue
             logger.info(f'Retrieving files from {robot_name}')
-            yield from itertools.islice(cls._scan_directory_structure(robot_folder, cache=cache), robot_limit)
+            yield from itertools.islice(
+                cls._scan_directory_structure(robot_folder, cache=cache), robot_limit
+            )
 
     @classmethod
-    def find_annotation_files(cls, annotations_folder: Path):
+    def find_annotation_files(cls, annotations_folder: Path):  # noqa: D102
         # Collect annotation files
         annotations = annotations_folder.iterdir()
         return {
@@ -231,53 +227,60 @@ class NFICaseStrategy(DatasetStrategy):
         fraction: float | None = None,
         seed: int | None = None,
         k_folds: int | None = None,
-        test_fraction: float = .0,
-        **kwargs
+        test_fraction: float = 0.0,
+        **kwargs,
     ):
         dataset_indices = np.arange(len(dataset.images))
         match (fraction, k_folds):
             # Case: only train/val split, no folds, no test fraction
-            case (float(), None) if test_fraction == .0:
-                train_idx, val_idx = train_test_split(dataset_indices, train_size=fraction, random_state=seed)
+            case (float(), None) if test_fraction == 0.0:
+                train_idx, val_idx = train_test_split(
+                    dataset_indices, train_size=fraction, random_state=seed
+                )
                 return Subset(dataset, train_idx), Subset(dataset, val_idx)
             # Case: train/val/test split, no folds
             case (float(), None):
-                train_val_idx, test_idx = train_test_split(dataset_indices, test_size=test_fraction, random_state=seed)
-                train_idx, val_idx = train_test_split(train_val_idx, train_size=fraction, random_state=seed)
-                
+                train_val_idx, test_idx = train_test_split(
+                    dataset_indices, test_size=test_fraction, random_state=seed
+                )
+                train_idx, val_idx = train_test_split(
+                    train_val_idx, train_size=fraction, random_state=seed
+                )
+
                 return (
                     Subset(dataset, train_idx),
                     Subset(dataset, val_idx),
                     Subset(dataset, test_idx),
                 )
-            
+
             # Case: K-folds without test_fraction
-            case (None, int()) if test_fraction == .0:
-                k_fold_indices = KFold(n_splits=k_folds, random_state=seed, shuffle=True).split(dataset_indices)
-                
+            case (None, int()) if test_fraction == 0.0:
+                k_fold_indices = KFold(n_splits=k_folds, random_state=seed, shuffle=True).split(
+                    dataset_indices
+                )
+
                 return [
-                    (Subset(dataset, train), Subset(dataset, val))
-                    for train, val in k_fold_indices
+                    (Subset(dataset, train), Subset(dataset, val)) for train, val in k_fold_indices
                 ]
-            
+
             # Case: K-Folds with test-fraction
             case (None, int()):
                 to_be_folded, test_idx = train_test_split(dataset_indices, test_size=test_fraction)
-                k_fold_indices = KFold(n_splits=k_folds, shuffle=True, random_state=seed).split(to_be_folded)
-                
+                k_fold_indices = KFold(n_splits=k_folds, shuffle=True, random_state=seed).split(
+                    to_be_folded
+                )
+
                 return [
-                    (Subset(dataset, train), Subset(dataset, val))
-                    for train, val in k_fold_indices
+                    (Subset(dataset, train), Subset(dataset, val)) for train, val in k_fold_indices
                 ], Subset(dataset, test_idx)
-            
+
             case _:
                 raise ValueError(
                     f'Provide either a fraction in (0, 1) or 2 <= k_folds <= len(dataset), not both. Got {fraction=}, {k_folds=}'
                 )
-        
 
     @classmethod
-    def find_ladder_for_sample(
+    def find_ladder_for_sample(  # noqa: D102
         cls, sample_path: Path, ladder_mapping: Dict[str, Path] | None = None
     ) -> Path | None:
         _ladders = list(sample_path.parent.glob('*ladder*.hid', case_sensitive=False))
@@ -298,15 +301,15 @@ class NFICaseStrategy(DatasetStrategy):
         return ['noise', 'allele']
 
     @classmethod
-    def get_number_of_contributors(cls, file_name: str) -> int | None:
+    def get_number_of_contributors(cls, file_name: str) -> int | None:  # noqa: D102
         raise AttributeError("Casework profiles don't have a known NoC")
 
     @classmethod
-    def get_sample_id(cls, file_name: str) -> str:
+    def get_sample_id(cls, file_name: str) -> str:  # noqa: D102
         return super().get_sample_id(file_name)
 
     @classmethod
-    def parse_annotations(
+    def parse_annotations(  # noqa: D102
         cls, annotation_source: str | Path, scaling_strategy: ScalingStrategy
     ) -> Mapping[str, ScanpointAnnotation | AlleleAnnotation]:
         return NFIRnDStrategy.parse_annotations(
