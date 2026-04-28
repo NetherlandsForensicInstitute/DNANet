@@ -37,7 +37,7 @@ from dnanet.modules.base import BaseTaskModule
 
 if TYPE_CHECKING:
     from torchmetrics import MetricCollection
-    
+
 
 class SegmentationModule(BaseTaskModule):
     """PyTorch Lightning module for binary EPG segmentation.
@@ -70,17 +70,15 @@ class SegmentationModule(BaseTaskModule):
         threshold: float = 0.5,
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         metrics: MetricCollection | None = None,
-        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        batch_size: int | None = None,
     ) -> None:
-        if lr_scheduler is None:
-            lr_scheduler = scheduler
-
         super().__init__(
             model=model,
             loss_fn=loss_fn,
             optimizer=optimizer,
             metrics=metrics,
             lr_scheduler=lr_scheduler,
+            batch_size=batch_size,
         )
         self.save_hyperparameters({
             "learning_rate": learning_rate,

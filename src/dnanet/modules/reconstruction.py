@@ -52,6 +52,7 @@ class ReconstructionModule(BaseTaskModule):
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         autoencoder_log_scale: bool = True,
         autoencoder_max_rfu: int | None = None,
+        batch_size: int | None = None,
     ) -> None:
         if lr_scheduler is None:
             lr_scheduler = scheduler
@@ -62,6 +63,7 @@ class ReconstructionModule(BaseTaskModule):
             optimizer=optimizer,
             metrics=metrics,
             lr_scheduler=lr_scheduler,
+            batch_size=batch_size,
         )
         self.save_hyperparameters({
             "learning_rate": learning_rate,
