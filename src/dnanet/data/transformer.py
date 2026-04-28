@@ -80,6 +80,8 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
     threshold: int = 25
     window_size: int = 120
     include_max_pool_dyes: bool = False
+    autoencoder_log_scale: bool = True
+    autoencoder_max_rfu: int | None = None
 
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = image.data
@@ -89,8 +91,6 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
             data_2d = data[:, :, 0]
         else:
             data_2d = data
-
-        full_image = torch.tensor(data_2d, dtype=torch.float32)
 
         # Extract peaks as tensors
         peak_windows, marker_idxs, peak_centers = extract_peaks_torch(
@@ -102,7 +102,11 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         )
         n_peaks = peak_windows.shape[0]
 
-        # TODO: preprocess peaks and image
+        ## preprocess image for autoencoder
+        full_image = torch.tensor(data_2d, dtype=torch.float32)
+        full_image = scale_rfu_torch(full_image, log_scale=self.autoencoder_log_scale, max_rfu=self.autoencoder_max_rfu)
+
+        # TODO: preprocess peaks
 
         # Target: per-position annotation (D, L)
         if image.annotation is not None:
@@ -152,8 +156,8 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
 @dataclass(frozen=True)
 class ReconstructionTransformer(TransformDataCallable[HIDImage]):
     n_dyes: int = 5
-    log_scale: bool = True
-    max_rfu: int | None = None
+    autoencoder_log_scale: bool = True
+    autoencoder_max_rfu: int | None = None
 
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = image.data
@@ -167,7 +171,7 @@ class ReconstructionTransformer(TransformDataCallable[HIDImage]):
         data_2d = data_2d[: self.n_dyes]
 
         raw = torch.tensor(data_2d, dtype=torch.float32)
-        preprocessed = scale_rfu_torch(raw, self.log_scale, self.max_rfu)
+        preprocessed = scale_rfu_torch(raw, self.autoencoder_log_scale, self.autoencoder_max_rfu)
 
         # Input is preprocessed, target is the raw data (loss in
         # non-preprocessed space; inverse scaling is done in the
