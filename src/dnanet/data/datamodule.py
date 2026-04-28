@@ -38,9 +38,9 @@ class DNANetDataModule(L.LightningDataModule):
         shuffle_train: bool = True,
     ) -> None:
         super().__init__()
-        if val_fraction + test_fraction >= 1.0:
+        if val_fraction + test_fraction > 1.0:
             raise ValueError(
-                f'val_fraction ({val_fraction}) + test_fraction ({test_fraction}) must be < 1.0'
+                f'val_fraction ({val_fraction}) + test_fraction ({test_fraction}) must be <= 1.0'
             )
         if val_fraction <= 0.0:
             raise ValueError(f'val_fraction must be > 0, got {val_fraction}')
@@ -94,6 +94,7 @@ class DNANetDataModule(L.LightningDataModule):
             shuffle=self.shuffle_train,
             num_workers=self.num_workers,
             collate_fn=self._collate_fn,
+            persistent_workers=self.num_workers > 0,
             pin_memory=True,
         )
 
@@ -142,6 +143,7 @@ class DNANetDataModule(L.LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             collate_fn=self._collate_fn,
+            persistent_workers=self.num_workers > 0,
             pin_memory=True,
         )
 
