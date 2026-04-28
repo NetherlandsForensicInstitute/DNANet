@@ -170,15 +170,16 @@ class Panel:
                 base_name, extra_bp = parts
                 mid, left, right = self.get_allele_basepair_and_bins(marker_name, base_name)
                 offset = int(extra_bp)
-                return (mid + offset, left + offset, right + offset)
+                return mid + offset, left + offset, right + offset
 
         # Y-STR fallback
         if marker_name.startswith("DYS"):
             logger.debug("Y-STR marker {} allele {} not in panel, using default bins", marker_name, allele_name)
-            return (10, 9, 11)
+            return 10, 9, 11
 
-        logger.debug("Marker {} allele {} not found in panel", marker_name, allele_name)
-        return (10, 9, 11)
+        logger.error("Marker {} allele {} not found in panel", marker_name, allele_name)
+        # TODO: should we raise a ValueError?
+        return 10, 9, 11
 
     def get_marker_name_by_dye_and_bp(self, dye_row: int, base_pair: float) -> str:
         """O(1) lookup: find which marker covers a given dye + base-pair position.
