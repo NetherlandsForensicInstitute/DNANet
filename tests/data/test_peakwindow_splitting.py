@@ -49,7 +49,10 @@ def _fake_dataset(stems: list[str]):
     ds = MagicMock()
     ds.images = [_fake_img(s) for s in stems]
     ds.__len__ = MagicMock(return_value=len(stems))
-    return PeakWindowDataset(images=ds.images, dataset_strategy=NFIRnDStrategy())
+    return PeakWindowDataset(
+        images=ds.images,
+        dataset_strategy=NFIRnDStrategy(annotation_type='ground_truth'),
+    )
 
 
 class TestPeakWindowSplit:

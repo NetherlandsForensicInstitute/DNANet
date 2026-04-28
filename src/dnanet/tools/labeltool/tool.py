@@ -34,6 +34,7 @@ from dnanet.tools.labeltool.interactivity import Interactivity
 
 
 # Linear scan-to-bp conversion constants (default for 4096-point profiles)
+# TODO: Convert using scaling strategy
 SLOPE = (475.0 - 65.0) / 4096.0
 OFFSET = 65.0
 

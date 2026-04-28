@@ -26,6 +26,7 @@ from sklearn.model_selection import (
     train_test_split,
 )
 
+from dnanet.core import LabelCategory
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.annotation import Annotation, AlleleAnnotation
@@ -59,7 +60,7 @@ class NFIRnDStrategy(DatasetStrategy):
         """Initialize the NFI R&D dataset strategy."""
         self.annotation_type = annotation_type
 
-        assert annotation_type in ['DTH', 'DTL', 'ground_truth'], (
+        assert annotation_type in ['DTH', 'DTL', 'ground_truth', 'span'], (
             f'Invalid annotation type: {annotation_type}'
         )
 
@@ -92,16 +93,21 @@ class NFIRnDStrategy(DatasetStrategy):
         )
 
         # load and parse annotations
-        if self.annotation_type == 'DTH' or self.annotation_type == 'DTL':
-            hid_to_annotation = self._parse_analyst_annotation(
-                path, self.annotation_type, scaling_strategy
-            )
-        elif self.annotation_type == 'ground_truth':
-            hid_to_annotation = self._parse_ground_truth_annotations(
-                path, hid_file_samples, scaling_strategy
-            )
-        else:
-            raise ValueError(f'Invalid annotation type: {self.annotation_type}')
+        match self.annotation_type:
+            case 'DTH' | 'DTL':
+                hid_to_annotation = self._parse_analyst_annotation(
+                    path, self.annotation_type, scaling_strategy
+                )
+            case 'ground_truth':
+                hid_to_annotation = self._parse_ground_truth_annotations(
+                    path, hid_file_samples, scaling_strategy
+                )
+            case 'span':
+                span_annotations_path = path / 'span_annotations'
+                hid_to_annotation = self._parse_span_annotation(span_annotations_path, scaling_strategy)
+            case _:
+                raise ValueError(f'Invalid annotation type: {self.annotation_type}')
+
 
         # Hid to Ladder mapping
         _, htl_values = self._read_csv_file(hid_to_ladder_path[0])
@@ -114,6 +120,7 @@ class NFIRnDStrategy(DatasetStrategy):
                 hid_to_annotation.get(str(hid_file.stem)),
                 hid_to_ladder.get(hid_file.stem),
             )
+
 
     @classmethod
     def _parse_analyst_annotation(
@@ -442,9 +449,11 @@ class NFIRnDStrategy(DatasetStrategy):
         headers, values = rows[0], filter(lambda r: len(r) > 0, rows[1:])
         return headers, list(values)
 
-    @staticmethod
-    def get_annotation_classes() -> list[str]:
+
+    def get_annotation_classes(self) -> list[str]:
         """Return the annotation class labels produced by this strategy."""
+        if self.annotation_type == 'span':
+            return LabelCategory.label_names()
         return ['noise', 'allele']
 
     @classmethod

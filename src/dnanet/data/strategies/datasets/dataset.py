@@ -12,11 +12,18 @@ Design pattern: **Strategy** (abstract base for dataset variants)
 
 from __future__ import annotations
 
+import csv
 import typing
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple, Literal, Mapping, Generator
 
+import numpy as np
+from loguru import logger
+
+from dnanet.core import LabelCategory
+from dnanet.core.annotation import Annotation, ScanpointAnnotation
 from dnanet.data.strategies.scaling import ScalingStrategy
+
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -24,7 +31,6 @@ if typing.TYPE_CHECKING:
     from annotated_types import T
 
     from dnanet.core.types import PathLike
-    from dnanet.core.annotation import Annotation
 
 
 FileCategory = Literal['sample', 'ladder', 'control', 'unknown']
@@ -95,9 +101,8 @@ class DatasetStrategy(ABC):
             Path to the ladder file, or ``None`` if not found.
         """
 
-    @staticmethod
     @abstractmethod
-    def get_annotation_classes() -> list[str]:
+    def get_annotation_classes(self) -> list[str]:
         """Return the list of annotation classes supported by this dataset.
 
         The first class is assumed to be the default (noise) class.
@@ -152,3 +157,198 @@ class DatasetStrategy(ABC):
     @property
     def annotation_to_idx(self) -> Dict[str, int]:
         return {name: idx for idx, name in enumerate(self.get_annotation_classes())}
+
+    @classmethod
+    def _parse_span_annotation(
+            cls, span_annotations_path: Path, scaling_strategy: ScalingStrategy
+    ) -> dict[str, ScanpointAnnotation | None]:
+        """Parse span-annotation CSV files into per-profile scanpoint annotations.
+
+        Span annotations are expected to contain ``profile``, ``user``, ``dye``,
+        ``x0``, ``x1``, and ``category`` columns. Rows are grouped by profile and
+        annotator, converted to span tensors, optionally merged when multiple
+        annotators labeled the same profile, and finally flattened to
+        :class:`ScanpointAnnotation` instances.
+
+        Args:
+            span_annotations_path: Directory containing span-annotation CSV files.
+            scaling_strategy: Scaling strategy that defines dye count and
+                scanpoint resolution.
+
+        Returns:
+            Mapping from HID profile filename to scanpoint annotation. Returns an
+            empty mapping when no CSV files are found.
+
+        Raises:
+            ValueError: If required columns are missing, dyes are unknown, or
+                categories cannot be mapped to :class:`LabelCategory`.
+        """
+        _dye_name_to_dye_idx = {
+            'blue': 0,
+            'green': 1,
+            'yellow': 2,
+            'black': 2,
+            'red': 3,
+            'purple': 4,
+            'orange': 5,
+        }
+
+        # collect files
+        csv_files = list(span_annotations_path.rglob('*.csv'))
+        if not csv_files:
+            logger.warning('No span annotation CSV files found in {}', span_annotations_path)
+            return {}
+
+        # read csv files
+        rows = []
+        required_columns = {'profile', 'user', 'dye', 'x0', 'x1', 'category'}
+        for f in csv_files:
+            with open(f, newline='', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                if reader.fieldnames is None:
+                    continue
+                columns = set(reader.fieldnames)
+                missing_columns = required_columns.difference(columns)
+                if missing_columns:
+                    raise ValueError(f'Missing span annotation columns: {sorted(missing_columns)}, found columns: {sorted(columns)} in {f}')
+                for row in reader:
+                    # check for NaNs (empty strings in csv.DictReader)
+                    if any(not row.get(col) for col in required_columns):
+                        continue
+                    rows.append(row)
+
+        if not rows:
+            return {}
+
+        profiles = {row['profile'] for row in rows}
+        categories = {row['category'] for row in rows}
+
+        logger.info(
+            f'Found {len(rows)} valid span annotations in {len(profiles)} '
+            f'profiles'
+        )
+        logger.info(f'Categories found in annotations: {categories}')
+
+        # convert dye names to dye indices and category names to indices
+        valid_rows = []
+        for row in rows:
+            dye_idx = _dye_name_to_dye_idx.get(str(row['dye']).strip().lower())
+            if dye_idx is None:
+                raise ValueError(f"Unknown dye values in span annotations: {row['dye']}")
+
+            category_idx = LabelCategory.display_name_to_index(row['category'])
+            if category_idx is None:
+                raise ValueError(f"Unknown category values in span annotations: {row['category']}")
+
+            row['dye_idx'] = int(dye_idx)
+            row['category_idx'] = int(category_idx)
+            row['x0'] = int(row['x0'])
+            row['x1'] = int(row['x1'])
+            valid_rows.append(row)
+
+        # create span annotations grouped by file and annotator
+        hid_file_name_to_span_annotations: dict[str, list[np.ndarray]] = {}
+
+        # grouping logic
+        groups: dict[tuple[str, str], list[dict]] = {}
+        for row in valid_rows:
+            profile = row['profile']
+            if profile.lower().endswith('.hid'):
+                profile = profile[:-4]
+            key = (profile, row['user'])
+            groups.setdefault(key, []).append(row)
+
+        for (hid_file_name, _annotator), group_rows in groups.items():
+            spannotation = cls._df_to_span_annotation(group_rows, scaling_strategy)
+            hid_file_name_to_span_annotations.setdefault(hid_file_name, []).append(spannotation)
+
+        # merge span annotations into a scanpoint annotation
+        hid_to_annotation: dict[str, ScanpointAnnotation | None] = {}
+        for hid_file_name, span_annotations in hid_file_name_to_span_annotations.items():
+            if len(span_annotations) > 1:
+                span_annotation = cls._merge_span_annotations(span_annotations, hid_file_name)
+            else:
+                span_annotation = span_annotations[0]
+
+            hid_to_annotation[hid_file_name] = cls._span_to_scanpoint_annotation(span_annotation, hid_file_name)
+
+        return hid_to_annotation
+
+    @staticmethod
+    def _df_to_span_annotation(rows: list[dict], scaling_strategy: ScalingStrategy) -> np.ndarray:
+        """Convert one profile/annotator rows to a one-hot span tensor.
+
+        Args:
+            rows: Span rows for a single profile and annotator. Each row must
+                already contain integer ``dye_idx`` and ``category_idx``.
+            scaling_strategy: Scaling strategy that defines the output shape.
+
+        Returns:
+            A ``(num_dyes, scanpoints, num_classes)`` array with annotated spans
+            marked as ``1``.
+
+        Raises:
+            ValueError: If a row contains a dye or category index outside the
+                output tensor shape.
+        """
+        num_dyes = scaling_strategy.kit.num_dyes
+        scanpoints = scaling_strategy.scanpoint_resolution
+        num_classes = len(LabelCategory)
+        spannotation = np.zeros((num_dyes, scanpoints, num_classes), dtype=np.int8)
+
+        for row in rows:
+            dye_idx = int(row['dye_idx'])
+            category_idx = int(row['category_idx'])
+            if not 0 <= dye_idx < num_dyes:
+                raise ValueError(f'Dye index {dye_idx} outside annotation shape')
+            if not 0 <= category_idx < num_classes:
+                raise ValueError(f'Category index {category_idx} outside annotation shape')
+
+            start, stop = sorted((int(row['x0']), int(row['x1'])))
+            start = max(0, start)
+            stop = min(scanpoints, stop)
+            if start >= stop:
+                continue
+
+            spannotation[dye_idx, start:stop, category_idx] = 1
+
+        return spannotation
+
+    @staticmethod
+    def _merge_span_annotations(spannotations: List[np.ndarray], hid_file_name: str) -> np.ndarray:
+        """Merge multiple annotator span tensors for the same HID profile.
+
+        The current merge policy keeps the first annotation and logs that
+        multiple annotations were present.
+
+        Args:
+            spannotations: Span tensors collected for one HID profile.
+            hid_file_name: HID profile filename used for logging.
+
+        Returns:
+            The selected span annotation tensor.
+        """
+        logger.debug(
+            f'Found multiple span annotations for {hid_file_name}. Merging by taking the first only'
+        )
+        return spannotations[0]
+
+    @staticmethod
+    def _span_to_scanpoint_annotation(span_annotation: np.ndarray, hid_file_name: str) -> ScanpointAnnotation:
+        """Flatten a one-hot span tensor to class indices per dye and scanpoint.
+
+        Args:
+            span_annotation: ``(num_dyes, scanpoints, num_classes)`` span tensor.
+            hid_file_name: HID profile filename used for overlap logging.
+
+        Returns:
+            A :class:`ScanpointAnnotation` containing a ``(num_dyes, scanpoints)``
+            integer label array.
+        """
+        # TODO this should optionally adjust annotations to top to avoid overlap
+        flattened = span_annotation.argmax(axis=-1)
+
+        if np.any(span_annotation.sum(axis=-1) > 1):
+            logger.debug(f'Found overlapping annotations for {hid_file_name}, taking the lowest class index')
+
+        return ScanpointAnnotation(flattened.astype(np.int8, copy=False))

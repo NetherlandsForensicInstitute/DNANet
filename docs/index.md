@@ -58,6 +58,7 @@ guides/datasets
 architecture/overview
 architecture/design-patterns
 architecture/data-pipeline
+architecture/caching
 architecture/models
 architecture/training
 architecture/evaluation

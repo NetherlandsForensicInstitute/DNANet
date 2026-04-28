@@ -114,7 +114,7 @@ class DNANetDataModule(L.LightningDataModule):
         return DataLoader(
             self._train_dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=self.shuffle_train,
             num_workers=self.num_workers,
             collate_fn=self._collate_fn,
             pin_memory=True,

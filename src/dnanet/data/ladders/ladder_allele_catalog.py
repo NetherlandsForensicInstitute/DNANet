@@ -27,7 +27,15 @@ class LadderAlleleCatalog:
         """Create a catalog from a panel."""
         alleles: dict[int, list[tuple[str, str]]] = defaultdict(list)
         for marker in panel.markers:
-            for allele in marker.alleles:
+            # Peak detection returns ladder peaks from left to right, so the
+            # expected ladder alleles must be ordered by calibrated bp as well.
+            for allele in sorted(
+                marker.alleles,
+                key=lambda allele: (
+                    float('inf') if allele.base_pair is None else allele.base_pair,
+                    allele.name,
+                ),
+            ):
                 if allele.in_ladder:
                     alleles[marker.dye_row].append((marker.name, allele.name))
 

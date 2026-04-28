@@ -1,6 +1,10 @@
 # Combined PeakNet: autoencoder (global) + peak classifier (local)
 name: peaknet
 
+peak_threshold: 25
+window_size: 120
+num_classes: 12
+
 architecture:
   _target_: dnanet.models.peaknet.CombinedClassifier
   _recursive_: true
@@ -20,7 +24,7 @@ architecture:
 
   peak_classifier:
     _target_: dnanet.models.peak_classifier.PeakClassificationModel
-    num_classes: 2
+    num_classes: ${model.num_classes}
     width: 120
     n_markers: 28
     embedding_dim: 8
@@ -31,14 +35,10 @@ architecture:
     downsample: maxpool
 
   hidden_dims: [64, 32]
-  num_classes: 2
+  num_classes: ${model.num_classes}
   default_class: 0
   freeze_autoencoder: false
   combiner: mlp           # mlp, film, or attention
 
 loss:
   _target_: torch.nn.CrossEntropyLoss
-
-# Peak detection settings (used by PeakNetDataModule)
-peak_threshold: 25
-window_size: 120
