@@ -129,16 +129,12 @@ class PeakNetModule(BaseTaskModule):
         logits: Tensor,
         targets: Tensor,
     ) -> tuple[Tensor, Tensor, Tensor]:
-        # Loss: CrossEntropyLoss expects (N, K, ...) logits and (N, ...) targets
-        # logits: (N, K, C, L) → reshape to (N*C*L, K)
-        # targets: (N, C, L) → reshape to (N*C*L,)
-        num_classes = logits.shape[1]
-        logits_flat = logits.permute(0, 2, 3, 1).reshape(-1, num_classes)
-        targets_flat = targets.reshape(-1)
+        # logits: (N, K, C, L)
+        # targets: (N, C, L)
 
-        loss = self.loss_fn(logits_flat, targets_flat)
-        preds_flat = logits_flat.argmax(dim=1).detach()
-        return loss, preds_flat, targets_flat
+        loss = self.loss_fn(logits, targets)
+        preds = logits.argmax(dim=1)  # (N, C, L)
+        return loss, preds, targets
 
     def _allele_probabilities(self, logits: Tensor) -> Tensor:
         if logits.shape[1] <= self.allele_class_index:

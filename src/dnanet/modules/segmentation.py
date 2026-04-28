@@ -72,9 +72,6 @@ class SegmentationModule(BaseTaskModule):
         metrics: MetricCollection | None = None,
         batch_size: int | None = None,
     ) -> None:
-        if lr_scheduler is None:
-            lr_scheduler = scheduler
-
         super().__init__(
             model=model,
             loss_fn=loss_fn,
