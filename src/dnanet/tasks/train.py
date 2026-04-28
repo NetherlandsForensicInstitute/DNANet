@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import lightning as L
-from tqdm import tqdm
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
