@@ -1,11 +1,11 @@
 # Training config for combined PeakNet
 type: peaknet
 
-max_epochs: 15
+max_epochs: 100
 batch_size: 16
-learning_rate: 0.0001
+learning_rate: 0.00012
 weight_decay: 0.0005
-val_fraction: 0.2
+val_fraction: 0.1
 test_fraction: 0.0
 num_workers: 7
 seed: 42
@@ -37,21 +37,23 @@ scheduler:
   optimizer: ${train.optimizer}
 
 early_stopping:
-  monitor: val/loss
-  patience: 5
-  min_delta: 0.01
-  mode: min
+  monitor: val/f1
+  patience: 25
+  min_delta: 0.00
+  mode: max
 
 checkpoint:
-  monitor: val/loss
+  monitor: val/f1
   save_top_k: 1
-  mode: min
+  mode: max
 
 data_transform:
   _target_: dnanet.data.transformer.CombinedTransformer
-  threshold: 25
-  window_size: 120
-  include_max_pool_dyes: False
+  threshold: ${model.threshold}
+  window_size: ${model.window_size}
+  include_max_pool_dyes: ${model.include_max_pool_dyes}
+  autoencoder_log_scale: ${model.autoencoder_log_scale}
+  autoencoder_max_rfu: ${model.autoencoder_max_rfu}
 
 
 lightning_module:
@@ -60,7 +62,6 @@ lightning_module:
   weight_decay: ${train.weight_decay}
   loss_fn: ${model.loss}
   num_classes: ${model.architecture.num_classes}
-  scheduler: ${train.scheduler}
   metrics: ${train.metrics}
   batch_size: ${train.batch_size}
 
