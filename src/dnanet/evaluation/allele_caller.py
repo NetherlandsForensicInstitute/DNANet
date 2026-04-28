@@ -20,14 +20,11 @@ from __future__ import annotations
 
 import abc
 from collections import defaultdict
-from typing import Tuple
 
 import numpy as np
 from loguru import logger
 
-from dnanet.core.allele import Allele
-from dnanet.core.marker import Marker
-from dnanet.core.panel import Panel
+from dnanet.core import Allele, Marker, Panel
 
 
 class AlleleCaller(abc.ABC):
@@ -89,11 +86,11 @@ class FromBinaryMaskCaller(AlleleCaller):
         return markers
 
     def _translate_pixels_to_alleles(
-            self,
-            scaler: np.ndarray,
-            prediction_image: np.ndarray,
-            signal_image: np.ndarray,
-            panel: Panel,
+        self,
+        scaler: np.ndarray,
+        prediction_image: np.ndarray,
+        signal_image: np.ndarray,
+        panel: Panel,
     ) -> tuple[Marker, ...]:
         """Translate pixel-level segmentation masks to alleles.
 
@@ -150,7 +147,7 @@ class FromBinaryMaskCaller(AlleleCaller):
         )
 
     @staticmethod
-    def call_allele_from_basepair(dye_index: int, base_pair: float, panel: Panel) -> Tuple[str, str]:
+    def call_allele_from_basepair(dye_index: int, base_pair: float, panel: Panel) -> tuple[str, str]:
         """Translate the dye index and the base pair position on the dye to an allele name using the panel."""
         raise NotImplementedError
 

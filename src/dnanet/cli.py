@@ -24,9 +24,9 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 
 import hydra
-import torch
+# import torch
 
-from dnanet import logging as dnanet_logging
+# from dnanet import logging as dnanet_logging
 
 
 if TYPE_CHECKING:
@@ -41,14 +41,14 @@ def main(cfg: DictConfig) -> None:
     # Configure Hydra to pass the full error stacktrace
     os.environ['HYDRA_FULL_ERROR'] = '1'
     # Configure logging first (before any other import triggers log messages)
-    dnanet_logging.configure(
-        verbosity=cfg.get("verbosity", "INFO"),
-        log_file=Path(cfg.get('output_dir', './')) / 'cli.log'
-    )
+    # dnanet_logging.configure(
+    #     verbosity=cfg.get("verbosity", "INFO"),
+    #     log_file=Path(cfg.get('output_dir', './')) / 'cli.log'
+    # )
 
     task = cfg.get("task", "train")
-    if torch.cuda.is_available():
-        torch.set_float32_matmul_precision('high')
+    # if torch.cuda.is_available():
+    #     torch.set_float32_matmul_precision('high')
 
     if task == "train":
         from dnanet.tasks.train import run
