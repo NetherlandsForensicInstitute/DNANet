@@ -190,7 +190,6 @@ class PeakClassificationModel(BackboneModule):
             case (pd, mixd):
                 peak_data = pd
                 marker_idx = mixd
-                pass
             case _:
                 peak_data = x
                 marker_idx = None
