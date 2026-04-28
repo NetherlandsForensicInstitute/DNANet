@@ -149,7 +149,8 @@ class ScalingStrategy(ABC):
 
     @property
     def marker_to_idx(self) -> Dict[str, int]:
-        return {name: idx for idx, name in enumerate(self.marker_names)}
+        # leave 0 for out of bin
+        return {name: idx + 1 for idx, name in enumerate(self.marker_names)}
 
     @staticmethod
     def basepair_interpolator(

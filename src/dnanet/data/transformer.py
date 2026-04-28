@@ -190,6 +190,7 @@ class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
 
         peak_tensor = torch.tensor(data, dtype=torch.float32)
 
+        # noinspection PyTypeChecker
         ann_label: str = peak.annotation.data
         annotation_to_idx = {
             name: idx for idx, name in enumerate(self.dataset_strategy.get_annotation_classes())
