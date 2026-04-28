@@ -1,21 +1,26 @@
-"""Allele calling from segmentation predictions.
-
-Translates pixel-level segmentation masks into allele calls by finding
-connected components of positive predictions and mapping their positions
-to the nearest allele in the reference panel.
+"""Allele calling strategies.
 
 Design pattern: **Strategy**
     :class:`AlleleCaller` defines the interface; implementations provide
-    different allele-calling algorithms. Currently:
+    different allele-calling algorithms.
 
+Currently implemented are binary segmentation based algorithms, that translates pixel-level segmentation masks
+into allele calls by finding connected components of positive predictions and mapping their positions
+to an allele in the reference panel.
+Implemented are:
     - :class:`NearestBasePairCaller` — Assigns each predicted region to the
       nearest allele by base-pair distance.
+    - :class: `ExactBasePairCaller` - Assigns each predicted region to the
+      allele that has not more than 0.3 base pairs distance.
+
+# TODO: implement multi class allele calling.
 """
 
 from __future__ import annotations
 
 import abc
 from collections import defaultdict
+from typing import Tuple
 
 import numpy as np
 from loguru import logger
@@ -26,50 +31,27 @@ from dnanet.core.panel import Panel
 
 
 class AlleleCaller(abc.ABC):
-    """Abstract base class for allele calling strategies.
-
-    Implementations translate a pixel-level segmentation mask into a
-    sequence of :class:`~dnanet.core.marker.Marker` objects with called
-    alleles.
-    """
+    """Abstract base class for allele calling strategies."""
 
     @abc.abstractmethod
     def call_alleles(
         self,
-        prediction_image: np.ndarray,
-        signal_image: np.ndarray,
-        scaler: np.ndarray,
-        panel: Panel,
+        **kwargs
     ) -> tuple[Marker, ...]:
-        """Call alleles from a segmentation prediction.
-
-        Args:
-            prediction_image: (C, L) predicted mask (probabilities or binary).
-            signal_image: (C, L) raw EPG signal data (for RFU extraction).
-            scaler: (L, ) or (1, L) array mapping scan positions to base pairs.
-            panel: Reference panel with allele definitions.
-
-        Returns:
-            Tuple of Markers with called alleles.
-        """
+        """Translate any input to a sequence of :class:`~dnanet.core.marker.Marker` objects with called alleles."""
 
 
-class NearestBasePairCaller(AlleleCaller):
-    """Call alleles by nearest base-pair matching.
+class FromBinaryMaskCaller(AlleleCaller):
+    """Base class for allele calling strategies from binary segmentation masks.
 
-    For each connected component of positive predictions:
-    1. Compute the base-pair position of the highest rfu value of the prediction (via the scaler).
-    2. Find the closest allele in the panel for that dye channel.
-    3. Check whether the base pair of the highest rfu and the base pair of the closest allele differ
-    at most 0.3 base pairs. If not, regard the prediction as Out of Bin (OB) peak.
-    4. Record the peak height (max RFU in the component).
+    Implementations translate a pixel-level segmentation mask into a
+    sequence of :class:`~dnanet.core.marker.Marker` objects with called
+    alleles.
 
     Args:
         threshold: Probability threshold for positive predictions.
-        exclude_non_autosomal: If True, filter out non-autosomal markers
-            from the results.
+        exclude_non_autosomal: If True, filter out non-autosomal markers from the results.
     """
-
     def __init__(
         self,
         threshold: float = 0.5,
@@ -85,36 +67,47 @@ class NearestBasePairCaller(AlleleCaller):
         scaler: np.ndarray,
         panel: Panel,
     ) -> tuple[Marker, ...]:
+        """Call alleles from a segmentation prediction.
+
+        Args:
+            prediction_image: (C, L) predicted mask (probabilities or binary).
+            signal_image: (C, L) raw EPG signal data (for RFU extraction).
+            scaler: (L, ) array mapping scan positions to base pairs.
+            panel: Reference panel with allele definitions.
+
+        Returns:
+            Tuple of Markers with called alleles.
+        """
         markers = self._translate_pixels_to_alleles(
             scaler, prediction_image, signal_image, panel,
         )
 
         if self.exclude_non_autosomal:
             markers = tuple(m for m in markers if m.is_autosomal)
+        # TODO: add flag to remove OB peaks?
 
         return markers
 
     def _translate_pixels_to_alleles(
-        self,
-        scaler: np.ndarray,
-        prediction_image: np.ndarray,
-        signal_image: np.ndarray,
-        panel: Panel,
+            self,
+            scaler: np.ndarray,
+            prediction_image: np.ndarray,
+            signal_image: np.ndarray,
+            panel: Panel,
     ) -> tuple[Marker, ...]:
-        """Translate pixel predictions to marker/allele names.
+        """Translate pixel-level segmentation masks to alleles.
 
-        Finds connected components of positive predictions, maps each to a
-        base-pair position via the scaler, then looks up the nearest allele
-        in the panel.
+        For each connected component of positive predictions:
+        1. Compute the base pair positions of the prediction (via the scaler).
+        2. Translate the base pair position of the maximum rfu value (the peak top) and dye index to
+        marker and allele name.
+        3. Record the peak height (max RFU in the component).
         """
-        # Ensure scaler is 2D: (1, L)
-        if scaler.ndim == 1:
-            scaler = scaler[np.newaxis, :]
-
         loci_dict: dict[tuple[int, str], set[tuple[str, float]]] = defaultdict(set)
         rfus: dict[tuple[str, str, float], int] = defaultdict(int)
 
         for dye_index, dye_pred in enumerate(prediction_image):
+            # Find indices of positive predictions.
             positives = np.where(dye_pred >= self.threshold)[0]
             if positives.size == 0:
                 logger.debug("No predictions in dye row {}", dye_index)
@@ -127,21 +120,15 @@ class NearestBasePairCaller(AlleleCaller):
             )
 
             for prediction_bin in predicted_bins:
-                bin_basepairs = scaler[:, prediction_bin]  # Use the scaler to translate pixels to base pairs.
+                bin_basepairs = scaler[prediction_bin]  # Use the scaler to translate pixels to base pairs.
                 bin_rfus = signal_image[dye_index, prediction_bin]  # Find the rfu values inside the predicted bin.
-                bp_max_rfu = float(bin_basepairs[:, np.argmax(bin_rfus)][0])  # Find the base pair of the highest rfu.
+                bp_max_rfu = float(bin_basepairs[np.argmax(bin_rfus)])  # Find the base pair of the highest rfu.
 
-                marker_name, allele_name = self._get_nearest_allele(
+                marker_name, allele_name = self.call_allele_from_basepair(
                     dye_index, bp_max_rfu, panel,
                 )
-                allele_bp, _, _ = panel.get_allele_basepair_and_bins(marker_name, allele_name)
-                if allele_name!= "Unknown" and abs(allele_bp - bp_max_rfu) > 0.3:
-                    # Distance between the base pair of highest rfu and the base pair of the closest allele is too big,
-                    # therefore set allele name to "Out of Bin".
-                    allele_name = "OB"
 
-                # Store the allele_name and also the mean_bp the allele was found on, as we may find multiple "OB"
-                # peaks on different locations.
+                # Store the allele_name and also the mean_bp the allele was found on
                 loci_dict[(dye_index, marker_name)].add((allele_name, bp_max_rfu))
 
                 # Track highest RFU for this allele
@@ -163,7 +150,23 @@ class NearestBasePairCaller(AlleleCaller):
         )
 
     @staticmethod
-    def _get_nearest_allele(
+    def call_allele_from_basepair(dye_index: int, base_pair: float, panel: Panel) -> Tuple[str, str]:
+        """Translate the dye index and the base pair position on the dye to an allele name using the panel."""
+        raise NotImplementedError
+
+
+class NearestBasePairCaller(FromBinaryMaskCaller):
+    """Call alleles by nearest base-pair matching."""
+
+    def __init__(
+            self,
+            threshold: float = 0.5,
+            exclude_non_autosomal: bool = False,
+    ) -> None:
+        super().__init__(threshold, exclude_non_autosomal)
+
+    @staticmethod
+    def call_allele_from_basepair(
         dye_index: int,
         base_pair: float,
         panel: Panel,
@@ -186,3 +189,54 @@ class NearestBasePairCaller(AlleleCaller):
 
         nearest_bp = min(dye_mapping.keys(), key=lambda k: abs(k - base_pair))
         return dye_mapping[nearest_bp]
+
+
+class ExactBasePairCaller(FromBinaryMaskCaller):
+    """Call alleles by comparing predicted base pairs to base pairs of the Panel.
+
+    Consider a maximum allowed distance of 0.3 base pairs between the found base pair and the bin center. Demand
+    base pairs to fall in exactly one bin of the panel, otherwise regard the peak 'Out of Bin'.
+    """
+
+    def __init__(
+            self,
+            threshold: float = 0.5,
+            exclude_non_autosomal: bool = False,
+    ) -> None:
+        super().__init__(threshold, exclude_non_autosomal)
+
+    @staticmethod
+    def call_allele_from_basepair(
+            dye_index: int,
+            base_pair: float,
+            panel: Panel,
+    ) -> tuple[str, str]:
+        """Find the allele and marker for a given dye and base-pair by comparing the base pair to the bin base pairs
+        stored in the panel. Demand that the base pair must be within 0.3 difference of the bin base pair, otherwise
+        regard the peak as 'Out of Bin'.
+
+        Args:
+            dye_index: 0-based dye channel index.
+            base_pair: Base-pair position of the predicted region.
+            panel: Reference panel.
+
+        Returns:
+            Tuple of (marker_name, allele_name).
+        """
+        dye_mapping = panel.dye_bp_to_allele_mapping.get(dye_index, {})
+        if not dye_mapping:
+            logger.error("No dye mapping available for dye row {}", dye_index)
+            return "Unknown", "Unknown"
+
+        candidate_names = set()
+        for bin_bp, (marker, allele) in dye_mapping.items():
+            if abs(bin_bp - base_pair) < 0.3:
+                candidate_names.add((marker, allele))
+
+        if len(candidate_names) == 1:
+            # We have one marker/allele matched, return the found candidate.
+            return list(candidate_names)[0]
+
+        # Try to see if we can get the marker name, as the peak might not fall in an exact allele bin, but might
+        # fall in a marker.
+        return panel.get_marker_name_by_dye_and_bp(dye_index, base_pair), "Out of Bin"
