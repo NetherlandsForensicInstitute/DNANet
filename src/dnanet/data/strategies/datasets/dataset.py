@@ -12,17 +12,18 @@ Design pattern: **Strategy** (abstract base for dataset variants)
 
 from __future__ import annotations
 
+import csv
 import typing
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple, Literal, Mapping, Generator
 
-from dnanet.data.strategies.scaling import ScalingStrategy
-import csv
 import numpy as np
 from loguru import logger
 
 from dnanet.core import LabelCategory
 from dnanet.core.annotation import Annotation, ScanpointAnnotation
+from dnanet.data.strategies.scaling import ScalingStrategy
+
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
@@ -30,7 +31,6 @@ if typing.TYPE_CHECKING:
     from annotated_types import T
 
     from dnanet.core.types import PathLike
-    from dnanet.core.annotation import Annotation
 
 
 FileCategory = Literal['sample', 'ladder', 'control', 'unknown']
@@ -101,9 +101,8 @@ class DatasetStrategy(ABC):
             Path to the ladder file, or ``None`` if not found.
         """
 
-    @staticmethod
     @abstractmethod
-    def get_annotation_classes() -> list[str]:
+    def get_annotation_classes(self) -> list[str]:
         """Return the list of annotation classes supported by this dataset.
 
         The first class is assumed to be the default (noise) class.
@@ -184,7 +183,6 @@ class DatasetStrategy(ABC):
             ValueError: If required columns are missing, dyes are unknown, or
                 categories cannot be mapped to :class:`LabelCategory`.
         """
-
         _dye_name_to_dye_idx = {
             'blue': 0,
             'green': 1,

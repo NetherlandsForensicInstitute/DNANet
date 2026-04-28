@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from typing import Tuple
+
 import numpy as np
 import pytest
 
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
-from dnanet.evaluation.allele_caller import AlleleCaller, NearestBasePairCaller
+from dnanet.evaluation.allele_caller import AlleleCaller, NearestBasePairCaller, ExactBasePairCaller, \
+    FromBinaryMaskCaller
 
 
 # ---------------------------------------------------------------------------
@@ -73,6 +76,54 @@ class TestAllelCallerABC:
 
 
 # ---------------------------------------------------------------------------
+# FromBinaryMaskCaller
+# ---------------------------------------------------------------------------
+
+class DummyBinaryCaller(FromBinaryMaskCaller):
+    def __init__(self, threshold: float = 0.5, exclude_non_autosomal: bool = False) -> None:
+        super().__init__(threshold, exclude_non_autosomal)
+
+    @staticmethod
+    def call_allele_from_basepair(dye_index: int, base_pair: float, panel: Panel) -> Tuple[str, str]:
+        if dye_index == 0:
+            return "MarkerA", "AlleleA"
+        return "AMEL", "X"
+
+class TestFromBinaryMaskCaller:
+    def test_returns_tuple_of_markers(self, simple_panel, scaler, signal_image):
+        caller = DummyBinaryCaller()
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 99:101] = 1.0
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+        assert isinstance(markers, tuple)
+        assert all(isinstance(m, Marker) for m in markers)
+
+    def test_threshold_parameter(self, simple_panel, scaler, signal_image):
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 99:101] = 0.3  # below default threshold
+
+        caller_default = DummyBinaryCaller(threshold=0.5)
+        markers_default = caller_default.call_alleles(pred, signal_image, scaler, simple_panel)
+        assert len(markers_default) == 0
+
+        caller_low = DummyBinaryCaller(threshold=0.2)
+        markers_low = caller_low.call_alleles(pred, signal_image, scaler, simple_panel)
+        assert len(markers_low) > 0
+
+    def test_exclude_autosomal_markers(self, simple_panel, scaler, signal_image):
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 99:101] = 1
+        pred[1, 99:101] = 1
+
+        caller_exclude_true = DummyBinaryCaller(exclude_non_autosomal=True)
+        markers = caller_exclude_true.call_alleles(pred, signal_image, scaler, simple_panel)
+        assert [m.name for m in markers] == ["MarkerA"]
+
+        caller_exclude_false = DummyBinaryCaller(exclude_non_autosomal=False)
+        markers = caller_exclude_false.call_alleles(pred, signal_image, scaler, simple_panel)
+        assert sorted([m.name for m in markers]) == ["AMEL", "MarkerA"]
+
+# ---------------------------------------------------------------------------
 # NearestBasePairCaller
 # ---------------------------------------------------------------------------
 
@@ -114,18 +165,6 @@ class TestNearestBasePairCaller:
         pred = np.zeros((2, 300), dtype=float)
         markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
         assert len(markers) == 0
-
-    def test_threshold_parameter(self, simple_panel, scaler, signal_image):
-        pred = np.zeros((2, 300), dtype=float)
-        pred[0, 99:101] = 0.3  # below default threshold
-
-        caller_default = NearestBasePairCaller(threshold=0.5)
-        markers_default = caller_default.call_alleles(pred, signal_image, scaler, simple_panel)
-        assert len(markers_default) == 0
-
-        caller_low = NearestBasePairCaller(threshold=0.2)
-        markers_low = caller_low.call_alleles(pred, signal_image, scaler, simple_panel)
-        assert len(markers_low) > 0
 
     def test_multiple_connected_components(self, simple_panel, scaler, signal_image):
         """Two separate prediction regions on the same dye."""
@@ -169,24 +208,65 @@ class TestNearestBasePairCaller:
         assert "AMEL" not in names
         assert "D5S818" in names
 
-    def test_scaler_1d_and_2d(self, simple_panel, signal_image):
-        """Should accept both 1D and 2D scalers."""
-        caller = NearestBasePairCaller()
-        pred = np.zeros((2, 300), dtype=float)
-        pred[0, 99:101] = 1.0
+    def test_no_dye_mapping(self, simple_panel, scaler):
+        signal_image = np.zeros((3, 300), dtype=float)
+        signal_image[2, 98:102] = 500
 
-        scaler_1d = np.arange(300, dtype=float)
-        scaler_2d = scaler_1d[np.newaxis, :]
+        caller = NearestBasePairCaller(threshold=0.5)
+        pred = np.zeros((3, 300), dtype=float)
+        pred[2, 100:102] = 1.0
 
-        markers_1d = caller.call_alleles(pred, signal_image, scaler_1d, simple_panel)
-        markers_2d = caller.call_alleles(pred, signal_image, scaler_2d, simple_panel)
-
-        assert len(markers_1d) == len(markers_2d)
-
-    def test_returns_tuple_of_markers(self, simple_panel, scaler, signal_image):
-        caller = NearestBasePairCaller()
-        pred = np.zeros((2, 300), dtype=float)
-        pred[0, 99:101] = 1.0
         markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
-        assert isinstance(markers, tuple)
-        assert all(isinstance(m, Marker) for m in markers)
+        assert len(markers) == 1
+        called_alleles = [a.name for m in markers for a in m.alleles]
+        assert len(called_alleles) == 1
+        assert called_alleles[0] == "Unknown"
+
+class TestExactBasePairCaller:
+    def test_basic_call(self, simple_panel, scaler, signal_image):
+        caller = ExactBasePairCaller()
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 100:102] = 1.0  # centered around bp=101 -> allele "10"
+
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+        marker_a = [m for m in markers if m.name == "MarkerA"][0]
+        allele_names = {a.name for a in marker_a.alleles}
+        assert "10" in allele_names
+
+    def test_call_ob_allele(self, simple_panel, scaler, signal_image):
+        caller = ExactBasePairCaller()
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 105:106] = 1.0
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+
+        assert len(markers) == 1
+        assert markers[0].name == "MarkerA"
+
+        called_alleles = [a for a in markers[0].alleles]
+        assert len(called_alleles) == 1
+        assert called_alleles[0].name == "Out of Bin"
+
+    def test_call_ob_allele_and_marker(self, simple_panel, scaler, signal_image):
+        caller = ExactBasePairCaller()
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 95:98] = 1.0
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+
+        assert len(markers) == 1
+        assert markers[0].name == "Out of Bin"
+
+        called_alleles = [a for a in markers[0].alleles]
+        assert len(called_alleles) == 1
+        assert called_alleles[0].name == "Out of Bin"
+
+    def test_call_multiple_ob_peaks(self, simple_panel, scaler, signal_image):
+        caller = ExactBasePairCaller()
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 95:98] = 1.0
+        pred[1, 10:20] = 1.0
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+        assert len(markers) == 2
+
+        called_alleles = [a.name for m in markers for a in m.alleles]
+        assert len(called_alleles) == 2
+        assert set(called_alleles) == {"Out of Bin"}

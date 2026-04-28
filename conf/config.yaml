@@ -23,6 +23,6 @@ defaults:
 # -- Global settings --
 task: train          # One of: train, evaluate, cross_validate
 seed: 42
-output_dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+output_dir: ${hydra:runtime.output_dir}
 verbosity: INFO      # Logging level: DEBUG, INFO, WARNING, ERROR
 checkpoint: null     # Path to checkpoint for resume/evaluation

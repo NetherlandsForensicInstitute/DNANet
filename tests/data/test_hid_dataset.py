@@ -11,6 +11,7 @@ def _make_hid_dataset(**kwargs) -> HIDDataset:
     """Build an HIDDataset using the current constructor contract."""
     return HIDDataset(
         root=RD_DIR,
+        cache_dir='/tmp/var/hiddataset-tests/',
         scaling_strategy=PowerPlexFusion6CStrategy(),
         dataset_strategy=NFIRnDStrategy("DTH"),
         **kwargs,
@@ -50,6 +51,7 @@ class TestHIDDatasetValidation:
                 root=empty_dir,
                 scaling_strategy=PowerPlexFusion6CStrategy(),
                 dataset_strategy=NFIRnDStrategy("DTH"),
+                cache_dir='/tmp/var/hiddataset-tests/',
             )
 
 
