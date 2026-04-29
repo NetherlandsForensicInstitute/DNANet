@@ -111,11 +111,7 @@ class NFIRnDStrategy(DatasetStrategy):
 
         # Hid to Ladder mapping
         _, htl_values = self._read_csv_file(hid_to_ladder_path[0])
-        ladder_files = {
-            ladder_file.name: ladder_file
-            for ladder_file in path.rglob('*ladder*.hid', case_sensitive=False)
-        }
-        hid_to_ladder = {hid: ladder_files[ladder] for hid, ladder in htl_values}
+        hid_to_ladder = {hid: path / ladder for hid, ladder in htl_values}
 
         # collect all files
         for hid_file in hid_file_samples:
