@@ -38,7 +38,16 @@ class NFICaseStrategy(DatasetStrategy):
     _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self, annotation_type: str = 'DTH', robot_selection: Sequence[str] | None = None) -> None:
+    def __init__(self, annotation_type: str = 'ATLT', robot_selection: Sequence[str] | None = None) -> None:
+        """
+        Initialize the NFI casework strategy
+
+        Available annotation types:
+        - AT: only include profiles with a "high" analytical threshold (allele annotation)
+        - LT: only include profiles with a low threshold (allele annotation)
+        - ATLT: include profiles with either a high or low threshold (allele annotation)
+        - span: include profiles with a span annotation (scanpoint annotation)
+        """
         super().__init__()
         self.annotation_type = annotation_type
         self._robot_selection = robot_selection
@@ -105,8 +114,8 @@ class NFICaseStrategy(DatasetStrategy):
         # Collect all annotation .txt/.csv files and map from run_id -> annotation file
         if self.annotation_type == 'span':
             return self._collect_with_span_annotations(robots, path, scaling_strategy)
-        elif self.annotation_type == 'DTH' or self.annotation_type == 'DTL':
-            return self._collect_with_analyst_annotations(robots, path, scaling_strategy)
+        elif self.annotation_type == 'AT' or self.annotation_type == 'LT' or self.annotation_type == 'ATLT':
+            return self._collect_with_analyst_annotations(robots, path, scaling_strategy, self.annotation_type)
         else:
             raise ValueError(f'Invalid annotation type: {self.annotation_type}')
 
@@ -134,9 +143,19 @@ class NFICaseStrategy(DatasetStrategy):
         robots: Generator[Path, None, None],
         path: Path,
         scaling_strategy: ScalingStrategy,
+        annotation_type: str,
     ) -> Generator[Tuple[Path, AlleleAnnotation | None, Path | None], None, None]:
         annotations_folder = path / 'annotations'
         annotation_mapping = cls.find_annotation_files(annotations_folder)
+
+        # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
+        run_id_path = path / 'runid_type.csv'
+        if not run_id_path.exists():
+            raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
+        run_id_type_mapping = {
+            row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
+        }
+
 
         for _file in robots:
             if cls.categorize_file(_file.name) != 'sample':
@@ -145,23 +164,44 @@ class NFICaseStrategy(DatasetStrategy):
 
             _run_id = _file.stem.split('_')[0]
             _sample_name = _file.stem.rsplit('_', 1)[0]
-            _annotation = annotation_mapping.get(_run_id)
 
             _ladder = cls.find_ladder_for_sample(_file)
 
             _allele_annotation = None
-            if _annotation:
-                _allele_annotation_map = cls.parse_annotations(
-                    _annotation, scaling_strategy=scaling_strategy
-                )
+            if cls._is_correct_annotation_type(_run_id, annotation_type, run_id_type_mapping):
+                _annotation = annotation_mapping.get(_run_id)
 
-                # Usually there's only one sample <-> annotation per annotation file
-                if len(_allele_annotation_map) == 1:
-                    _allele_annotation = list(_allele_annotation_map.values())[0]
-                elif len(_allele_annotation_map) > 1:
-                    _allele_annotation = _allele_annotation_map[_sample_name]
+                if _annotation:
+                    _allele_annotation_map = cls.parse_annotations(
+                        _annotation, scaling_strategy=scaling_strategy
+                    )
+
+                    # Usually there's only one sample <-> annotation per annotation file
+                    if len(_allele_annotation_map) == 1:
+                        _allele_annotation = list(_allele_annotation_map.values())[0]
+                    elif len(_allele_annotation_map) > 1:
+                        _allele_annotation = _allele_annotation_map[_sample_name]
+
 
             yield (_file, _allele_annotation, _ladder)
+
+    @staticmethod
+    def _is_correct_annotation_type(run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]) -> bool:
+        """Check if the run_id corresponds to the requested annotation type."""
+        if annotation_type == 'ATLT':
+            # when ATLT is selected, include all annotations
+            return True
+        elif run_id in annotation_type_mapping:
+            # if the run-id is found in the csv, check if it matches the requested annotation type
+            return annotation_type_mapping[run_id] == annotation_type
+        elif run_id + 'L' in annotation_type_mapping:
+            # sometimes the run-id is changed to end with an L, check also for this option.
+            return annotation_type_mapping[run_id + 'L'] == annotation_type
+        elif annotation_type == 'AT':
+            # if the run-id is not found in the csv, assume it is AT
+            return True
+        # do not include LT profiles when AT is requested
+        return False
 
     def cache_signature(self) -> dict:  # noqa: D102
         return {
