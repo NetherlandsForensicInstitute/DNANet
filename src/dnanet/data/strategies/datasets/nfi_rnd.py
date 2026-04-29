@@ -10,28 +10,27 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
+import csv
 import io
 import os
 import re
-import csv
-from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
-from pathlib import Path
 from itertools import groupby
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
 
 from loguru import logger
-from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     StratifiedKFold,
     train_test_split,
 )
+from torch.utils.data import Subset
 
 from dnanet.core import LabelCategory
 from dnanet.core.allele import Allele
-from dnanet.core.marker import Marker
 from dnanet.core.annotation import Annotation, AlleleAnnotation
+from dnanet.core.marker import Marker
 from dnanet.data.strategies.datasets.dataset import DatasetStrategy
-
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
@@ -356,7 +355,7 @@ class NFIRnDStrategy(DatasetStrategy):
     @classmethod
     def parse_annotations(
         cls, annotation_source: PathLike, scaling_strategy: ScalingStrategy
-    ) -> Dict[str, Annotation]:
+    ) -> Dict[str, AlleleAnnotation]:
         """Parse manually called alleles from an annotation text file.
 
         The annotation file may contain calls for multiple samples. This function
@@ -373,7 +372,7 @@ class NFIRnDStrategy(DatasetStrategy):
             logger.debug('Empty annotation file: {}', annotation_source)
             raise RuntimeError('Annotations file is emtpy')
 
-        annotation_mapping: Dict[str, Annotation] = {}
+        annotation_mapping: Dict[str, AlleleAnnotation] = {}
         with open(annotation_source, 'r') as f:
             header_result = cls._parse_csv_header(f)
             if header_result is None:

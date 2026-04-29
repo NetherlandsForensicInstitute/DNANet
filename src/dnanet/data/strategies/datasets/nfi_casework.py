@@ -10,28 +10,28 @@ Warning:
     Please see the documentation about developing your own strategy, or use the two other strategies for the open-source data.
 """
 
-import os
-import json
-import pickle
 import hashlib
 import itertools
-from typing import Dict, Tuple, Mapping, Sequence, Generator
+import json
+import os
+import pickle
 from pathlib import Path
+from typing import Dict, Tuple, Mapping, Sequence, Generator
 
 import numpy as np
 from loguru import logger
-from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     train_test_split,
 )
+from torch.utils.data import Subset
 
-from dnanet.core.types import PathLike
-from dnanet.core.constants import LabelCategory
 from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
-from dnanet.data.strategies.scaling.scaling import ScalingStrategy
+from dnanet.core.constants import LabelCategory
+from dnanet.core.types import PathLike
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
+from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 
 
 class NFICaseStrategy(DatasetStrategy):
@@ -345,7 +345,7 @@ class NFICaseStrategy(DatasetStrategy):
     @classmethod
     def parse_annotations(  # noqa: D102
         cls, annotation_source: str | Path, scaling_strategy: ScalingStrategy
-    ) -> Mapping[str, ScanpointAnnotation | AlleleAnnotation]:
+    ) -> Mapping[str, AlleleAnnotation]:
         return NFIRnDStrategy.parse_annotations(
             annotation_source=annotation_source, scaling_strategy=scaling_strategy
         )
