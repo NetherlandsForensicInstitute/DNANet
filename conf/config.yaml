@@ -23,6 +23,7 @@ defaults:
 
 # -- Global settings --
 task: train          # One of: train, evaluate, cross_validate
+                     # NOTE: task=cross_validate requires splitting=cross_validate
 seed: 42
 output_dir: ${hydra:runtime.output_dir}
 verbosity: INFO      # Logging level: DEBUG, INFO, WARNING, ERROR

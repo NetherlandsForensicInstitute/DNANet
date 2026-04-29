@@ -45,5 +45,4 @@ visualize: false
 
 data_transform:
   _target_: dnanet.data.transformer.AlleleMetadataTransformer
-  transformer:
-    _target_: dnanet.data.transformer.SegmentationTransformer
+  transformer: ${model.data_transform}

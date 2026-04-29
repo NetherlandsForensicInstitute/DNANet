@@ -50,11 +50,6 @@ checkpoint:
   save_top_k: 1
   mode: max
 
-data_transform:
-  _target_: dnanet.data.transformer.PeakClassificationTransformer
-  include_marker: ${model.architecture.use_embedding}
-
-
 # module initialization. You shouldn't need to change this
 lightning_module:
   _target_: dnanet.modules.classification.ClassificationModule

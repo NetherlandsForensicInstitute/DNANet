@@ -17,7 +17,7 @@ import lightning as L
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, default_collate
 
 from dnanet.tasks.train import _build_logger, _build_callbacks
 from dnanet.data.splitting import dataset_splitter, KFoldSplitResult
@@ -64,9 +64,17 @@ def run_with_data(
     """
     L.seed_everything(cfg.seed, workers=True)
 
+    if not cfg.splitting.get("k_folds"):
+        raise ValueError(
+            "task=cross_validate requires k-fold splitting. "
+            "Run with: dnanet task=cross_validate splitting=cross_validate ..."
+        )
+
     split_kwargs: dict = OmegaConf.to_container(cfg.splitting, resolve=True)  # type: ignore[assignment]
     folds, _test_set = cast(KFoldSplitResult, dataset_splitter(dataset, **split_kwargs))
-    dataset_transform = dataset.transform
+
+    _transform = getattr(dataset, "transform", None)
+    collate_fn = _transform.collate_fn if _transform is not None else default_collate
 
     k_folds = len(folds)
     logger.info("Starting {}-fold cross-validation", k_folds)
@@ -103,7 +111,7 @@ def run_with_data(
             shuffle=True,
             num_workers=cfg.train.num_workers,
             pin_memory=True,
-            collate_fn=dataset_transform
+            collate_fn=collate_fn,
         )
         val_loader = DataLoader(
             val_set,
@@ -111,7 +119,7 @@ def run_with_data(
             shuffle=False,
             num_workers=cfg.train.num_workers,
             pin_memory=True,
-            collate_fn=dataset_transform
+            collate_fn=collate_fn,
         )
 
         trainer = L.Trainer(

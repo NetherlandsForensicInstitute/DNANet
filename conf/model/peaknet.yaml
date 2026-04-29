@@ -42,3 +42,9 @@ architecture:
 
 loss:
   _target_: torch.nn.CrossEntropyLoss
+
+data_transform:
+  _target_: dnanet.data.transformer.CombinedTransformer
+  threshold: ${model.peak_threshold}
+  window_size: ${model.window_size}
+  include_max_pool_dyes: false

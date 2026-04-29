@@ -44,13 +44,6 @@ checkpoint:
   save_top_k: 1
   mode: min
 
-data_transform:
-  _target_: dnanet.data.transformer.CombinedTransformer
-  threshold: 25
-  window_size: 120
-  include_max_pool_dyes: False
-
-
 lightning_module:
   _target_: dnanet.modules.peaknet.PeakNetModule
   learning_rate: ${train.learning_rate}
