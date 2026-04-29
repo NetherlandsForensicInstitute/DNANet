@@ -65,19 +65,12 @@ class PowerPlexFusion6CStrategy(ScalingStrategy):
         lane = np.asarray(size_standard_lane).reshape(-1)
         expected_bps = self.kit.size_standard.expected_bps
 
-        peak_idxs = self._extract_ss_peaks(lane)
+        peak_idxs = self._extract_ss_peaks(lane, 120)
         peak_idxs = peak_idxs[-20:-1]  # last 19 peaks, excluding final
-
-        import matplotlib.pyplot as plt
-        lane2 = lane[2400:]
-        peak_idxs2 = peak_idxs - 2400
-        plt.plot(lane2)
-        plt.scatter(peak_idxs2, lane2[peak_idxs2], color="orange")
-        plt.show()
 
         if not self._validate_ss_peaks(peak_idxs, expected_bps):
             return None
-
+        print(peak_idxs, lane[peak_idxs])
         rescaled_indices, scaler = self.interpolate(peak_idxs, expected_bps, lane)
         return SizeStandardParseResult(
             rescaled_indices=rescaled_indices, scaler=scaler, fit_error=0.0
