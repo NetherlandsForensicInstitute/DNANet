@@ -5,8 +5,11 @@ import hashlib
 from pathlib import Path
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 
+from dnanet.core import LabelCategory
+from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.strategies.datasets.nfi_casework import NFICaseStrategy
 from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
 
@@ -89,6 +92,28 @@ class TestNFICaseStrategy:
             _create_mock_dataset / 'hids/3500XL_A/subfolder_1/subfolder_2/ladder_file.hid',
         )
 
+    def test_collect_dataset_files_span_annotations(self, _create_mock_dataset):
+        annotation = ScanpointAnnotation(np.zeros((6, 4096), dtype=np.int8))
+
+        with patch.object(
+            NFICaseStrategy,
+            '_parse_span_annotation',
+            return_value={'sample_file': annotation},
+        ):
+            dataset_files = list(
+                NFICaseStrategy('span')._collect_dataset_files_uncached(
+                    root_path=_create_mock_dataset,
+                    scaling_strategy=PowerPlexFusion6CStrategy(scanpoint_resolution=4096),
+                    folder_cache=False,
+                )
+            )
+
+        assert dataset_files[0] == (
+            _create_mock_dataset / 'hids/3500XL_A/subfolder_1/subfolder_2/sample_file.hid',
+            annotation,
+            _create_mock_dataset / 'hids/3500XL_A/subfolder_1/subfolder_2/ladder_file.hid',
+        )
+
 
 # ---------------------------------------------------------------------------
 # categorize_file
@@ -128,7 +153,7 @@ class TestCacheSignature:
         sig = NFICaseStrategy('DTH').cache_signature()
         assert sig['class'] == 'NFICaseStrategy'
         assert 'robot_selection' not in sig
-        assert sig['annotation_type'] == ('DTH',)
+        assert sig['annotation_type'] == 'DTH'
 
     def test_with_robot_selection(self):
         sig = NFICaseStrategy('DTH', robot_selection=['3500XL_A', '3500XL_B']).cache_signature()
@@ -297,9 +322,8 @@ class TestGetAnnotationClasses:
     def test_non_span_returns_noise_allele(self):
         assert NFICaseStrategy('DTH').get_annotation_classes() == ['noise', 'allele']
 
-    def test_span_type_stored_as_tuple_so_also_returns_noise_allele(self):
-        # annotation_type is stored as a tuple, so == 'span' check is always False
-        assert NFICaseStrategy('span').get_annotation_classes() == ['noise', 'allele']
+    def test_span_returns_label_categories(self):
+        assert NFICaseStrategy('span').get_annotation_classes() == LabelCategory.label_names()
 
 
 # ---------------------------------------------------------------------------

@@ -28,7 +28,7 @@ from sklearn.model_selection import (
 
 from dnanet.core.types import PathLike
 from dnanet.core.constants import LabelCategory
-from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
+from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
@@ -38,16 +38,14 @@ class NFICaseStrategy(DatasetStrategy):
     _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self, annotation_type: str, robot_selection: Sequence[str] | None = None) -> None:
+    def __init__(self, annotation_type: str = 'DTH', robot_selection: Sequence[str] | None = None) -> None:
         super().__init__()
-        self.annotation_type = (annotation_type,)
+        self.annotation_type = annotation_type
         self._robot_selection = robot_selection
 
     def collect_dataset_files(
         self, root_path: str | Path, scaling_strategy: ScalingStrategy, **kwargs
-    ) -> Generator[
-        Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
-    ]:
+    ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         """Collect all .HID files in the casework folders.
 
         Finds all .HID files and their corresponding annotation and ladder.
@@ -93,9 +91,7 @@ class NFICaseStrategy(DatasetStrategy):
         root_path: str | Path,
         scaling_strategy: ScalingStrategy,
         folder_cache: bool = True,
-    ) -> Generator[
-        Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
-    ]:
+    ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         path = Path(root_path)
 
         # Collect all .HID files from the robot folders
@@ -107,22 +103,55 @@ class NFICaseStrategy(DatasetStrategy):
         )
 
         # Collect all annotation .txt/.csv files and map from run_id -> annotation file
-        annotations_folder = path / 'annotations'
-        annotation_mapping = self.find_annotation_files(annotations_folder)
+        if self.annotation_type == 'span':
+            return self._collect_with_span_annotations(robots, path, scaling_strategy)
+        elif self.annotation_type == 'DTH' or self.annotation_type == 'DTL':
+            return self._collect_with_analyst_annotations(robots, path, scaling_strategy)
+        else:
+            raise ValueError(f'Invalid annotation type: {self.annotation_type}')
+
+    @classmethod
+    def _collect_with_span_annotations(
+        cls,
+        robots: Generator[Path, None, None],
+        path: Path,
+        scaling_strategy: ScalingStrategy,
+    ) -> Generator[Tuple[Path, ScanpointAnnotation | None, Path | None], None, None]:
+        span_annotations_path = path / 'span_annotations'
+        hid_to_annotation = cls._parse_span_annotation(span_annotations_path, scaling_strategy)
 
         for _file in robots:
-            if self.categorize_file(_file.name) != 'sample':
+            if cls.categorize_file(_file.name) != 'sample':
+                logger.debug(f'Skipping {cls.categorize_file(_file.name)} file: {_file.stem}')
+                continue
+
+            _ladder = cls.find_ladder_for_sample(_file)
+            yield (_file, hid_to_annotation.get(_file.stem), _ladder)
+
+    @classmethod
+    def _collect_with_analyst_annotations(
+        cls,
+        robots: Generator[Path, None, None],
+        path: Path,
+        scaling_strategy: ScalingStrategy,
+    ) -> Generator[Tuple[Path, AlleleAnnotation | None, Path | None], None, None]:
+        annotations_folder = path / 'annotations'
+        annotation_mapping = cls.find_annotation_files(annotations_folder)
+
+        for _file in robots:
+            if cls.categorize_file(_file.name) != 'sample':
+                logger.debug(f'Skipping {cls.categorize_file(_file.name)} file: {_file.stem}')
                 continue
 
             _run_id = _file.stem.split('_')[0]
             _sample_name = _file.stem.rsplit('_', 1)[0]
             _annotation = annotation_mapping.get(_run_id)
 
-            _ladder = self.find_ladder_for_sample(_file)
+            _ladder = cls.find_ladder_for_sample(_file)
 
             _allele_annotation = None
             if _annotation:
-                _allele_annotation_map = self.parse_annotations(
+                _allele_annotation_map = cls.parse_annotations(
                     _annotation, scaling_strategy=scaling_strategy
                 )
 
