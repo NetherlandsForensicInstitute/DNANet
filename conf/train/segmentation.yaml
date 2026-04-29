@@ -5,7 +5,7 @@ max_epochs: 15
 batch_size: 16
 learning_rate: 0.0001
 weight_decay: 0.0005
-val_fraction: 0.2
+val_fraction: 0.1
 test_fraction: 0.0
 num_workers: 5
 seed: 42
@@ -39,7 +39,6 @@ optimizer:
 scheduler:
   _target_: torch.optim.lr_scheduler.ExponentialLR
   gamma: 0.8
-  optimizer: ${train.optimizer}
 
 # Early stopping
 early_stopping:
@@ -63,8 +62,8 @@ lightning_module:
   weight_decay: ${train.weight_decay}
   threshold: ${train.threshold}
   loss_fn: ${model.loss}
-  scheduler: ${train.scheduler}
   metrics: ${train.metrics}
+  batch_size: ${train.batch_size}
 
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule

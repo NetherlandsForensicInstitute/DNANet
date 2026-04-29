@@ -3,7 +3,12 @@ name: peaknet
 
 peak_threshold: 25
 window_size: 120
-num_classes: 12
+num_classes: 2
+
+threshold: 25
+include_max_pool_dyes: False
+autoencoder_log_scale: True
+autoencoder_max_rfu: 33000
 
 architecture:
   _target_: dnanet.models.peaknet.CombinedClassifier
@@ -14,9 +19,9 @@ architecture:
   # encoded_shape() and backbone_out_features().
   autoencoder:
     _target_: dnanet.models.autoencoder.PerDyeConv1dAutoencoder
-    in_channels: 5
+    in_channels: 6
     hidden_channels: 64
-    depth: 3
+    depth: 4
     input_length: 4096
     kernel_size: 5
     compression: 8
@@ -25,7 +30,7 @@ architecture:
   peak_classifier:
     _target_: dnanet.models.peak_classifier.PeakClassificationModel
     num_classes: ${model.num_classes}
-    width: 120
+    width: ${model.window_size}
     n_markers: 28
     embedding_dim: 8
     hidden_channels: [32, 64]

@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import lightning as L
-from tqdm import tqdm
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
@@ -86,6 +85,11 @@ def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
             experiment_name=mlflow_cfg.get('experiment_name', 'dnanet'),
             tracking_uri=mlflow_cfg.get('tracking_uri', 'mlruns'),
             log_model=mlflow_cfg.get('log_model', False),
+            tags={
+                'model' : cfg.get('model', {}).get('name', 'Unknown'),
+                'data': cfg.data.get('name', 'Unknown'),
+                'task': cfg.get('train', {}).get('type', 'Unknown'),
+            }
         )
     elif logger_type == 'tensorboard':
         return L.pytorch.loggers.TensorBoardLogger(
@@ -199,7 +203,7 @@ def run(
         cfg.train.lightning_module,
         model=network,
         optimizer=optimizer,
-        scheduler=scheduler,
+        lr_scheduler=scheduler,
         _convert_='partial' # convert OmegaDict to standard dict since this is not a supported type for instantiating
     )
 
@@ -245,5 +249,6 @@ def run(
     logger.info('Starting training...')
     trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
     logger.info('Training complete!')
+    logger.info('Saved to {}', cfg.output_dir)
 
     return trainer, module

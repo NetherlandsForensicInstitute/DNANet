@@ -21,16 +21,16 @@ import lightning as L
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig, ListConfig
 from hydra.utils import get_class, instantiate
+import numpy as np
 
 from dnanet.tasks.train import _build_logger
 
 
 if TYPE_CHECKING:
-    import numpy as np
     from torch.utils.data import Dataset
 
     from dnanet.modules import BaseTaskModule
-    
+
 
 
 def _as_2d_array(array: np.ndarray) -> np.ndarray:
@@ -100,10 +100,22 @@ def run(
         )
     logger.info("Loading checkpoint: {}", checkpoint_path)
 
-    # -- Build model and load checkpoint -----------------------------------
-    model_cfg = cfg.model
-    network = instantiate(model_cfg.architecture)
-    loss_fn = instantiate(model_cfg.loss)
+    checkpoint_dir = Path(checkpoint_path).parent.parent  # go up from /checkpoints/
+    checkpoint_config_path = checkpoint_dir / "config.yaml"
+
+    if not checkpoint_config_path.exists():
+        raise ValueError(
+            f"Config file not found in checkpoint directory: {checkpoint_config_path}"
+        )
+
+    # Load the original training config from checkpoint
+    checkpoint_cfg = OmegaConf.load(checkpoint_config_path)
+    logger.info("Loaded checkpoint config from {}", checkpoint_config_path)
+
+    # -- Build model and loss from checkpoint config -----------------------
+    network = instantiate(checkpoint_cfg.model.architecture)
+    loss_fn = instantiate(checkpoint_cfg.model.loss)
+
 
     eval_metrics = instantiate(cfg.evaluate.metrics, _convert_="partial")
 
@@ -112,14 +124,14 @@ def run(
     module_class: type[BaseTaskModule] = get_class(cfg.evaluate.lightning_module)
 
 
-    module = module_class.load_from_checkpoint(
+    model = module_class.load_from_checkpoint(
         checkpoint_path=checkpoint_path,
         metrics=eval_metrics,
         model=network,
         optimizer=None,
         loss_fn=loss_fn
     )
-    module.eval()
+    model.eval()
     logger.info("Model loaded: {}", type(network).__name__)
 
     # -- Data --------------------------------------------------------------
@@ -127,12 +139,12 @@ def run(
         data_cfg = cfg.get('data')
         dataset = instantiate(data_cfg.dataset)
 
-    datamodule = DNANetDataModule(
+    # load datamodule with the same seed and split from the checkpoint config
+    datamodule = instantiate(
+        checkpoint_cfg.train.data_module,
         dataset=dataset,
         batch_size=cfg.evaluate.get("batch_size", 1),
-        val_fraction= None, # always use the entire dataset for evaluation
         num_workers=cfg.evaluate.get("num_workers", 0),
-        seed=cfg.seed,
     )
     datamodule.setup("test")
 
@@ -147,7 +159,7 @@ def run(
 
     logger.info("Running predictions...")
     logger.warning("Evaluating on entire dataset (no split applied).")
-    results = trainer.test(module, dataloaders=datamodule.train_dataloader()) # FIXME: use datamodule test dataloader
+    results = trainer.test(model, dataloaders=datamodule.train_dataloader()) # FIXME: use datamodule test dataloader
 
 
     # -- Save results ------------------------------------------------------
@@ -161,11 +173,13 @@ def run(
     config_path.write_text(OmegaConf.to_yaml(cfg))
 
     # Optionally save predictions
-    # if cfg.evaluation.get("save_predictions", False):
-    #     pred_dir = Path(cfg.output_dir) / cfg.evaluation.get("predictions_dir", "predictions")
-    #     pred_dir.mkdir(parents=True, exist_ok=True)
-    #     for i, pred in enumerate(pred_arrays):
-    #         np.save(pred_dir / f"prediction_{i:04d}.npy", pred)
-    #     logger.info("Predictions saved to {}", pred_dir)
+    if cfg.evaluate.get("save_predictions", False):
+        # TODO do not do a second loop of predictions to save them to disk
+        pred_arrays = trainer.predict(model, dataloaders=datamodule.train_dataloader(), return_predictions=True) # FIXME: use datamodule test dataloader
+        pred_dir = Path(cfg.output_dir) / cfg.evaluate.get("predictions_dir", "predictions")
+        pred_dir.mkdir(parents=True, exist_ok=True)
+        for i, pred in enumerate(pred_arrays):
+            np.save(pred_dir / f"prediction_{i:04d}.npy", pred)
+        logger.info("Predictions` saved to {}", pred_dir)
 
     return results

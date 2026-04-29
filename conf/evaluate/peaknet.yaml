@@ -2,6 +2,12 @@
 batch_size: 16
 num_workers: 4
 
+# Output options
+save_predictions: false
+predictions_dir: predictions/
+visualize: false
+
+
 metrics:
   _target_: torchmetrics.MetricCollection
   metrics:
@@ -34,10 +40,6 @@ callbacks:
     threshold: 0.5
     filename: per_rfu_outcomes.npz
 
-# Output options
-save_predictions: false
-predictions_dir: predictions/
-visualize: false
 
 data_transform:
   _target_: dnanet.data.transformer.AlleleMetadataTransformer

@@ -35,11 +35,12 @@ class DNANetDataModule(L.LightningDataModule):
         seed: int | None = None,
         stratify_noc: bool = False,
         group_by_replica: bool = False,
+        shuffle_train: bool = True,
     ) -> None:
         super().__init__()
-        if val_fraction + test_fraction >= 1.0:
+        if val_fraction + test_fraction > 1.0:
             raise ValueError(
-                f'val_fraction ({val_fraction}) + test_fraction ({test_fraction}) must be < 1.0'
+                f'val_fraction ({val_fraction}) + test_fraction ({test_fraction}) must be <= 1.0'
             )
         if val_fraction <= 0.0:
             raise ValueError(f'val_fraction must be > 0, got {val_fraction}')
@@ -54,6 +55,7 @@ class DNANetDataModule(L.LightningDataModule):
         self.seed = seed
         self.stratify_noc = stratify_noc
         self.group_by_replica = group_by_replica
+        self.shuffle_train = shuffle_train
 
         self._train_dataset: Dataset | None = None
         self._val_dataset: Dataset | None = None
@@ -89,9 +91,10 @@ class DNANetDataModule(L.LightningDataModule):
         return DataLoader(
             self._train_dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=self.shuffle_train,
             num_workers=self.num_workers,
             collate_fn=self._collate_fn,
+            persistent_workers=self.num_workers > 0,
             pin_memory=True,
         )
 
@@ -140,6 +143,7 @@ class DNANetDataModule(L.LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             collate_fn=self._collate_fn,
+            persistent_workers=self.num_workers > 0,
             pin_memory=True,
         )
 

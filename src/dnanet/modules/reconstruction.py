@@ -50,6 +50,9 @@ class ReconstructionModule(BaseTaskModule):
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         metrics: MetricCollection | None = None,
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        autoencoder_log_scale: bool = True,
+        autoencoder_max_rfu: int | None = None,
+        batch_size: int | None = None,
     ) -> None:
         if lr_scheduler is None:
             lr_scheduler = scheduler
@@ -60,11 +63,15 @@ class ReconstructionModule(BaseTaskModule):
             optimizer=optimizer,
             metrics=metrics,
             lr_scheduler=lr_scheduler,
+            batch_size=batch_size,
         )
         self.save_hyperparameters({
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
         })
+
+        self.autoencoder_log_scale = autoencoder_log_scale
+        self.autoencoder_max_rfu = autoencoder_max_rfu
 
     def compute_step_outputs(
         self, batch: Tensor | tuple[Tensor, ...],
@@ -89,9 +96,11 @@ class ReconstructionModule(BaseTaskModule):
             target = target.squeeze(-1)
 
         # denormalize
-        log_scale = True
-        max_rfu = 33000  # TODO do not hardcode values
-        reconstruction = inverse_scale_rfu_torch(reconstruction, log_scale, max_rfu)
+        reconstruction = inverse_scale_rfu_torch(
+            reconstruction,
+            self.autoencoder_log_scale,
+            self.autoencoder_max_rfu
+        )
 
         loss = self.loss_fn(reconstruction, target)
         return loss, reconstruction.detach().reshape(-1), target.reshape(-1)
