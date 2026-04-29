@@ -80,6 +80,7 @@ class DNANetDataModule(L.LightningDataModule):
             shuffle=True,
             num_workers=self.num_workers,
             collate_fn=self._collate_fn,
+            persistent_workers=self.num_workers > 0,
             pin_memory=True,
         )
 
@@ -91,6 +92,7 @@ class DNANetDataModule(L.LightningDataModule):
             shuffle=False,
             num_workers=self.num_workers,
             collate_fn=self._collate_fn,
+            persistent_workers=self.num_workers > 0,
             pin_memory=True,
         )
 

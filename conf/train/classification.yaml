@@ -58,6 +58,7 @@ lightning_module:
   loss_fn: ${model.loss}
   num_classes: ${model.architecture.num_classes}
   metrics: ${train.metrics}
+  batch_size: ${train.batch_size}
 
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule

@@ -249,5 +249,6 @@ def run(
     logger.info('Starting training...')
     trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
     logger.info('Training complete!')
+    logger.info('Saved to {}', cfg.output_dir)
 
     return trainer, module

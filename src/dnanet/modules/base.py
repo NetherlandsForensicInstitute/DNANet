@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
 from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 import lightning as L
 import torchmetrics
-from loguru import logger
 from lightning import Callback
+from loguru import logger
 from torchmetrics import MetricCollection
-
 
 if TYPE_CHECKING:
     import torch
@@ -33,12 +32,14 @@ class BaseTaskModule(L.LightningModule, ABC):
         optimizer: torch.optim.Optimizer | None,
         metrics: torchmetrics.MetricCollection | None = None,
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        batch_size: int | None = None,
     ) -> None:
         super().__init__()
         self.model = model
         self.loss_fn = loss_fn
         self.lr_scheduler = lr_scheduler
         self.optimizer = optimizer
+        self.batch_size = batch_size
         if metrics is None:
             metrics = MetricCollection([])
         self.train_metrics = metrics.clone(prefix="train/")
@@ -95,6 +96,7 @@ class BaseTaskModule(L.LightningModule, ABC):
             on_step=False,
             on_epoch=True,
             logger=True,
+            batch_size=self.batch_size,
         )
         if len(metrics) > 0:
             self.log_dict(
@@ -103,6 +105,7 @@ class BaseTaskModule(L.LightningModule, ABC):
                 on_step=False,
                 on_epoch=True,
                 logger=True,
+                batch_size=self.batch_size,
             )
 
     def training_step(self, batch: Any, batch_idx: int) -> Tensor:

@@ -57,6 +57,7 @@ lightning_module:
   threshold: ${train.threshold}
   loss_fn: ${model.loss}
   metrics: ${train.metrics}
+  batch_size: ${train.batch_size}
 
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule
