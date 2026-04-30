@@ -1,14 +1,16 @@
-_target_: torchmetrics.MetricCollection
-metrics:
-  precision:
-    _target_: torchmetrics.classification.MulticlassPrecision
-    num_classes: 12
-  recall:
-    _target_: torchmetrics.classification.MulticlassRecall
-    num_classes: 12
-  f1:
-    _target_: torchmetrics.classification.MulticlassF1Score
-    num_classes: 12
-  jaccard_index:
-    _target_: torchmetrics.classification.MulticlassJaccardIndex
-    num_classes: 12
+precision:
+  _target_: torchmetrics.classification.MulticlassPrecision
+  num_classes: ${model.architecture.num_classes}
+  average: macro
+recall:
+  _target_: torchmetrics.classification.MulticlassRecall
+  num_classes: ${model.architecture.num_classes}
+  average: macro
+f1:
+  _target_: torchmetrics.classification.MulticlassF1Score
+  num_classes: ${model.architecture.num_classes}
+  average: macro
+jaccard_index:
+  _target_: torchmetrics.classification.MulticlassJaccardIndex
+  num_classes: ${model.architecture.num_classes}
+  average: macro
