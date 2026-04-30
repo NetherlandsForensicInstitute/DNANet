@@ -40,6 +40,7 @@ def mock_root(tmp_path):
     hids = tmp_path / 'hids'
     hids.mkdir()
     (tmp_path / 'annotations').mkdir()
+    (tmp_path / 'runid_type.csv').write_text('RUN001,AT\nRUN002,LT\n')
     robot_a = hids / '3500XL_A'
     (robot_a / 'sub1/sub2').mkdir(parents=True)
     (robot_a / 'sub1/sub2/sample_file.hid').touch()
@@ -65,6 +66,7 @@ class TestNFICaseStrategy:
         hids_folder.mkdir()
         annotations = dataset_root / 'annotations'
         annotations.mkdir()
+        (dataset_root / 'runid_type.csv').write_text('RUN001,AT\nRUN002,LT\n')
 
         robot_a = hids_folder / '3500XL_A'
         robot_a.mkdir(exist_ok=True)
@@ -79,7 +81,7 @@ class TestNFICaseStrategy:
         shutil.rmtree(dataset_root)
 
     def test_collect_dataset_files(self, _create_mock_dataset):
-        dataset_files = NFICaseStrategy('DTH')._collect_dataset_files_uncached(
+        dataset_files = NFICaseStrategy('ATLT')._collect_dataset_files_uncached(
             root_path=_create_mock_dataset,
             scaling_strategy=PowerPlexFusion6CStrategy(scanpoint_resolution=4096),
             folder_cache=False,
@@ -150,19 +152,56 @@ class TestCategorizeFile:
 
 class TestCacheSignature:
     def test_without_robot_selection(self):
-        sig = NFICaseStrategy('DTH').cache_signature()
+        sig = NFICaseStrategy('ATLT').cache_signature()
         assert sig['class'] == 'NFICaseStrategy'
         assert 'robot_selection' not in sig
-        assert sig['annotation_type'] == 'DTH'
+        assert sig['annotation_type'] == 'ATLT'
 
     def test_with_robot_selection(self):
-        sig = NFICaseStrategy('DTH', robot_selection=['3500XL_A', '3500XL_B']).cache_signature()
+        sig = NFICaseStrategy(
+            'ATLT',
+            robot_selection=['3500XL_A', '3500XL_B'],
+        ).cache_signature()
         assert 'robot_selection' in sig
         assert set(sig['robot_selection']) == {'3500XL_A', '3500XL_B'}
 
     def test_robot_selection_deduplicates(self):
-        sig = NFICaseStrategy('DTH', robot_selection=['3500XL_A', '3500XL_A']).cache_signature()
+        sig = NFICaseStrategy(
+            'ATLT',
+            robot_selection=['3500XL_A', '3500XL_A'],
+        ).cache_signature()
         assert len(sig['robot_selection']) == 1
+
+
+# ---------------------------------------------------------------------------
+# _is_correct_annotation_type
+# ---------------------------------------------------------------------------
+
+
+class TestIsCorrectAnnotationType:
+    @pytest.mark.parametrize(
+        ('run_id', 'annotation_type', 'annotation_type_mapping', 'expected'),
+        [
+            ('RUN001', 'ATLT', {'RUN001': 'AT'}, True),
+            ('RUN001L', 'LT', {}, True),
+            ('RUN001', 'LT', {'RUN001L': 'LT'}, True),
+            ('RUN001', 'AT', {'RUN001': 'AT'}, True),
+            ('RUN999', 'AT', {}, True),
+            ('RUN999', 'LT', {}, False),
+        ],
+    )
+    def test_matches_expected_annotation_type(
+        self,
+        run_id,
+        annotation_type,
+        annotation_type_mapping,
+        expected,
+    ):
+        assert NFICaseStrategy._is_correct_annotation_type(
+            run_id,
+            annotation_type,
+            annotation_type_mapping,
+        ) is expected
 
 
 # ---------------------------------------------------------------------------
@@ -320,7 +359,7 @@ class TestScanDirectoryStructure:
 
 class TestGetAnnotationClasses:
     def test_non_span_returns_noise_allele(self):
-        assert NFICaseStrategy('DTH').get_annotation_classes() == ['noise', 'allele']
+        assert NFICaseStrategy('ATLT').get_annotation_classes() == ['noise', 'allele']
 
     def test_span_returns_label_categories(self):
         assert NFICaseStrategy('span').get_annotation_classes() == LabelCategory.label_names()
@@ -422,14 +461,14 @@ class TestCollectDatasetFilesCached:
     def test_cache_miss_writes_cache(self, mock_root, scaling, tmp_path):
         cache_dir = tmp_path / 'cache'
         with patch.object(NFICaseStrategy, '_CACHE_DIR', cache_dir):
-            results = list(NFICaseStrategy('DTH').collect_dataset_files(mock_root, scaling))
+            results = list(NFICaseStrategy('ATLT').collect_dataset_files(mock_root, scaling))
         assert len(results) == 1
         assert len(list(cache_dir.glob('collect-*'))) == 1
 
     def test_cache_hit_skips_disk_scan(self, mock_root, scaling, tmp_path):
         cache_dir = tmp_path / 'cache'
         cache_dir.mkdir()
-        strategy = NFICaseStrategy('DTH')
+        strategy = NFICaseStrategy('ATLT')
         cache_key = hashlib.md5(
             json.dumps(
                 {
@@ -454,7 +493,7 @@ class TestCollectDatasetFilesCached:
         def _collect(robot_sel):
             with patch.object(NFICaseStrategy, '_CACHE_DIR', cache_dir):
                 return list(
-                    NFICaseStrategy('DTH', robot_selection=robot_sel).collect_dataset_files(
+                    NFICaseStrategy('ATLT', robot_selection=robot_sel).collect_dataset_files(
                         mock_root, scaling
                     )
                 )
