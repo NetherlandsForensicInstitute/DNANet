@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import lightning as L
-from torch.utils.data import ConcatDataset, Dataset, DataLoader, default_collate
+from torch.utils.data import Dataset, DataLoader, ConcatDataset, default_collate
 
 from dnanet.data.dataset import TransformableDataset
 from dnanet.data.splitting import dataset_splitter
