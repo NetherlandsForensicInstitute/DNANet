@@ -94,6 +94,7 @@ class HIDDataset(Dataset, TransformableDataset):
         load_in_memory: bool = False,
         # When True, HIDs without annotations are still cached (for eval/labeltool).
         allow_missing_annotations: bool = False,
+        use_cache: bool = True,
     ) -> None:
         super().__init__()
 
@@ -109,6 +110,7 @@ class HIDDataset(Dataset, TransformableDataset):
         self._scaling = scaling_strategy
         self._dataset_strategy = dataset_strategy
         self._default_panel = self._scaling.panel
+        self._use_cache = use_cache
 
         if adjustment_of_annotations and adjustment_of_annotations not in ('top', 'complete'):
             raise ValueError(
@@ -127,7 +129,11 @@ class HIDDataset(Dataset, TransformableDataset):
             skip_if_invalid_ladder=self.skip_if_invalid_ladder,
             allow_missing_annotations=self.allow_missing_annotations,
         )
-        self._cache_dir = cache_key_dir(Path(cache_dir), key)
+        
+        self._cache_dir = cache_key_dir(
+            Path(cache_dir) if self._use_cache else Path('/tmp/var/dnanet-cache/'),
+            key
+        )
 
         config_payload = build_config_payload(
             root=self.root,
@@ -217,7 +223,7 @@ class HIDDataset(Dataset, TransformableDataset):
         # (b) driving a fresh build; it's a cheap walk (stat-only).
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
 
-        if is_complete(self._cache_dir):
+        if is_complete(self._cache_dir) and self._use_cache:
             source_paths = [e[0] for e in file_entries]
             if validate_fingerprint(self._cache_dir, config_payload, source_paths):
                 logger.info('Cache hit: {}', self._cache_dir)
