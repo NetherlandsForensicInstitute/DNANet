@@ -13,7 +13,6 @@ dataset:
       annotation_type: ground_truth # DTH (analyst high threshold), or DTL (analyst low threshold), span, or ground_truth
   limit: null  # Set to integer to limit number of loaded images
   skip_if_invalid_ladder: true
-  skip_if_no_annotation: true
   include_size_standard: true
   data_loading_strategy: superior  # raw, analyzed, or superior
   adjustment_of_annotations: top  # top, complete, or null
