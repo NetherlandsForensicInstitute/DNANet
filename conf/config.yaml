@@ -12,8 +12,6 @@
 
 defaults:
   - data: dnanet_rd
-  - metrics: binary
-  - train: segmentation
   - model: unet
   - logging: csvlogger
   - _self_
