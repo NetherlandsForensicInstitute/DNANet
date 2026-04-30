@@ -46,7 +46,7 @@ class SegmentationTransformer(TransformDataCallable[HIDImage]):
         if image.annotation is not None:
             y = torch.tensor(
                 image.annotation.data,
-                dtype=torch.float32,
+                dtype=torch.int64,
             )
         else:
             y = torch.zeros_like(x)

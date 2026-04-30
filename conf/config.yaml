@@ -12,9 +12,9 @@
 
 defaults:
   - data: dnanet_rd
-  - model: unet
+  - metrics: binary
   - train: segmentation
-  - evaluate: segmentation
+  - model: unet
   - logging: csvlogger
   - _self_
   - override hydra/hydra_logging: disabled
