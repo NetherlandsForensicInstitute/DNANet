@@ -187,16 +187,26 @@ class NFICaseStrategy(DatasetStrategy):
 
     @staticmethod
     def _is_correct_annotation_type(run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]) -> bool:
-        """Check if the run_id corresponds to the requested annotation type."""
+        """
+        Check if the run_id corresponds to the requested annotation type.
+
+        When a run_id ends with an L, it is assumed to be a LT profile.
+        When the run_id is found in the csv with an added L, it is also assumed to be a LT profile.
+        When a run_id does not end in an L, we check the type from the csv.
+        When the run_id is not found in the csv, we assume it is an AT profile.
+        """
         if annotation_type == 'ATLT':
             # when ATLT is selected, include all annotations
             return True
+        elif run_id.endswith('L'):
+            # assume the run-id is an LT profile if it ends with an L
+            return annotation_type == 'LT'
+        elif run_id + 'L' in annotation_type_mapping:
+            # sometimes the run-id is changed to end with an L, check also for this option.
+            return annotation_type == 'LT'
         elif run_id in annotation_type_mapping:
             # if the run-id is found in the csv, check if it matches the requested annotation type
             return annotation_type_mapping[run_id] == annotation_type
-        elif run_id + 'L' in annotation_type_mapping:
-            # sometimes the run-id is changed to end with an L, check also for this option.
-            return annotation_type_mapping[run_id + 'L'] == annotation_type
         elif annotation_type == 'AT':
             # if the run-id is not found in the csv, assume it is AT
             return True
