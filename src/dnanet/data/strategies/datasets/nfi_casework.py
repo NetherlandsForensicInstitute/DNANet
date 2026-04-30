@@ -16,7 +16,7 @@ import json
 import os
 import pickle
 from pathlib import Path
-from typing import Dict, Tuple, Mapping, Sequence, Generator
+from typing import Callable, Dict, Tuple, Mapping, Sequence, Generator
 
 import numpy as np
 from loguru import logger
@@ -38,7 +38,11 @@ class NFICaseStrategy(DatasetStrategy):
     _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self, annotation_type: str = 'ATLT', robot_selection: Sequence[str] | None = None) -> None:
+    def __init__(self,
+                 annotation_type: str = 'ATLT',
+                 robot_selection: Sequence[str] | None = None,
+                 span_annotations_path: PathLike | None = None,
+        ) -> None:
         """
         Initialize the NFI casework strategy
 
@@ -51,6 +55,8 @@ class NFICaseStrategy(DatasetStrategy):
         super().__init__()
         self.annotation_type = annotation_type
         self._robot_selection = robot_selection
+        self._span_annotations_path = span_annotations_path
+
 
     def collect_dataset_files(
         self, root_path: str | Path, scaling_strategy: ScalingStrategy, **kwargs
@@ -110,80 +116,93 @@ class NFICaseStrategy(DatasetStrategy):
             self._robot_selection,
             cache=folder_cache,
         )
+        resolve_annotation = self._build_annotation_resolver(path, scaling_strategy, self.annotation_type, self._span_annotations_path)
 
-        # Collect all annotation .txt/.csv files and map from run_id -> annotation file
-        if self.annotation_type == 'span':
-            return self._collect_with_span_annotations(robots, path, scaling_strategy)
-        elif self.annotation_type == 'AT' or self.annotation_type == 'LT' or self.annotation_type == 'ATLT':
-            return self._collect_with_analyst_annotations(robots, path, scaling_strategy, self.annotation_type)
-        else:
-            raise ValueError(f'Invalid annotation type: {self.annotation_type}')
-
-    @classmethod
-    def _collect_with_span_annotations(
-        cls,
-        robots: Generator[Path, None, None],
-        path: Path,
-        scaling_strategy: ScalingStrategy,
-    ) -> Generator[Tuple[Path, ScanpointAnnotation | None, Path | None], None, None]:
-        span_annotations_path = path / 'span_annotations'
-        hid_to_annotation = cls._parse_span_annotation(span_annotations_path, scaling_strategy)
-
-        for _file in robots:
-            if cls.categorize_file(_file.name) != 'sample':
-                logger.debug(f'Skipping {cls.categorize_file(_file.name)} file: {_file.stem}')
+        for hid_file in robots:
+            file_category = self.categorize_file(hid_file.name)
+            if file_category != 'sample':
+                logger.debug(f'Skipping {file_category} file: {hid_file.stem}')
                 continue
 
-            _ladder = cls.find_ladder_for_sample(_file)
-            yield (_file, hid_to_annotation.get(_file.stem), _ladder)
+            ladder = self.find_ladder_for_sample(hid_file)
+            yield (hid_file, resolve_annotation(hid_file), ladder)
 
     @classmethod
-    def _collect_with_analyst_annotations(
+    def _build_annotation_resolver(
         cls,
-        robots: Generator[Path, None, None],
         path: Path,
         scaling_strategy: ScalingStrategy,
         annotation_type: str,
-    ) -> Generator[Tuple[Path, AlleleAnnotation | None, Path | None], None, None]:
-        annotations_folder = path / 'annotations'
-        annotation_mapping = cls.find_annotation_files(annotations_folder)
+        span_annotations_path: PathLike | None = None,
+    ) -> Callable[[Path], Annotation | None]:
+        """Build a per-HID annotation resolver for the configured annotation type.
 
-        # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
-        run_id_path = path / 'runid_type.csv'
-        if not run_id_path.exists():
-            raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
-        run_id_type_mapping = {
-            row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
-        }
+        The dataset collector iterates robot files once and delegates
+        annotation lookup to the callable returned here. Each annotation type
+        can therefore prepare its own lookup state up front while the core HID
+        filtering and ladder collection logic remains centralized in
+        :meth:`_collect_dataset_files_uncached`.
 
+        Args:
+            path: Dataset root containing the annotation directories.
+            scaling_strategy: Scaling strategy required to parse annotations.
 
-        for _file in robots:
-            if cls.categorize_file(_file.name) != 'sample':
-                logger.debug(f'Skipping {cls.categorize_file(_file.name)} file: {_file.stem}')
-                continue
+        Returns:
+            A callable that takes a HID path and returns the corresponding
+            parsed annotation, or ``None`` when no annotation is available.
 
-            _run_id = _file.stem.split('_')[0]
-            _sample_name = _file.stem.rsplit('_', 1)[0]
+        Raises:
+            ValueError: If ``self.annotation_type`` is not supported.
+        """
+        if annotation_type == 'span':
+            # parse span annotations
+            if span_annotations_path is None:
+                span_annotations_path = path / 'span_annotations'
+            span_annotations_path = Path(span_annotations_path)
+            hid_to_annotation = cls._parse_span_annotation(span_annotations_path, scaling_strategy)
 
-            _ladder = cls.find_ladder_for_sample(_file)
+            def resolve_annotation(hid_file: Path) -> ScanpointAnnotation | None:
+                return hid_to_annotation.get(hid_file.stem)
 
-            _allele_annotation = None
-            if cls._is_correct_annotation_type(_run_id, annotation_type, run_id_type_mapping):
-                _annotation = annotation_mapping.get(_run_id)
+            return resolve_annotation
+        elif annotation_type == 'AT' or annotation_type == 'LT' or annotation_type == 'ATLT':
+            # parse analyst annotations
+            annotations_folder = path / 'annotations'
+            annotation_mapping = cls.find_annotation_files(annotations_folder)
 
-                if _annotation:
-                    _allele_annotation_map = cls.parse_annotations(
-                        _annotation, scaling_strategy=scaling_strategy
+            # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
+            run_id_path = path / 'runid_type.csv'
+            if not run_id_path.exists():
+                raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
+            run_id_type_mapping = {
+                row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
+            }
+
+            def resolve_annotation(hid_file: Path) -> AlleleAnnotation | None:
+                run_id = hid_file.stem.split('_')[0]
+                sample_name = hid_file.stem.rsplit('_', 1)[0]
+
+                if cls._is_correct_annotation_type(run_id, annotation_type, run_id_type_mapping):
+                    annotation = annotation_mapping.get(run_id)
+                    if not annotation:
+                        return None
+
+                    allele_annotation_map = cls.parse_annotations(
+                        annotation, scaling_strategy=scaling_strategy
                     )
 
                     # Usually there's only one sample <-> annotation per annotation file
-                    if len(_allele_annotation_map) == 1:
-                        _allele_annotation = list(_allele_annotation_map.values())[0]
-                    elif len(_allele_annotation_map) > 1:
-                        _allele_annotation = _allele_annotation_map[_sample_name]
+                    if len(allele_annotation_map) == 1:
+                        return next(iter(allele_annotation_map.values()))
+                    elif len(allele_annotation_map) > 1:
+                        return allele_annotation_map[sample_name]
 
+                return None
 
-            yield (_file, _allele_annotation, _ladder)
+            return resolve_annotation
+        else:
+            raise ValueError(f'Invalid annotation type: {annotation_type}')
+
 
     @staticmethod
     def _is_correct_annotation_type(run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]) -> bool:
