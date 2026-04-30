@@ -10,44 +10,48 @@ Warning:
     Please see the documentation about developing your own strategy, or use the two other strategies for the open-source data.
 """
 
-import os
-import json
-import pickle
 import hashlib
 import itertools
-from typing import Dict, Tuple, Mapping, Sequence, Generator
+import json
+import os
+import pickle
 from pathlib import Path
+from typing import Callable, Dict, Tuple, Mapping, Sequence, Generator
 
 import numpy as np
 from loguru import logger
-from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     train_test_split,
 )
+from torch.utils.data import Subset
 
-from dnanet.core.types import PathLike
+from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.core.constants import LabelCategory
-from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
-from dnanet.data.strategies.scaling.scaling import ScalingStrategy
+from dnanet.core.types import PathLike
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
+from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 
 
 class NFICaseStrategy(DatasetStrategy):
     _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self, annotation_type: str, robot_selection: Sequence[str] | None = None) -> None:
+    def __init__(self,
+                 annotation_type: str = 'DTH',
+                 robot_selection: Sequence[str] | None = None,
+                 span_annotations_path: PathLike | None = None,
+        ) -> None:
         super().__init__()
-        self.annotation_type = (annotation_type,)
+        self.annotation_type = annotation_type
         self._robot_selection = robot_selection
+        self._span_annotations_path = span_annotations_path
+
 
     def collect_dataset_files(
         self, root_path: str | Path, scaling_strategy: ScalingStrategy, **kwargs
-    ) -> Generator[
-        Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
-    ]:
+    ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         """Collect all .HID files in the casework folders.
 
         Finds all .HID files and their corresponding annotation and ladder.
@@ -93,9 +97,7 @@ class NFICaseStrategy(DatasetStrategy):
         root_path: str | Path,
         scaling_strategy: ScalingStrategy,
         folder_cache: bool = True,
-    ) -> Generator[
-        Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
-    ]:
+    ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         path = Path(root_path)
 
         # Collect all .HID files from the robot folders
@@ -105,34 +107,80 @@ class NFICaseStrategy(DatasetStrategy):
             self._robot_selection,
             cache=folder_cache,
         )
+        resolve_annotation = self._build_annotation_resolver(path, scaling_strategy, self.annotation_type, self._span_annotations_path)
 
-        # Collect all annotation .txt/.csv files and map from run_id -> annotation file
-        annotations_folder = path / 'annotations'
-        annotation_mapping = self.find_annotation_files(annotations_folder)
-
-        for _file in robots:
-            if self.categorize_file(_file.name) != 'sample':
+        for hid_file in robots:
+            file_category = self.categorize_file(hid_file.name)
+            if file_category != 'sample':
+                logger.debug(f'Skipping {file_category} file: {hid_file.stem}')
                 continue
 
-            _run_id = _file.stem.split('_')[0]
-            _sample_name = _file.stem.rsplit('_', 1)[0]
-            _annotation = annotation_mapping.get(_run_id)
+            ladder = self.find_ladder_for_sample(hid_file)
+            yield (hid_file, resolve_annotation(hid_file), ladder)
 
-            _ladder = self.find_ladder_for_sample(_file)
+    @classmethod
+    def _build_annotation_resolver(
+        cls,
+        path: Path,
+        scaling_strategy: ScalingStrategy,
+        annotation_type: str,
+        span_annotations_path: PathLike | None = None,
+    ) -> Callable[[Path], Annotation | None]:
+        """Build a per-HID annotation resolver for the configured annotation type.
 
-            _allele_annotation = None
-            if _annotation:
-                _allele_annotation_map = self.parse_annotations(
-                    _annotation, scaling_strategy=scaling_strategy
+        The dataset collector iterates robot files once and delegates
+        annotation lookup to the callable returned here. Each annotation type
+        can therefore prepare its own lookup state up front while the core HID
+        filtering and ladder collection logic remains centralized in
+        :meth:`_collect_dataset_files_uncached`.
+
+        Args:
+            path: Dataset root containing the annotation directories.
+            scaling_strategy: Scaling strategy required to parse annotations.
+
+        Returns:
+            A callable that takes a HID path and returns the corresponding
+            parsed annotation, or ``None`` when no annotation is available.
+
+        Raises:
+            ValueError: If ``self.annotation_type`` is not supported.
+        """
+        if annotation_type == 'span':
+            if span_annotations_path is None:
+                span_annotations_path = path / 'span_annotations'
+            span_annotations_path = Path(span_annotations_path)
+            hid_to_annotation = cls._parse_span_annotation(span_annotations_path, scaling_strategy)
+
+            def resolve_annotation(hid_file: Path) -> ScanpointAnnotation | None:
+                return hid_to_annotation.get(hid_file.stem)
+
+            return resolve_annotation
+        elif annotation_type == 'DTH' or annotation_type == 'DTL':
+            annotations_folder = path / 'annotations'
+            annotation_mapping = cls.find_annotation_files(annotations_folder)
+
+            def resolve_annotation(hid_file: Path) -> AlleleAnnotation | None:
+                run_id = hid_file.stem.split('_')[0]
+                sample_name = hid_file.stem.rsplit('_', 1)[0]
+                annotation = annotation_mapping.get(run_id)
+                if not annotation:
+                    return None
+
+                allele_annotation_map = cls.parse_annotations(
+                    annotation, scaling_strategy=scaling_strategy
                 )
 
                 # Usually there's only one sample <-> annotation per annotation file
-                if len(_allele_annotation_map) == 1:
-                    _allele_annotation = list(_allele_annotation_map.values())[0]
-                elif len(_allele_annotation_map) > 1:
-                    _allele_annotation = _allele_annotation_map[_sample_name]
+                if len(allele_annotation_map) == 1:
+                    return next(iter(allele_annotation_map.values()))
+                elif len(allele_annotation_map) > 1:
+                    return allele_annotation_map[sample_name]
+                return None
 
-            yield (_file, _allele_annotation, _ladder)
+            return resolve_annotation
+        else:
+            raise ValueError(f'Invalid annotation type: {annotation_type}')
+
 
     def cache_signature(self) -> dict:  # noqa: D102
         return {
@@ -316,7 +364,7 @@ class NFICaseStrategy(DatasetStrategy):
     @classmethod
     def parse_annotations(  # noqa: D102
         cls, annotation_source: str | Path, scaling_strategy: ScalingStrategy
-    ) -> Mapping[str, ScanpointAnnotation | AlleleAnnotation]:
+    ) -> Mapping[str, AlleleAnnotation]:
         return NFIRnDStrategy.parse_annotations(
             annotation_source=annotation_source, scaling_strategy=scaling_strategy
         )
