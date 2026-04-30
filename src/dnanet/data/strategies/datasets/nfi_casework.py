@@ -38,10 +38,16 @@ class NFICaseStrategy(DatasetStrategy):
     _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self, annotation_type: str = 'DTH', robot_selection: Sequence[str] | None = None) -> None:
+    def __init__(self,
+                 annotation_type: str = 'DTH',
+                 robot_selection: Sequence[str] | None = None,
+                 span_annotations_path: PathLike | None = None,
+        ) -> None:
         super().__init__()
         self.annotation_type = annotation_type
         self._robot_selection = robot_selection
+        self._span_annotations_path = span_annotations_path
+
 
     def collect_dataset_files(
         self, root_path: str | Path, scaling_strategy: ScalingStrategy, **kwargs
@@ -101,7 +107,7 @@ class NFICaseStrategy(DatasetStrategy):
             self._robot_selection,
             cache=folder_cache,
         )
-        resolve_annotation = self._build_annotation_resolver(path, scaling_strategy, self.annotation_type)
+        resolve_annotation = self._build_annotation_resolver(path, scaling_strategy, self.annotation_type, self._span_annotations_path)
 
         for hid_file in robots:
             file_category = self.categorize_file(hid_file.name)
@@ -117,7 +123,8 @@ class NFICaseStrategy(DatasetStrategy):
         cls,
         path: Path,
         scaling_strategy: ScalingStrategy,
-        annotation_type: str
+        annotation_type: str,
+        span_annotations_path: PathLike | None = None,
     ) -> Callable[[Path], Annotation | None]:
         """Build a per-HID annotation resolver for the configured annotation type.
 
@@ -139,7 +146,9 @@ class NFICaseStrategy(DatasetStrategy):
             ValueError: If ``self.annotation_type`` is not supported.
         """
         if annotation_type == 'span':
-            span_annotations_path = path / 'span_annotations'
+            if span_annotations_path is None:
+                span_annotations_path = path / 'span_annotations'
+            span_annotations_path = Path(span_annotations_path)
             hid_to_annotation = cls._parse_span_annotation(span_annotations_path, scaling_strategy)
 
             def resolve_annotation(hid_file: Path) -> ScanpointAnnotation | None:
