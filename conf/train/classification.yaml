@@ -10,23 +10,6 @@ test_fraction: 0.0
 num_workers: 7
 seed: 42
 
-# Train and validation metrics
-metrics:
-  _target_: torchmetrics.MetricCollection
-  metrics:
-    precision:
-      _target_: torchmetrics.classification.MulticlassPrecision
-      num_classes: ${model.architecture.num_classes}
-      average: macro
-    recall:
-      _target_: torchmetrics.classification.MulticlassRecall
-      num_classes: ${model.architecture.num_classes}
-      average: macro
-    f1:
-      _target_: torchmetrics.classification.MulticlassF1Score
-      num_classes: ${model.architecture.num_classes}
-      average: macro
-
 optimizer:
   _target_: torch.optim.AdamW
   lr: ${train.learning_rate}
@@ -63,7 +46,9 @@ lightning_module:
   weight_decay: ${train.weight_decay}
   loss_fn: ${model.loss}
   num_classes: ${model.architecture.num_classes}
-  metrics: ${train.metrics}
+  metrics:
+    _target_: torchmetrics.MetricCollection
+    metrics: ${metrics}
   batch_size: ${train.batch_size}
 
 data_module:
