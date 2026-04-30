@@ -1,0 +1,17 @@
+# U-Net architecture for EPG segmentation
+name: unet
+
+defaults:
+  - /train@_global_.train: multiclass_segmentation
+
+
+architecture:
+  _target_: dnanet.models.unet.UNet
+  depth: 4
+  kernel_size: [3, 5]
+  num_filters: 32
+  out_channels: 12
+
+loss:
+  _target_: torch.nn.CrossEntropyLoss
+
