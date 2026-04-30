@@ -1,6 +1,10 @@
 # Combined PeakNet: autoencoder (global) + peak classifier (local)
 name: peaknet
 
+defaults:
+  - /train@_global_.train: peaknet
+
+
 peak_threshold: 25
 window_size: 120
 num_classes: 2

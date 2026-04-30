@@ -1,6 +1,8 @@
 # Conv1d peak classifier for allele/noise classification
 name: peak_classifier
 
+defaults:
+  - /train@_global_.train: classification
 
 
 architecture:
