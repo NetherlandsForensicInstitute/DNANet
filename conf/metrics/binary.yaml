@@ -1,0 +1,18 @@
+
+_target_: torchmetrics.MetricCollection
+metrics:
+  accuracy:
+    _target_: torchmetrics.classification.BinaryAccuracy
+    threshold: ${train.threshold}
+  precision:
+    _target_: torchmetrics.classification.BinaryPrecision
+    threshold: ${train.threshold}
+  recall:
+    _target_: torchmetrics.classification.BinaryRecall
+    threshold: ${train.threshold}
+  f1:
+    _target_: torchmetrics.classification.BinaryF1Score
+    threshold: ${train.threshold}
+  iou:
+    _target_: torchmetrics.classification.BinaryJaccardIndex
+    threshold: ${train.threshold}
