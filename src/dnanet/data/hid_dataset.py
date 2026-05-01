@@ -82,7 +82,7 @@ class HIDDataset(Dataset, TransformableDataset):
         root: PathLike,
         scaling_strategy: ScalingStrategy,
         dataset_strategy: DatasetStrategy,
-        cache_dir: PathLike,
+        cache_dir: PathLike | None = None,
         adjustment_of_annotations: str | None = None,
         limit: int | None = None,
         skip_if_invalid_ladder: bool = False,
@@ -127,7 +127,12 @@ class HIDDataset(Dataset, TransformableDataset):
             skip_if_invalid_ladder=self.skip_if_invalid_ladder,
             allow_missing_annotations=self.allow_missing_annotations,
         )
-        self._cache_dir = cache_key_dir(Path(cache_dir), key)
+        
+        self._use_cache = False if cache_dir is None else True
+        self._cache_dir = cache_key_dir(
+            Path(cache_dir) if cache_dir is not None else Path('/tmp/var/dnanet-cache/'),
+            key
+        )
 
         config_payload = build_config_payload(
             root=self.root,
@@ -217,7 +222,7 @@ class HIDDataset(Dataset, TransformableDataset):
         # (b) driving a fresh build; it's a cheap walk (stat-only).
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
 
-        if is_complete(self._cache_dir):
+        if is_complete(self._cache_dir) and self._use_cache:
             source_paths = [e[0] for e in file_entries]
             if validate_fingerprint(self._cache_dir, config_payload, source_paths):
                 logger.info('Cache hit: {}', self._cache_dir)
@@ -225,7 +230,8 @@ class HIDDataset(Dataset, TransformableDataset):
             logger.warning('Cache fingerprint stale at {}; rebuilding', self._cache_dir)
 
         logger.info(
-            'Building cache at {} from {} source files',
+            'Building {}cache at {} from {} source files',
+            f'{"temp-" if not self._use_cache else ""}',
             self._cache_dir,
             len(file_entries),
         )
@@ -276,7 +282,8 @@ class HIDDataset(Dataset, TransformableDataset):
         skipped_alleles = 0
         skipped_ladder = 0
 
-        for entry in tqdm(file_entries, desc='Building cache', total=len(file_entries)):
+        pbar_desc = f'Building {"temp-" if not self._use_cache else ""}cache'
+        for entry in tqdm(file_entries, desc=pbar_desc, total=len(file_entries)):
             path: Path = entry[0]
             annotation = entry[1]
             ladder_path: Path | None = entry[2]
