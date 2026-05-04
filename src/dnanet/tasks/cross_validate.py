@@ -8,21 +8,22 @@ Usage::
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from collections import defaultdict
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, cast
+from pathlib import Path
+from contextlib import contextmanager
+from collections import defaultdict
 
-import mlflow
 import numpy as np
+import mlflow
 import lightning as L
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
+from flatten_dict import flatten
 from torch.utils.data import DataLoader, default_collate
 
 from dnanet.tasks.train import _build_logger, _build_callbacks
-from dnanet.data.splitting import dataset_splitter, KFoldSplitResult
+from dnanet.data.splitting import KFoldSplitResult, dataset_splitter
 
 
 if TYPE_CHECKING:
@@ -46,6 +47,7 @@ def _mlflow_parent_run(cfg: DictConfig, k_folds: int):
     mlflow.set_tracking_uri(mlflow_cfg.get("tracking_uri", "mlruns"))
     mlflow.set_experiment(mlflow_cfg.get("experiment_name", "dnanet"))
     with mlflow.start_run(run_name=f"cross_validate_{k_folds}fold") as parent_run:
+        mlflow.log_params(flatten(cfg, reducer=lambda x, y: f'{x}/{y}' if x else f'{y}'))
         mlflow.set_tags({
             "model": cfg.get("model", {}).get("name", "unknown"),
             "data": cfg.data.get("name", "unknown"),
@@ -171,6 +173,8 @@ def run(
                 log_every_n_steps=1,
                 check_val_every_n_epoch=1,
             )
+            if trainer.logger is not None:
+                trainer.logger.log_hyperparams(cfg)
 
             interrupted = False
             try:
