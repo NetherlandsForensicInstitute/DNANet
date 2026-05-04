@@ -40,12 +40,6 @@ checkpoint:
   save_top_k: 1
   mode: min
 
-data_transform:
-  _target_: dnanet.data.transformer.ReconstructionTransformer
-  n_dyes: ${model.num_dyes}
-  autoencoder_log_scale: ${model.autoencoder_log_scale}
-  autoencoder_max_rfu: ${model.autoencoder_max_rfu}
-
 lightning_module:
   _target_: dnanet.modules.reconstruction.ReconstructionModule
   learning_rate: ${train.learning_rate}
@@ -59,8 +53,4 @@ lightning_module:
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule
   batch_size: ${train.batch_size}
-  val_fraction: ${train.val_fraction}
   num_workers: ${train.num_workers}
-  seed: ${train.seed}
-  stratify_noc: ${oc.select:data.stratify_noc,false}
-  group_by_replica: ${oc.select:data.group_by_replica,false}
