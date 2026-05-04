@@ -28,6 +28,7 @@ import json
 import random
 from typing import TYPE_CHECKING, Any, List, Tuple, Optional, Generator
 from pathlib import Path
+from collections import defaultdict
 
 import numpy as np
 from tqdm import tqdm
@@ -45,10 +46,15 @@ from dnanet.data.cache import (
 )
 from dnanet.data.image import HIDImage
 from dnanet.data.dataset import TransformableDataset
-from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
+from dnanet.core.constants import LabelCategory
+from dnanet.core.annotation import SpanAnnotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.cache.fingerprint import build_config_payload
-from dnanet.data.preprocessing.peaks import find_peak_boundary, find_peak_idx_near_or_in_range
+from dnanet.data.preprocessing.peaks import (
+    find_peak_boundary,
+    find_valley_idx_in_range,
+    find_peak_idx_near_or_in_range,
+)
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 
 
@@ -59,6 +65,43 @@ if TYPE_CHECKING:
     from dnanet.data.transformer import TransformDataCallable
     from dnanet.data.strategies.scaling import ScalingStrategy
     from dnanet.data.strategies.datasets import DatasetStrategy
+
+
+# ---------------------------------------------------------------------------
+# Per-class span-adjustment dispatch
+# ---------------------------------------------------------------------------
+# Maps each LabelCategory to the function used to locate the representative
+# scanpoint within an annotated region.  ``None`` means the class has no
+# adjustment defined yet; its span is kept as-is with a logged warning.
+#
+# Signature of every entry: (signal: np.ndarray, index_range: np.ndarray,
+#                             threshold: float) -> np.ndarray
+_CLASS_ADJUST_FN: dict[LabelCategory, object] = {
+    LabelCategory.UNLABELED: None,  # background — never adjusted
+    LabelCategory.ALLELE: find_peak_idx_near_or_in_range,
+    LabelCategory.STUTTER: find_peak_idx_near_or_in_range,
+    LabelCategory.PULL_UP: None,  # TODO
+    LabelCategory.BLEED_THROUGH: find_valley_idx_in_range,
+    LabelCategory.SPIKE: None,  # TODO
+    LabelCategory.DYE_BLOB: None,  # TODO
+    LabelCategory.ARTEFACT: None,  # TODO
+    LabelCategory.UNCLEAR: None,  # TODO
+    LabelCategory.SHOULDER: find_peak_idx_near_or_in_range,
+    LabelCategory.FOREIGN_DNA: find_peak_idx_near_or_in_range,
+    LabelCategory.OVERLOADING_ARTEFACT: None,  # TODO
+}
+
+# Classes for which the 'complete' adjustment type is meaningful (i.e. the
+# region can be expanded to a full peak boundary via find_peak_boundary).
+# For all other classes the 'complete' mode falls back to 'top'.
+_CLASS_SUPPORTS_COMPLETE: frozenset[LabelCategory] = frozenset(
+    {
+        LabelCategory.ALLELE,
+        LabelCategory.STUTTER,
+        LabelCategory.SHOULDER,
+        LabelCategory.FOREIGN_DNA,
+    }
+)
 
 
 class HIDDataset(Dataset, TransformableDataset):
@@ -125,11 +168,10 @@ class HIDDataset(Dataset, TransformableDataset):
             skip_if_invalid_ladder=self.skip_if_invalid_ladder,
             allow_missing_annotations=self.allow_missing_annotations,
         )
-        
+
         self._use_cache = False if cache_dir is None else True
         self._cache_dir = cache_key_dir(
-            Path(cache_dir) if cache_dir is not None else Path('/tmp/var/dnanet-cache/'),
-            key
+            Path(cache_dir) if cache_dir is not None else Path('/tmp/var/dnanet-cache/'), key
         )
 
         config_payload = build_config_payload(
@@ -320,18 +362,45 @@ class HIDDataset(Dataset, TransformableDataset):
                 logger.debug('Skipping {}: no data', path.name)
                 continue
 
+            already_adjusted = False
             if isinstance(annotation, AlleleAnnotation):
+                # Adjustment is interleaved per-allele during translation to
+                # prevent overlapping bins from merging into one contiguous
+                # block before peak-finding runs.
                 scanpoint_annotation = self._translate_allele_to_scanpoint_annotation(
                     allele_annotation=annotation,
                     adjusted_panel=current_panel,
                     scaler=image.scaler,
                     include_size_standard=self.include_size_standard,
                     scaling_strategy=self._scaling,
+                    profile_data=image.data if self.adjustment_of_annotations else None,
+                    adjustment_type=self.adjustment_of_annotations,
                 )
+                already_adjusted = bool(self.adjustment_of_annotations)
+            elif isinstance(annotation, SpanAnnotation):
+                # Adjustment runs per class-layer on the 3-D tensor before
+                # argmax-flattening so that finer-grained class labels (e.g.
+                # shoulder) are not erased by coarser ones during collapse.
+                if self.adjustment_of_annotations:
+                    adjusted_2d = self._adjust_and_flatten_span_annotation(
+                        profile=image,
+                        span_annotation=annotation,
+                        adjustment_type=self.adjustment_of_annotations,
+                    )
+                    scanpoint_annotation = ScanpointAnnotation(adjusted_2d)
+                    already_adjusted = True
+                else:
+                    scanpoint_annotation = self._dataset_strategy._span_to_scanpoint_annotation(
+                        annotation.data, path.stem
+                    )
             else:
                 scanpoint_annotation = annotation
 
-            if self.adjustment_of_annotations and scanpoint_annotation is not None:
+            if (
+                self.adjustment_of_annotations
+                and not already_adjusted
+                and scanpoint_annotation is not None
+            ):
                 scanpoint_annotation = self._adjust_annotations(
                     [image],
                     [scanpoint_annotation],
@@ -361,28 +430,174 @@ class HIDDataset(Dataset, TransformableDataset):
         scaler: np.ndarray,
         include_size_standard: bool,
         scaling_strategy: ScalingStrategy,
+        profile_data: np.ndarray | None = None,
+        adjustment_type: str | None = None,
+        threshold: int = 0,
     ) -> ScanpointAnnotation:
-        """Translate allele-level annotation to a scanpoint binary mask."""
-        kit_num_dyes = scaling_strategy.kit.num_dyes
+        """Translate allele-level annotation to a scanpoint binary mask.
 
+        When *profile_data* and *adjustment_type* are both supplied, adjustment
+        is interleaved per allele **before** any scanpoints are written to the
+        output array.  This avoids the bin-overlap bug where two overlapping
+        allele bins merge into one contiguous block of 1s prior to adjustment,
+        making the subsequent peak-finding treat them as a single allele.
+
+        Without those arguments the method falls back to marking the full bin
+        range as 1.  Either way, a two-pass approach is used: scanpoint ranges
+        are collected first (per dye row), then written with a forced 0-gap
+        inserted at the boundary between any adjacent or overlapping bins so
+        that isolated islands of 1s are always preserved.
+        """
+        kit_num_dyes = scaling_strategy.kit.num_dyes
         num_dyes = kit_num_dyes if include_size_standard else kit_num_dyes - 1
         scanpoint_annotation = np.zeros(
             (num_dyes, scaling_strategy.scanpoint_resolution),
             dtype=np.int8,
         )
+
+        do_adjust = adjustment_type is not None and profile_data is not None
+
+        # Pass 1: resolve scanpoint ranges for every allele, grouped by dye.
+        intervals_by_dye: dict[int, list[tuple[int, int]]] = defaultdict(list)
         for locus in allele_annotation.data:
             for allele in locus.alleles:
                 _, left_bin, right_bin = adjusted_panel.get_allele_basepair_and_bins(
                     locus.name, allele.name
                 )
-                left_scanpoint = np.argmin(np.abs(scaler - left_bin))
-                right_scanpoint = np.argmin(np.abs(scaler - right_bin))
-                scanpoint_annotation[locus.dye_row, left_scanpoint:right_scanpoint] = 1
+                left_sp = int(np.argmin(np.abs(scaler - left_bin)))
+                right_sp = int(np.argmin(np.abs(scaler - right_bin)))
+                intervals_by_dye[locus.dye_row].append((left_sp, right_sp))
+
+        # Pass 2: write each allele, then enforce 0-gaps at adjacent/overlapping boundaries.
+        for dye_row, intervals in intervals_by_dye.items():
+            sorted_ivs = sorted(intervals)
+
+            if do_adjust:
+                assert profile_data is not None  # guaranteed by do_adjust
+                dye_signal = profile_data[dye_row]
+                for left_sp, right_sp in sorted_ivs:
+                    ann_range = np.arange(left_sp, right_sp)
+                    if ann_range.size == 0:
+                        continue
+                    peak_idx = find_peak_idx_near_or_in_range(dye_signal, ann_range, threshold)
+                    if peak_idx.size == 0:
+                        logger.warning(
+                            'No peak found above {}rfu. Original annotation removed '
+                            '(dye {}, bin {}:{}, rfus {}).',
+                            threshold,
+                            dye_row,
+                            left_sp,
+                            right_sp,
+                            dye_signal[ann_range].flatten(),
+                        )
+                    elif adjustment_type == 'top':
+                        scanpoint_annotation[dye_row, peak_idx] = 1
+                    elif adjustment_type == 'complete':
+                        start, end = find_peak_boundary(dye_signal, int(peak_idx), threshold)
+                        scanpoint_annotation[dye_row, start : end + 1] = 1
+                    else:
+                        raise ValueError(
+                            f'Unknown adjustment_type {adjustment_type!r}. Use "top" or "complete".'
+                        )
+            else:
+                for left_sp, right_sp in sorted_ivs:
+                    scanpoint_annotation[dye_row, left_sp:right_sp] = 1
+
+                # Insert 0-gaps so adjacent/overlapping bins stay as separate islands.
+                for i in range(len(sorted_ivs) - 1):
+                    right_i = sorted_ivs[i][1]
+                    left_next = sorted_ivs[i + 1][0]
+                    if right_i >= left_next and left_next > 0:
+                        scanpoint_annotation[dye_row, left_next - 1] = 0
 
         return ScanpointAnnotation(data=scanpoint_annotation)
 
-    @staticmethod
+    def _adjust_and_flatten_span_annotation(
+        self,
+        profile: HIDImage,
+        span_annotation: SpanAnnotation,
+        adjustment_type: str,
+        threshold: int = 0,
+    ) -> np.ndarray:
+        """Adjust a 3-D span annotation per class, then flatten to a 2-D label array.
+
+        For each dye channel and each non-background class, contiguous annotated
+        regions are found and reduced to a single peak scanpoint (``'top'``) or
+        a full peak extent (``'complete'``), exactly as in
+        :meth:`_adjust_annotations_binary` but operating on each class layer
+        independently.  Reducing to point/boundary annotations before the argmax
+        collapse eliminates the overlap-loss bug where a finer-grained class
+        (e.g. ``shoulder``) that falls entirely inside a coarser one
+        (e.g. ``allele``) is erased because argmax picks the lowest class index
+        for positions shared by both spans.
+
+        Args:
+            profile: The HID profile whose signal is used for peak detection.
+            span_annotation: The ``(num_dyes, scanpoints, num_classes)`` tensor.
+            adjustment_type: ``'top'`` or ``'complete'``.
+            threshold: Minimum RFU for a scanpoint to be considered a peak.
+
+        Returns:
+            ``(num_dyes, scanpoints)`` int8 array of class indices ready for
+            wrapping in :class:`ScanpointAnnotation`.
+        """
+        if profile.data is None:
+            return span_annotation.data.argmax(axis=-1).astype(np.int8)
+
+        span_data = span_annotation.data.copy()
+        num_classes = span_data.shape[-1]
+
+        for dye_idx, dye_signal in enumerate(profile.data):
+            for class_idx in range(1, num_classes):  # skip background (class 0)
+                category = LabelCategory.from_index(class_idx)
+                find_fn = _CLASS_ADJUST_FN.get(category)
+
+                class_layer = span_data[dye_idx, :, class_idx]
+                regions = np.where(class_layer == 1)[0]
+                if regions.size == 0:
+                    continue
+
+                if find_fn is None:
+                    logger.warning(
+                        'No span adjustment defined for class {} ({}). '
+                        'Keeping original span annotation.',
+                        class_idx,
+                        category.name,
+                    )
+                    continue
+
+                groups = np.split(regions, np.where(np.diff(regions) != 1)[0] + 1)
+                for group in groups:
+                    span_data[dye_idx, group, class_idx] = 0
+                    rep_idx = find_fn(dye_signal, group, threshold)  # type: ignore[operator]
+                    if rep_idx.size == 0:
+                        logger.warning(
+                            'No representative point found above {}rfu. '
+                            'Annotation removed (dye {}, class {}, bin {}:{}).',
+                            threshold,
+                            dye_idx,
+                            category.name,
+                            group[0],
+                            group[-1],
+                        )
+                        continue
+
+                    use_complete = (
+                        adjustment_type == 'complete' and category in _CLASS_SUPPORTS_COMPLETE
+                    )
+                    if use_complete:
+                        start, end = find_peak_boundary(dye_signal, int(rep_idx), threshold)
+                        span_data[dye_idx, start : end + 1, class_idx] = 1
+                    else:
+                        span_data[dye_idx, rep_idx, class_idx] = 1
+
+        # Flatten: highest (most specific) class index wins when two peaks
+        # happen to land on the same scanpoint after adjustment.
+        weights = span_data * np.arange(num_classes, dtype=np.int8)
+        return weights.max(axis=-1).astype(np.int8)
+
     def _adjust_annotations(
+        self,
         profiles: List[HIDImage],
         annotations: List[Optional[ScanpointAnnotation]],
         adjustment_type: str = 'top',
@@ -392,43 +607,88 @@ class HIDDataset(Dataset, TransformableDataset):
         assert len(profiles) == len(annotations)
 
         for profile, annotation in zip(profiles, annotations, strict=True):
-            if annotation is None:
-                continue
-            if profile.data is None:
+            if annotation is None or profile.data is None:
                 continue
 
-            for dye_idx, dye_data in enumerate(profile.data):
-                _annotations = np.where(annotation.data[dye_idx] == 1)[0]
-                if _annotations.size == 0:
-                    continue
-                annotation_groups = np.split(
-                    _annotations, np.where(np.diff(_annotations) != 1)[0] + 1
-                )
-                for ann_group in annotation_groups:
-                    annotation.data[dye_idx, ann_group] = 0.0
-                    peak_idx = find_peak_idx_near_or_in_range(dye_data, ann_group, threshold)
+            num_classes = len(np.unique(annotation.data))
+            adjusted_annotation = None
+            if num_classes == 2:
+                adjust_function = self._adjust_annotations_binary
+            elif num_classes > 2:
+                adjust_function = self._adjust_annotations_multiclass
+            else:
+                raise ValueError(f'Got no annotations for profile ({profile}): {num_classes=}')
 
-                    if peak_idx.size == 0:
-                        logger.warning(
-                            f'No peak found above {threshold}rfu. '
-                            f'Original annotation is removed '
-                            'and no adjustment is applied '
-                            f'(dye {dye_idx}, bin {ann_group}, '
-                            f'rfus {dye_data[ann_group].flatten()}).'
-                        )
-                    else:
-                        if adjustment_type == 'complete':
-                            start, end = find_peak_boundary(dye_data, int(peak_idx), threshold)
-                            annotation.data[dye_idx, np.arange(start, end + 1)] = 1.0
-                        elif adjustment_type == 'top':
-                            annotation.data[dye_idx, peak_idx] = 1.0
-                        else:
-                            raise ValueError(
-                                'Unknown adjustment type found: '
-                                f'{adjustment_type}. Please provide'
-                                ' either `top` or `complete`.'
-                            )
+            adjusted_annotation = adjust_function(
+                profile=profile,
+                annotation=annotation,
+                adjustment_type=adjustment_type,
+                threshold=threshold,
+            )
+
+            if adjusted_annotation is None:
+                continue
+            annotation.data[:] = adjusted_annotation
+
         return annotations
+
+    def _adjust_annotations_binary(
+        self,
+        profile: HIDImage,
+        annotation: ScanpointAnnotation,
+        adjustment_type: str,
+        threshold: int = 0,
+    ):
+        if profile.data is None:
+            return None
+        annotation_data: np.ndarray = annotation.data.copy()
+
+        # Possible BUG: When bins overlap of two called alleles, they are now flattened into one sequence of 1's.
+        for dye_idx, dye_data in enumerate(profile.data):
+            _annotations = np.where(annotation_data[dye_idx] == 1)[0]
+            if _annotations.size == 0:
+                continue
+            annotation_groups = np.split(_annotations, np.where(np.diff(_annotations) != 1)[0] + 1)
+            for ann_group in annotation_groups:
+                annotation_data[dye_idx, ann_group] = 0.0
+                peak_idx = find_peak_idx_near_or_in_range(dye_data, ann_group, threshold)
+
+                if peak_idx.size == 0:
+                    logger.warning(
+                        f'No peak found above {threshold}rfu. '
+                        f'Original annotation is removed '
+                        'and no adjustment is applied '
+                        f'(dye {dye_idx}, bin {ann_group}, '
+                        f'rfus {dye_data[ann_group].flatten()}).'
+                    )
+                else:
+                    if adjustment_type == 'complete':
+                        start, end = find_peak_boundary(dye_data, int(peak_idx), threshold)
+                        annotation_data[dye_idx, np.arange(start, end + 1)] = 1.0
+                    elif adjustment_type == 'top':
+                        annotation_data[dye_idx, peak_idx] = 1.0
+                    else:
+                        raise ValueError(
+                            'Unknown adjustment type found: '
+                            f'{adjustment_type}. Please provide'
+                            ' either `top` or `complete`.'
+                        )
+        return annotation_data
+
+    def _adjust_annotations_multiclass(
+        self,
+        profile: HIDImage,
+        annotation: ScanpointAnnotation,
+        adjustment_type: str,
+        threshold: int = 0,
+    ):
+        if profile.data is None:
+            return None
+
+        annotation_data: np.ndarray = annotation.data.copy()
+
+        for dye_idx, dye_data in enumerate(profile.data):
+            _annotations = np.where(annotation_data[dye_idx] == 1)
 
     # -- Properties -------------------------------------------------------- #
 
