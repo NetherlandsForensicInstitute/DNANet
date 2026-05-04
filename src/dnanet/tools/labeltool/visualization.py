@@ -105,6 +105,31 @@ def add_initial_spans(
             })
     return spans
 
+def get_allele_bins(
+    image: HIDImage
+) -> Iterable[Tuple[int, Tuple[int, int]]]:
+    """Using the image's panel, get the bins for all the alleles in the image.
+
+    Args:
+        image (HIDImage): The HIDImage object containing the image data and metadata.
+
+
+    Returns:
+        Dict[str, Tuple[int, np.ndarray]]: A dictionary containing the marker names as keys,
+        and a tuple of the dye row and the bin range as values.
+    """
+    allele_bins = []
+    for marker in image.adjusted_panel:
+        for allele in marker.alleles:
+            allele_bin = np.array([allele.base_pair - allele.left_bin,
+                                   allele.base_pair + allele.right_bin])[:, np.newaxis]
+            scanpoint_bin = tuple(np.argmin(np.abs(image.scaler - allele_bin), axis=1))
+            scanpoint_bin = (
+                max(0, scanpoint_bin[0]),
+                min(4096, scanpoint_bin[1]),
+            )
+            allele_bins.append((marker.dye_row, scanpoint_bin))
+    return allele_bins
 
 def plot_profile_interactive(
     hid_images: HIDDataset,
@@ -112,7 +137,7 @@ def plot_profile_interactive(
     interactive: type[Interactivity] | partial | None = None,
     spans_by_profile: dict[str, list[dict[str, Any]]] | None = None,
     min_rfu_peak_detection: int | None = 200,
-    plot_allele_bins: bool = False,
+    plot_allele_bins: bool = True,
     title: bool = True,
 ) -> Figure | None:
     """Plot EPG profiles with optional interactive annotation.
@@ -160,18 +185,22 @@ def plot_profile_interactive(
             axs[i].plot(dye, c=color)
             axs[i].set_ylim(0, dyes_max[i])
 
-        # Plot ground-truth annotation
-        if image.annotation is not None:
-            ann = image.annotation.data
-            if ann.ndim == 3:
-                ann = ann[:, :, 0]
-            for i, (dye_ann, max_val) in enumerate(zip(ann, dyes_max)):
-                axs[i].fill_between(
-                    np.arange(len(dye_ann)), 0, max_val,
-                    where=dye_ann.flatten() == 1,
-                    color="green", alpha=0.5,
-                    transform=axs[i].get_xaxis_transform(),
-                )
+        # plot allele bins
+        if plot_allele_bins:
+            marker_ys = []
+            for ax in axs:
+                # Add extra space for the annotations
+                ymin, ymax = ax.get_ylim()
+                extra_space = (ymax - ymin) * 0.1
+                marker_ys.append(ymin - extra_space / 2)
+                ax.set_ylim(ymin - extra_space, ymax)
+                if not interactive:
+                    # dont override y-ticks in dynamic view (eg labelling) so zooming updates them
+                    ax.set_yticks([tick for tick in ax.get_yticks() if 0 <= tick])
+
+            allele_bins = get_allele_bins(image)
+            for i_dye, allele_bin in allele_bins:
+                axs[i_dye].plot(allele_bin,[marker_ys[i_dye], marker_ys[i_dye]])
 
         # Load pre-existing spans
         profile_name = image.path.stem.split("/")[-1]
