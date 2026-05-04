@@ -28,7 +28,6 @@ class DNANetDataModule(L.LightningDataModule):
         dataset: TransformableDataset,
         batch_size: int = 16,
         num_workers: int = 0,
-        dataset_strategy: DatasetStrategy | None = None,
         **split_kwargs,
     ) -> None:
         super().__init__()
@@ -36,7 +35,6 @@ class DNANetDataModule(L.LightningDataModule):
         self._dataset = dataset
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.dataset_strategy = dataset_strategy if dataset_strategy else getattr(self._dataset, 'dataset_strategy', None)
         self._split_kwargs = split_kwargs
 
         self._train_dataset: Dataset | None = None
