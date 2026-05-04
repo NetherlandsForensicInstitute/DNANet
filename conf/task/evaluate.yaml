@@ -1,2 +1,7 @@
 # @package _global_
 task: evaluate
+
+model:
+  data_transform_active:
+    _target_: dnanet.data.transformer.AlleleMetadataTransformer
+    transformer: ${model.data_transform}
