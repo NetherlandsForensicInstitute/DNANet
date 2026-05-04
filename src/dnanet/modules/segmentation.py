@@ -69,7 +69,6 @@ class SegmentationModule(BaseTaskModule):
         optimizer: torch.optim.Optimizer | None,
         learning_rate: float = 1e-4,
         weight_decay: float = 5e-4,
-        threshold: float = 0.5,
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         metrics: MetricCollection | None = None,
         batch_size: int | None = None,
@@ -85,7 +84,6 @@ class SegmentationModule(BaseTaskModule):
         self.save_hyperparameters({
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
-            "threshold": threshold,
         })
 
     def compute_step_outputs(

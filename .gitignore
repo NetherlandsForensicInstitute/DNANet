@@ -36,6 +36,7 @@ Thumbs.db
 .pdm-python
 .mypy_cache/
 .ruff_cache/
+.claude/
 
 annotations.csv
 
