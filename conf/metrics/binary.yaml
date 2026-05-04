@@ -1,16 +1,15 @@
-
 accuracy:
   _target_: torchmetrics.classification.BinaryAccuracy
-  threshold: ${train.threshold}
+  threshold: .5
 precision:
   _target_: torchmetrics.classification.BinaryPrecision
-  threshold: ${train.threshold}
+  threshold: .5
 recall:
   _target_: torchmetrics.classification.BinaryRecall
-  threshold: ${train.threshold}
+  threshold: .5
 f1:
   _target_: torchmetrics.classification.BinaryF1Score
-  threshold: ${train.threshold}
+  threshold: .5
 iou:
   _target_: torchmetrics.classification.BinaryJaccardIndex
-  threshold: ${train.threshold}
+  threshold: .5
