@@ -43,8 +43,4 @@ callbacks:
 
 data_transform:
   _target_: dnanet.data.transformer.AlleleMetadataTransformer
-  transformer:
-    _target_: dnanet.data.transformer.CombinedTransformer
-    threshold: ${model.peak_threshold}
-    window_size: ${model.window_size}
-    include_max_pool_dyes: false
+  transformer: ${model.data_transform}

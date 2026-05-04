@@ -12,7 +12,6 @@ weight_decay: 0.0005
 val_fraction: 0.1
 test_fraction: 0.0
 num_workers: 7
-seed: 42
 
 optimizer:
   _target_: torch.optim.AdamW
@@ -38,11 +37,6 @@ checkpoint:
   save_top_k: 1
   mode: max
 
-data_transform:
-  _target_: dnanet.data.transformer.PeakClassificationTransformer
-  include_marker: ${model.architecture.use_embedding}
-
-
 # module initialization. You shouldn't need to change this
 lightning_module:
   _target_: dnanet.modules.classification.ClassificationModule
@@ -58,7 +52,6 @@ lightning_module:
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule
   batch_size: ${train.batch_size}
-  val_fraction: ${train.val_fraction}
   num_workers: ${train.num_workers}
   seed: ${train.seed}
   stratify_noc: ${oc.select:data.stratify_noc,false}

@@ -56,7 +56,15 @@ class NFIRnDStrategy(DatasetStrategy):
     }
 
     def __init__(self, annotation_type: str):
-        """Initialize the NFI R&D dataset strategy."""
+        """
+        Initialize the NFI R&D dataset strategy.
+
+        Available annotation types:
+        - ground_truth: use ground truth annotations (allele annotation)
+        - DTH: use analyst annotations with "high" analytical threshold (allele annotation)
+        - DTL: use analyst annotations with low analytical threshold (allele annotation)
+        - span: use analyst span annotations (scanpoint annotation)
+        """
         self.annotation_type = annotation_type
 
         assert annotation_type in ['DTH', 'DTL', 'ground_truth', 'span'], (

@@ -22,3 +22,9 @@ architecture:
 
 loss:
   _target_: torch.nn.MSELoss
+
+data_transform:
+  _target_: dnanet.data.transformer.ReconstructionTransformer
+  n_dyes: ${model.num_dyes}
+  autoencoder_log_scale: ${model.autoencoder_log_scale}
+  autoencoder_max_rfu: ${model.autoencoder_max_rfu}
