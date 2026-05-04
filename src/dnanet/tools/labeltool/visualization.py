@@ -7,21 +7,25 @@ base-pair axis formatting, and multi-annotator display.
 
 from __future__ import annotations
 
-from functools import partial
-from typing import Any, Sequence
+from typing import Any, Tuple, Iterable, Sequence, TYPE_CHECKING
 
 import numpy as np
 from loguru import logger
 from matplotlib import pyplot as plt
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
-from matplotlib.ticker import FixedLocator, FuncFormatter
 from scipy.signal import find_peaks
+from matplotlib.ticker import FixedLocator, FuncFormatter
+from matplotlib.patches import Rectangle
 
-from dnanet.data.image import HIDImage
-from dnanet.tools.labeltool.interactivity import Interactivity
+
 from dnanet.tools.labeltool.tool import bp_to_scan, scan_to_bp
+
+if TYPE_CHECKING:
+    from dnanet.data import HIDDataset
+    from dnanet.data.image import HIDImage
+    from dnanet.tools.labeltool.interactivity import Interactivity
+    from matplotlib.figure import Figure
+    from matplotlib.axes import Axes
+    from functools import partial
 
 # Canonical dye channel names used in CSV annotation files.
 # These are fixed identifiers (NOT the same as plot colors from the scaling
@@ -103,7 +107,7 @@ def add_initial_spans(
 
 
 def plot_profile_interactive(
-    hid_images: Sequence[HIDImage],
+    hid_images: HIDDataset,
     *,
     interactive: type[Interactivity] | partial | None = None,
     spans_by_profile: dict[str, list[dict[str, Any]]] | None = None,
@@ -152,7 +156,7 @@ def plot_profile_interactive(
             axs = [axs]
 
         # Plot DNA profile lines
-        for i, (color, dye) in enumerate(zip(dye_colors, img_2d)):
+        for i, (color, dye) in enumerate(zip(dye_colors, img_2d, strict=True)):
             axs[i].plot(dye, c=color)
             axs[i].set_ylim(0, dyes_max[i])
 
