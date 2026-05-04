@@ -4,10 +4,11 @@ name: peak_classifier
 defaults:
   - /train@_global_.train: classification
 
+num_classes: 2
 
 architecture:
   _target_: dnanet.models.peak_classifier.PeakClassificationModel
-  num_classes: 2
+  num_classes: ${model.num_classes}
   width: 120
   n_markers: 28
   embedding_dim: 8
