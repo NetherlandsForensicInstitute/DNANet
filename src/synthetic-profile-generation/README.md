@@ -46,7 +46,13 @@ Common knobs live in `synthetic-profile-generation/simulateDNA/sim_helpers.R` (t
 ## Generating synthetic EPGs
 You can turn simulated DNA profiles into realistic-looking electropherograms (EPGs) with `synthetic-profile-generation/generateEPG/generate.py`. The script takes peak heights and positions from the simulated CSVs, builds an idealized EPG with Gaussian-shaped peaks, and then passes it through the trained generator to add noise and realism.
 
-Example:
+### Using tensorflow
+Environment note: `generate.py` has been verified with TensorFlow 2.14.0 (which is compatible with Python version <=3.11). Main project dependencies and Python version conflict with installing TF directly. Use a separate venv/conda env just for EPG generation, install `tensorflow==2.14.0` there, and run `python generate.py ...` from that env.
+
+Model note: make sure to pull the h5 models with git lfs (https://git-lfs.com/) before running the script.
+
+
+Example of running `generate.py`:
 ```bash
 cd synthetic-profile-generation/generateEPG
 
@@ -56,8 +62,6 @@ The paths are evaluated in their relation from the location of the file, which i
 
 `--epg_shape` takes two ints: `scan_min` and `epg_length`. With `--epg_shape 4000 5000`, the code keeps scans from 4000 to 4000+5000 and maps them to a 5000-wide array. Let's relate this to a real EPG. Scan point 5000 of a real EPG would be mapped to position 1000 in the synthetic EPG, and points 3999 and 9001 in a normal EPG would fall out of bounds. The default values were chosen because no allelic peaks are expected to be found outside the range [4000, 9000] of a real EPG.
 
-### Using tensorflow
-Environment note: `generate.py` has been verified with TensorFlow 2.14.0. TensorFlow 2.18.x fails here, and the main project dependencies conflict with installing TF directly. Use a separate venv/conda env just for EPG generation, install `tensorflow==2.14.0` there, and run `python generate.py ...` from that env.
 
 
 ## Visualizing synthetic EPGs
