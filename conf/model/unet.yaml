@@ -13,3 +13,6 @@ architecture:
 loss:
   _target_: dnanet.models.loss.DiceLoss
 
+data_transform:
+  _target_: dnanet.data.transformer.SegmentationTransformer
+

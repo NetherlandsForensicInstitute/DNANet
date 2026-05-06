@@ -25,3 +25,7 @@ architecture:
 
 loss:
   _target_: torch.nn.CrossEntropyLoss
+
+data_transform:
+  _target_: dnanet.data.transformer.PeakClassificationTransformer
+  include_marker: ${model.architecture.use_embedding}

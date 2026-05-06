@@ -5,7 +5,7 @@
 groups = ["default", "quality", "testing", "tools"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:0ddffe5ad36ca82b30c432ec274a2ce3737c258e6e0ed604c4cc8c1803a0c72e"
+content_hash = "sha256:bce3807c809f33e56b66857e9e88fe17eb673176cd49a661a808d287436d957a"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.15"
@@ -932,6 +932,17 @@ dependencies = [
 files = [
     {file = "flask_cors-6.0.2-py3-none-any.whl", hash = "sha256:e57544d415dfd7da89a9564e1e3a9e515042df76e12130641ca6f3f2f03b699a"},
     {file = "flask_cors-6.0.2.tar.gz", hash = "sha256:6e118f3698249ae33e429760db98ce032a8bf9913638d085ca0f4c5534ad2423"},
+]
+
+[[package]]
+name = "flatten-dict"
+version = "0.5.0"
+requires_python = "<4.0,>=3.10"
+summary = "A flexible utility for flattening and unflattening dict-like objects in Python."
+groups = ["default"]
+files = [
+    {file = "flatten_dict-0.5.0-py3-none-any.whl", hash = "sha256:c4bd2010052e4d33241433720d054322403fa7ad914fdc5cb1b31a713d4c561e"},
+    {file = "flatten_dict-0.5.0.tar.gz", hash = "sha256:ca89664d0bc9552d525ee756726b5a755c17f65b5bf23d0a1f07841f181428b7"},
 ]
 
 [[package]]

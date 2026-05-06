@@ -39,10 +39,19 @@ class NFICaseStrategy(DatasetStrategy):
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
     def __init__(self,
-                 annotation_type: str = 'DTH',
+                 annotation_type: str = 'ATLT',
                  robot_selection: Sequence[str] | None = None,
                  span_annotations_path: PathLike | None = None,
         ) -> None:
+        """
+        Initialize the NFI casework strategy
+
+        Available annotation types:
+        - AT: only include profiles with a "high" analytical threshold (allele annotation)
+        - LT: only include profiles with a low threshold (allele annotation)
+        - ATLT: include profiles with either a high or low threshold (allele annotation)
+        - span: include profiles with a span annotation (scanpoint annotation)
+        """
         super().__init__()
         self.annotation_type = annotation_type
         self._robot_selection = robot_selection
@@ -146,6 +155,7 @@ class NFICaseStrategy(DatasetStrategy):
             ValueError: If ``self.annotation_type`` is not supported.
         """
         if annotation_type == 'span':
+            # parse span annotations
             if span_annotations_path is None:
                 span_annotations_path = path / 'span_annotations'
             span_annotations_path = Path(span_annotations_path)
@@ -155,32 +165,72 @@ class NFICaseStrategy(DatasetStrategy):
                 return hid_to_annotation.get(hid_file.stem)
 
             return resolve_annotation
-        elif annotation_type == 'DTH' or annotation_type == 'DTL':
+        elif annotation_type == 'AT' or annotation_type == 'LT' or annotation_type == 'ATLT':
+            # parse analyst annotations
             annotations_folder = path / 'annotations'
             annotation_mapping = cls.find_annotation_files(annotations_folder)
+
+            # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
+            run_id_path = path / 'runid_type.csv'
+            if not run_id_path.exists():
+                raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
+            run_id_type_mapping = {
+                row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
+            }
 
             def resolve_annotation(hid_file: Path) -> AlleleAnnotation | None:
                 run_id = hid_file.stem.split('_')[0]
                 sample_name = hid_file.stem.rsplit('_', 1)[0]
-                annotation = annotation_mapping.get(run_id)
-                if not annotation:
-                    return None
 
-                allele_annotation_map = cls.parse_annotations(
-                    annotation, scaling_strategy=scaling_strategy
-                )
+                if cls._is_correct_annotation_type(run_id, annotation_type, run_id_type_mapping):
+                    annotation = annotation_mapping.get(run_id)
+                    if not annotation:
+                        return None
 
-                # Usually there's only one sample <-> annotation per annotation file
-                if len(allele_annotation_map) == 1:
-                    return next(iter(allele_annotation_map.values()))
-                elif len(allele_annotation_map) > 1:
-                    return allele_annotation_map[sample_name]
+                    allele_annotation_map = cls.parse_annotations(
+                        annotation, scaling_strategy=scaling_strategy
+                    )
+
+                    # Usually there's only one sample <-> annotation per annotation file
+                    if len(allele_annotation_map) == 1:
+                        return next(iter(allele_annotation_map.values()))
+                    elif len(allele_annotation_map) > 1:
+                        return allele_annotation_map[sample_name]
+
                 return None
 
             return resolve_annotation
         else:
             raise ValueError(f'Invalid annotation type: {annotation_type}')
 
+
+    @staticmethod
+    def _is_correct_annotation_type(run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]) -> bool:
+        """
+        Check if the run_id corresponds to the requested annotation type.
+
+        When a run_id ends with an L, it is assumed to be a LT profile.
+        When the run_id is found in the csv with an added L, it is also assumed to be a LT profile.
+        When a run_id does not end in an L, we check the type from the csv.
+        When the run_id is not found in the csv, we assume it is an AT profile.
+        """
+        if annotation_type == 'ATLT':
+            # when ATLT is selected, include all annotations
+            return True
+        elif run_id.endswith('L'):
+            # assume the run-id is an LT profile if it ends with an L
+            return annotation_type == 'LT'
+        elif run_id + 'L' in annotation_type_mapping:
+            # sometimes the run-id is changed to end with an L, check also for this option.
+            return annotation_type == 'LT'
+        elif run_id in annotation_type_mapping:
+            # if the run-id is found in the csv, check if it matches the requested annotation type
+            return annotation_type_mapping[run_id] == annotation_type
+        elif annotation_type == 'AT':
+            # if the run-id is not found in the csv, assume it is AT
+            return True
+        # do not include LT profiles when AT is requested
+        return False
 
     def cache_signature(self) -> dict:  # noqa: D102
         return {
