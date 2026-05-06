@@ -54,6 +54,7 @@ from dnanet.data.preprocessing.peaks import (
     find_peak_boundary,
     find_valley_idx_in_range,
     find_peak_idx_near_or_in_range,
+    find_absolute_peak_idx_in_range,
 )
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 
@@ -80,15 +81,15 @@ _CLASS_ADJUST_FN: dict[LabelCategory, object] = {
     LabelCategory.UNLABELED: None,  # background — never adjusted
     LabelCategory.ALLELE: find_peak_idx_near_or_in_range,
     LabelCategory.STUTTER: find_peak_idx_near_or_in_range,
-    LabelCategory.PULL_UP: None,  # TODO
-    LabelCategory.BLEED_THROUGH: find_valley_idx_in_range,
-    LabelCategory.SPIKE: None,  # TODO
-    LabelCategory.DYE_BLOB: None,  # TODO
-    LabelCategory.ARTEFACT: None,  # TODO
-    LabelCategory.UNCLEAR: None,  # TODO
+    LabelCategory.PULL_UP: find_peak_idx_near_or_in_range,
+    LabelCategory.BLEED_THROUGH: find_absolute_peak_idx_in_range,  # ABS for peak/valley indifference
+    LabelCategory.SPIKE: find_peak_idx_near_or_in_range,
+    LabelCategory.DYE_BLOB: find_peak_idx_near_or_in_range,
+    LabelCategory.ARTEFACT: find_peak_idx_near_or_in_range,
+    LabelCategory.UNCLEAR: find_peak_idx_near_or_in_range,
     LabelCategory.SHOULDER: find_peak_idx_near_or_in_range,
     LabelCategory.FOREIGN_DNA: find_peak_idx_near_or_in_range,
-    LabelCategory.OVERLOADING_ARTEFACT: None,  # TODO
+    LabelCategory.OVERLOADING_ARTEFACT: find_peak_idx_near_or_in_range,
 }
 
 # Classes for which the 'complete' adjustment type is meaningful (i.e. the

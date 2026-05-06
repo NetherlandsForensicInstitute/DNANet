@@ -101,6 +101,32 @@ def find_valley_idx_in_range(
     valley_local = int(np.argmin(values))
     return np.array([index_range[valley_local]])
 
+def find_absolute_peak_idx_in_range(
+    signal: np.ndarray, index_range: np.ndarray, treshold: float
+) -> np.ndarray:
+    """Find the index of the signal max over the absolute values within *index_range*.
+    
+    Used for classes where the signal can either be positive (peak) or negative (valley).
+    The *treshold* parameter is accepted for a uniform call signature but is not used.
+
+    Args:
+        signal: 1D signal array
+        index_range: Scanpoint indices of the annotated region.
+        treshold: Unused; kept for call-signature parity with
+            :func:`find_peak_idx_near_or_in_range`.
+
+    Returns:
+        Single-element array with the peak/valley index, or an empty array if 
+        *index_range* is empty.
+    """
+    if index_range.size == 0:
+        return np.array([])
+    
+    values = signal[index_range].flatten()
+    absolute_values = np.abs(values)
+    absolute_peak = int(np.argmin(absolute_values))
+    return np.array([index_range[absolute_peak]])
+
 
 def find_peak_idx_near_or_in_range(
     signal: np.ndarray, index_range: np.ndarray, threshold: float
