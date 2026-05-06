@@ -10,6 +10,6 @@ recall:
 f1:
   _target_: torchmetrics.classification.BinaryF1Score
   threshold: .5
-iou:
+jaccard_index:
   _target_: torchmetrics.classification.BinaryJaccardIndex
   threshold: .5

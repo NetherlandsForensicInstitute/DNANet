@@ -48,5 +48,3 @@ data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule
   batch_size: ${train.batch_size}
   num_workers: ${train.num_workers}
-
-
