@@ -26,7 +26,7 @@ from __future__ import annotations
 import os
 import json
 import random
-from typing import TYPE_CHECKING, Any, List, Tuple, Optional, Generator
+from typing import TYPE_CHECKING, Any, List, Tuple, Generator
 from pathlib import Path
 from collections import defaultdict
 
@@ -363,7 +363,6 @@ class HIDDataset(Dataset, TransformableDataset):
                 logger.debug('Skipping {}: no data', path.name)
                 continue
 
-            already_adjusted = False
             if isinstance(annotation, AlleleAnnotation):
                 # Adjustment is interleaved per-allele during translation to
                 # prevent overlapping bins from merging into one contiguous
@@ -377,7 +376,6 @@ class HIDDataset(Dataset, TransformableDataset):
                     profile_data=image.data if self.adjustment_of_annotations else None,
                     adjustment_type=self.adjustment_of_annotations,
                 )
-                already_adjusted = bool(self.adjustment_of_annotations)
             elif isinstance(annotation, SpanAnnotation):
                 # Adjustment runs per class-layer on the 3-D tensor before
                 # argmax-flattening so that finer-grained class labels (e.g.
@@ -389,24 +387,20 @@ class HIDDataset(Dataset, TransformableDataset):
                         adjustment_type=self.adjustment_of_annotations,
                     )
                     scanpoint_annotation = ScanpointAnnotation(adjusted_2d)
-                    already_adjusted = True
                 else:
                     scanpoint_annotation = self._dataset_strategy._span_to_scanpoint_annotation(
                         annotation.data, path.stem
                     )
-            else:
+            elif isinstance(annotation, ScanpointAnnotation) and self.adjustment_of_annotations:
+                # Is there a scenario where we're already loading a ScanpointAnnotation
+                # and want to adjust it? If so, that'd be done here.
+                logger.warning(
+                    'Adjust annotations is provided but direct ScanpointAnnotations are not adjusted'
+                )
                 scanpoint_annotation = annotation
-
-            if (
-                self.adjustment_of_annotations
-                and not already_adjusted
-                and scanpoint_annotation is not None
-            ):
-                scanpoint_annotation = self._adjust_annotations(
-                    [image],
-                    [scanpoint_annotation],
-                    adjustment_type=self.adjustment_of_annotations,
-                )[0]
+            else:
+                logger.info(f'Encountered unknown annotation type: {type(annotation)}')
+                scanpoint_annotation = annotation
 
             image.annotation = scanpoint_annotation
 
@@ -587,7 +581,7 @@ class HIDDataset(Dataset, TransformableDataset):
                         adjustment_type == 'complete' and category in _CLASS_SUPPORTS_COMPLETE
                     )
                     if use_complete:
-                        start, end = find_peak_boundary(dye_signal, int(rep_idx), threshold)
+                        start, end = find_peak_boundary(dye_signal, int(rep_idx[0]), threshold)
                         span_data[dye_idx, start : end + 1, class_idx] = 1
                     else:
                         span_data[dye_idx, rep_idx, class_idx] = 1
@@ -597,104 +591,11 @@ class HIDDataset(Dataset, TransformableDataset):
         weights = span_data * np.arange(num_classes, dtype=np.int8)
         return weights.max(axis=-1).astype(np.int8)
 
-    def _adjust_annotations(
-        self,
-        profiles: List[HIDImage],
-        annotations: List[Optional[ScanpointAnnotation]],
-        adjustment_type: str = 'top',
-        threshold: int = 0,
-    ) -> List[Optional[ScanpointAnnotation]]:
-        """Adjust annotations to mark peak tops ('top') or full peak extents ('complete')."""
-        assert len(profiles) == len(annotations)
-
-        for profile, annotation in zip(profiles, annotations, strict=True):
-            if annotation is None or profile.data is None:
-                continue
-
-            num_classes = len(np.unique(annotation.data))
-            adjusted_annotation = None
-            if num_classes == 2:
-                adjust_function = self._adjust_annotations_binary
-            elif num_classes > 2:
-                adjust_function = self._adjust_annotations_multiclass
-            else:
-                raise ValueError(f'Got no annotations for profile ({profile}): {num_classes=}')
-
-            adjusted_annotation = adjust_function(
-                profile=profile,
-                annotation=annotation,
-                adjustment_type=adjustment_type,
-                threshold=threshold,
-            )
-
-            if adjusted_annotation is None:
-                continue
-            annotation.data[:] = adjusted_annotation
-
-        return annotations
-
-    def _adjust_annotations_binary(
-        self,
-        profile: HIDImage,
-        annotation: ScanpointAnnotation,
-        adjustment_type: str,
-        threshold: int = 0,
-    ):
-        if profile.data is None:
-            return None
-        annotation_data: np.ndarray = annotation.data.copy()
-
-        # Possible BUG: When bins overlap of two called alleles, they are now flattened into one sequence of 1's.
-        for dye_idx, dye_data in enumerate(profile.data):
-            _annotations = np.where(annotation_data[dye_idx] == 1)[0]
-            if _annotations.size == 0:
-                continue
-            annotation_groups = np.split(_annotations, np.where(np.diff(_annotations) != 1)[0] + 1)
-            for ann_group in annotation_groups:
-                annotation_data[dye_idx, ann_group] = 0.0
-                peak_idx = find_peak_idx_near_or_in_range(dye_data, ann_group, threshold)
-
-                if peak_idx.size == 0:
-                    logger.warning(
-                        f'No peak found above {threshold}rfu. '
-                        f'Original annotation is removed '
-                        'and no adjustment is applied '
-                        f'(dye {dye_idx}, bin {ann_group}, '
-                        f'rfus {dye_data[ann_group].flatten()}).'
-                    )
-                else:
-                    if adjustment_type == 'complete':
-                        start, end = find_peak_boundary(dye_data, int(peak_idx), threshold)
-                        annotation_data[dye_idx, np.arange(start, end + 1)] = 1.0
-                    elif adjustment_type == 'top':
-                        annotation_data[dye_idx, peak_idx] = 1.0
-                    else:
-                        raise ValueError(
-                            'Unknown adjustment type found: '
-                            f'{adjustment_type}. Please provide'
-                            ' either `top` or `complete`.'
-                        )
-        return annotation_data
-
-    def _adjust_annotations_multiclass(
-        self,
-        profile: HIDImage,
-        annotation: ScanpointAnnotation,
-        adjustment_type: str,
-        threshold: int = 0,
-    ):
-        if profile.data is None:
-            return None
-
-        annotation_data: np.ndarray = annotation.data.copy()
-
-        for dye_idx, dye_data in enumerate(profile.data):
-            _annotations = np.where(annotation_data[dye_idx] == 1)
-
     # -- Properties -------------------------------------------------------- #
 
     @property
     def transform(self) -> TransformDataCallable | None:
+        """Optional transform applied to each sample in ``__getitem__``."""
         return self._transform
 
     @property
@@ -707,6 +608,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
     @property
     def dataset_strategy(self) -> DatasetStrategy:
+        """Dataset strategy used for file discovery and annotation parsing."""
         return self._dataset_strategy
 
     # -- Dunder ------------------------------------------------------------ #
