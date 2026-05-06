@@ -35,9 +35,7 @@ def find_peaks_above_threshold(signal: np.ndarray, threshold: float) -> np.ndarr
     return np.where(is_peak)[0]
 
 
-def find_peak_boundary(
-    signal: np.ndarray, peak_idx: int, threshold: float
-) -> tuple[int, int]:
+def find_peak_boundary(signal: np.ndarray, peak_idx: int, threshold: float) -> tuple[int, int]:
     """Find the start and end indices of a peak.
 
     Starting from ``peak_idx``, walks left to find where the signal drops
@@ -75,6 +73,60 @@ def find_peak_near_idx(signal: np.ndarray, idx: int) -> np.ndarray:
     """
     peak_idxs = find_peaks_above_threshold(signal, signal[idx])
     return peak_idxs[np.abs(peak_idxs - idx).argmin(), np.newaxis]
+
+
+def find_valley_idx_in_range(
+    signal: np.ndarray, index_range: np.ndarray, threshold: float
+) -> np.ndarray:
+    """Find the index of the signal minimum within *index_range*.
+
+    Used for classes where the region of interest is identified by a local
+    minimum rather than a local maximum (e.g. bleed-through troughs).
+    The *threshold* parameter is accepted for a uniform call signature but is
+    not used — valleys are defined by position, not height.
+
+    Args:
+        signal: 1D signal array.
+        index_range: Scanpoint indices of the annotated region.
+        threshold: Unused; kept for call-signature parity with
+            :func:`find_peak_idx_near_or_in_range`.
+
+    Returns:
+        Single-element array with the valley index, or an empty array if
+        *index_range* is empty.
+    """
+    if index_range.size == 0:
+        return np.array([])
+    values = signal[index_range].flatten()
+    valley_local = int(np.argmin(values))
+    return np.array([index_range[valley_local]])
+
+
+def find_absolute_peak_idx_in_range(
+    signal: np.ndarray, index_range: np.ndarray, threshold: float
+) -> np.ndarray:
+    """Find the index of the signal max over the absolute values within *index_range*.
+
+    Used for classes where the signal can either be positive (peak) or negative (valley).
+    The *threshold* parameter is accepted for a uniform call signature but is not used.
+
+    Args:
+        signal: 1D signal array
+        index_range: Scanpoint indices of the annotated region.
+        threshold: Unused; kept for call-signature parity with
+            :func:`find_peak_idx_near_or_in_range`.
+
+    Returns:
+        Single-element array with the peak/valley index, or an empty array if
+        *index_range* is empty.
+    """
+    if index_range.size == 0:
+        return np.array([])
+
+    values = signal[index_range].flatten()
+    absolute_values = np.abs(values)
+    absolute_peak = int(np.argmax(absolute_values))
+    return np.array([index_range[absolute_peak]])
 
 
 def find_peak_idx_near_or_in_range(

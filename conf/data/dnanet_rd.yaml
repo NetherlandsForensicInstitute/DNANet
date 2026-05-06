@@ -13,10 +13,11 @@ dataset:
       annotation_type: ground_truth # DTH (analyst high threshold), or DTL (analyst low threshold), span, or ground_truth
   limit: null  # Set to integer to limit number of loaded images
   skip_if_invalid_ladder: true
+  allow_missing_annotations: false
   include_size_standard: true
   data_loading_strategy: superior  # raw, analyzed, or superior
   adjustment_of_annotations: top  # top, complete, or null
-  transform: ${oc.select:${task}.data_transform,${model.data_transform}}  # task-specific transform (e.g. evaluate wraps it), falls back to model's base transform
+  transform: ${oc.select:model.data_transform_active,${oc.select:model.data_transform,null}}  # get transform from training/evaluation task, or null if not defined
   load_in_memory: false
   cache_dir: data/cache/dnanet_rd
 

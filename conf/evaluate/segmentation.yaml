@@ -10,22 +10,7 @@ visualize: false
 
 metrics:
   _target_: torchmetrics.MetricCollection
-  metrics:
-    scanpoint_accuracy:
-      _target_: torchmetrics.classification.BinaryAccuracy
-      threshold: ${evaluate.threshold}
-    scanpoint_precision:
-      _target_: torchmetrics.classification.BinaryPrecision
-      threshold: ${evaluate.threshold}
-    scanpoint_recall:
-      _target_: torchmetrics.classification.BinaryRecall
-      threshold: ${evaluate.threshold}
-    scanpoint_f1:
-      _target_: torchmetrics.classification.BinaryF1Score
-      threshold: ${evaluate.threshold}
-    scanpoint_iou:
-      _target_: torchmetrics.classification.BinaryJaccardIndex
-      threshold: ${evaluate.threshold}
+  metrics: ${metrics}
 
 lightning_module: dnanet.modules.segmentation.SegmentationModule
 
@@ -42,9 +27,3 @@ callbacks:
     _target_: dnanet.evaluation.callbacks.PerRFUOutcomeCallback
     threshold: 0.5
     filename: per_rfu_outcomes.npz
-
-
-
-data_transform:
-  _target_: dnanet.data.transformer.AlleleMetadataTransformer
-  transformer: ${model.data_transform}

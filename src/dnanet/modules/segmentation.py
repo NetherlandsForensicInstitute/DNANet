@@ -138,9 +138,9 @@ class MultiClassSegmentationModule(SegmentationModule):
     TODO: explore whether approaching binary-classification as multi-class(n=2), allowing for just one class here instead of two separate.
     e.g. "is output_channels=2 + argmax the same as output_channels=1 + sigmoid?"
     """
-    def __init__(self, model: nn.Module, loss_fn: nn.Module, optimizer: Optimizer | None, learning_rate: float = 0.0001, weight_decay: float = 0.0005, threshold: float = 0.5, lr_scheduler: LRScheduler | None = None, metrics: MetricCollection | None = None, batch_size: int | None = None) -> None:
-        super().__init__(model, loss_fn, optimizer, learning_rate, weight_decay, threshold, lr_scheduler, metrics, batch_size)
-        
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
     def _compute_loss_and_probabilities(self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]) -> tuple[Tensor, Tensor, Tensor]:
         x, y = self._split_batch(batch)
         logits = self(x)
