@@ -365,8 +365,9 @@ class ProvedItStrategy(DatasetStrategy):
     def _kfold_split(
         cls, dataset: TransformableDataset, k_folds: int, stratify_noc: bool, seed: int | None
     ):
-        indices = list(range(len(dataset.images)))
-        nocs = [cls.get_number_of_contributors(file_name=img.path.stem) for img in dataset.images]
+        underlying, idx_map = cls._unwrap(dataset)
+        indices = list(range(len(idx_map)))
+        nocs = [cls.get_number_of_contributors(file_name=underlying.images[idx_map[i]].path.stem) for i in indices]
         splitter = (
             StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
             if stratify_noc

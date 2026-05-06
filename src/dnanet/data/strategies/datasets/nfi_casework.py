@@ -10,28 +10,28 @@ Warning:
     Please see the documentation about developing your own strategy, or use the two other strategies for the open-source data.
 """
 
+import os
+import json
+import pickle
 import hashlib
 import itertools
-import json
-import os
-import pickle
+from typing import Dict, Tuple, Mapping, Callable, Sequence, Generator
 from pathlib import Path
-from typing import Callable, Dict, Tuple, Mapping, Sequence, Generator
 
 import numpy as np
 from loguru import logger
+from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     train_test_split,
 )
-from torch.utils.data import Subset
 
-from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
-from dnanet.core.constants import LabelCategory
 from dnanet.core.types import PathLike
+from dnanet.core.constants import LabelCategory
+from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
+from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
-from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 
 
 class NFICaseStrategy(DatasetStrategy):
@@ -43,8 +43,7 @@ class NFICaseStrategy(DatasetStrategy):
                  robot_selection: Sequence[str] | None = None,
                  span_annotations_path: PathLike | None = None,
         ) -> None:
-        """
-        Initialize the NFI casework strategy
+        """Initialize the NFI casework strategy
 
         Available annotation types:
         - AT: only include profiles with a "high" analytical threshold (allele annotation)
@@ -206,8 +205,7 @@ class NFICaseStrategy(DatasetStrategy):
 
     @staticmethod
     def _is_correct_annotation_type(run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]) -> bool:
-        """
-        Check if the run_id corresponds to the requested annotation type.
+        """Check if the run_id corresponds to the requested annotation type.
 
         When a run_id ends with an L, it is assumed to be a LT profile.
         When the run_id is found in the csv with an added L, it is also assumed to be a LT profile.
@@ -333,7 +331,8 @@ class NFICaseStrategy(DatasetStrategy):
         test_fraction: float = 0.0,
         **kwargs,
     ):
-        dataset_indices = np.arange(len(dataset.images))
+        _, idx_map = cls._unwrap(dataset)
+        dataset_indices = np.arange(len(idx_map))
         match (fraction, k_folds):
             # Case: only train/val split, no folds, no test fraction
             case (float(), None) if test_fraction == 0.0:
