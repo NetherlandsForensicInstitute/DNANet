@@ -398,8 +398,10 @@ class HIDDataset(Dataset, TransformableDataset):
                     'Adjust annotations is provided but direct ScanpointAnnotations are not adjusted'
                 )
                 scanpoint_annotation = annotation
-            else:
+            if annotation is not None:
                 logger.info(f'Encountered unknown annotation type: {type(annotation)}')
+                scanpoint_annotation = annotation
+            else:
                 scanpoint_annotation = annotation
 
             image.annotation = scanpoint_annotation
