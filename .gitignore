@@ -36,9 +36,11 @@ Thumbs.db
 .pdm-python
 .mypy_cache/
 .ruff_cache/
+.claude/
 
 annotations.csv
 
 # Don't commit caswork data config
 conf/data/*zaaksdata*.yaml
 conf/data/*casework*.yaml
+conf/data/*private*.yaml

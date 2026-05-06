@@ -1,31 +1,15 @@
 # Training hyperparameters for segmentation models
 type: segmentation
 
+defaults:
+  - /metrics@_global_.metrics: binary
+
 max_epochs: 15
 batch_size: 16
 learning_rate: 0.0001
 weight_decay: 0.0005
 num_workers: 5
 threshold: 0.5
-
-metrics:
-  _target_: torchmetrics.MetricCollection
-  metrics:
-    accuracy:
-      _target_: torchmetrics.classification.BinaryAccuracy
-      threshold: ${train.threshold}
-    precision:
-      _target_: torchmetrics.classification.BinaryPrecision
-      threshold: ${train.threshold}
-    recall:
-      _target_: torchmetrics.classification.BinaryRecall
-      threshold: ${train.threshold}
-    f1:
-      _target_: torchmetrics.classification.BinaryF1Score
-      threshold: ${train.threshold}
-    iou:
-      _target_: torchmetrics.classification.BinaryJaccardIndex
-      threshold: ${train.threshold}
 
 optimizer:
   _target_: torch.optim.AdamW
@@ -54,14 +38,13 @@ lightning_module:
   _target_: dnanet.modules.segmentation.SegmentationModule
   learning_rate: ${train.learning_rate}
   weight_decay: ${train.weight_decay}
-  threshold: ${train.threshold}
   loss_fn: ${model.loss}
-  metrics: ${train.metrics}
+  metrics:
+    _target_: torchmetrics.MetricCollection
+    metrics: ${metrics}
   batch_size: ${train.batch_size}
 
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule
   batch_size: ${train.batch_size}
   num_workers: ${train.num_workers}
-
-

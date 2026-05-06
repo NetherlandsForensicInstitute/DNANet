@@ -31,6 +31,8 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 from torch import Tensor, nn
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 
 from dnanet.modules.base import BaseTaskModule
 
@@ -67,7 +69,6 @@ class SegmentationModule(BaseTaskModule):
         optimizer: torch.optim.Optimizer | None,
         learning_rate: float = 1e-4,
         weight_decay: float = 5e-4,
-        threshold: float = 0.5,
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         metrics: MetricCollection | None = None,
         batch_size: int | None = None,
@@ -83,7 +84,6 @@ class SegmentationModule(BaseTaskModule):
         self.save_hyperparameters({
             "learning_rate": learning_rate,
             "weight_decay": weight_decay,
-            "threshold": threshold,
         })
 
     def compute_step_outputs(
@@ -130,3 +130,34 @@ class SegmentationModule(BaseTaskModule):
         x = batch[0] if isinstance(batch, (tuple, list)) else batch
         logits = self(x)
         return torch.sigmoid(logits)
+
+
+class MultiClassSegmentationModule(SegmentationModule):
+    """Simple extension of the SegmentationModule to allow for multi-class training/predictions.
+    
+    TODO: explore whether approaching binary-classification as multi-class(n=2), allowing for just one class here instead of two separate.
+    e.g. "is output_channels=2 + argmax the same as output_channels=1 + sigmoid?"
+    """
+    def __init__(self, model: nn.Module, loss_fn: nn.Module, optimizer: Optimizer | None, learning_rate: float = 0.0001, weight_decay: float = 0.0005, threshold: float = 0.5, lr_scheduler: LRScheduler | None = None, metrics: MetricCollection | None = None, batch_size: int | None = None) -> None:
+        super().__init__(model, loss_fn, optimizer, learning_rate, weight_decay, threshold, lr_scheduler, metrics, batch_size)
+        
+    def _compute_loss_and_probabilities(self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]) -> tuple[Tensor, Tensor, Tensor]:
+        x, y = self._split_batch(batch)
+        logits = self(x)
+        
+        # Multi-class prediction calculation
+        preds = torch.sigmoid(logits)
+        best_class = torch.argmax(preds, dim=1)
+        
+        loss = self.loss_fn(preds, y)
+        return loss, best_class.detach(), y
+    
+    def predict_step(self, batch: Any, batch_idx: int) -> Tensor:
+        del batch_idx
+        """Returns argmax probabilities for prediction."""
+        x = batch[0] if isinstance(batch, (tuple, list)) else batch
+        logits = self(x)
+        preds = torch.sigmoid(logits)
+        best_class = torch.argmax(preds, dim=1)
+        
+        return best_class

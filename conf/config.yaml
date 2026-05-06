@@ -15,8 +15,6 @@ defaults:
   - task: train
   - data: dnanet_rd
   - model: unet
-  - train: segmentation
-  - evaluate: segmentation
   - logging: csvlogger
   - _self_
   - override hydra/hydra_logging: disabled

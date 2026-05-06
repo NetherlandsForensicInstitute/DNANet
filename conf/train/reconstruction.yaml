@@ -1,6 +1,9 @@
 # Training hyperparameters for autoencoder reconstruction
 type: reconstruction
 
+defaults:
+  - /metrics@_global_.metrics: mse
+
 max_epochs: 150
 batch_size: 16
 learning_rate: 0.0001
@@ -9,12 +12,6 @@ num_workers: 7
 val_fraction: 0.1
 test_fraction: 0.0
 seed: 42
-
-metrics:
-  _target_: torchmetrics.MetricCollection
-  metrics:
-    mse:
-      _target_: torchmetrics.regression.MeanSquaredError
 
 optimizer:
   _target_: torch.optim.AdamW
@@ -45,7 +42,9 @@ lightning_module:
   learning_rate: ${train.learning_rate}
   weight_decay: ${train.weight_decay}
   loss_fn: ${model.loss}
-  metrics: ${train.metrics}
+  metrics:
+    _target_: torchmetrics.MetricCollection
+    metrics: ${metrics}
   autoencoder_log_scale: ${model.autoencoder_log_scale}
   autoencoder_max_rfu: ${model.autoencoder_max_rfu}
   batch_size: ${train.batch_size}
