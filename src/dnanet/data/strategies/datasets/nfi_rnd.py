@@ -111,10 +111,11 @@ class NFIRnDStrategy(DatasetStrategy):
                 )
             case 'span':
                 span_annotations_path = path / 'span_annotations'
-                hid_to_annotation = self._parse_span_annotation(span_annotations_path, scaling_strategy)
+                hid_to_annotation = self._parse_span_annotation(
+                    span_annotations_path, scaling_strategy
+                )
             case _:
                 raise ValueError(f'Invalid annotation type: {self.annotation_type}')
-
 
         # Hid to Ladder mapping
         _, htl_values = self._read_csv_file(hid_to_ladder_path[0])
@@ -127,7 +128,6 @@ class NFIRnDStrategy(DatasetStrategy):
                 hid_to_annotation.get(str(hid_file.stem)),
                 hid_to_ladder.get(hid_file.stem),
             )
-
 
     @classmethod
     def _parse_analyst_annotation(
@@ -456,7 +456,6 @@ class NFIRnDStrategy(DatasetStrategy):
         headers, values = rows[0], filter(lambda r: len(r) > 0, rows[1:])
         return headers, list(values)
 
-
     def get_annotation_classes(self) -> list[str]:
         """Return the annotation class labels produced by this strategy."""
         if self.annotation_type == 'span':
@@ -633,7 +632,9 @@ class NFIRnDStrategy(DatasetStrategy):
 
         underlying, idx_map = cls._unwrap(dataset)
         indices = list(range(len(idx_map)))
-        sample_nocs = [cls.get_number_of_contributors(underlying.images[idx_map[i]].path.stem) for i in indices]
+        sample_nocs = [
+            cls.get_number_of_contributors(underlying.images[idx_map[i]].path.stem) for i in indices
+        ]
         if any(n is None for n in sample_nocs) and stratify_noc:
             raise AttributeError(
                 "NoC couldn't be inferred for every sample, stratify=noc not possible"
@@ -654,7 +655,9 @@ class NFIRnDStrategy(DatasetStrategy):
 
     # -- Splitting helpers ---------
     @classmethod
-    def _get_mixture_dataset_groups(cls, dataset: HIDDataset | Subset) -> Tuple[List[str], List[List[int]]]:
+    def _get_mixture_dataset_groups(
+        cls, dataset: HIDDataset | Subset
+    ) -> Tuple[List[str], List[List[int]]]:
         """Return (group_names, group_index_lists) where each group is a mixture dataset."""
         underlying, idx_map = cls._unwrap(dataset)
         group_map: Dict[str, List[int]] = {}

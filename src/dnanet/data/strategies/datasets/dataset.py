@@ -139,6 +139,7 @@ class DatasetStrategy(ABC):
         Handles both plain datasets (with .images) and torch Subset wrappers.
         """
         from torch.utils.data import Subset
+
         if isinstance(dataset, Subset):
             return dataset.dataset, list(dataset.indices)
         return dataset, list(range(len(dataset.images)))
@@ -171,7 +172,7 @@ class DatasetStrategy(ABC):
 
     @classmethod
     def _parse_span_annotation(
-            cls, span_annotations_path: Path, scaling_strategy: ScalingStrategy
+        cls, span_annotations_path: Path, scaling_strategy: ScalingStrategy
     ) -> dict[str, ScanpointAnnotation | None]:
         """Parse span-annotation CSV files into per-profile scanpoint annotations.
 
@@ -221,7 +222,9 @@ class DatasetStrategy(ABC):
                 columns = set(reader.fieldnames)
                 missing_columns = required_columns.difference(columns)
                 if missing_columns:
-                    raise ValueError(f'Missing span annotation columns: {sorted(missing_columns)}, found columns: {sorted(columns)} in {f}')
+                    raise ValueError(
+                        f'Missing span annotation columns: {sorted(missing_columns)}, found columns: {sorted(columns)} in {f}'
+                    )
                 for row in reader:
                     # check for NaNs (empty strings in csv.DictReader)
                     if any(not row.get(col) for col in required_columns):
@@ -234,10 +237,7 @@ class DatasetStrategy(ABC):
         profiles = {row['profile'] for row in rows}
         categories = {row['category'] for row in rows}
 
-        logger.info(
-            f'Found {len(rows)} valid span annotations in {len(profiles)} '
-            f'profiles'
-        )
+        logger.info(f'Found {len(rows)} valid span annotations in {len(profiles)} profiles')
         logger.info(f'Categories found in annotations: {categories}')
 
         # convert dye names to dye indices and category names to indices
@@ -245,11 +245,11 @@ class DatasetStrategy(ABC):
         for row in rows:
             dye_idx = _dye_name_to_dye_idx.get(str(row['dye']).strip().lower())
             if dye_idx is None:
-                raise ValueError(f"Unknown dye values in span annotations: {row['dye']}")
+                raise ValueError(f'Unknown dye values in span annotations: {row["dye"]}')
 
             category_idx = LabelCategory.display_name_to_index(row['category'])
             if category_idx is None:
-                raise ValueError(f"Unknown category values in span annotations: {row['category']}")
+                raise ValueError(f'Unknown category values in span annotations: {row["category"]}')
 
             row['dye_idx'] = int(dye_idx)
             row['category_idx'] = int(category_idx)
@@ -281,7 +281,9 @@ class DatasetStrategy(ABC):
             else:
                 span_annotation = span_annotations[0]
 
-            hid_to_annotation[hid_file_name] = cls._span_to_scanpoint_annotation(span_annotation, hid_file_name)
+            hid_to_annotation[hid_file_name] = cls._span_to_scanpoint_annotation(
+                span_annotation, hid_file_name
+            )
 
         return hid_to_annotation
 
@@ -345,7 +347,9 @@ class DatasetStrategy(ABC):
         return spannotations[0]
 
     @staticmethod
-    def _span_to_scanpoint_annotation(span_annotation: np.ndarray, hid_file_name: str) -> ScanpointAnnotation:
+    def _span_to_scanpoint_annotation(
+        span_annotation: np.ndarray, hid_file_name: str
+    ) -> ScanpointAnnotation:
         """Flatten a one-hot span tensor to class indices per dye and scanpoint.
 
         Args:
@@ -360,6 +364,8 @@ class DatasetStrategy(ABC):
         flattened = span_annotation.argmax(axis=-1)
 
         if np.any(span_annotation.sum(axis=-1) > 1):
-            logger.debug(f'Found overlapping annotations for {hid_file_name}, taking the lowest class index')
+            logger.debug(
+                f'Found overlapping annotations for {hid_file_name}, taking the lowest class index'
+            )
 
         return ScanpointAnnotation(flattened.astype(np.int8, copy=False))

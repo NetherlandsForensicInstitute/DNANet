@@ -367,7 +367,10 @@ class ProvedItStrategy(DatasetStrategy):
     ):
         underlying, idx_map = cls._unwrap(dataset)
         indices = list(range(len(idx_map)))
-        nocs = [cls.get_number_of_contributors(file_name=underlying.images[idx_map[i]].path.stem) for i in indices]
+        nocs = [
+            cls.get_number_of_contributors(file_name=underlying.images[idx_map[i]].path.stem)
+            for i in indices
+        ]
         splitter = (
             StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
             if stratify_noc

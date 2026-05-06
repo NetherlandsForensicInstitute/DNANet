@@ -38,11 +38,12 @@ class NFICaseStrategy(DatasetStrategy):
     _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self,
-                 annotation_type: str = 'ATLT',
-                 robot_selection: Sequence[str] | None = None,
-                 span_annotations_path: PathLike | None = None,
-        ) -> None:
+    def __init__(
+        self,
+        annotation_type: str = 'ATLT',
+        robot_selection: Sequence[str] | None = None,
+        span_annotations_path: PathLike | None = None,
+    ) -> None:
         """Initialize the NFI casework strategy
 
         Available annotation types:
@@ -55,7 +56,6 @@ class NFICaseStrategy(DatasetStrategy):
         self.annotation_type = annotation_type
         self._robot_selection = robot_selection
         self._span_annotations_path = span_annotations_path
-
 
     def collect_dataset_files(
         self, root_path: str | Path, scaling_strategy: ScalingStrategy, **kwargs
@@ -115,7 +115,9 @@ class NFICaseStrategy(DatasetStrategy):
             self._robot_selection,
             cache=folder_cache,
         )
-        resolve_annotation = self._build_annotation_resolver(path, scaling_strategy, self.annotation_type, self._span_annotations_path)
+        resolve_annotation = self._build_annotation_resolver(
+            path, scaling_strategy, self.annotation_type, self._span_annotations_path
+        )
 
         for hid_file in robots:
             file_category = self.categorize_file(hid_file.name)
@@ -202,9 +204,10 @@ class NFICaseStrategy(DatasetStrategy):
         else:
             raise ValueError(f'Invalid annotation type: {annotation_type}')
 
-
     @staticmethod
-    def _is_correct_annotation_type(run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]) -> bool:
+    def _is_correct_annotation_type(
+        run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]
+    ) -> bool:
         """Check if the run_id corresponds to the requested annotation type.
 
         When a run_id ends with an L, it is assumed to be a LT profile.
@@ -392,7 +395,9 @@ class NFICaseStrategy(DatasetStrategy):
             case 1:
                 _ladder = _ladders[0]
             case _:
-                logger.trace(f'Multiple ladders found, taking first: {sample_path.stem} -> {tuple(map(lambda x: x.stem, _ladders))}')
+                logger.trace(
+                    f'Multiple ladders found, taking first: {sample_path.stem} -> {tuple(map(lambda x: x.stem, _ladders))}'
+                )
                 _ladder = _ladders[0]
         return _ladder
 
