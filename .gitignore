@@ -43,4 +43,4 @@ annotations.csv
 # Don't commit caswork data config
 conf/data/*zaaksdata*.yaml
 conf/data/*casework*.yaml
-conf/data/*private*.yaml
+conf/**/*private*.yaml
