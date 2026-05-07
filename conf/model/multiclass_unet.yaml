@@ -17,3 +17,6 @@ architecture:
 loss:
   _target_: torch.nn.CrossEntropyLoss
 
+data_transform:
+  _target_: dnanet.data.transformer.SegmentationTransformer
+
