@@ -8,7 +8,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from torch.utils.data import ConcatDataset, Subset
+from torch.utils.data import Subset, ConcatDataset
 
 from dnanet.data.splitting import (
     dataset_splitter,
@@ -23,6 +23,7 @@ from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 # ---------------------------------------------------------------------------
 # Fake dataset helpers (reuse pattern from test_nfi_rnd_splitting)
 # ---------------------------------------------------------------------------
+
 
 def _fake_img(stem: str):
     img = MagicMock()
@@ -180,9 +181,7 @@ class TestDatasetSplitterFractional:
 
 class TestDatasetSplitterConcatFractional:
     def test_returns_concat_train_val(self):
-        train, val, test = dataset_splitter(
-            make_concat_dataset(), val_fraction=0.2, seed=42
-        )
+        train, val, test = dataset_splitter(make_concat_dataset(), val_fraction=0.2, seed=42)
         assert isinstance(train, ConcatDataset)
         assert isinstance(val, ConcatDataset)
         assert test is None
@@ -207,9 +206,7 @@ class TestDatasetSplitterConcatFractional:
 
 class TestApplySingleDatasetSplitting:
     def test_val_only_two_subsets(self):
-        train, val, test = _apply_single_dataset_splitting(
-            make_dataset(), val_fraction=0.2, seed=42
-        )
+        train, val, test = _apply_single_dataset_splitting(make_dataset(), val_fraction=0.2, seed=42)
         assert isinstance(train, Subset)
         assert isinstance(val, Subset)
         assert test is None
@@ -234,16 +231,10 @@ class TestApplySingleDatasetSplitting:
 
 class TestApplySingleDatasetKFoldSplitting:
     def test_returns_folds_and_none_test(self):
-        folds, test = _apply_single_dataset_kfold_splitting(
-            make_dataset(), k_folds=3, seed=42
-        )
+        folds, test = _apply_single_dataset_kfold_splitting(make_dataset(), k_folds=3, seed=42)
         assert isinstance(folds, list) and len(folds) == 3
         assert test is None
 
-    @pytest.mark.xfail(
-        reason="NFIRnDStrategy._kfold_split requires .images, not available on Subset after test split",
-        strict=True,
-    )
     def test_returns_folds_and_test_subset(self):
         folds, test = _apply_single_dataset_kfold_splitting(
             make_dataset(), k_folds=3, test_fraction=0.2, seed=42
@@ -251,10 +242,24 @@ class TestApplySingleDatasetKFoldSplitting:
         assert isinstance(folds, list) and len(folds) == 3
         assert isinstance(test, Subset)
 
-    def test_val_indices_partition_all_samples(self):
-        folds, _ = _apply_single_dataset_kfold_splitting(
-            make_dataset(), k_folds=3, seed=42
+    def test_with_test_fraction_covers_all_samples(self):
+        folds, test = _apply_single_dataset_kfold_splitting(
+            make_dataset(), k_folds=3, test_fraction=0.2, seed=42
         )
+        k_fold_set = folds[0][0].dataset  # Subset(original, kfold_global_indices)
+        assert set(k_fold_set.indices) | set(test.indices) == set(range(len(STEMS)))
+        assert set(k_fold_set.indices).isdisjoint(set(test.indices))
+
+    def test_with_test_fraction_val_partitions_kfold_set(self):
+        folds, test = _apply_single_dataset_kfold_splitting(
+            make_dataset(), k_folds=3, test_fraction=0.2, seed=42
+        )
+        k_fold_set = folds[0][0].dataset
+        val_local = {i for _, val in folds for i in val.indices}
+        assert val_local == set(range(len(k_fold_set)))
+
+    def test_val_indices_partition_all_samples(self):
+        folds, _ = _apply_single_dataset_kfold_splitting(make_dataset(), k_folds=3, seed=42)
         val_counts = [0] * len(STEMS)
         for _, val in folds:
             assert isinstance(val, Subset)
@@ -263,9 +268,7 @@ class TestApplySingleDatasetKFoldSplitting:
         assert all(c == 1 for c in val_counts)
 
     def test_each_fold_no_overlap(self):
-        folds, _ = _apply_single_dataset_kfold_splitting(
-            make_dataset(), k_folds=3, seed=42
-        )
+        folds, _ = _apply_single_dataset_kfold_splitting(make_dataset(), k_folds=3, seed=42)
         for train, val in folds:
             assert isinstance(train, Subset) and isinstance(val, Subset)
             assert set(train.indices).isdisjoint(set(val.indices))
@@ -277,26 +280,18 @@ class TestApplySingleDatasetKFoldSplitting:
 
 
 class TestApplyConcatenatedDatasetKFoldSplitting:
-    @pytest.mark.xfail(
-        reason="NFIRnDStrategy._kfold_split requires .images, not available on Subset after test split",
-        strict=True,
-    )
     def test_returns_k_fold_concat_pairs(self):
+        # k_folds=2: each sub-dataset has 3 mixture groups; after test split ≥2 remain
         fold_datasets, test = _apply_concatenated_dataset_kfold_splitting(
-            make_concat_dataset(), k_folds=3, test_fraction=0.2, seed=42
+            make_concat_dataset(), k_folds=2, test_fraction=0.2, seed=42
         )
-        assert len(fold_datasets) == 3
+        assert len(fold_datasets) == 2
         assert all(
-            isinstance(t, ConcatDataset) and isinstance(v, ConcatDataset)
-            for t, v in fold_datasets
+            isinstance(t, ConcatDataset) and isinstance(v, ConcatDataset) for t, v in fold_datasets
         )
 
-    @pytest.mark.xfail(
-        reason="NFIRnDStrategy._kfold_split requires .images, not available on Subset after test split",
-        strict=True,
-    )
     def test_test_dataset_is_concat(self):
         _, test = _apply_concatenated_dataset_kfold_splitting(
-            make_concat_dataset(), k_folds=3, test_fraction=0.2, seed=42
+            make_concat_dataset(), k_folds=2, test_fraction=0.2, seed=42
         )
         assert isinstance(test, ConcatDataset)

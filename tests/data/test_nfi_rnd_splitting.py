@@ -234,3 +234,68 @@ class TestKFoldSplitUngrouped:
 
         with pytest.raises(ValueError, match='Provide either a fraction'):
             NFIRnDStrategy.split(make_dataset(STEMS), k_folds=7, seed=42, genotype_aware=False)
+
+
+# ---------------------------------------------------------------------------
+# _unwrap — base helper
+# ---------------------------------------------------------------------------
+
+
+class TestUnwrap:
+    def test_plain_dataset_returns_identity(self):
+        ds = make_dataset(STEMS)
+        underlying, idx_map = NFIRnDStrategy._unwrap(ds)
+        assert underlying is ds
+        assert idx_map == list(range(len(STEMS)))
+
+    def test_subset_returns_underlying_and_indices(self):
+        ds = make_dataset(STEMS)
+        indices = [0, 3, 7, 12]
+        subset = Subset(ds, indices)
+        underlying, idx_map = NFIRnDStrategy._unwrap(subset)
+        assert underlying is ds
+        assert idx_map == indices
+
+    def test_empty_subset(self):
+        ds = make_dataset(STEMS)
+        underlying, idx_map = NFIRnDStrategy._unwrap(Subset(ds, []))
+        assert underlying is ds
+        assert idx_map == []
+
+
+# ---------------------------------------------------------------------------
+# K-fold from Subset — the cross_validate test_fraction path
+# ---------------------------------------------------------------------------
+
+
+class TestKFoldSplitFromSubset:
+    """Kfold on a Subset: the path exercised by cross_validate when test_fraction > 0."""
+
+    # Every other sample — all 6 mixture datasets represented, 12 items total.
+    _INDICES = list(range(0, len(STEMS), 2))
+
+    def _subset(self):
+        return Subset(make_dataset(STEMS), self._INDICES)
+
+    def test_genotype_aware_returns_k_folds(self):
+        folds = NFIRnDStrategy.split(self._subset(), k_folds=3, seed=42)
+        assert isinstance(folds, list) and len(folds) == 3
+        assert all(isinstance(t, Subset) and isinstance(v, Subset) for t, v in folds)
+
+    def test_ungrouped_returns_k_folds(self):
+        folds = NFIRnDStrategy.split(self._subset(), k_folds=3, seed=42, genotype_aware=False)
+        assert isinstance(folds, list) and len(folds) == 3
+
+    def test_val_partitions_subset(self):
+        """Each local index appears in exactly one val fold."""
+        subset = self._subset()
+        folds = NFIRnDStrategy.split(subset, k_folds=3, seed=42)
+        counts = [0] * len(subset)
+        for _, val in folds:
+            for i in val.indices:
+                counts[i] += 1
+        assert all(c == 1 for c in counts)
+
+    def test_no_train_val_overlap(self):
+        for train, val in NFIRnDStrategy.split(self._subset(), k_folds=3, seed=42):
+            assert set(train.indices).isdisjoint(set(val.indices))

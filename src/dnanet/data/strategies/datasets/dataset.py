@@ -132,6 +132,18 @@ class DatasetStrategy(ABC):
             a list of ``(train_subset, val_subset)`` pairs for k-fold splits.
         """
 
+    @staticmethod
+    def _unwrap(dataset) -> Tuple[Any, List[int]]:
+        """Return (underlying dataset, index map from local position to underlying index).
+
+        Handles both plain datasets (with .images) and torch Subset wrappers.
+        """
+        from torch.utils.data import Subset
+
+        if isinstance(dataset, Subset):
+            return dataset.dataset, list(dataset.indices)
+        return dataset, list(range(len(dataset.images)))
+
     @classmethod
     def split(cls, dataset, **kwargs) -> Tuple[T, T] | Tuple[T, T, T] | List[Tuple[T, T]]:
         """Splitting wrapper.

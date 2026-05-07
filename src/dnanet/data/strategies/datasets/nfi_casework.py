@@ -10,41 +10,41 @@ Warning:
     Please see the documentation about developing your own strategy, or use the two other strategies for the open-source data.
 """
 
+import os
+import json
+import pickle
 import hashlib
 import itertools
-import json
-import os
-import pickle
+from typing import Dict, Tuple, Mapping, Callable, Sequence, Generator
 from pathlib import Path
-from typing import Callable, Dict, Tuple, Mapping, Sequence, Generator
 
 import numpy as np
 from loguru import logger
+from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     train_test_split,
 )
-from torch.utils.data import Subset
 
-from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
-from dnanet.core.constants import LabelCategory
 from dnanet.core.types import PathLike
+from dnanet.core.constants import LabelCategory
+from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
+from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
-from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 
 
 class NFICaseStrategy(DatasetStrategy):
     _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self,
-                 annotation_type: str = 'ATLT',
-                 robot_selection: Sequence[str] | None = None,
-                 span_annotations_path: PathLike | None = None,
-        ) -> None:
-        """
-        Initialize the NFI casework strategy
+    def __init__(
+        self,
+        annotation_type: str = 'ATLT',
+        robot_selection: Sequence[str] | None = None,
+        span_annotations_path: PathLike | None = None,
+    ) -> None:
+        """Initialize the NFI casework strategy
 
         Available annotation types:
         - AT: only include profiles with a "high" analytical threshold (allele annotation)
@@ -56,7 +56,6 @@ class NFICaseStrategy(DatasetStrategy):
         self.annotation_type = annotation_type
         self._robot_selection = robot_selection
         self._span_annotations_path = span_annotations_path
-
 
     def collect_dataset_files(
         self, root_path: str | Path, scaling_strategy: ScalingStrategy, **kwargs
@@ -116,7 +115,9 @@ class NFICaseStrategy(DatasetStrategy):
             self._robot_selection,
             cache=folder_cache,
         )
-        resolve_annotation = self._build_annotation_resolver(path, scaling_strategy, self.annotation_type, self._span_annotations_path)
+        resolve_annotation = self._build_annotation_resolver(
+            path, scaling_strategy, self.annotation_type, self._span_annotations_path
+        )
 
         for hid_file in robots:
             file_category = self.categorize_file(hid_file.name)
@@ -203,11 +204,11 @@ class NFICaseStrategy(DatasetStrategy):
         else:
             raise ValueError(f'Invalid annotation type: {annotation_type}')
 
-
     @staticmethod
-    def _is_correct_annotation_type(run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]) -> bool:
-        """
-        Check if the run_id corresponds to the requested annotation type.
+    def _is_correct_annotation_type(
+        run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]
+    ) -> bool:
+        """Check if the run_id corresponds to the requested annotation type.
 
         When a run_id ends with an L, it is assumed to be a LT profile.
         When the run_id is found in the csv with an added L, it is also assumed to be a LT profile.
@@ -333,7 +334,8 @@ class NFICaseStrategy(DatasetStrategy):
         test_fraction: float = 0.0,
         **kwargs,
     ):
-        dataset_indices = np.arange(len(dataset.images))
+        _, idx_map = cls._unwrap(dataset)
+        dataset_indices = np.arange(len(idx_map))
         match (fraction, k_folds):
             # Case: only train/val split, no folds, no test fraction
             case (float(), None) if test_fraction == 0.0:
@@ -393,7 +395,9 @@ class NFICaseStrategy(DatasetStrategy):
             case 1:
                 _ladder = _ladders[0]
             case _:
-                logger.trace(f'Multiple ladders found, taking first: {sample_path.stem} -> {tuple(map(lambda x: x.stem, _ladders))}')
+                logger.trace(
+                    f'Multiple ladders found, taking first: {sample_path.stem} -> {tuple(map(lambda x: x.stem, _ladders))}'
+                )
                 _ladder = _ladders[0]
         return _ladder
 

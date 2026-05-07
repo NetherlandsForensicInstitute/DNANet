@@ -10,27 +10,28 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
-import csv
 import io
 import os
 import re
-from itertools import groupby
-from pathlib import Path
+import csv
 from typing import TYPE_CHECKING, Dict, List, Tuple, Iterable, Generator
+from pathlib import Path
+from itertools import groupby
 
 from loguru import logger
+from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     StratifiedKFold,
     train_test_split,
 )
-from torch.utils.data import Subset
 
 from dnanet.core import LabelCategory
 from dnanet.core.allele import Allele
-from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.core.marker import Marker
+from dnanet.core.annotation import Annotation, AlleleAnnotation
 from dnanet.data.strategies.datasets.dataset import DatasetStrategy
+
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
@@ -56,8 +57,7 @@ class NFIRnDStrategy(DatasetStrategy):
     }
 
     def __init__(self, annotation_type: str):
-        """
-        Initialize the NFI R&D dataset strategy.
+        """Initialize the NFI R&D dataset strategy.
 
         Available annotation types:
         - ground_truth: use ground truth annotations (allele annotation)
@@ -111,10 +111,11 @@ class NFIRnDStrategy(DatasetStrategy):
                 )
             case 'span':
                 span_annotations_path = path / 'span_annotations'
-                hid_to_annotation = self._parse_span_annotation(span_annotations_path, scaling_strategy)
+                hid_to_annotation = self._parse_span_annotation(
+                    span_annotations_path, scaling_strategy
+                )
             case _:
                 raise ValueError(f'Invalid annotation type: {self.annotation_type}')
-
 
         # Hid to Ladder mapping
         _, htl_values = self._read_csv_file(hid_to_ladder_path[0])
@@ -127,7 +128,6 @@ class NFIRnDStrategy(DatasetStrategy):
                 hid_to_annotation.get(str(hid_file.stem)),
                 hid_to_ladder.get(hid_file.stem),
             )
-
 
     @classmethod
     def _parse_analyst_annotation(
@@ -456,7 +456,6 @@ class NFIRnDStrategy(DatasetStrategy):
         headers, values = rows[0], filter(lambda r: len(r) > 0, rows[1:])
         return headers, list(values)
 
-
     def get_annotation_classes(self) -> list[str]:
         """Return the annotation class labels produced by this strategy."""
         if self.annotation_type == 'span':
@@ -611,7 +610,7 @@ class NFIRnDStrategy(DatasetStrategy):
     @classmethod
     def _kfold_split(
         cls,
-        dataset: HIDDataset,
+        dataset: HIDDataset | Subset,
         k_folds: int,
         seed: int | None,
         stratify_noc: bool,
@@ -631,8 +630,11 @@ class NFIRnDStrategy(DatasetStrategy):
                 for train, val in splitter.split(group_range)  # type: ignore
             ]
 
-        indices = list(range(len(dataset.images)))
-        sample_nocs = [cls.get_number_of_contributors(dataset.images[i].path.stem) for i in indices]
+        underlying, idx_map = cls._unwrap(dataset)
+        indices = list(range(len(idx_map)))
+        sample_nocs = [
+            cls.get_number_of_contributors(underlying.images[idx_map[i]].path.stem) for i in indices
+        ]
         if any(n is None for n in sample_nocs) and stratify_noc:
             raise AttributeError(
                 "NoC couldn't be inferred for every sample, stratify=noc not possible"
@@ -653,18 +655,21 @@ class NFIRnDStrategy(DatasetStrategy):
 
     # -- Splitting helpers ---------
     @classmethod
-    def _get_mixture_dataset_groups(cls, dataset: HIDDataset) -> Tuple[List[str], List[List[int]]]:
+    def _get_mixture_dataset_groups(
+        cls, dataset: HIDDataset | Subset
+    ) -> Tuple[List[str], List[List[int]]]:
         """Return (group_names, group_index_lists) where each group is a mixture dataset."""
+        underlying, idx_map = cls._unwrap(dataset)
         group_map: Dict[str, List[int]] = {}
         mixture_folder_pattern = re.compile(r'Mixture dataset \d')
-        for i, img in enumerate(dataset.images):
-            # parent folder name is the mixture dataset identifier
+        for local_i, global_i in enumerate(idx_map):
+            img = underlying.images[global_i]
             group_key = mixture_folder_pattern.search(str(img.path.absolute()))
             if group_key is None:
                 raise ValueError(
                     f'Failed to retrieve mixture dataset group key from: {img.path.absolute()}'
                 )
-            group_map.setdefault(group_key.group(), []).append(i)
+            group_map.setdefault(group_key.group(), []).append(local_i)
 
         group_names = list(group_map.keys())
         group_indices = [group_map[name] for name in group_names]
