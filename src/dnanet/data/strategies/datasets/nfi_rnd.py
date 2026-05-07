@@ -56,7 +56,7 @@ class NFIRnDStrategy(DatasetStrategy):
         '6': ['Z', 'AA', 'AB', 'AC', 'AD'],
     }
 
-    def __init__(self, annotation_type: str):
+    def __init__(self, annotation_type: str, span_annotations_path: PathLike | None = None):
         """Initialize the NFI R&D dataset strategy.
 
         Available annotation types:
@@ -66,6 +66,7 @@ class NFIRnDStrategy(DatasetStrategy):
         - span: use analyst span annotations (scanpoint annotation)
         """
         self.annotation_type = annotation_type
+        self._span_annotations_path = span_annotations_path
 
         assert annotation_type in ['DTH', 'DTL', 'ground_truth', 'span'], (
             f'Invalid annotation type: {annotation_type}'
@@ -110,7 +111,10 @@ class NFIRnDStrategy(DatasetStrategy):
                     path, hid_file_samples, scaling_strategy
                 )
             case 'span':
-                span_annotations_path = path / 'span_annotations'
+                if self._span_annotations_path is None:
+                    span_annotations_path = path / 'span_annotations'
+                else:
+                    span_annotations_path = Path(self._span_annotations_path)
                 hid_to_annotation = self._parse_span_annotation(
                     span_annotations_path, scaling_strategy
                 )

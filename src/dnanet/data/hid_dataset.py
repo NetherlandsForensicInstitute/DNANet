@@ -261,6 +261,7 @@ class HIDDataset(Dataset, TransformableDataset):
         """
         # Collect sources. This is used for (a) fingerprint validation and
         # (b) driving a fresh build; it's a cheap walk (stat-only).
+        logger.info('Looking for dataset cache...')
         file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
 
         if is_complete(self._cache_dir) and self._use_cache:

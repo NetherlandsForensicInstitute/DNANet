@@ -28,6 +28,7 @@ class DNANetDataModule(L.LightningDataModule):
         dataset: TransformableDataset,
         batch_size: int = 16,
         num_workers: int = 0,
+        shuffle_train: bool = True,
         **split_kwargs,
     ) -> None:
         super().__init__()
@@ -36,6 +37,7 @@ class DNANetDataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self._split_kwargs = split_kwargs
+        self.shuffle_train = shuffle_train
 
         self._train_dataset: Dataset | None = None
         self._val_dataset: Dataset | None = None
@@ -75,7 +77,7 @@ class DNANetDataModule(L.LightningDataModule):
         return DataLoader(
             self._train_dataset,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=self.shuffle_train,
             num_workers=self.num_workers,
             collate_fn=self._collate_fn,
             persistent_workers=self.num_workers > 0,
