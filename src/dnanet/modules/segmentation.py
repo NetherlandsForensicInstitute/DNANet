@@ -69,6 +69,7 @@ class SegmentationModule(BaseTaskModule):
         optimizer: torch.optim.Optimizer | None,
         learning_rate: float = 1e-4,
         weight_decay: float = 5e-4,
+        threshold: float = 0.5,
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         metrics: MetricCollection | None = None,
         batch_size: int | None = None,
@@ -81,13 +82,17 @@ class SegmentationModule(BaseTaskModule):
             lr_scheduler=lr_scheduler,
             batch_size=batch_size,
         )
-        self.save_hyperparameters({
-            "learning_rate": learning_rate,
-            "weight_decay": weight_decay,
-        })
+        self.save_hyperparameters(
+            {
+                'learning_rate': learning_rate,
+                'weight_decay': weight_decay,
+                'threshold': threshold,
+            }
+        )
 
     def compute_step_outputs(
-        self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Compute loss and metric inputs for a single batch.
 
@@ -108,7 +113,9 @@ class SegmentationModule(BaseTaskModule):
         return loss, preds.reshape(-1), y.reshape(-1).int(), preds
 
     @staticmethod
-    def _split_batch(batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]) -> tuple[Tensor, Tensor]:
+    def _split_batch(
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor]:
         if len(batch) == 3:
             x, y, _metadata = batch
             return x, y
@@ -134,24 +141,27 @@ class SegmentationModule(BaseTaskModule):
 
 class MultiClassSegmentationModule(SegmentationModule):
     """Simple extension of the SegmentationModule to allow for multi-class training/predictions.
-    
+
     TODO: explore whether approaching binary-classification as multi-class(n=2), allowing for just one class here instead of two separate.
     e.g. "is output_channels=2 + argmax the same as output_channels=1 + sigmoid?"
     """
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def _compute_loss_and_probabilities(self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]) -> tuple[Tensor, Tensor, Tensor]:
+    def _compute_loss_and_probabilities(
+        self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]
+    ) -> tuple[Tensor, Tensor, Tensor]:
         x, y = self._split_batch(batch)
         logits = self(x)
-        
+
         # Multi-class prediction calculation
         preds = torch.sigmoid(logits)
         best_class = torch.argmax(preds, dim=1)
-        
+
         loss = self.loss_fn(preds, y)
         return loss, best_class.detach(), y
-    
+
     def predict_step(self, batch: Any, batch_idx: int) -> Tensor:
         del batch_idx
         """Returns argmax probabilities for prediction."""
@@ -159,5 +169,5 @@ class MultiClassSegmentationModule(SegmentationModule):
         logits = self(x)
         preds = torch.sigmoid(logits)
         best_class = torch.argmax(preds, dim=1)
-        
+
         return best_class

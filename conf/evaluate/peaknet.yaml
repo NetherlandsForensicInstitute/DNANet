@@ -44,6 +44,11 @@ callbacks:
     include_annotations: true
     include_predictions: true
     num_profiles: 5
+  confusion_matrix:
+    _target_: dnanet.evaluation.callbacks.ConfusionMatrixCallback
+    num_classes: ${data.num_classes}
+    stages: [test]
+    output_dir: confusion_matrix
 
 
 data_transform:

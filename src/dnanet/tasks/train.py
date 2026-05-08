@@ -21,12 +21,13 @@ Usage::
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
+from pathlib import Path
 
+import torch
 import lightning as L
 from loguru import logger
-from omegaconf import OmegaConf, DictConfig
+from omegaconf import OmegaConf, DictConfig, ListConfig
 from hydra.utils import instantiate
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
@@ -39,9 +40,12 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
     # callbacks: list[L.Callback] = [EpochConsoleLogger()]
     callbacks: list[L.Callback] = []
+    train_cfg = cfg.get('train') or cfg.get('training')
+    if train_cfg is None:
+        return callbacks
 
     # Early stopping
-    es_cfg = cfg.train.get('early_stopping')
+    es_cfg = train_cfg.get('early_stopping')
     if es_cfg:
         callbacks.append(
             EarlyStopping(
@@ -55,7 +59,7 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
         )
 
     # Model checkpointing
-    ckpt_cfg = cfg.train.get('checkpoint')
+    ckpt_cfg = train_cfg.get('checkpoint')
     if ckpt_cfg:
         callbacks.append(
             ModelCheckpoint(
@@ -68,7 +72,32 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
             )
         )
 
+    callbacks.extend(
+        _instantiate_configured_callbacks(
+            train_cfg.get('callbacks'),
+            config_path='train.callbacks',
+        )
+    )
     return callbacks
+
+
+def _instantiate_configured_callbacks(
+    callbacks_cfg: DictConfig | ListConfig | None,
+    *,
+    config_path: str,
+) -> list[L.Callback]:
+    """Instantiate callbacks from a Hydra mapping/list config."""
+    if not callbacks_cfg:
+        return []
+
+    if isinstance(callbacks_cfg, DictConfig):
+        callback_specs = callbacks_cfg.values()
+    elif isinstance(callbacks_cfg, ListConfig):
+        callback_specs = callbacks_cfg
+    else:
+        raise TypeError(f'{config_path} must be a mapping or list of Hydra callback configs.')
+
+    return [instantiate(callback_cfg, _convert_='partial') for callback_cfg in callback_specs]
 
 
 def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
@@ -86,10 +115,10 @@ def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
             tracking_uri=mlflow_cfg.get('tracking_uri', 'mlruns'),
             log_model=mlflow_cfg.get('log_model', False),
             tags={
-                'model' : cfg.get('model', {}).get('name', 'Unknown'),
+                'model': cfg.get('model', {}).get('name', 'Unknown'),
                 'data': cfg.data.get('name', 'Unknown'),
                 'task': cfg.get('train', {}).get('type', 'Unknown'),
-            }
+            },
         )
     elif logger_type == 'tensorboard':
         return L.pytorch.loggers.TensorBoardLogger(
@@ -117,14 +146,13 @@ def _load_state_dict(checkpoint: str):
     from parameters and discard parameters not belonging to the model.
     """
     import torch
+
     state = torch.load(checkpoint, map_location='cpu', weights_only=True)
     # Handle Lightning checkpoint wrapping
     if 'state_dict' in state:
         prefix = 'model.'
         state_dict = {
-            k.removeprefix(prefix): v
-            for k, v in state['state_dict'].items()
-            if k.startswith(prefix)
+            k.removeprefix(prefix): v for k, v in state['state_dict'].items() if k.startswith(prefix)
         }
         return state_dict
 
@@ -204,7 +232,7 @@ def run(
         model=network,
         optimizer=optimizer,
         lr_scheduler=scheduler,
-        _convert_='partial' # convert OmegaDict to standard dict since this is not a supported type for instantiating
+        _convert_='partial',  # convert OmegaDict to standard dict since this is not a supported type for instantiating
     )
 
     # -- Data --------------------------------------------------------------
