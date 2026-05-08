@@ -12,7 +12,7 @@ architecture:
   depth: 4
   kernel_size: [3, 5]
   num_filters: 32
-  out_channels: ${model.num_classes}
+  out_channels: ${data.num_classes}
 
 loss:
   _target_: torch.nn.CrossEntropyLoss

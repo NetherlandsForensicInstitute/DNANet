@@ -283,7 +283,7 @@ class TestFindRobotFiles:
             folder.mkdir()
             (folder / 'file.hid').touch()
         files = list(
-            NFICaseStrategy.find_robot_files(tmp_path, selected_robots=['3500XL_A'], cache=False)
+            NFICaseStrategy.find_robot_files(tmp_path, selected_subfolders=['3500XL_A'], cache=False)
         )
         assert len(files) == 1
 
