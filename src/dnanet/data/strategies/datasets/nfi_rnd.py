@@ -59,6 +59,10 @@ class NFIRnDStrategy(DatasetStrategy):
     def __init__(self, annotation_type: str, span_annotations_path: PathLike | None = None):
         """Initialize the NFI R&D dataset strategy.
 
+        Args:
+            annotation_type: The type of annotation to use.
+            span_annotations_path: The path to the span annotations. When None, defaults to data_path/span_annotations
+
         Available annotation types:
         - ground_truth: use ground truth annotations (allele annotation)
         - DTH: use analyst annotations with "high" analytical threshold (allele annotation)

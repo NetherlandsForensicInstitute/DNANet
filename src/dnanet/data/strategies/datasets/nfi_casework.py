@@ -42,12 +42,22 @@ class NFICaseStrategy(DatasetStrategy):
 
     def __init__(self,
                  annotation_type: str = 'ATLT',
-                 robot_selection: Sequence[str] | None = None,
+                 subfolder_selection: Sequence[str] | None = None,
                  span_annotations_path: PathLike | None = None,
                  exclude_path: PathLike | None = None,
-        ) -> None:
+                 shuffle_limit: int | None = None,
+                 seed: int | None = None,
+                 ) -> None:
 
         """Initialize the NFI casework strategy
+
+        Args:
+            annotation_type: The type of annotation to use. Defaults to 'ATLT'.
+            subfolder_selection: A list of subfolders to include. All subfolders are included when None. Defaults to None.
+            span_annotations_path: The path to the span annotations. When None, defaults to data_path/span_annotations
+            exclude_path: The path to a file containing a list of HID files to exclude. Defaults to None.
+            shuffle_limit: Optional limit of number of files to include after shuffling. Defaults to None.
+            seed: Optional seed for shuffling, is required when shuffle_limit is set. Defaults to None.
 
         Available annotation types:
         - AT: only include profiles with a "high" analytical threshold (allele annotation)
@@ -57,9 +67,11 @@ class NFICaseStrategy(DatasetStrategy):
         """
         super().__init__()
         self.annotation_type = annotation_type
-        self._robot_selection = robot_selection
+        self._subfolder_selection = subfolder_selection
         self._span_annotations_path = span_annotations_path
         self._exclude_path = exclude_path
+        self.shuffle_limit = shuffle_limit
+        self.seed = seed
 
     def collect_dataset_files(
         self, root_path: str | Path, scaling_strategy: ScalingStrategy, **kwargs
@@ -96,7 +108,14 @@ class NFICaseStrategy(DatasetStrategy):
                 yield from pickle.load(f)
             return
 
-        results = list(self._collect_dataset_files_uncached(root_path, scaling_strategy))
+        results = list(self._collect_dataset_files_uncached(root_path, scaling_strategy, **kwargs))
+
+        if self.shuffle_limit:
+            if not self.seed:
+                raise ValueError('shuffle_limit is set, but seed is not provided')
+            rng = np.random.default_rng(self.seed)
+            results = rng.choice(results, self.shuffle_limit, replace=False).tolist()
+
 
         logger.info(f'Found {len(results)} valid samples')
 
@@ -111,13 +130,15 @@ class NFICaseStrategy(DatasetStrategy):
         root_path: str | Path,
         scaling_strategy: ScalingStrategy,
         folder_cache: bool = True,
+        allow_missing_annotations: bool = True,
+        **kwargs
     ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         path = Path(root_path)
 
         # Collect all .HID files from the robot folders
         file_list = self.find_robot_files(
             path,
-            self._robot_selection,
+            self._subfolder_selection,
             cache=folder_cache,
         )
 
@@ -133,16 +154,18 @@ class NFICaseStrategy(DatasetStrategy):
                 exclude_files = [line.strip() for line in f if line.strip()]
         for hid_file in tqdm(file_list, desc='Collecting HID files', unit='file', unit_scale=True, leave=False):
             if self._exclude_path and hid_file.stem in exclude_files:
-                # logger.debug(f'Skipping excluded file: {hid_file.stem}')
                 continue
 
             file_category = self.categorize_file(hid_file.name)
             if file_category != 'sample':
-                logger.debug(f'Skipping {file_category} file: {hid_file.stem}')
+                continue
+
+            annotation = resolve_annotation(hid_file)
+            if annotation is None and not allow_missing_annotations:
                 continue
 
             ladder = self.find_ladder_for_sample(hid_file)
-            yield (hid_file, resolve_annotation(hid_file), ladder)
+            yield (hid_file, annotation, ladder)
 
     @classmethod
     def _build_annotation_resolver(
@@ -256,9 +279,13 @@ class NFICaseStrategy(DatasetStrategy):
         return {
             'class': self.__class__.__name__,
             'annotation_type': self.annotation_type,
+            'exclude_path': self._exclude_path,
+            'span_annotations_path': self._span_annotations_path,
+            'seed': self.seed,
+            'shuffle_limit': self.shuffle_limit,
             **(
-                {'robot_selection': tuple(set(self._robot_selection))}
-                if self._robot_selection
+                {'subfolder_selection': tuple(set(self._subfolder_selection))}
+                if self._subfolder_selection
                 else {}
             ),
         }
