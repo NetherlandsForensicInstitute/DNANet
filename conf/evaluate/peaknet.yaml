@@ -13,15 +13,15 @@ metrics:
   metrics:
     scanpoint_precision:
       _target_: torchmetrics.classification.MulticlassPrecision
-      num_classes: ${model.num_classes}
+      num_classes: ${data.num_classes}
       average: macro
     scanpoint_recall:
       _target_: torchmetrics.classification.MulticlassRecall
-      num_classes: ${model.num_classes}
+      num_classes: ${data.num_classes}
       average: macro
     scanpoint_f1:
       _target_: torchmetrics.classification.MulticlassF1Score
-      num_classes: ${model.num_classes}
+      num_classes: ${data.num_classes}
       average: macro
 
 lightning_module: dnanet.modules.peaknet.PeakNetModule

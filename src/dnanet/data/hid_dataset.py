@@ -261,7 +261,8 @@ class HIDDataset(Dataset, TransformableDataset):
         """
         # Collect sources. This is used for (a) fingerprint validation and
         # (b) driving a fresh build; it's a cheap walk (stat-only).
-        file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling))
+        logger.info('Looking for dataset cache...')
+        file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling, allow_missing_annotations=self.allow_missing_annotations))
 
         if is_complete(self._cache_dir) and self._use_cache:
             source_paths = [e[0] for e in file_entries]
@@ -298,12 +299,6 @@ class HIDDataset(Dataset, TransformableDataset):
                 remaining = file_entries
 
             for image in self._load_images(remaining):
-                if image.data is None or image.scaler is None:
-                    logger.debug('Skipping {} during cache build (no data/scaler)', image.path)
-                    continue
-                if image.annotation is None and not self.allow_missing_annotations:
-                    logger.debug('Skipping {} during cache build (no annotation)', image.path)
-                    continue
                 writer.write(image)
             writer.finalize(config_payload, source_paths)
 
@@ -398,7 +393,7 @@ class HIDDataset(Dataset, TransformableDataset):
                     'Adjust annotations is provided but direct ScanpointAnnotations are not adjusted'
                 )
                 scanpoint_annotation = annotation
-            if annotation is not None:
+            elif annotation is not None:
                 logger.info(f'Encountered unknown annotation type: {type(annotation)}')
                 scanpoint_annotation = annotation
             else:

@@ -171,7 +171,8 @@ class PeakNetModule(BaseTaskModule):
         else:
             raise ValueError(
                 "PeakNetModule expects a nested (inputs, targets) batch, a flat "
-                "6-item batch, a metadata-augmented batch, or a 5-item input-only batch.",
+                "6-item batch, a metadata-augmented batch, or a 5-item input-only batch."
+                f" Got {len(batch)}.",
             )
 
         if len(inputs) != 5:

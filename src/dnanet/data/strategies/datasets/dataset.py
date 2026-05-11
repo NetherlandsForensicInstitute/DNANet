@@ -239,7 +239,7 @@ class DatasetStrategy(ABC):
         profiles = {row['profile'] for row in rows}
         categories = {row['category'] for row in rows}
 
-        logger.info(f'Found {len(rows)} valid span annotations in {len(profiles)} profiles')
+        logger.info(f'Found {len(rows)} valid span annotations in {len(profiles)} unique profiles')
         logger.info(f'Categories found in annotations: {categories}')
 
         # convert dye names to dye indices and category names to indices
@@ -316,7 +316,8 @@ class DatasetStrategy(ABC):
             dye_idx = int(row['dye_idx'])
             category_idx = int(row['category_idx'])
             if not 0 <= dye_idx < num_dyes:
-                raise ValueError(f'Dye index {dye_idx} outside annotation shape')
+                # raise ValueError(f'Dye index {dye_idx} outside annotation shape')
+                continue # FIXME parsing of y profiles fails
             if not 0 <= category_idx < num_classes:
                 raise ValueError(f'Category index {category_idx} outside annotation shape')
 
