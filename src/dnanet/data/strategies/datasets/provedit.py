@@ -244,7 +244,7 @@ class ProvedItStrategy(DatasetStrategy):
         # Look in same directory for a ladder with matching well
         parent = sample_path.parent
         for f in parent.glob(cls._HID_SUFFIX):
-            if 'ladder' in f.name.lower() and f.stem.startswith(well):
+            if 'ladder' in f.name.lower() and f.stem.startswith(well[0]):
                 return f
 
         # Fallback: any ladder in the directory
