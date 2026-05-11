@@ -10,46 +10,45 @@ Warning:
     Please see the documentation about developing your own strategy, or use the two other strategies for the open-source data.
 """
 
+import os
+import json
+import pickle
 import hashlib
 import itertools
-import json
-import os
-import pickle
-from pathlib import Path
 from typing import Dict, Tuple, Mapping, Callable, Sequence, Generator
+from pathlib import Path
 
 import numpy as np
+from tqdm import tqdm
 from loguru import logger
+from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     train_test_split,
 )
-from torch.utils.data import Subset
-from tqdm import tqdm
 
-from dnanet.core.annotation import Annotation, AlleleAnnotation
-from dnanet.core.annotation import SpanAnnotation
-from dnanet.core.constants import LabelCategory
 from dnanet.core.types import PathLike
+from dnanet.core.constants import LabelCategory
+from dnanet.core.annotation import Annotation, SpanAnnotation, AlleleAnnotation
+from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
-from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 
 
 class NFICaseStrategy(DatasetStrategy):
     _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self,
-                 annotation_type: str = 'ATLT',
-                 subfolder_selection: Sequence[str] | None = None,
-                 span_annotations_path: PathLike | None = None,
-                 exclude_path: PathLike | None = None,
-                 shuffle_limit: int | None = None,
-                 seed: int | None = None,
-                 ) -> None:
-
-        """Initialize the NFI casework strategy
+    def __init__(
+        self,
+        annotation_type: str = 'ATLT',
+        subfolder_selection: Sequence[str] | None = None,
+        span_annotations_path: PathLike | None = None,
+        exclude_path: PathLike | None = None,
+        shuffle_limit: int | None = None,
+        seed: int | None = None,
+    ) -> None:
+        """Initialize the NFI casework strategy.
 
         Args:
             annotation_type: The type of annotation to use. Defaults to 'ATLT'.
@@ -116,7 +115,6 @@ class NFICaseStrategy(DatasetStrategy):
             rng = np.random.default_rng(self.seed)
             results = rng.choice(results, self.shuffle_limit, replace=False).tolist()
 
-
         logger.info(f'Found {len(results)} valid samples')
 
         cache_file.parent.mkdir(exist_ok=True, parents=True)
@@ -131,7 +129,7 @@ class NFICaseStrategy(DatasetStrategy):
         scaling_strategy: ScalingStrategy,
         folder_cache: bool = True,
         allow_missing_annotations: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         path = Path(root_path)
 
@@ -145,14 +143,15 @@ class NFICaseStrategy(DatasetStrategy):
         file_list = list(file_list)
         logger.info(f'Found {len(file_list)} .hid files in {path}')
 
-
         resolve_annotation = self._build_annotation_resolver(
             path, scaling_strategy, self.annotation_type, self._span_annotations_path
         )
         if self._exclude_path:
             with open(Path(self._exclude_path), 'r') as f:
                 exclude_files = [line.strip() for line in f if line.strip()]
-        for hid_file in tqdm(file_list, desc='Collecting HID files', unit='file', unit_scale=True, leave=False):
+        for hid_file in tqdm(
+            file_list, desc='Collecting HID files', unit='file', unit_scale=True, leave=False
+        ):
             if self._exclude_path and hid_file.stem in exclude_files:
                 continue
 
@@ -202,7 +201,6 @@ class NFICaseStrategy(DatasetStrategy):
                 span_annotations_path = path / 'span_annotations'
             span_annotations_path = Path(span_annotations_path)
             hid_to_annotation = cls._parse_span_annotation(span_annotations_path, scaling_strategy)
-
 
             def resolve_annotation(hid_file: Path) -> SpanAnnotation | None:
                 return hid_to_annotation.get(hid_file.stem)
