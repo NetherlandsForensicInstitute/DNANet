@@ -10,8 +10,12 @@ import pytest
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.panel import Panel
-from dnanet.evaluation.allele_caller import AlleleCaller, NearestBasePairCaller, ExactBasePairCaller, \
-    FromBinaryMaskCaller
+from dnanet.evaluation.allele_caller import (
+    AlleleCaller,
+    ExactBasePairCaller,
+    FromSegmentationImageCaller,
+    NearestBasePairCaller,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -76,12 +80,21 @@ class TestAllelCallerABC:
 
 
 # ---------------------------------------------------------------------------
-# FromBinaryMaskCaller
+# FromPredictionImageCaller
 # ---------------------------------------------------------------------------
 
-class DummyBinaryCaller(FromBinaryMaskCaller):
-    def __init__(self, threshold: float = 0.5, exclude_non_autosomal: bool = False) -> None:
-        super().__init__(threshold, exclude_non_autosomal)
+class DummyPredictionCaller(FromSegmentationImageCaller):
+    def __init__(
+        self,
+        threshold: float = 0.5,
+        exclude_non_autosomal: bool = False,
+        prediction_mode: str = "binary",
+    ) -> None:
+        super().__init__(
+            threshold=threshold,
+            exclude_non_autosomal=exclude_non_autosomal,
+            prediction_mode=prediction_mode,
+        )
 
     @staticmethod
     def call_allele_from_basepair(dye_index: int, base_pair: float, panel: Panel) -> Tuple[str, str]:
@@ -89,9 +102,10 @@ class DummyBinaryCaller(FromBinaryMaskCaller):
             return "MarkerA", "AlleleA"
         return "AMEL", "X"
 
-class TestFromBinaryMaskCaller:
+class TestFromPredictionImageCaller:
+
     def test_returns_tuple_of_markers(self, simple_panel, scaler, signal_image):
-        caller = DummyBinaryCaller()
+        caller = DummyPredictionCaller()
         pred = np.zeros((2, 300), dtype=float)
         pred[0, 99:101] = 1.0
         markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
@@ -102,11 +116,11 @@ class TestFromBinaryMaskCaller:
         pred = np.zeros((2, 300), dtype=float)
         pred[0, 99:101] = 0.3  # below default threshold
 
-        caller_default = DummyBinaryCaller(threshold=0.5)
+        caller_default = DummyPredictionCaller(threshold=0.5)
         markers_default = caller_default.call_alleles(pred, signal_image, scaler, simple_panel)
         assert len(markers_default) == 0
 
-        caller_low = DummyBinaryCaller(threshold=0.2)
+        caller_low = DummyPredictionCaller(threshold=0.2)
         markers_low = caller_low.call_alleles(pred, signal_image, scaler, simple_panel)
         assert len(markers_low) > 0
 
@@ -115,13 +129,65 @@ class TestFromBinaryMaskCaller:
         pred[0, 99:101] = 1
         pred[1, 99:101] = 1
 
-        caller_exclude_true = DummyBinaryCaller(exclude_non_autosomal=True)
+        caller_exclude_true = DummyPredictionCaller(exclude_non_autosomal=True)
         markers = caller_exclude_true.call_alleles(pred, signal_image, scaler, simple_panel)
         assert [m.name for m in markers] == ["MarkerA"]
 
-        caller_exclude_false = DummyBinaryCaller(exclude_non_autosomal=False)
+        caller_exclude_false = DummyPredictionCaller(exclude_non_autosomal=False)
         markers = caller_exclude_false.call_alleles(pred, signal_image, scaler, simple_panel)
         assert sorted([m.name for m in markers]) == ["AMEL", "MarkerA"]
+
+    def test_multiclass_mode_uses_only_allele_class(self, simple_panel, scaler, signal_image):
+        caller = DummyPredictionCaller(prediction_mode="multiclass_labels")
+        pred = np.zeros((2, 300), dtype=int)
+        pred[0, 99:101] = 1
+        pred[1, 149:151] = 2
+
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+
+        assert len(markers) == 1
+        assert markers[0].name == "MarkerA"
+
+
+    def test_invalid_prediction_mode_raises(self):
+        with pytest.raises(ValueError, match="prediction_mode"):
+            DummyPredictionCaller(prediction_mode="guess")
+
+    def test_auto_mode_treats_float_predictions_as_binary(self, simple_panel, scaler, signal_image):
+        caller = DummyPredictionCaller(prediction_mode="auto")
+        pred = np.zeros((2, 300), dtype=float)
+        pred[0, 99:101] = 0.9
+
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+
+        assert len(markers) == 1
+        assert markers[0].name == "MarkerA"
+
+    def test_auto_mode_treats_boolean_predictions_as_binary(self, simple_panel, scaler, signal_image):
+        caller = DummyPredictionCaller(prediction_mode="auto")
+        pred = np.zeros((2, 300), dtype=bool)
+        pred[0, 99:101] = True
+
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+
+        assert len(markers) == 1
+        assert markers[0].name == "MarkerA"
+
+
+    def test_auto_mode_rejects_ambiguous_integer_predictions(self, simple_panel, scaler, signal_image):
+        caller = DummyPredictionCaller(prediction_mode="auto")
+        pred = np.zeros((2, 300), dtype=int)
+        pred[0, 99:101] = 1
+
+        with pytest.raises(ValueError, match="ambiguous"):
+            caller.call_alleles(pred, signal_image, scaler, simple_panel)
+
+    def test_prediction_image_must_be_2d(self, simple_panel, scaler, signal_image):
+        caller = DummyPredictionCaller()
+        pred = np.zeros((2, 300, 2), dtype=float)
+
+        with pytest.raises(ValueError, match="2-D array"):
+            caller.call_alleles(pred, signal_image, scaler, simple_panel)
 
 # ---------------------------------------------------------------------------
 # NearestBasePairCaller
@@ -149,6 +215,24 @@ class TestNearestBasePairCaller:
         marker_a = [m for m in markers if m.name == "MarkerA"][0]
         allele_names = {a.name for a in marker_a.alleles}
         assert "10" in allele_names
+
+    def test_multiclass_labels_call_only_allele_class(self, simple_panel, scaler, signal_image):
+        caller = NearestBasePairCaller(prediction_mode="multiclass_labels")
+        pred = np.zeros((2, 300), dtype=int)
+        pred[0, 99:101] = 1
+        pred[1, 148:152] = 2
+
+        markers = caller.call_alleles(pred, signal_image, scaler, simple_panel)
+
+        assert {m.name for m in markers} == {"MarkerA"}
+
+    def test_auto_mode_rejects_ambiguous_integer_predictions(self, simple_panel, scaler, signal_image):
+        caller = NearestBasePairCaller(prediction_mode="auto")
+        pred = np.zeros((2, 300), dtype=int)
+        pred[0, 99:101] = 1
+
+        with pytest.raises(ValueError, match="ambiguous"):
+            caller.call_alleles(pred, signal_image, scaler, simple_panel)
 
     def test_rfu_extraction(self, simple_panel, scaler, signal_image):
         caller = NearestBasePairCaller(threshold=0.5)
