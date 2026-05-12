@@ -2,8 +2,21 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
+from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
+
+import dnanet
+
+
+def _compose(*overrides: str):
+    workspace = Path(dnanet.__file__).parents[2]
+    conf_dir = workspace / "conf"
+
+    with initialize_config_dir(config_dir=str(conf_dir), version_base=None):
+        return compose(config_name="config", overrides=list(overrides))
 
 
 class TestCLIImport:
@@ -32,9 +45,7 @@ class TestConfigComposition:
 
     def test_master_config_defaults(self):
         """Verify the master config has expected defaults."""
-        cfg = OmegaConf.load(
-            "conf/config.yaml"
-        )
+        cfg = _compose()
         assert cfg.task == "train"
         assert cfg.seed == 42
         assert cfg.verbosity == "INFO"
@@ -43,7 +54,7 @@ class TestConfigComposition:
     def test_training_configs_have_type(self):
         """All training configs should have a 'type' field."""
         for name in ("segmentation", "classification", "reconstruction"):
-            cfg = OmegaConf.load(f"conf/training/{name}.yaml")
+            cfg = OmegaConf.load(f"conf/train/{name}.yaml")
             assert cfg.type == name
 
     def test_model_configs_have_architecture(self):

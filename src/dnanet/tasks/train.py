@@ -140,10 +140,10 @@ def _uses_validation_allele_metrics(cfg: DictConfig) -> bool:
     return _ALLELE_METRICS_CALLBACK_TARGET in targets
 
 
-def _prepare_dataset_for_callbacks(cfg: DictConfig, dataset: Dataset) -> Dataset:
-    """Wrap the dataset transform with metadata when validation allele metrics are enabled."""
+def _validate_dataset_for_callbacks(cfg: DictConfig, dataset: Dataset) -> None:
+    """Validate that configured callbacks are compatible with the dataset transform."""
     if not _uses_validation_allele_metrics(cfg):
-        return dataset
+        return
 
     train_cfg = cfg.get('train')
     train_type = str(train_cfg.get('type', '')) if train_cfg is not None else ''
@@ -156,19 +156,16 @@ def _prepare_dataset_for_callbacks(cfg: DictConfig, dataset: Dataset) -> Dataset
     transform = getattr(dataset, 'transform', None)
     if transform is None:
         raise ValueError(
-            'AlleleMetricsCallback validation support requires a dataset transform '
-            'that can be wrapped with AlleleMetadataTransformer.'
+            'AlleleMetricsCallback validation support requires a dataset transform. '
+            'Set model.data_transform_active with an AlleleMetadataTransformer'
         )
     if isinstance(transform, AlleleMetadataTransformer):
-        return dataset
-    if not hasattr(dataset, '_transform'):
-        raise TypeError(
-            f'Cannot wrap dataset type {type(dataset).__name__} for validation allele metrics.'
-        )
+        return
 
-    dataset._transform = AlleleMetadataTransformer(transformer=transform)
-    logger.info('Enabled metadata batches for validation allele metrics.')
-    return dataset
+    raise ValueError(
+        'AlleleMetricsCallback validation support requires metadata batches from '
+        'AlleleMetadataTransformer. Set model.data_transform_active'
+    )
 
 
 def _configure_module_for_callbacks(cfg: DictConfig, module: L.LightningModule) -> None:
@@ -320,7 +317,7 @@ def run(
             )
 
         dataset = instantiate(data_cfg.dataset)
-    dataset = _prepare_dataset_for_callbacks(cfg, dataset)
+    _validate_dataset_for_callbacks(cfg, dataset)
 
     _configure_module_for_callbacks(cfg, module)
 

@@ -14,7 +14,7 @@ from dnanet.tasks.train import (
     _save_config,
     _build_logger,
     _build_callbacks,
-    _prepare_dataset_for_callbacks,
+    _validate_dataset_for_callbacks,
     _configure_module_for_callbacks,
 )
 
@@ -34,7 +34,8 @@ def _make_cfg(**overrides) -> DictConfig:
                 'num_filters': 8,
             },
         },
-        'training': {
+        'splitting': {},
+        'train': {
             'type': 'segmentation',
             'max_epochs': 2,
             'batch_size': 4,
@@ -42,13 +43,12 @@ def _make_cfg(**overrides) -> DictConfig:
             'weight_decay': 0.0,
             'optimizer': {
                 '_target_': 'torch.optim.AdamW',
-                'lr': '${training.learning_rate}',
-                'weight_decay': '${training.weight_decay}',
+                'lr': '${train.learning_rate}',
+                'weight_decay': '${train.weight_decay}',
             },
             'scheduler': {
                 '_target_': 'torch.optim.lr_scheduler.ExponentialLR',
                 'gamma': 0.8,
-                'optimizer': '${training.optimizer}',
             },
             'lightning_module': {
                 '_target_': 'dnanet.modules.segmentation.SegmentationModule',
@@ -69,7 +69,7 @@ class TestBuildCallbacks:
 
     def test_early_stopping(self):
         cfg = _make_cfg(
-            training={
+            train={
                 'early_stopping': {
                     'monitor': 'val/loss',
                     'patience': 3,
@@ -84,7 +84,7 @@ class TestBuildCallbacks:
 
     def test_checkpoint(self):
         cfg = _make_cfg(
-            training={
+            train={
                 'checkpoint': {
                     'monitor': 'val/loss',
                     'save_top_k': 1,
@@ -98,7 +98,7 @@ class TestBuildCallbacks:
 
     def test_both_callbacks(self):
         cfg = _make_cfg(
-            training={
+            train={
                 'early_stopping': {
                     'monitor': 'val/loss',
                     'patience': 3,
@@ -113,7 +113,7 @@ class TestBuildCallbacks:
 
     def test_configured_callbacks(self):
         cfg = _make_cfg(
-            training={
+            train={
                 'callbacks': {
                     'confusion_matrix': {
                         '_target_': 'dnanet.evaluation.callbacks.ConfusionMatrixCallback',
@@ -138,9 +138,35 @@ class _FakeTransformDataset:
         return self._transform
 
 
-def test_prepare_dataset_for_callbacks_wraps_metadata_transform():
+def test_validate_dataset_for_callbacks_accepts_metadata_transform():
     cfg = _make_cfg(
-        training={
+        train={
+            'type': 'segmentation',
+            'callbacks': {
+                'allele_metrics': {
+                    '_target_': 'dnanet.evaluation.callbacks.AlleleMetricsCallback',
+                    'allele_caller': {
+                        '_target_': 'dnanet.evaluation.allele_caller.NearestBasePairCaller',
+                    },
+                },
+            },
+        },
+    )
+    base_transform = SegmentationTransformer()
+    dataset = _FakeTransformDataset(AlleleMetadataTransformer(base_transform))
+    module = MagicMock()
+
+    _validate_dataset_for_callbacks(cfg, dataset)
+    _configure_module_for_callbacks(cfg, module)
+
+    assert isinstance(dataset.transform, AlleleMetadataTransformer)
+    assert dataset.transform.transformer is base_transform
+    assert module.enable_validation_callback_preds is True
+
+
+def test_validate_dataset_for_callbacks_rejects_plain_transform():
+    cfg = _make_cfg(
+        train={
             'type': 'segmentation',
             'callbacks': {
                 'allele_metrics': {
@@ -153,15 +179,11 @@ def test_prepare_dataset_for_callbacks_wraps_metadata_transform():
         },
     )
     dataset = _FakeTransformDataset(SegmentationTransformer())
-    module = MagicMock()
 
-    prepared = _prepare_dataset_for_callbacks(cfg, dataset)
-    _configure_module_for_callbacks(cfg, module)
+    with pytest.raises(ValueError, match='AlleleMetadataTransformer'):
+        _validate_dataset_for_callbacks(cfg, dataset)
 
-    assert prepared is dataset
-    assert isinstance(dataset.transform, AlleleMetadataTransformer)
-    assert isinstance(dataset.transform.transformer, SegmentationTransformer)
-    assert module.enable_validation_callback_preds is True
+    assert isinstance(dataset.transform, SegmentationTransformer)
 
 
 class TestBuildLogger:
@@ -193,25 +215,23 @@ class TestTrainingConfigFormat:
         ],
     )
     def test_updated_training_configs_have_new_sections(self, name: str, module_target: str):
-        cfg = OmegaConf.load(f'conf/training/{name}.yaml')
+        cfg = OmegaConf.load(f'conf/train/{name}.yaml')
 
-        for key in ('metrics', 'optimizer', 'scheduler', 'lightning_module', 'data_module'):
+        for key in ('optimizer', 'lightning_module', 'data_module'):
             assert key in cfg
 
-        assert cfg.seed == 42
         assert cfg.optimizer._target_ == 'torch.optim.AdamW'
-        assert cfg.scheduler._target_ == 'torch.optim.lr_scheduler.ExponentialLR'
         assert cfg.lightning_module._target_ == module_target
         assert cfg.data_module._target_ == 'dnanet.data.datamodule.DNANetDataModule'
 
     def test_updated_training_configs_match_classification_sections(self):
-        reference = OmegaConf.load('conf/training/classification.yaml')
-        expected_sections = {'metrics', 'optimizer', 'scheduler', 'lightning_module', 'data_module'}
+        reference = OmegaConf.load('conf/train/classification.yaml')
+        expected_sections = {'optimizer', 'lightning_module', 'data_module'}
 
         assert expected_sections.issubset(reference.keys())
 
         for name in ('segmentation', 'reconstruction', 'peaknet'):
-            cfg = OmegaConf.load(f'conf/training/{name}.yaml')
+            cfg = OmegaConf.load(f'conf/train/{name}.yaml')
             assert expected_sections.issubset(cfg.keys())
 
 
@@ -247,23 +267,23 @@ class TestRun:
 
         assert instantiate_mock.call_args_list == [
             call(cfg.model.architecture),
-            call(cfg.training.optimizer, params=ANY),
-            call(cfg.training.scheduler, optimizer=optimizer),
+            call(cfg.train.optimizer, params=ANY),
+            call(cfg.train.scheduler, optimizer=optimizer),
             call(
-                cfg.training.lightning_module,
+                cfg.train.lightning_module,
                 model=network,
                 optimizer=optimizer,
-                scheduler=scheduler,
+                lr_scheduler=scheduler,
                 _convert_='partial',
             ),
-            call(cfg.training.data_module, dataset=dataset),
+            call(cfg.train.data_module, dataset=dataset),
         ]
         assert [id(param) for param in instantiate_mock.call_args_list[1].kwargs['params']] == [
             id(param) for param in network.parameters()
         ]
 
         trainer_cls.assert_called_once_with(
-            max_epochs=cfg.training.max_epochs,
+            max_epochs=cfg.train.max_epochs,
             callbacks=[],
             logger=None,
             default_root_dir=cfg.output_dir,
@@ -278,7 +298,7 @@ class TestRun:
         assert built_module is module
 
     def test_run_skips_scheduler_instantiation_when_scheduler_missing(self):
-        cfg = _make_cfg(training={'scheduler': None})
+        cfg = _make_cfg(train={'scheduler': None})
         dataset = MagicMock(name='dataset')
         network = nn.Linear(4, 2)
         optimizer = MagicMock(name='optimizer')
@@ -302,15 +322,15 @@ class TestRun:
 
         assert instantiate_mock.call_args_list == [
             call(cfg.model.architecture),
-            call(cfg.training.optimizer, params=ANY),
+            call(cfg.train.optimizer, params=ANY),
             call(
-                cfg.training.lightning_module,
+                cfg.train.lightning_module,
                 model=network,
                 optimizer=optimizer,
-                scheduler=None,
+                lr_scheduler=None,
                 _convert_='partial',
             ),
-            call(cfg.training.data_module, dataset=dataset),
+            call(cfg.train.data_module, dataset=dataset),
         ]
 
 
