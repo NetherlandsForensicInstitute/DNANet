@@ -38,7 +38,6 @@ if TYPE_CHECKING:
 
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
-    # callbacks: list[L.Callback] = [EpochConsoleLogger()]
     callbacks: list[L.Callback] = []
     train_cfg = cfg.get('train') or cfg.get('training')
     if train_cfg is None:

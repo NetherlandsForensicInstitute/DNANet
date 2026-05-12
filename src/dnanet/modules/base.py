@@ -169,39 +169,3 @@ class BaseTaskModule(L.LightningModule, ABC):
             config['lr_scheduler'] = {'scheduler': self.lr_scheduler, 'interval': 'epoch'}
 
         return config
-
-
-class EpochConsoleLogger(Callback):
-    @staticmethod
-    def _format(metrics: dict[str, object]) -> str:
-        parts = []
-        for key, value in sorted(metrics.items()):
-            if hasattr(value, 'item'):
-                value = value.item()
-            if isinstance(value, float):
-                parts.append(f'{key}={value:.4f}')
-            else:
-                parts.append(f'{key}={value}')
-        return ', '.join(parts)
-
-    def on_train_epoch_end(self, trainer, pl_module) -> None:
-        if trainer.sanity_checking:
-            return
-        metrics = {k: v for k, v in trainer.callback_metrics.items() if k.startswith('train/')}
-        if metrics:
-            logger.info(
-                'epoch={} train {}',
-                trainer.current_epoch,
-                self._format(metrics),
-            )
-
-    def on_validation_epoch_end(self, trainer, pl_module) -> None:
-        if trainer.sanity_checking:
-            return
-        metrics = {k: v for k, v in trainer.callback_metrics.items() if k.startswith('val/')}
-        if metrics:
-            logger.info(
-                'epoch={} val {}',
-                trainer.current_epoch,
-                self._format(metrics),
-            )
