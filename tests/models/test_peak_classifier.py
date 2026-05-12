@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
 import torch
+import pytest
 
 from dnanet.models.peak_classifier import BackboneModule, PeakClassificationModel
 
@@ -11,6 +11,7 @@ from dnanet.models.peak_classifier import BackboneModule, PeakClassificationMode
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def peak_batch() -> torch.Tensor:
@@ -34,6 +35,7 @@ def marker_idxs() -> torch.Tensor:
 # BackboneModule ABC
 # ---------------------------------------------------------------------------
 
+
 class TestBackboneModuleABC:
     def test_cannot_instantiate(self):
         with pytest.raises(TypeError):
@@ -44,38 +46,51 @@ class TestBackboneModuleABC:
 # PeakClassificationModel — basic
 # ---------------------------------------------------------------------------
 
+
 class TestPeakClassificationModel:
     def test_forward_shape(self, peak_batch, marker_idxs):
         model = PeakClassificationModel(
-            num_classes=3, width=120, n_markers=28, embedding_dim=8,
+            num_classes=3,
+            width=120,
+            n_markers=28,
+            embedding_dim=8,
         )
         logits = model((peak_batch, marker_idxs))
         assert logits.shape == (4, 3)
 
     def test_forward_without_marker(self, peak_batch):
         model = PeakClassificationModel(
-            num_classes=2, width=120, embedding_dim=0,
+            num_classes=2,
+            width=120,
+            embedding_dim=0,
+            use_embedding=False,
         )
         logits = model(peak_batch)
         assert logits.shape == (4, 2)
 
     def test_backbone_out_features(self):
         model = PeakClassificationModel(
-            width=120, embedding_dim=8, hidden_channels=[16, 32],
+            width=120,
+            embedding_dim=8,
+            hidden_channels=[16, 32],
         )
         out = model.backbone_out_features()
         assert isinstance(out, int) and out > 0
 
     def test_backbone_returns_features(self, peak_batch, marker_idxs):
         model = PeakClassificationModel(
-            width=120, embedding_dim=8, hidden_channels=[16],
+            width=120,
+            embedding_dim=8,
+            hidden_channels=[16],
         )
         features = model.backbone((peak_batch, marker_idxs))
         assert features.shape == (4, model.backbone_out_features())
 
     def test_gradient_flows(self, peak_batch, marker_idxs):
         model = PeakClassificationModel(
-            num_classes=2, width=120, embedding_dim=8,
+            num_classes=2,
+            width=120,
+            embedding_dim=8,
         )
         logits = model((peak_batch, marker_idxs))
         logits.sum().backward()
@@ -87,64 +102,82 @@ class TestPeakClassificationModel:
 # Pooling strategies
 # ---------------------------------------------------------------------------
 
+
 class TestPoolingStrategies:
-    @pytest.mark.parametrize("pooling", ["flat", "avg", "attn"])
+    @pytest.mark.parametrize('pooling', ['flat', 'avg', 'attn'])
     def test_pooling_forward(self, peak_batch, pooling):
         model = PeakClassificationModel(
-            num_classes=2, width=120, embedding_dim=0, pooling=pooling,
+            num_classes=2,
+            width=120,
+            embedding_dim=0,
+            use_embedding=False,
+            pooling=pooling,
         )
         logits = model(peak_batch)
         assert logits.shape == (4, 2)
 
     def test_invalid_pooling_rejected(self):
-        with pytest.raises(ValueError, match="pooling must be"):
-            PeakClassificationModel(pooling="invalid")
+        with pytest.raises(ValueError, match='pooling must be'):
+            PeakClassificationModel(pooling='invalid')
 
 
 # ---------------------------------------------------------------------------
 # Activation functions
 # ---------------------------------------------------------------------------
 
+
 class TestActivations:
-    @pytest.mark.parametrize("activation", ["relu", "tanh", "gelu"])
+    @pytest.mark.parametrize('activation', ['relu', 'tanh', 'gelu'])
     def test_activation_forward(self, peak_batch, activation):
         model = PeakClassificationModel(
-            num_classes=2, width=120, embedding_dim=0, activation=activation,
+            num_classes=2,
+            width=120,
+            embedding_dim=0,
+            use_embedding=False,
+            activation=activation,
         )
         logits = model(peak_batch)
         assert logits.shape == (4, 2)
 
     def test_invalid_activation_rejected(self):
-        with pytest.raises(ValueError, match="activation must be"):
-            PeakClassificationModel(activation="silu")
+        with pytest.raises(ValueError, match='activation must be'):
+            PeakClassificationModel(activation='silu')
 
 
 # ---------------------------------------------------------------------------
 # Downsample strategies
 # ---------------------------------------------------------------------------
 
+
 class TestDownsampleStrategies:
-    @pytest.mark.parametrize("downsample", ["maxpool", "conv"])
+    @pytest.mark.parametrize('downsample', ['maxpool', 'conv'])
     def test_downsample_forward(self, peak_batch, downsample):
         model = PeakClassificationModel(
-            num_classes=2, width=120, embedding_dim=0, downsample=downsample,
+            num_classes=2,
+            width=120,
+            embedding_dim=0,
+            use_embedding=False,
+            downsample=downsample,
         )
         logits = model(peak_batch)
         assert logits.shape == (4, 2)
 
     def test_invalid_downsample_rejected(self):
-        with pytest.raises(ValueError, match="downsample must be"):
-            PeakClassificationModel(downsample="stride")
+        with pytest.raises(ValueError, match='downsample must be'):
+            PeakClassificationModel(downsample='stride')
 
 
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
 
+
 class TestOptions:
     def test_max_pool_dyes(self, peak_batch_2ch, marker_idxs):
         model = PeakClassificationModel(
-            num_classes=2, width=120, include_max_pool_dyes=True,
+            num_classes=2,
+            width=120,
+            include_max_pool_dyes=True,
             embedding_dim=8,
         )
         logits = model((peak_batch_2ch, marker_idxs))
@@ -152,15 +185,23 @@ class TestOptions:
 
     def test_batchnorm(self, peak_batch):
         model = PeakClassificationModel(
-            num_classes=2, width=120, embedding_dim=0, use_batchnorm=True,
+            num_classes=2,
+            width=120,
+            embedding_dim=0,
+            use_embedding=False,
+            use_batchnorm=True,
         )
         logits = model(peak_batch)
         assert logits.shape == (4, 2)
 
     def test_dropout(self, peak_batch):
         model = PeakClassificationModel(
-            num_classes=2, width=120, embedding_dim=0,
-            conv_dropout_p=0.5, head_dropout_p=0.3,
+            num_classes=2,
+            width=120,
+            embedding_dim=0,
+            use_embedding=False,
+            conv_dropout_p=0.5,
+            head_dropout_p=0.3,
         )
         model.eval()
         logits = model(peak_batch)
@@ -168,7 +209,10 @@ class TestOptions:
 
     def test_custom_hidden_channels(self, peak_batch):
         model = PeakClassificationModel(
-            num_classes=2, width=120, embedding_dim=0,
+            num_classes=2,
+            width=120,
+            embedding_dim=0,
+            use_embedding=False,
             hidden_channels=[8, 16, 32],
         )
         logits = model(peak_batch)
