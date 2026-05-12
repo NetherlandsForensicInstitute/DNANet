@@ -129,7 +129,7 @@ def _configured_callback_targets(
 
 def _uses_validation_allele_metrics(cfg: DictConfig) -> bool:
     """Return whether training callbacks require validation allele metadata/predictions."""
-    train_cfg = cfg.get('train') or cfg.get('training')
+    train_cfg = cfg.get('train')
     if train_cfg is None:
         return False
 
@@ -145,7 +145,7 @@ def _prepare_dataset_for_callbacks(cfg: DictConfig, dataset: Dataset) -> Dataset
     if not _uses_validation_allele_metrics(cfg):
         return dataset
 
-    train_cfg = cfg.get('train') or cfg.get('training')
+    train_cfg = cfg.get('train')
     train_type = str(train_cfg.get('type', '')) if train_cfg is not None else ''
     if train_type not in _ALLELE_METRICS_TRAIN_TYPES:
         raise ValueError(
