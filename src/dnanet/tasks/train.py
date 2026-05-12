@@ -43,7 +43,7 @@ _ALLELE_METRICS_TRAIN_TYPES = frozenset({'segmentation', 'segmentation_mc', 'pea
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
     callbacks: list[L.Callback] = []
-    train_cfg = cfg.get('train') or cfg.get('training')
+    train_cfg = cfg.get('train')
     if train_cfg is None:
         return callbacks
 
