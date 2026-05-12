@@ -112,6 +112,12 @@ class SegmentationModule(BaseTaskModule):
         loss, preds, y = self._compute_loss_and_probabilities(batch)
         return loss, preds.reshape(-1), y.reshape(-1).int(), preds
 
+    def compute_validation_step_outputs(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        return self.compute_test_step_outputs(batch)
+
     @staticmethod
     def _split_batch(
         batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],

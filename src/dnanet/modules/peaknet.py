@@ -102,6 +102,12 @@ class PeakNetModule(BaseTaskModule):
         loss, preds_flat, targets_flat = self._compute_loss_and_metric_inputs(logits, targets)
         return loss, preds_flat, targets_flat, self._allele_probabilities(logits)
 
+    def compute_validation_step_outputs(
+        self,
+        batch: tuple[Tensor, ...],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        return self.compute_test_step_outputs(batch)
+
     def _compute_logits_and_targets(
         self,
         batch: Any,

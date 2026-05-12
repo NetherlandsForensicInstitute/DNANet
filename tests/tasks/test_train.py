@@ -8,7 +8,15 @@ import pytest
 from torch import nn
 from omegaconf import OmegaConf, DictConfig
 
-from dnanet.tasks.train import run, _save_config, _build_logger, _build_callbacks
+from dnanet.data.transformer import AlleleMetadataTransformer, SegmentationTransformer
+from dnanet.tasks.train import (
+    run,
+    _save_config,
+    _build_logger,
+    _build_callbacks,
+    _prepare_dataset_for_callbacks,
+    _configure_module_for_callbacks,
+)
 
 
 def _make_cfg(**overrides) -> DictConfig:
@@ -119,6 +127,41 @@ class TestBuildCallbacks:
 
         assert len(callbacks) == 1
         assert type(callbacks[0]).__name__ == 'ConfusionMatrixCallback'
+
+
+class _FakeTransformDataset:
+    def __init__(self, transform):
+        self._transform = transform
+
+    @property
+    def transform(self):
+        return self._transform
+
+
+def test_prepare_dataset_for_callbacks_wraps_metadata_transform():
+    cfg = _make_cfg(
+        training={
+            'type': 'segmentation',
+            'callbacks': {
+                'allele_metrics': {
+                    '_target_': 'dnanet.evaluation.callbacks.AlleleMetricsCallback',
+                    'allele_caller': {
+                        '_target_': 'dnanet.evaluation.allele_caller.NearestBasePairCaller',
+                    },
+                },
+            },
+        },
+    )
+    dataset = _FakeTransformDataset(SegmentationTransformer())
+    module = MagicMock()
+
+    prepared = _prepare_dataset_for_callbacks(cfg, dataset)
+    _configure_module_for_callbacks(cfg, module)
+
+    assert prepared is dataset
+    assert isinstance(dataset.transform, AlleleMetadataTransformer)
+    assert isinstance(dataset.transform.transformer, SegmentationTransformer)
+    assert module.enable_validation_callback_preds is True
 
 
 class TestBuildLogger:
