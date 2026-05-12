@@ -137,6 +137,8 @@ class HIDDataset(Dataset, TransformableDataset):
         load_in_memory: bool = False,
         # When True, HIDs without annotations are still cached (for eval/labeltool).
         allow_missing_annotations: bool = False,
+        # When False, skip fingerprint validation and accept cache as-is.
+        cache_validate: bool = True,
     ) -> None:
         super().__init__()
 
@@ -170,6 +172,7 @@ class HIDDataset(Dataset, TransformableDataset):
             allow_missing_annotations=self.allow_missing_annotations,
         )
 
+        self._cache_validate = cache_validate
         self._use_cache = False if cache_dir is None else True
         self._cache_dir = cache_key_dir(
             Path(cache_dir) if cache_dir is not None else Path('/tmp/var/dnanet-cache/'), key
@@ -266,8 +269,13 @@ class HIDDataset(Dataset, TransformableDataset):
 
         if is_complete(self._cache_dir) and self._use_cache:
             source_paths = [e[0] for e in file_entries]
-            if validate_fingerprint(self._cache_dir, config_payload, source_paths):
+            if self._cache_validate and validate_fingerprint(
+                self._cache_dir, config_payload, source_paths, root=self.root
+            ):
                 logger.info('Cache hit: {}', self._cache_dir)
+                return
+            if not self._cache_validate:
+                logger.info('Cache validation disabled, using {} as-is', self._cache_dir)
                 return
             logger.warning('Cache fingerprint stale at {}; rebuilding', self._cache_dir)
 
@@ -277,13 +285,14 @@ class HIDDataset(Dataset, TransformableDataset):
             self._cache_dir,
             len(file_entries),
         )
-        self._build_cache(file_entries, config_payload)
+        self._build_cache(file_entries, config_payload, root=self.root)
         return
 
     def _build_cache(
         self,
         file_entries: list,
         config_payload: dict[str, Any],
+        root: PathLike | None = None,
     ) -> None:
         source_paths = [e[0] for e in file_entries]
         with MemmapCacheWriter(self._cache_dir) as writer:
@@ -300,7 +309,7 @@ class HIDDataset(Dataset, TransformableDataset):
 
             for image in self._load_images(remaining):
                 writer.write(image)
-            writer.finalize(config_payload, source_paths)
+            writer.finalize(config_payload, source_paths, root=root)
 
     # -- Source → fully-preprocessed HIDImage ------------------------------ #
 

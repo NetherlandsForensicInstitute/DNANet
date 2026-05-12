@@ -6,8 +6,7 @@ Two distinct concerns are exercised:
   influence the resulting 16-char hash, so identical config produces an
   identical key and any flag flip routes to a fresh cache directory.
 * ``compute_fingerprint`` and ``validate_fingerprint`` extend the hash with
-  source-file ``(mtime_ns, size)`` stamps and act as the cache-staleness
-  oracle on load.
+  source-file content hashes and act as the cache-staleness oracle on load.
 """
 
 from __future__ import annotations
@@ -123,9 +122,8 @@ class TestFingerprint:
         write_fingerprint(tmp_path, compute_fingerprint(payload, [src]))
         assert validate_fingerprint(tmp_path, payload, [src])
 
-        # Bump mtime + size to simulate an edited source.
+        # Change file content to simulate an edited source.
         src.write_bytes(b'v1-extended')
-        os.utime(src, ns=(1_000_000_000, 2_000_000_000))
         assert not validate_fingerprint(tmp_path, payload, [src])
 
     def test_missing_source_file_does_not_crash(self, tmp_path, base_kwargs):
