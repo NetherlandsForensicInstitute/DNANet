@@ -31,16 +31,19 @@ from omegaconf import OmegaConf, DictConfig, ListConfig
 from hydra.utils import instantiate
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
+from dnanet.data.transformer import AlleleMetadataTransformer
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
 
 
+_ALLELE_METRICS_CALLBACK_TARGET = 'dnanet.evaluation.callbacks.AlleleMetricsCallback'
+_ALLELE_METRICS_TRAIN_TYPES = frozenset({'segmentation', 'segmentation_mc', 'peaknet'})
+
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
-    # callbacks: list[L.Callback] = [EpochConsoleLogger()]
     callbacks: list[L.Callback] = []
-    train_cfg = cfg.get('train') or cfg.get('training')
+    train_cfg = cfg.get('train')
     if train_cfg is None:
         return callbacks
 
@@ -98,6 +101,80 @@ def _instantiate_configured_callbacks(
         raise TypeError(f'{config_path} must be a mapping or list of Hydra callback configs.')
 
     return [instantiate(callback_cfg, _convert_='partial') for callback_cfg in callback_specs]
+
+
+def _configured_callback_targets(
+    callbacks_cfg: DictConfig | ListConfig | None,
+    *,
+    config_path: str,
+) -> list[str]:
+    """Return configured callback targets without instantiating them."""
+    if not callbacks_cfg:
+        return []
+
+    if isinstance(callbacks_cfg, DictConfig):
+        callback_specs = callbacks_cfg.values()
+    elif isinstance(callbacks_cfg, ListConfig):
+        callback_specs = callbacks_cfg
+    else:
+        raise TypeError(f'{config_path} must be a mapping or list of Hydra callback configs.')
+
+    targets: list[str] = []
+    for callback_cfg in callback_specs:
+        target = callback_cfg.get('_target_')
+        if target:
+            targets.append(str(target))
+    return targets
+
+
+def _uses_validation_allele_metrics(cfg: DictConfig) -> bool:
+    """Return whether training callbacks require validation allele metadata/predictions."""
+    train_cfg = cfg.get('train') or cfg.get('training')
+    if train_cfg is None:
+        return False
+
+    targets = _configured_callback_targets(
+        train_cfg.get('callbacks'),
+        config_path='train.callbacks',
+    )
+    return _ALLELE_METRICS_CALLBACK_TARGET in targets
+
+
+def _prepare_dataset_for_callbacks(cfg: DictConfig, dataset: Dataset) -> Dataset:
+    """Wrap the dataset transform with metadata when validation allele metrics are enabled."""
+    if not _uses_validation_allele_metrics(cfg):
+        return dataset
+
+    train_cfg = cfg.get('train') or cfg.get('training')
+    train_type = str(train_cfg.get('type', '')) if train_cfg is not None else ''
+    if train_type not in _ALLELE_METRICS_TRAIN_TYPES:
+        raise ValueError(
+            'AlleleMetricsCallback validation support is only available for '
+            f'{sorted(_ALLELE_METRICS_TRAIN_TYPES)} training types, got {train_type!r}.'
+        )
+
+    transform = getattr(dataset, 'transform', None)
+    if transform is None:
+        raise ValueError(
+            'AlleleMetricsCallback validation support requires a dataset transform '
+            'that can be wrapped with AlleleMetadataTransformer.'
+        )
+    if isinstance(transform, AlleleMetadataTransformer):
+        return dataset
+    if not hasattr(dataset, '_transform'):
+        raise TypeError(
+            f'Cannot wrap dataset type {type(dataset).__name__} for validation allele metrics.'
+        )
+
+    dataset._transform = AlleleMetadataTransformer(transformer=transform)
+    logger.info('Enabled metadata batches for validation allele metrics.')
+    return dataset
+
+
+def _configure_module_for_callbacks(cfg: DictConfig, module: L.LightningModule) -> None:
+    """Enable module callback outputs needed by configured training callbacks."""
+    if _uses_validation_allele_metrics(cfg):
+        module.enable_validation_callback_preds = True
 
 
 def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
@@ -243,6 +320,9 @@ def run(
             )
 
         dataset = instantiate(data_cfg.dataset)
+    dataset = _prepare_dataset_for_callbacks(cfg, dataset)
+
+    _configure_module_for_callbacks(cfg, module)
 
     datamodule = instantiate(cfg.train.data_module, dataset=dataset, **cfg.splitting)
     datamodule.setup('fit')

@@ -1,4 +1,6 @@
-"""Per-RFU outcome evaluation callback."""
+"""Per-RFU outcome evaluation callback.
+
+The per-RFU outcome is available during test runs."""
 
 from __future__ import annotations
 

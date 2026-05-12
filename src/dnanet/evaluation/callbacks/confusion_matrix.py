@@ -1,4 +1,6 @@
-"""Confusion matrix Lightning callback."""
+"""Confusion matrix Lightning callback.
+
+The confusion matrix is available during validation and test runs."""
 
 from __future__ import annotations
 

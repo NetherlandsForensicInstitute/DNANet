@@ -1,4 +1,6 @@
-"""Profile plot evaluation callback."""
+"""Profile plot evaluation callback.
+
+The profile plot is available during test runs."""
 
 from __future__ import annotations
 

@@ -46,6 +46,7 @@ class BaseTaskModule(L.LightningModule, ABC):
         self.train_metrics = metrics.clone(prefix='train/')
         self.val_metrics = metrics.clone(prefix='val/')
         self.test_metrics = metrics.clone(prefix='test/')
+        self.enable_validation_callback_preds = False
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.model(*args, **kwargs)
@@ -62,6 +63,14 @@ class BaseTaskModule(L.LightningModule, ABC):
         batch: Any,
     ) -> tuple[Tensor, Tensor, Tensor, Tensor | None]:
         """Return test loss, metric inputs, and optional callback predictions."""
+        loss, preds, targets = self.compute_step_outputs(batch)
+        return loss, preds, targets, None
+
+    def compute_validation_step_outputs(
+        self,
+        batch: Any,
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor | None]:
+        """Return validation loss, metric inputs, and optional callback predictions."""
         loss, preds, targets = self.compute_step_outputs(batch)
         return loss, preds, targets, None
 
@@ -122,9 +131,16 @@ class BaseTaskModule(L.LightningModule, ABC):
 
     def validation_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor]:
         del batch_idx
-        loss, preds, targets = self.compute_step_outputs(batch)
+        if self.enable_validation_callback_preds:
+            loss, preds, targets, callback_preds = self.compute_validation_step_outputs(batch)
+        else:
+            loss, preds, targets = self.compute_step_outputs(batch)
+            callback_preds = None
         self._log_step_outputs(loss, preds, targets, 'val')
-        return self._callback_metric_outputs(preds, targets)
+        outputs = self._callback_metric_outputs(preds, targets)
+        if callback_preds is not None:
+            outputs['preds'] = callback_preds.detach()
+        return outputs
 
     def test_step(self, batch: Any, batch_idx: int) -> dict[str, Tensor] | None:
         del batch_idx
@@ -169,39 +185,3 @@ class BaseTaskModule(L.LightningModule, ABC):
             config['lr_scheduler'] = {'scheduler': self.lr_scheduler, 'interval': 'epoch'}
 
         return config
-
-
-class EpochConsoleLogger(Callback):
-    @staticmethod
-    def _format(metrics: dict[str, object]) -> str:
-        parts = []
-        for key, value in sorted(metrics.items()):
-            if hasattr(value, 'item'):
-                value = value.item()
-            if isinstance(value, float):
-                parts.append(f'{key}={value:.4f}')
-            else:
-                parts.append(f'{key}={value}')
-        return ', '.join(parts)
-
-    def on_train_epoch_end(self, trainer, pl_module) -> None:
-        if trainer.sanity_checking:
-            return
-        metrics = {k: v for k, v in trainer.callback_metrics.items() if k.startswith('train/')}
-        if metrics:
-            logger.info(
-                'epoch={} train {}',
-                trainer.current_epoch,
-                self._format(metrics),
-            )
-
-    def on_validation_epoch_end(self, trainer, pl_module) -> None:
-        if trainer.sanity_checking:
-            return
-        metrics = {k: v for k, v in trainer.callback_metrics.items() if k.startswith('val/')}
-        if metrics:
-            logger.info(
-                'epoch={} val {}',
-                trainer.current_epoch,
-                self._format(metrics),
-            )

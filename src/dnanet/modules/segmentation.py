@@ -69,7 +69,6 @@ class SegmentationModule(BaseTaskModule):
         optimizer: torch.optim.Optimizer | None,
         learning_rate: float = 1e-4,
         weight_decay: float = 5e-4,
-        threshold: float = 0.5,
         lr_scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         metrics: MetricCollection | None = None,
         batch_size: int | None = None,
@@ -111,6 +110,12 @@ class SegmentationModule(BaseTaskModule):
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         loss, preds, y = self._compute_loss_and_probabilities(batch)
         return loss, preds.reshape(-1), y.reshape(-1).int(), preds
+
+    def compute_validation_step_outputs(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        return self.compute_test_step_outputs(batch)
 
     @staticmethod
     def _split_batch(
