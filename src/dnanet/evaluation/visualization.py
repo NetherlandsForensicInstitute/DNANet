@@ -67,17 +67,33 @@ def plot_profile(
             source="prediction",
         )
 
+    track_names = ["signal"]
+    track_height_ratios = {"signal": 6, "annotation": 1, "prediction": 1}
+    if annotation_map is not None:
+        track_names.append("annotation")
+    if prediction_map is not None:
+        track_names.append("prediction")
+
+    num_tracks = len(track_names)
     fig, axes = plt.subplots(
-        n_dyes * 3,
+        n_dyes * num_tracks,
         1,
         figsize=figsize,
         sharex=True,
-        gridspec_kw={"height_ratios": [6, 1, 1] * n_dyes},
+        gridspec_kw={
+            "height_ratios": [
+                track_height_ratios[track_name]
+                for _ in range(n_dyes)
+                for track_name in track_names
+            ],
+        },
     )
     axes = np.atleast_1d(axes).tolist()
-    signal_axes = axes[0::3]
-    annotation_axes = axes[1::3]
-    prediction_axes = axes[2::3]
+    axes_by_track = {
+        track_name: axes[track_index::num_tracks]
+        for track_index, track_name in enumerate(track_names)
+    }
+    signal_axes = axes_by_track["signal"]
 
     _plot_lines(signal_axes, signal, colors)
     for signal_ax in signal_axes:
@@ -87,12 +103,22 @@ def plot_profile(
         signal_ax.spines["right"].set_visible(False)
 
     present_classes: set[int] = set()
-    present_classes.update(
-        _plot_class_tracks(annotation_axes, annotation_map, lane_label="Ann")
-    )
-    present_classes.update(
-        _plot_class_tracks(prediction_axes, prediction_map, lane_label="Pred")
-    )
+    if annotation_map is not None:
+        present_classes.update(
+            _plot_class_tracks(
+                axes_by_track["annotation"],
+                annotation_map,
+                lane_label="Ann",
+            )
+        )
+    if prediction_map is not None:
+        present_classes.update(
+            _plot_class_tracks(
+                axes_by_track["prediction"],
+                prediction_map,
+                lane_label="Pred",
+            )
+        )
 
     if title:
         fig.suptitle(title, fontsize=16)
@@ -110,7 +136,7 @@ def plot_profile(
             loc="upper right",
         )
 
-    prediction_axes[-1].set_xlabel("Scanpoint")
+    axes[-1].set_xlabel("Scanpoint")
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     return fig
 

@@ -54,17 +54,17 @@ class TestPlotProfile:
     def test_signal_only(self, signal_5dye):
         fig = plot_profile(signal_5dye)
         assert isinstance(fig, Figure)
-        assert len(fig.axes) == 15
+        assert len(fig.axes) == 5
 
     def test_with_annotation(self, signal_5dye, annotation_5dye):
         fig = plot_profile(signal_5dye, annotation=annotation_5dye)
         assert isinstance(fig, Figure)
-        assert len(fig.axes) == 15
+        assert len(fig.axes) == 10
 
     def test_with_prediction(self, signal_5dye, prediction_5dye):
         fig = plot_profile(signal_5dye, prediction=prediction_5dye)
         assert isinstance(fig, Figure)
-        assert len(fig.axes) == 15
+        assert len(fig.axes) == 10
 
     def test_with_title(self, signal_5dye):
         fig = plot_profile(signal_5dye, title="Test Profile")
@@ -98,7 +98,7 @@ class TestPlotProfile:
         signal = np.random.default_rng(1).random((1, 100))
         fig = plot_profile(signal)
         assert isinstance(fig, Figure)
-        assert len(fig.axes) == 3
+        assert len(fig.axes) == 1
 
     def test_annotation_and_prediction_use_separate_tracks(self):
         signal = np.random.default_rng(7).random((1, 100))
