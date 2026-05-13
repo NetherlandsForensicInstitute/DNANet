@@ -5,12 +5,12 @@ defaults:
   - /metrics@_global_.metrics: mse
 
 max_epochs: 150
-batch_size: 16
+batch_size: 128
 learning_rate: 0.0001
 weight_decay: 0.0
-num_workers: 7
-val_fraction: 0.1
-test_fraction: 0.0
+num_workers: 8
+val_fraction: 0.2
+test_fraction: 0.2
 seed: 42
 
 optimizer:
@@ -24,16 +24,16 @@ optimizer:
 #  gamma: 1.0  # effectively disabled
 #  optimizer: ${train.optimizer}
 
-# No early stopping by default (long training benefits AE)
-# early_stopping:
-#   monitor: val/loss
-#   patience: 10
-#   min_delta: 0.001
-#   mode: min
+
+early_stopping:
+ monitor: val/mse
+ patience: 8
+ min_delta: 0.0
+ mode: min
 
 # Checkpointing
 checkpoint:
-  monitor: val/loss
+  monitor: val/mse
   save_top_k: 1
   mode: min
 

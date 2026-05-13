@@ -1,0 +1,63 @@
+# Combined PeakNet: autoencoder (global) + peak classifier (local)
+name: peaknet_pretrained
+
+defaults:
+  - /train@_global_.train: peaknet
+
+autoencoder_checkpoint: outputs/2026-05-06/14-30-33/checkpoints/epoch-018-val_loss-0.4934.ckpt
+
+
+peak_threshold: 25
+window_size: 120
+num_classes: 2
+
+threshold: 25
+include_max_pool_dyes: False
+autoencoder_log_scale: True
+autoencoder_max_rfu: 33000
+
+architecture:
+  _target_: dnanet.models.peaknet.CombinedClassifier
+  _recursive_: true
+
+  # Sub-models are recursively instantiated by Hydra.
+  # Output shapes are auto-inferred from the sub-models via
+  # encoded_shape() and backbone_out_features().
+  autoencoder:
+    _target_: dnanet.models.autoencoder.PerDyeConv1dAutoencoder
+    in_channels: 6
+    hidden_channels: 64
+    depth: 4
+    input_length: 4096
+    kernel_size: 5
+    compression: 8
+    use_sigmoid: true
+
+  peak_classifier:
+    _target_: dnanet.models.peak_classifier.PeakClassificationModel
+    num_classes: ${data.num_classes}
+    width: ${model.window_size}
+    n_markers: 28
+    embedding_dim: 8
+    hidden_channels: [32, 64]
+    kernel_size: 7
+    pooling: flat
+    activation: relu
+    downsample: maxpool
+
+  hidden_dims: [64, 32]
+  num_classes: ${data.num_classes}
+  default_class: 0
+  freeze_autoencoder: false
+  combiner: mlp           # mlp, film, or attention
+
+loss:
+  _target_: torch.nn.CrossEntropyLoss
+
+data_transform:
+  _target_: dnanet.data.transformer.CombinedTransformer
+  threshold: ${model.threshold}
+  window_size: ${model.window_size}
+  include_max_pool_dyes: ${model.include_max_pool_dyes}
+  autoencoder_log_scale: ${model.autoencoder_log_scale}
+  autoencoder_max_rfu: ${model.autoencoder_max_rfu}

@@ -245,10 +245,18 @@ def run(
     if ckpt_path := cfg.get('checkpoint'):
         logger.info('Will resume training from checkpoint: {}', ckpt_path)
 
+    # images = [image.path.stem for image in dataset.images]
+    # ## save images used for training to cfg.output_dir/images.txt
+    # with open(Path(cfg.output_dir) / 'filenames.txt', 'w') as f:
+    #     f.write('\n'.join(images))
+    # logger.info('Image list saved to {}', Path(cfg.output_dir) / 'filenames.txt')
+
     _save_config(cfg, cfg.output_dir)
     logger.info('Starting training...')
     trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_path)
     logger.info('Training complete!')
     logger.info('Saved to {}', cfg.output_dir)
+
+    metric = trainer.callback_metrics.get('val/f1')
 
     return trainer, module

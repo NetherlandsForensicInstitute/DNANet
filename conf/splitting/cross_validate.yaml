@@ -1,3 +1,3 @@
 k_folds: 6
-test_fraction: 0.0
+test_fraction: 0.2
 seed: ${seed}

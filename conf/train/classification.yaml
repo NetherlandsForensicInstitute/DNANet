@@ -54,3 +54,10 @@ data_module:
   batch_size: ${train.batch_size}
   num_workers: ${train.num_workers}
   shuffle_train: ${oc.select:data.shuffle_train,true}
+
+callbacks:
+  confusion_matrix:
+    _target_: dnanet.evaluation.callbacks.ConfusionMatrixCallback
+    num_classes: ${model.num_classes}
+    stages: [val]
+    output_dir: confusion_matrix

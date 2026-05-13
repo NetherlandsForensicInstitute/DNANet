@@ -56,6 +56,8 @@ def main(cfg: DictConfig) -> None:
         from dnanet.tasks.evaluate import run
     elif task == "cross_validate":
         from dnanet.tasks.cross_validate import run
+    elif task == "debug":
+        from dnanet.tools.debug import run
     else:
         raise ValueError(
             f"Unknown task: '{task}'. Choose from: train, evaluate, cross_validate"

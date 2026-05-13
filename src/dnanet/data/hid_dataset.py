@@ -270,6 +270,7 @@ class HIDDataset(Dataset, TransformableDataset):
                 logger.info('Cache hit: {}', self._cache_dir)
                 return
             logger.warning('Cache fingerprint stale at {}; rebuilding', self._cache_dir)
+            # return # FIXME do not skip building cache
 
         logger.info(
             'Building {}cache at {} from {} source files',
