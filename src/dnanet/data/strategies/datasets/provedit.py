@@ -51,6 +51,7 @@ class ProvedItStrategy(DatasetStrategy):
         cls,
         root_path: str | Path,
         scaling_strategy: ScalingStrategy,
+        **kwargs
     ) -> Generator[
         Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
     ]:
@@ -58,7 +59,9 @@ class ProvedItStrategy(DatasetStrategy):
 
         Args:
             root_path: The root folder in which all neccesarry files are located.
-
+            scaling_strategy: The scaling strategy to use for the annotations.
+            **kwargs: Additional dataset collection options; currently unused.
+            
         Yields:
             A tuple containing the Path to the HID file, its (optional) Annotation, and its (optional) Ladder
         """
