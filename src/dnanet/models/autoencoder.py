@@ -15,6 +15,8 @@ Available variants:
 - :class:`PerDyeConv1dAutoencoder` — separate encoder/decoder per dye.
 - :class:`SharedWeightPerDyeConv1dAutoencoder` — per-dye processing with
   shared weights across dyes.
+- :class:`UNet2DAutoEncoder` — U-Net-style autoencoder over the full
+  dye-by-signal image.
 - :class:`FourierAutoencoder` — fixed non-learned frequency baseline.
 """
 
@@ -312,12 +314,17 @@ class SharedWeightPerDyeConv1dAutoencoder(PerDyeConv1dAutoencoder):
         )
 
 class UNet2DAutoEncoder(AbstractAutoencoder):
-    """
-    Wraps the 2D `UNet` as an `AutoEncoder`.
+    """U-Net-style autoencoder for full electropherogram images.
 
-    Notes:
-    \- `encoder()` returns the bottleneck tensor.
-    \- `decoder()` reconstructs using stored skip connections from the last encoder pass.
+    This variant treats the profile as a 2D dye-by-signal image instead of
+    a set of independent 1D traces. That makes it useful when cross-dye
+    structure is part of the signal you want the latent representation to
+    preserve.
+
+    It wraps :class:`dnanet.models.UNet` as an autoencoder. The encoder
+    returns the bottleneck representation, and the decoder reconstructs the
+    input using the skip connections captured during the most recent
+    encoder pass.
     """
 
     def __init__(
