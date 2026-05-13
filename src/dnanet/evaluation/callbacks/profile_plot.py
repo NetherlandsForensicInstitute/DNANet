@@ -13,7 +13,7 @@ from loguru import logger
 from lightning import Callback
 from matplotlib import pyplot as plt
 
-from dnanet.evaluation.visualization import plot_profile
+from dnanet.evaluation.visualization import coerce_class_map, plot_profile
 from dnanet.evaluation.callbacks.allele_metrics import AlleleMetricsCallback
 
 
@@ -88,17 +88,25 @@ class ProfilePlotCallback(Callback):
             signal = sample_metadata.get("signal_image")
             if signal is None:
                 raise ValueError("Missing signal_image in sample metadata.")
+            signal_for_plot = self._as_2d_array(signal)
 
             annotation = None
             if self.include_annotations and targets is not None:
-                annotation = self._annotation_for_plot(sample_metadata, targets[index])
+                annotation = self._annotation_for_plot(
+                    sample_metadata,
+                    targets[index],
+                    signal_shape=signal_for_plot.shape,
+                )
 
             prediction = None
             if self.include_predictions and preds is not None:
-                prediction = self._as_2d_array(preds[index])
+                prediction = self._prediction_for_plot(
+                    preds[index],
+                    signal_shape=signal_for_plot.shape,
+                )
 
             figure = plot_profile(
-                self._as_2d_array(signal),
+                signal_for_plot,
                 annotation=annotation,
                 prediction=prediction,
                 title=self._title_for_plot(sample_metadata),
@@ -151,13 +159,23 @@ class ProfilePlotCallback(Callback):
         cls,
         sample_metadata: Mapping[str, Any],
         target: np.ndarray,
+        *,
+        signal_shape: tuple[int, int],
     ) -> np.ndarray:
         scanpoint_annotation = sample_metadata.get("scanpoint_annotation")
         if scanpoint_annotation is None:
-            return cls._as_2d_array(target)
+            return coerce_class_map(target, signal_shape=signal_shape, source="annotation")
 
         data = getattr(scanpoint_annotation, "data", scanpoint_annotation)
-        return cls._as_2d_array(data)
+        return coerce_class_map(data, signal_shape=signal_shape, source="annotation")
+
+    @staticmethod
+    def _prediction_for_plot(
+        prediction: np.ndarray,
+        *,
+        signal_shape: tuple[int, int],
+    ) -> np.ndarray:
+        return coerce_class_map(prediction, signal_shape=signal_shape, source="prediction")
 
     @staticmethod
     def _validate_lengths(
