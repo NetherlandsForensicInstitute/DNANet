@@ -21,27 +21,34 @@ Usage::
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
+from pathlib import Path
 
+import torch
 import lightning as L
 from loguru import logger
-from omegaconf import OmegaConf, DictConfig
+from omegaconf import OmegaConf, DictConfig, ListConfig
 from hydra.utils import instantiate
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
+from dnanet.data.transformer import AlleleMetadataTransformer
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
 
 
+_ALLELE_METRICS_CALLBACK_TARGET = 'dnanet.evaluation.callbacks.AlleleMetricsCallback'
+_ALLELE_METRICS_TRAIN_TYPES = frozenset({'segmentation', 'segmentation_mc', 'peaknet'})
+
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
-    # callbacks: list[L.Callback] = [EpochConsoleLogger()]
     callbacks: list[L.Callback] = []
+    train_cfg = cfg.get('train')
+    if train_cfg is None:
+        return callbacks
 
     # Early stopping
-    es_cfg = cfg.train.get('early_stopping')
+    es_cfg = train_cfg.get('early_stopping')
     if es_cfg:
         callbacks.append(
             EarlyStopping(
@@ -55,7 +62,7 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
         )
 
     # Model checkpointing
-    ckpt_cfg = cfg.train.get('checkpoint')
+    ckpt_cfg = train_cfg.get('checkpoint')
     if ckpt_cfg:
         callbacks.append(
             ModelCheckpoint(
@@ -68,7 +75,103 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
             )
         )
 
+    callbacks.extend(
+        _instantiate_configured_callbacks(
+            train_cfg.get('callbacks'),
+            config_path='train.callbacks',
+        )
+    )
     return callbacks
+
+
+def _instantiate_configured_callbacks(
+    callbacks_cfg: DictConfig | ListConfig | None,
+    *,
+    config_path: str,
+) -> list[L.Callback]:
+    """Instantiate callbacks from a Hydra mapping/list config."""
+    if not callbacks_cfg:
+        return []
+
+    if isinstance(callbacks_cfg, DictConfig):
+        callback_specs = callbacks_cfg.values()
+    elif isinstance(callbacks_cfg, ListConfig):
+        callback_specs = callbacks_cfg
+    else:
+        raise TypeError(f'{config_path} must be a mapping or list of Hydra callback configs.')
+
+    return [instantiate(callback_cfg, _convert_='partial') for callback_cfg in callback_specs]
+
+
+def _configured_callback_targets(
+    callbacks_cfg: DictConfig | ListConfig | None,
+    *,
+    config_path: str,
+) -> list[str]:
+    """Return configured callback targets without instantiating them."""
+    if not callbacks_cfg:
+        return []
+
+    if isinstance(callbacks_cfg, DictConfig):
+        callback_specs = callbacks_cfg.values()
+    elif isinstance(callbacks_cfg, ListConfig):
+        callback_specs = callbacks_cfg
+    else:
+        raise TypeError(f'{config_path} must be a mapping or list of Hydra callback configs.')
+
+    targets: list[str] = []
+    for callback_cfg in callback_specs:
+        target = callback_cfg.get('_target_')
+        if target:
+            targets.append(str(target))
+    return targets
+
+
+def _uses_validation_allele_metrics(cfg: DictConfig) -> bool:
+    """Return whether training callbacks require validation allele metadata/predictions."""
+    train_cfg = cfg.get('train')
+    if train_cfg is None:
+        return False
+
+    targets = _configured_callback_targets(
+        train_cfg.get('callbacks'),
+        config_path='train.callbacks',
+    )
+    return _ALLELE_METRICS_CALLBACK_TARGET in targets
+
+
+def _validate_dataset_for_callbacks(cfg: DictConfig, dataset: Dataset) -> None:
+    """Validate that configured callbacks are compatible with the dataset transform."""
+    if not _uses_validation_allele_metrics(cfg):
+        return
+
+    train_cfg = cfg.get('train')
+    train_type = str(train_cfg.get('type', '')) if train_cfg is not None else ''
+    if train_type not in _ALLELE_METRICS_TRAIN_TYPES:
+        raise ValueError(
+            'AlleleMetricsCallback validation support is only available for '
+            f'{sorted(_ALLELE_METRICS_TRAIN_TYPES)} training types, got {train_type!r}.'
+        )
+
+    transform = getattr(dataset, 'transform', None)
+    if transform is None:
+        raise ValueError(
+            'AlleleMetricsCallback validation support requires a dataset transform. '
+            'Set model.data_transform_active with an AlleleMetadataTransformer'
+        )
+    if isinstance(transform, AlleleMetadataTransformer):
+        return
+
+    raise ValueError(
+        'AlleleMetricsCallback validation support requires metadata batches from '
+        'AlleleMetadataTransformer. Set model.data_transform_active'
+    )
+
+
+def _configure_module_for_callbacks(cfg: DictConfig, module: L.LightningModule) -> None:
+    """Enable module callback outputs needed by configured training callbacks."""
+    if _uses_validation_allele_metrics(cfg):
+        module.enable_validation_callback_preds = True
 
 
 def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
@@ -86,10 +189,10 @@ def _build_logger(cfg: DictConfig) -> L.pytorch.loggers.Logger | None:
             tracking_uri=mlflow_cfg.get('tracking_uri', 'mlruns'),
             log_model=mlflow_cfg.get('log_model', False),
             tags={
-                'model' : cfg.get('model', {}).get('name', 'Unknown'),
+                'model': cfg.get('model', {}).get('name', 'Unknown'),
                 'data': cfg.data.get('name', 'Unknown'),
                 'task': cfg.get('train', {}).get('type', 'Unknown'),
-            }
+            },
         )
     elif logger_type == 'tensorboard':
         return L.pytorch.loggers.TensorBoardLogger(
@@ -117,14 +220,13 @@ def _load_state_dict(checkpoint: str):
     from parameters and discard parameters not belonging to the model.
     """
     import torch
+
     state = torch.load(checkpoint, map_location='cpu', weights_only=True)
     # Handle Lightning checkpoint wrapping
     if 'state_dict' in state:
         prefix = 'model.'
         state_dict = {
-            k.removeprefix(prefix): v
-            for k, v in state['state_dict'].items()
-            if k.startswith(prefix)
+            k.removeprefix(prefix): v for k, v in state['state_dict'].items() if k.startswith(prefix)
         }
         return state_dict
 
@@ -204,7 +306,7 @@ def run(
         model=network,
         optimizer=optimizer,
         lr_scheduler=scheduler,
-        _convert_='partial' # convert OmegaDict to standard dict since this is not a supported type for instantiating
+        _convert_='partial',  # convert OmegaDict to standard dict since this is not a supported type for instantiating
     )
 
     # -- Data --------------------------------------------------------------
@@ -215,6 +317,9 @@ def run(
             )
 
         dataset = instantiate(data_cfg.dataset)
+    _validate_dataset_for_callbacks(cfg, dataset)
+
+    _configure_module_for_callbacks(cfg, module)
 
     datamodule = instantiate(cfg.train.data_module, dataset=dataset, **cfg.splitting)
     datamodule.setup('fit')

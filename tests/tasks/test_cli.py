@@ -2,10 +2,23 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from collections.abc import Mapping
 
 import pytest
+from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
+
+import dnanet
+
+
+def _compose(*overrides: str):
+    workspace = Path(dnanet.__file__).parents[2]
+    conf_dir = workspace / "conf"
+
+    with initialize_config_dir(config_dir=str(conf_dir), version_base=None):
+        return compose(config_name="config", overrides=list(overrides))
 
 
 class TestCLIImport:

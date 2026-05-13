@@ -57,9 +57,22 @@ class TestSegmentationModule:
         assert loss.item() > 0
 
     def test_validation_step(self, module, dummy_batch):
-        """Validation step should not return a value (Lightning convention)."""
+        """Validation step should return callback-safe metric tensors."""
         result = module.validation_step(dummy_batch, batch_idx=0)
-        assert result is None
+        assert set(result) == {'metric_preds', 'targets'}
+        assert result['metric_preds'].shape == (2 * 5 * 64,)
+        assert result['targets'].shape == (2 * 5 * 64,)
+
+    def test_validation_step_with_callback_predictions(self, module, dummy_batch):
+        """Validation step should expose full predictions when callbacks request them."""
+        module.enable_validation_callback_preds = True
+
+        result = module.validation_step(dummy_batch, batch_idx=0)
+
+        assert set(result) == {'metric_preds', 'targets', 'preds'}
+        assert result['metric_preds'].shape == (2 * 5 * 64,)
+        assert result['targets'].shape == (2 * 5 * 64,)
+        assert result['preds'].shape == (2, 5, 64)
 
     def test_configure_optimizers_with_scheduler(self, module):
         config = module.configure_optimizers()

@@ -157,6 +157,9 @@ def run(
         devices=1,
     )
 
+    if trainer.logger is not None:
+        trainer.logger.log_hyperparams(cfg)
+
     logger.info("Running predictions...")
     logger.warning("Evaluating on entire dataset (no split applied).")
     results = trainer.test(model, dataloaders=datamodule.train_dataloader()) # FIXME: use datamodule test dataloader

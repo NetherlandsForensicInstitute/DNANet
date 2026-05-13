@@ -22,7 +22,12 @@ from hydra.utils import instantiate
 from flatten_dict import flatten
 from torch.utils.data import DataLoader, default_collate
 
-from dnanet.tasks.train import _build_logger, _build_callbacks
+from dnanet.tasks.train import (
+    _build_logger,
+    _build_callbacks,
+    _validate_dataset_for_callbacks,
+    _configure_module_for_callbacks,
+)
 from dnanet.data.splitting import KFoldSplitResult, dataset_splitter
 
 
@@ -97,6 +102,7 @@ def run(
                 "Set it via: dnanet task=cross_validate data=your_dataset"
             )
         dataset = instantiate(data_cfg.dataset)
+    _validate_dataset_for_callbacks(cfg, dataset)
 
     if not cfg.splitting.get("k_folds"):
         raise ValueError(
@@ -144,6 +150,7 @@ def run(
                 lr_scheduler=scheduler,
                 _convert_="partial",
             )
+            _configure_module_for_callbacks(cfg, module)
 
             train_loader = DataLoader(
                 train_set,

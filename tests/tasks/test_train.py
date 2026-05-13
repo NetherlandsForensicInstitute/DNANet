@@ -8,7 +8,15 @@ import pytest
 from torch import nn
 from omegaconf import OmegaConf, DictConfig
 
-from dnanet.tasks.train import run, _save_config, _build_logger, _build_callbacks
+from dnanet.data.transformer import AlleleMetadataTransformer, SegmentationTransformer
+from dnanet.tasks.train import (
+    run,
+    _save_config,
+    _build_logger,
+    _build_callbacks,
+    _validate_dataset_for_callbacks,
+    _configure_module_for_callbacks,
+)
 
 
 def _make_cfg(**overrides) -> DictConfig:
@@ -103,6 +111,80 @@ class TestBuildCallbacks:
         )
         callbacks = _build_callbacks(cfg)
         assert len(callbacks) == 2
+
+    def test_configured_callbacks(self):
+        cfg = _make_cfg(
+            train={
+                'callbacks': {
+                    'confusion_matrix': {
+                        '_target_': 'dnanet.evaluation.callbacks.ConfusionMatrixCallback',
+                        'num_classes': 3,
+                    },
+                },
+            },
+        )
+
+        callbacks = _build_callbacks(cfg)
+
+        assert len(callbacks) == 1
+        assert type(callbacks[0]).__name__ == 'ConfusionMatrixCallback'
+
+
+class _FakeTransformDataset:
+    def __init__(self, transform):
+        self._transform = transform
+
+    @property
+    def transform(self):
+        return self._transform
+
+
+def test_validate_dataset_for_callbacks_accepts_metadata_transform():
+    cfg = _make_cfg(
+        train={
+            'type': 'segmentation',
+            'callbacks': {
+                'allele_metrics': {
+                    '_target_': 'dnanet.evaluation.callbacks.AlleleMetricsCallback',
+                    'allele_caller': {
+                        '_target_': 'dnanet.evaluation.allele_caller.NearestBasePairCaller',
+                    },
+                },
+            },
+        },
+    )
+    base_transform = SegmentationTransformer()
+    dataset = _FakeTransformDataset(AlleleMetadataTransformer(base_transform))
+    module = MagicMock()
+
+    _validate_dataset_for_callbacks(cfg, dataset)
+    _configure_module_for_callbacks(cfg, module)
+
+    assert isinstance(dataset.transform, AlleleMetadataTransformer)
+    assert dataset.transform.transformer is base_transform
+    assert module.enable_validation_callback_preds is True
+
+
+def test_validate_dataset_for_callbacks_rejects_plain_transform():
+    cfg = _make_cfg(
+        train={
+            'type': 'segmentation',
+            'callbacks': {
+                'allele_metrics': {
+                    '_target_': 'dnanet.evaluation.callbacks.AlleleMetricsCallback',
+                    'allele_caller': {
+                        '_target_': 'dnanet.evaluation.allele_caller.NearestBasePairCaller',
+                    },
+                },
+            },
+        },
+    )
+    dataset = _FakeTransformDataset(SegmentationTransformer())
+
+    with pytest.raises(ValueError, match='AlleleMetadataTransformer'):
+        _validate_dataset_for_callbacks(cfg, dataset)
+
+    assert isinstance(dataset.transform, SegmentationTransformer)
 
 
 class TestBuildLogger:
