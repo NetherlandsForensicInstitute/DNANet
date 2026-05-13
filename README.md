@@ -63,7 +63,7 @@ src/dnanet/
 
 - **Deep learning**: PyTorch 2.5+, Lightning 2.4+, torchmetrics
 - **Configuration**: Hydra + OmegaConf (YAML config groups, CLI overrides)
-- **Data**: NumPy, SciPy, PyArrow, pandas, construct
+- **Data**: NumPy, SciPy, construct
 - **Tracking**: MLflow (experiment tracking)
 - **Logging**: Loguru
 - **Quality**: Ruff, mypy, pytest + coverage
@@ -81,16 +81,16 @@ Requires Python 3.12–3.14.
 
 ```bash
 # Train U-Net segmentation on NFI R&D dataset
-dnanet task=train data=dnanet_rd model=unet training=segmentation
+dnanet task=train data=dnanet_rd model=unet
 
 # Train on ProvedIT dataset
-dnanet task=train data=provedit model=unet training=segmentation
+dnanet task=train data=provedit model=unet
 
 # Evaluate a checkpoint
 dnanet task=evaluate data=dnanet_rd model=unet checkpoint=outputs/.../best.ckpt
 
 # 5-fold cross-validation
-dnanet task=cross_validate data=dnanet_rd model=unet training=segmentation
+dnanet task=cross_validate data=dnanet_rd model=unet
 
 # Override any config from CLI
 dnanet task=train data=dnanet_rd model=unet training.learning_rate=0.0001 training.batch_size=32
@@ -121,8 +121,6 @@ Master config: `conf/config.yaml` — Hydra merges selected groups at runtime.
 |------------|-------------|
 | `dnanet_rd` | NFI R&D internal dataset |
 | `provedit` | ProvedIT benchmark dataset |
-| `rnd_private` | Private random dataset |
-| `zaaksdata` | Zaaksdata (case data) |
 | `peaks_rd` | Pre-extracted peaks |
 
 ## Evaluation
