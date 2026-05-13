@@ -51,6 +51,7 @@ class ProvedItStrategy(DatasetStrategy):
         cls,
         root_path: str | Path,
         scaling_strategy: ScalingStrategy,
+        **kwargs
     ) -> Generator[
         Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
     ]:
@@ -58,7 +59,9 @@ class ProvedItStrategy(DatasetStrategy):
 
         Args:
             root_path: The root folder in which all neccesarry files are located.
-
+            scaling_strategy: The scaling strategy to use for the annotations.
+            **kwargs: Additional dataset collection options; currently unused.
+            
         Yields:
             A tuple containing the Path to the HID file, its (optional) Annotation, and its (optional) Ladder
         """
@@ -228,7 +231,7 @@ class ProvedItStrategy(DatasetStrategy):
     ) -> Path | None:
         """Find the ladder for a ProvedIt sample.
 
-        ProvedIt ladders share the same injection directory and well prefix.
+        ProvedIt ladders share the same injection directory and first letter of the well prefix.
         E.g. sample ``B03_RD14-...`` uses ladder ``B03_Ladder-GF_...`` from
         the same run.
         """
@@ -241,15 +244,22 @@ class ProvedItStrategy(DatasetStrategy):
         if well is None:
             return None
 
-        # Look in same directory for a ladder with matching well
+        # Look in same directory for a ladder that matches the first letter of the well.
         parent = sample_path.parent
         for f in parent.glob(cls._HID_SUFFIX):
-            if 'ladder' in f.name.lower() and f.stem.startswith(well):
+            if 'ladder' in f.name.lower() and f.stem.startswith(well[0]):
                 return f
 
         # Fallback: any ladder in the directory
         ladders = [f for f in parent.glob(cls._HID_SUFFIX) if 'ladder' in f.name.lower()]
-        return ladders[0] if ladders else None
+        if ladders:
+            ladder = ladders[0]
+            logger.warning(f"Unable to find matching ladder for well {well} in directory {parent}. Ladder {ladder.name} is used instead")
+        else:
+            ladder = None
+            logger.warning(f"Unable to find matching ladder for well {stem} in directory {parent}, and no other ladder can be found in the directory.")
+
+        return ladder
 
     @classmethod
     def _combine_contributors_into_annotation(

@@ -7,7 +7,7 @@ import numpy as np
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
 from dnanet.core.constants import LabelCategory
-from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
+from dnanet.core.annotation import SpanAnnotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 
 
@@ -139,16 +139,23 @@ def test_parse_span_annotation_returns_scanpoint_annotations(tmp_path):
     annotations = NFIRnDStrategy._parse_span_annotation(tmp_path, FakeSpanScalingStrategy())
 
     annotation = annotations['1A2_A01_01']
-    assert isinstance(annotation, ScanpointAnnotation)
+    assert isinstance(annotation, SpanAnnotation)
     assert annotation.data.shape == (
         FakeSpanKit.num_dyes,
         FakeSpanScalingStrategy.scanpoint_resolution,
+        12,
     )
-    assert np.all(annotation.data[0, 2:5] == list(LabelCategory).index(LabelCategory.ALLELE))
-    assert np.all(
-        annotation.data[1, 6:8] == list(LabelCategory).index(LabelCategory.BLEED_THROUGH)
-    )
-    assert annotation.data[0, 1] == list(LabelCategory).index(LabelCategory.UNLABELED)
+    # Get class indices by argmax along the last dimension
+    class_indices = np.argmax(annotation.data, axis=-1)
+    allele_idx = list(LabelCategory).index(LabelCategory.ALLELE)
+    # blue dye (index 0) has Allele annotation at positions 2-4
+    assert np.all(class_indices[0, 2:5] == allele_idx)
+    # green dye (index 1) has BleedThrough annotation at positions 6-7
+    bleed_idx = list(LabelCategory).index(LabelCategory.BLEED_THROUGH)
+    assert np.all(class_indices[1, 6:8] == bleed_idx)
+    # position 1 should be unlabeled
+    unlabeled_idx = list(LabelCategory).index(LabelCategory.UNLABELED)
+    assert class_indices[0, 1] == unlabeled_idx
 
 
 def test_parse_span_annotation_merges_multiple_annotators(monkeypatch, tmp_path):
@@ -162,7 +169,9 @@ def test_parse_span_annotation_merges_multiple_annotators(monkeypatch, tmp_path)
     )
     merge_calls: list[int] = []
 
-    def fake_merge_span_annotations(span_annotations: list[np.ndarray], hid_file_name: str) -> np.ndarray:
+    def fake_merge_span_annotations(
+        span_annotations: list[np.ndarray], hid_file_name: str
+    ) -> np.ndarray:
         merge_calls.append(len(span_annotations))
         return np.maximum.reduce(span_annotations)
 
@@ -177,5 +186,8 @@ def test_parse_span_annotation_merges_multiple_annotators(monkeypatch, tmp_path)
     annotation = annotations['1A2_A01_01']
     assert merge_calls == [2]
     assert annotation is not None
-    assert np.all(annotation.data[0, 2:5] == list(LabelCategory).index(LabelCategory.ALLELE))
-    assert np.all(annotation.data[0, 6:8] == list(LabelCategory).index(LabelCategory.STUTTER))
+    class_indices = np.argmax(annotation.data, axis=-1)
+    allele_idx = list(LabelCategory).index(LabelCategory.ALLELE)
+    stutter_idx = list(LabelCategory).index(LabelCategory.STUTTER)
+    assert np.all(class_indices[0, 2:5] == allele_idx)
+    assert np.all(class_indices[0, 6:8] == stutter_idx)

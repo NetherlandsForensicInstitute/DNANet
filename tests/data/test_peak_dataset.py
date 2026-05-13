@@ -1,23 +1,23 @@
 """Tests for PeakWindowDataset."""
 
-from collections import Counter
-from pathlib import Path
 from types import SimpleNamespace
+from pathlib import Path
+from collections import Counter
 
 import numpy as np
 
 from dnanet.core.annotation import ScanpointAnnotation
-from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.peak_dataset import PeakWindowDataset
+from dnanet.data.extracted_peak import ExtractedPeak
 
 
 class MockImage:
     """Minimal HIDImage-like object."""
 
-    def __init__(self, data, scaling_strategy, annotation_image=None, name="mock"):
+    def __init__(self, data, scaling_strategy, annotation_image=None, name='mock'):
         self._raw_data = data
         self._panel = None
-        self.path = Path(f"{name}.hid")
+        self.path = Path(f'{name}.hid')
         self.scaling_strategy = scaling_strategy
         if annotation_image is not None:
             self.annotation = ScanpointAnnotation(data=annotation_image)
@@ -64,7 +64,7 @@ class StubOnlyBaseDataset:
                 data=np.zeros((5, 4096)),
                 scaling_strategy=self._scaling,
                 annotation_image=None,
-                name=f"cached_{idx}",
+                name=f'cached_{idx}',
             )
             stub.adjusted_panel = None
             self._stubs.append(stub)
@@ -76,7 +76,7 @@ class StubOnlyBaseDataset:
                 data,
                 scaling_strategy=self._scaling,
                 annotation_image=ann,
-                name=f"cached_{idx}",
+                name=f'cached_{idx}',
             )
             image.adjusted_panel = object()
             self._materialized.append(image)
@@ -111,7 +111,6 @@ def _make_profile_with_peaks(n_dyes=5, length=4096, n_peaks=3):
 
 
 class TestPeakWindowDataset:
-
     def _make_base_dataset(self, scaling_strategy, dataset_strategy, n_images=3, n_peaks=3):
         """Create a SimpleDataset of mock images."""
         images = []
@@ -124,7 +123,7 @@ class TestPeakWindowDataset:
                     data,
                     scaling_strategy,
                     annotation_image=ann,
-                    name=f"mock_{idx}",
+                    name=f'mock_{idx}',
                 )
             )
         return MockBaseDataset(images, scaling_strategy, dataset_strategy)
@@ -156,11 +155,11 @@ class TestPeakWindowDataset:
             preprocess=False,
         )
 
-        assert [image.path.stem for image in ds.images] == ["cached_0", "cached_1"]
+        assert [image.path.stem for image in ds.images] == ['cached_0', 'cached_1']
         assert base.materialized_indices == []
 
         monkeypatch.setattr(
-            "dnanet.data.peak_dataset.get_worker_info",
+            'dnanet.data.peak_dataset.get_worker_info',
             lambda: SimpleNamespace(id=1, num_workers=2),
         )
 
@@ -173,12 +172,12 @@ class TestPeakWindowDataset:
             return [image.path.stem]
 
         monkeypatch.setattr(
-            "dnanet.data.peak_dataset.extract_peak_windows",
+            'dnanet.data.peak_dataset.extract_peak_windows',
             fake_extract_peak_windows,
         )
 
-        assert list(ds) == ["cached_1"]
-        assert extracted_from == ["cached_1"]
+        assert list(ds) == ['cached_1']
+        assert extracted_from == ['cached_1']
         assert base.materialized_indices == [1]
 
     def test_load_in_memory_materializes_all_peaks_once(
@@ -195,7 +194,7 @@ class TestPeakWindowDataset:
             return [image.path.stem]
 
         monkeypatch.setattr(
-            "dnanet.data.peak_dataset.extract_peak_windows",
+            'dnanet.data.peak_dataset.extract_peak_windows',
             fake_extract_peak_windows,
         )
 
@@ -207,16 +206,16 @@ class TestPeakWindowDataset:
             load_in_memory=True,
         )
 
-        assert extracted_from == ["cached_0", "cached_1"]
+        assert extracted_from == ['cached_0', 'cached_1']
         assert base.materialized_indices == [0, 1]
 
         monkeypatch.setattr(
-            "dnanet.data.peak_dataset.get_worker_info",
+            'dnanet.data.peak_dataset.get_worker_info',
             lambda: SimpleNamespace(id=1, num_workers=2),
         )
 
-        assert list(ds) == ["cached_1"]
-        assert extracted_from == ["cached_0", "cached_1"]
+        assert list(ds) == ['cached_1']
+        assert extracted_from == ['cached_0', 'cached_1']
         assert base.materialized_indices == [0, 1]
 
     def test_load_in_memory_preprocesses_during_materialization(
@@ -235,7 +234,7 @@ class TestPeakWindowDataset:
 
         monkeypatch.setattr(
             PeakWindowDataset,
-            "_preprocess_peak",
+            '_preprocess_peak',
             counting_preprocess_peak,
         )
 
@@ -270,7 +269,7 @@ class TestPeakWindowDataset:
             return [image.path.stem]
 
         monkeypatch.setattr(
-            "dnanet.data.peak_dataset.extract_peak_windows",
+            'dnanet.data.peak_dataset.extract_peak_windows',
             fake_extract_peak_windows,
         )
 
@@ -284,8 +283,8 @@ class TestPeakWindowDataset:
 
         subset = ds.subset([1])
 
-        assert list(subset) == ["cached_1"]
-        assert extracted_from == ["cached_0", "cached_1"]
+        assert list(subset) == ['cached_1']
+        assert extracted_from == ['cached_0', 'cached_1']
         assert base.materialized_indices == [0, 1]
 
     def test_worker_images_returns_all_images_without_worker_info(
@@ -301,7 +300,7 @@ class TestPeakWindowDataset:
             preprocess=False,
         )
 
-        monkeypatch.setattr("dnanet.data.peak_dataset.get_worker_info", lambda: None)
+        monkeypatch.setattr('dnanet.data.peak_dataset.get_worker_info', lambda: None)
 
         assert ds._worker_images() == base.images
 
@@ -321,7 +320,7 @@ class TestPeakWindowDataset:
         seen = []
         for worker_id in range(3):
             monkeypatch.setattr(
-                "dnanet.data.peak_dataset.get_worker_info",
+                'dnanet.data.peak_dataset.get_worker_info',
                 lambda worker_id=worker_id: SimpleNamespace(id=worker_id, num_workers=3),
             )
             worker_images = ds._worker_images()
@@ -343,13 +342,13 @@ class TestPeakWindowDataset:
         ds = PeakWindowDataset(
             images=base.images,
             dataset_strategy=base.dataset_strategy,
-            transform=lambda peak: f"transformed:{peak}",
+            transform=lambda peak: f'transformed:{peak}',
             preprocess=False,
         )
         subset = ds.subset([1, 2, 4])
 
         monkeypatch.setattr(
-            "dnanet.data.peak_dataset.get_worker_info",
+            'dnanet.data.peak_dataset.get_worker_info',
             lambda: SimpleNamespace(id=1, num_workers=2),
         )
 
@@ -360,12 +359,12 @@ class TestPeakWindowDataset:
             return [image.path.stem]
 
         monkeypatch.setattr(
-            "dnanet.data.peak_dataset.extract_peak_windows",
+            'dnanet.data.peak_dataset.extract_peak_windows',
             fake_extract_peak_windows,
         )
 
-        assert list(subset) == ["transformed:mock_2"]
-        assert extracted_from == ["mock_2"]
+        assert list(subset) == ['transformed:mock_2']
+        assert extracted_from == ['mock_2']
 
     def test_items_are_extracted_peaks(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
@@ -378,7 +377,7 @@ class TestPeakWindowDataset:
         )
         for peak in ds:
             assert isinstance(peak, ExtractedPeak)
-            assert peak.data.shape == (120,)
+            assert peak.data.shape == (1, 120)
 
     def test_label_mapping(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
@@ -389,9 +388,9 @@ class TestPeakWindowDataset:
             window_size=120,
             preprocess=False,
         )
-        assert ds.label_to_idx["noise"] == 0
-        assert ds.label_to_idx["allele"] == 1
-        assert ds.idx_to_label[0] == "noise"
+        assert ds.label_to_idx['noise'] == 0
+        assert ds.label_to_idx['allele'] == 1
+        assert ds.idx_to_label[0] == 'noise'
 
     def test_preprocessing_changes_data(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
@@ -407,14 +406,13 @@ class TestPeakWindowDataset:
             dataset_strategy=base.dataset_strategy,
             threshold=100,
             window_size=120,
-            preprocess=True, log_scale=True,
+            preprocess=True,
+            log_scale=True,
         )
         # Preprocessed data should be different (scaled)
         raw_max = max(p.data.max() for p in ds_raw)
         prep_max = max(p.data.max() for p in ds_prep)
         assert prep_max < raw_max  # log scaling reduces magnitude
-
-
 
     def test_include_max_pool_dyes(self, nfi_rnd_kit, nfi_rnd_dataset):
         base = self._make_base_dataset(nfi_rnd_kit, nfi_rnd_dataset, n_images=1)
@@ -423,6 +421,7 @@ class TestPeakWindowDataset:
             dataset_strategy=base.dataset_strategy,
             threshold=100,
             window_size=120,
-            include_max_pool_dyes=True, preprocess=False,
+            include_max_pool_dyes=True,
+            preprocess=False,
         )
         assert next(iter(ds)).data.shape == (2, 120)

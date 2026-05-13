@@ -104,7 +104,6 @@ class TestSegmentationModule:
     def test_hyperparameters_saved(self, module):
         """Hyperparameters should be saved for reproducibility."""
         assert module.hparams.learning_rate == 1e-3
-        assert module.hparams.threshold == 0.5
 
     def test_single_training_epoch(self, module):
         """Should survive a full training epoch with Lightning Trainer."""

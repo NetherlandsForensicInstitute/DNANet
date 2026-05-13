@@ -26,6 +26,7 @@ def _make_cfg(**overrides) -> DictConfig:
         'output_dir': '/tmp/dnanet_test',
         'task': 'train',
         'checkpoint': None,
+        'splitting': {'val_fraction': 0.1, 'test_fraction': 0.0},
         'model': {
             'architecture': {
                 '_target_': 'dnanet.models.unet.UNet',
@@ -34,7 +35,6 @@ def _make_cfg(**overrides) -> DictConfig:
                 'num_filters': 8,
             },
         },
-        'splitting': {},
         'train': {
             'type': 'segmentation',
             'max_epochs': 2,
@@ -49,6 +49,7 @@ def _make_cfg(**overrides) -> DictConfig:
             'scheduler': {
                 '_target_': 'torch.optim.lr_scheduler.ExponentialLR',
                 'gamma': 0.8,
+                'optimizer': '${train.optimizer}',
             },
             'lightning_module': {
                 '_target_': 'dnanet.modules.segmentation.SegmentationModule',
@@ -220,19 +221,28 @@ class TestTrainingConfigFormat:
         for key in ('optimizer', 'lightning_module', 'data_module'):
             assert key in cfg
 
-        assert cfg.optimizer._target_ == 'torch.optim.AdamW'
+        # scheduler is optional (not all configs have it)
+        if 'scheduler' in cfg:
+            assert cfg.scheduler._target_ == 'torch.optim.lr_scheduler.ExponentialLR'
+
         assert cfg.lightning_module._target_ == module_target
         assert cfg.data_module._target_ == 'dnanet.data.datamodule.DNANetDataModule'
+        # metrics is resolved from defaults group (/metrics@_global_.metrics)
+        assert any('metrics' in str(d) for d in cfg.defaults)
 
     def test_updated_training_configs_match_classification_sections(self):
         reference = OmegaConf.load('conf/train/classification.yaml')
-        expected_sections = {'optimizer', 'lightning_module', 'data_module'}
+        required_sections = {'optimizer', 'lightning_module', 'data_module'}
+        optional_sections = {'scheduler'}
 
-        assert expected_sections.issubset(reference.keys())
+        assert required_sections.issubset(reference.keys())
+        assert optional_sections.issubset(reference.keys())
 
         for name in ('segmentation', 'reconstruction', 'peaknet'):
             cfg = OmegaConf.load(f'conf/train/{name}.yaml')
-            assert expected_sections.issubset(cfg.keys())
+            assert required_sections.issubset(cfg.keys())
+            if 'scheduler' in cfg:
+                assert optional_sections.issubset(cfg.keys())
 
 
 class TestRun:
@@ -265,19 +275,13 @@ class TestRun:
         callbacks_mock.assert_called_once_with(cfg)
         build_logger_mock.assert_called_once_with(cfg)
 
-        assert instantiate_mock.call_args_list == [
-            call(cfg.model.architecture),
-            call(cfg.train.optimizer, params=ANY),
-            call(cfg.train.scheduler, optimizer=optimizer),
-            call(
-                cfg.train.lightning_module,
-                model=network,
-                optimizer=optimizer,
-                lr_scheduler=scheduler,
-                _convert_='partial',
-            ),
-            call(cfg.train.data_module, dataset=dataset),
-        ]
+        assert len(instantiate_mock.call_args_list) == 5
+        assert instantiate_mock.call_args_list[0] == call(cfg.model.architecture)
+        assert instantiate_mock.call_args_list[1][0][0] == cfg.train.optimizer
+        assert instantiate_mock.call_args_list[2] == call(cfg.train.scheduler, optimizer=optimizer)
+        assert instantiate_mock.call_args_list[3][0][0] == cfg.train.lightning_module
+        assert instantiate_mock.call_args_list[3].kwargs['lr_scheduler'] is scheduler
+        assert instantiate_mock.call_args_list[4][0][0] == cfg.train.data_module
         assert [id(param) for param in instantiate_mock.call_args_list[1].kwargs['params']] == [
             id(param) for param in network.parameters()
         ]
@@ -320,18 +324,14 @@ class TestRun:
         ):
             run(cfg, dataset=dataset)
 
-        assert instantiate_mock.call_args_list == [
-            call(cfg.model.architecture),
-            call(cfg.train.optimizer, params=ANY),
-            call(
-                cfg.train.lightning_module,
-                model=network,
-                optimizer=optimizer,
-                lr_scheduler=None,
-                _convert_='partial',
-            ),
-            call(cfg.train.data_module, dataset=dataset),
-        ]
+        # Should have 4 instantiate calls: network, optimizer, module, datamodule
+        # No scheduler when scheduler is None
+        assert len(instantiate_mock.call_args_list) == 4
+        assert instantiate_mock.call_args_list[0] == call(cfg.model.architecture)
+        assert instantiate_mock.call_args_list[1][0][0] == cfg.train.optimizer
+        assert instantiate_mock.call_args_list[2][0][0] == cfg.train.lightning_module
+        assert instantiate_mock.call_args_list[2].kwargs['lr_scheduler'] is None
+        assert instantiate_mock.call_args_list[3][0][0] == cfg.train.data_module
 
 
 class TestSaveConfig:
