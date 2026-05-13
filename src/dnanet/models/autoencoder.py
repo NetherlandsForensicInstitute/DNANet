@@ -21,9 +21,12 @@ Design pattern: **Composite**
 from __future__ import annotations
 
 import abc
+from typing import Tuple
 
 import torch
 from torch import Tensor, nn
+
+from dnanet.models import UNet
 
 
 class AbstractAutoencoder(nn.Module, abc.ABC):
@@ -296,6 +299,62 @@ class SharedWeightPerDyeConv1dAutoencoder(PerDyeConv1dAutoencoder):
         self.per_channel_nets = nn.ModuleList(
             [shared_net] * kwargs.get("in_channels", 5)
         )
+
+class UNet2DAutoEncoder(AbstractAutoencoder):
+    """
+    Wraps the 2D `UNet` as an `AutoEncoder`.
+
+    Notes:
+    \- `encoder()` returns the bottleneck tensor.
+    \- `decoder()` reconstructs using stored skip connections from the last encoder pass.
+    """
+
+    def __init__(
+            self,
+            depth: int,
+            kernel_size: Tuple[int, int],
+            num_filters: int,
+            in_channels: int = 1,
+    ):
+        super().__init__(in_channels=in_channels)
+        if in_channels != 1:
+            raise ValueError("`UNet` wrapper currently supports `in_channels=1` only.")
+
+        self.net = UNet(
+            depth=depth,
+            kernel_size=kernel_size,
+            num_filters=num_filters,
+        )
+        # `UNet` stores (C, H, W) after encoder blocks (before bottleneck conv)
+        self._encoded_shape = self.net.shape_after_encoder
+
+        self._latest_skips = None
+
+    def encoder(self, x: torch.Tensor) -> torch.Tensor:
+        # Accept (N, 1, H, W) or (N, 1, H, W, 1) or (N, H, W)
+        if x.dim() == 4 and x.shape[-1] == 1:
+            x = x.squeeze(-1)
+        if x.dim() == 3:
+            x = x.unsqueeze(1)
+        if x.dim() == 5 and x.shape[-1] == 1:
+            x = x.squeeze(-1)
+        if x.dim() != 4:
+            raise ValueError(f"Expected 4D input (N, C, H, W), got shape {tuple(x.shape)}.")
+
+        # raise ValueError(f"Shape {tuple(x.shape)} not supported by UNet1DAutoEnc.")
+
+        b, skips = self.net.encode(x)
+        self._latest_skips = skips
+        return b
+
+    def decoder(self, z: torch.Tensor) -> torch.Tensor:
+        if self._latest_skips is None:
+            raise RuntimeError("encoder must run before decoder to populate skip connections.")
+        skips = list(self._latest_skips)
+        return self.net.decode(z, skips).squeeze(1)
+
+    def encoded_shape(self) -> Tuple[int, ...]:
+        return tuple(self._encoded_shape)
 
 
 class FourierAutoencoder(AbstractAutoencoder):
