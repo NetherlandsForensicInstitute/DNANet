@@ -1,21 +1,21 @@
-"""1D convolutional autoencoder architectures for EPG reconstruction.
+"""Autoencoder models for learning compact EPG profile representations.
 
-This module provides autoencoders that compress and reconstruct
-electropherogram signals. Four architecture variants are available:
+These models reconstruct full electropherograms from a compressed latent
+representation. In practice, that latent representation matters more than
+the reconstruction itself: the encoder is used by PeakNet as a source of
+global context for peak classification.
 
-- :class:`Conv1dAutoencoder` — Shared multi-channel CNN autoencoder.
-- :class:`PerDyeConv1dAutoencoder` — Independent sub-encoder per dye channel.
-- :class:`SharedWeightPerDyeConv1dAutoencoder` — Per-dye processing with
-  weight tying (single shared sub-encoder reused across channels).
-- :class:`FourierAutoencoder` — Non-trainable baseline using truncated rFFT.
+Pretraining the autoencoder is useful when labelled peak data is limited.
+It lets the combined model start from a profile-level representation that
+already preserves large-scale signal structure.
 
-Design pattern: **Template Method**
-    :class:`AbstractAutoencoder` defines the ``forward = decode(encode(x))``
-    skeleton. Subclasses fill in the encoder/decoder implementations.
+Available variants:
 
-Design pattern: **Composite**
-    :class:`PerDyeConv1dAutoencoder` composes multiple
-    :class:`Conv1dAutoencoder` instances (one per dye channel).
+- :class:`Conv1dAutoencoder` — one shared multi-channel encoder/decoder.
+- :class:`PerDyeConv1dAutoencoder` — separate encoder/decoder per dye.
+- :class:`SharedWeightPerDyeConv1dAutoencoder` — per-dye processing with
+  shared weights across dyes.
+- :class:`FourierAutoencoder` — fixed non-learned frequency baseline.
 """
 
 from __future__ import annotations
@@ -52,8 +52,12 @@ class AbstractAutoencoder(nn.Module, abc.ABC):
 class Conv1dAutoencoder(AbstractAutoencoder):
     """Multi-channel 1D convolutional autoencoder.
 
-    Treats all input channels jointly — convolutions operate across all
-    ``in_channels`` together.
+    Treats all dye channels jointly, so the encoder can learn cross-channel
+    structure in a single latent code.
+
+    Use this variant when a shared representation across dyes is desirable.
+    If you want to keep dye channels independent and avoid early mixing,
+    use :class:`PerDyeConv1dAutoencoder` instead.
 
     Architecture:
         - **Encoder**: ``depth`` strided Conv1d blocks (stride=2) that
@@ -201,7 +205,11 @@ class PerDyeConv1dAutoencoder(AbstractAutoencoder):
 
     Creates ``in_channels`` separate :class:`Conv1dAutoencoder` instances,
     each with ``in_channels=1``. No cross-channel mixing occurs — each dye
-    is encoded/decoded independently.
+    is encoded and decoded independently.
+
+    This is the default autoencoder used in PeakNet. It keeps dye-specific
+    structure separate while still producing a compact global summary of the
+    full profile.
 
     Args:
         in_channels: Number of dye channels.
@@ -277,6 +285,9 @@ class SharedWeightPerDyeConv1dAutoencoder(PerDyeConv1dAutoencoder):
     Same encode/decode flow as :class:`PerDyeConv1dAutoencoder`, but all
     channels share a single :class:`Conv1dAutoencoder` — reducing model
     size and enforcing the same transform per channel.
+
+    This is a useful compromise when dye channels should stay separate but
+    you want fewer parameters than the fully independent per-dye model.
     """
 
     def __init__(self, **kwargs) -> None:
@@ -305,7 +316,9 @@ class FourierAutoencoder(AbstractAutoencoder):
     components of the rFFT. Decodes by zero-padding the spectrum and
     applying the inverse rFFT.
 
-    This is a **baseline model** — it has no learnable parameters.
+    This is a lightweight baseline with no learnable parameters. It is
+    useful for sanity checks and for comparing learned encoders against a
+    simple frequency-domain compression scheme.
 
     Args:
         in_channels: Number of input channels.

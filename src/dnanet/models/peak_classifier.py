@@ -1,20 +1,18 @@
-"""Peak classification architecture for individual EPG peak windows.
+"""Peak-level classifier for extracted electropherogram windows.
 
-Classifies extracted peak windows (e.g. 120 scan points around a peak)
-into categories like allele, noise, stutter, pull-up, etc.
+This model looks at a small window around each detected peak and predicts
+whether that peak is allelic or artefactual. It is used in two ways:
 
-Architecture:
-    - **Backbone**: Stack of Conv1d blocks with configurable pooling
-      (flat/avg/attention), optional BatchNorm, dropout, and downsampling.
-    - **Head**: MLP classifier with optional marker embedding.
+- as a standalone classifier for faster iteration on peak-level changes;
+- as the local feature extractor inside :class:`dnanet.models.peaknet.CombinedClassifier`.
 
-The backbone extracts features from the 1D peak window, optionally
-concatenates a learned marker embedding, then the head produces class
-logits.
+The architecture is intentionally 1D. For peak classification, the useful
+signal is mostly in local shape along the scan axis: peak width, symmetry,
+and nearby stutter-like structure. A 1D CNN fits that use case well without
+assuming that neighbouring dye channels form a meaningful spatial pattern.
 
-Design pattern: **Template Method**
-    :class:`BackboneModule` defines ``forward = head(backbone(x))``
-    while subclasses implement the specific backbone/head logic.
+An optional marker embedding lets one model adapt to locus-specific peak
+behaviour without maintaining separate models per marker.
 """
 
 from __future__ import annotations
@@ -50,7 +48,16 @@ class BackboneModule(nn.Module, abc.ABC):
 
 
 class PeakClassificationModel(BackboneModule):
-    """Conv1d peak classifier with optional marker embedding.
+    """Conv1d classifier for peak windows with optional marker embedding.
+
+    The convolutional backbone learns local peak-shape cues from a fixed
+    window around each detected peak. The classifier head can be used
+    directly for per-peak labels, while :meth:`backbone` is also exposed so
+    PeakNet can reuse the learned peak representation.
+
+    When ``use_embedding=True``, the model expects a marker index per peak.
+    This gives the network locus context, which is useful because the same
+    peak shape can mean different things in different marker regions.
 
     Args:
         num_classes: Number of output classes.

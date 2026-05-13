@@ -1,28 +1,26 @@
-"""Combined PeakNet architecture for per-scan-point classification.
-PeakNet is a dual-branch model that produces per-position class logits
-over the entire electropherogram:
+"""PeakNet combines local peak evidence with full-profile context.
 
-1. **Global branch** — An autoencoder encoder compresses the full EPG
-   into a latent representation, providing whole-profile context.
-2. **Local branch** — A peak classifier backbone extracts features from
-   individual peak windows.
-3. **Combiner** — Merges global + local features per peak and produces
-   class logits, which are scattered back to image coordinates.
+The goal is still peak classification, but with more context than a
+standalone peak classifier can see. PeakNet does that with two branches:
+
+1. a peak-classifier backbone that describes each extracted peak window;
+2. an autoencoder encoder that summarizes the full electropherogram.
+
+The combiner merges those local and global features and predicts a class
+for each detected peak. The output is then written back into a
+segmentation-shaped tensor so the model can train against the same
+annotation format used elsewhere in the codebase.
 
 Three combiner strategies are available:
 
-- :class:`MLPCombiner` — Simple concatenation + MLP.
-- :class:`FiLMCombiner` — Feature-wise Linear Modulation (global
-  conditions local features via learned scale + shift).
-- :class:`CrossAttentionCombiner` — Local features *query* the global
-  signal map via multi-head cross-attention.
+- :class:`MLPCombiner` — default and simplest option; concatenates local
+  and global features.
+- :class:`FiLMCombiner` — lets global context modulate local features.
+- :class:`CrossAttentionCombiner` — lets each peak attend to the encoded
+  profile representation.
 
-A :class:`PeakOnlyClassifier` variant operates without the autoencoder,
-using only peak-level classification.
-
-Design pattern: **Strategy**
-    The combiner is selected at construction time and swapped
-    transparently. The forward pass is identical regardless of combiner.
+If you want to disable the global branch entirely, use
+:class:`PeakOnlyClassifier`.
 """
 
 from __future__ import annotations
@@ -178,7 +176,17 @@ class CrossAttentionCombiner(nn.Module):
 
 
 class CombinedClassifier(nn.Module):
-    """Dual-branch model: autoencoder (global) + peak classifier (local).
+    """Dual-branch peak classifier with global profile context.
+
+    This model is useful when local peak shape alone is not enough. The
+    peak classifier captures fine-grained peak morphology, while the
+    autoencoder branch provides context from the full electropherogram.
+    That allows the classifier to make peak decisions in light of the
+    broader profile rather than from a single window in isolation.
+
+    By default the model can reuse a pretrained autoencoder and optionally
+    freeze it, which is helpful when you want stable global features or
+    have limited labelled data for the combined training stage.
 
     Args:
         autoencoder: Encoder-decoder module (only encoder is used in forward).
@@ -374,8 +382,10 @@ class CombinedClassifier(nn.Module):
 class PeakOnlyClassifier(nn.Module):
     """Peak-only classifier (no autoencoder global branch).
 
-    Uses only peak-level classification features, scattered back to
-    full image coordinates.
+    Uses only peak-level features and maps the resulting logits back to
+    full image coordinates. This is mainly useful as a simpler baseline or
+    when you want the PeakNet training interface without profile-level
+    context.
 
     Args:
         peak_classifier: Peak classification backbone.
