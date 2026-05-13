@@ -51,6 +51,7 @@ class ProvedItStrategy(DatasetStrategy):
         cls,
         root_path: str | Path,
         scaling_strategy: ScalingStrategy,
+        **kwargs
     ) -> Generator[
         Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
     ]:
