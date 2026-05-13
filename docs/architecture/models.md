@@ -112,6 +112,7 @@ inside PeakNet.
 
 ## Combined Classifier (`dnanet.models.peaknet`)
 
+![PeakNet](peaknet.png)
 PeakNet combines local peak features from the peak classifier with global
 profile features from an autoencoder encoder. It predicts a class for each
 detected peak and writes those predictions back into a segmentation-shaped
