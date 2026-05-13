@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
+from tests.conftest import RD_DIR, HID_DIR
 from dnanet.data.parsing.hid import get_peak_data
-from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
-from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
 from dnanet.data.strategies.scaling.scaling import (
     ScalingStrategy,
 )
-from tests.conftest import RD_DIR
+from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
+from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
 
 
 class TestPPF6CSizeStandard:
@@ -22,7 +22,7 @@ class TestPPF6CSizeStandard:
 
     def test_parse_size_standard_from_ladder(self, ppf6c):
         """Size standard parsing should succeed on a real ladder file."""
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", ppf6c, data_loading_strategy="raw")
+        data = get_peak_data(HID_DIR / 'Ladder_G03_21.hid', ppf6c, data_loading_strategy='raw')
         assert data is not None
 
         ss_lane = np.array(data[-1])
@@ -37,7 +37,7 @@ class TestPPF6CSizeStandard:
         Due to discrete pixel→bp mapping, adjacent positions can have the
         same bp value, so we check >= rather than strictly >.
         """
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", ppf6c, data_loading_strategy="raw")
+        data = get_peak_data(HID_DIR / 'Ladder_G03_21.hid', ppf6c, data_loading_strategy='raw')
         result = ppf6c.parse_size_standard(np.array(data[-1]))
         assert result is not None
 
@@ -47,7 +47,7 @@ class TestPPF6CSizeStandard:
 
     def test_scaler_range(self, ppf6c):
         """Scaler should cover approximately 65-475 bp for PPF6C."""
-        data = get_peak_data(RD_DIR / "Ladder_G03_21.hid", ppf6c, data_loading_strategy="raw")
+        data = get_peak_data(HID_DIR / 'Ladder_G03_21.hid', ppf6c, data_loading_strategy='raw')
         result = ppf6c.parse_size_standard(np.array(data[-1]))
         assert result is not None
 
@@ -60,17 +60,46 @@ class TestPPF6CSizeStandard:
 
         Reference values from original DNANet test_utils.py.
         """
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", ppf6c, data_loading_strategy="analyzed")
+        data = get_peak_data(HID_DIR / '1A2_A01_01.hid', ppf6c, data_loading_strategy='analyzed')
         assert data is not None
         ss_lane = data[-1]
 
         peaks = PowerPlexFusion6CStrategy._extract_ss_peaks(ss_lane)
-        expected = np.array([
-            2796, 2813, 2901, 2917, 2961, 2989, 3038, 3095, 3144,
-            3387, 3645, 3702, 3881, 4120, 4348, 4578, 4806, 5033,
-            5257, 5531, 5798, 6059, 6323, 6579, 6827, 7077, 7318,
-            7560, 7788, 8018, 8238,
-        ])
+        expected = np.array(
+            [
+                2796,
+                2813,
+                2901,
+                2917,
+                2961,
+                2989,
+                3038,
+                3095,
+                3144,
+                3387,
+                3645,
+                3702,
+                3881,
+                4120,
+                4348,
+                4578,
+                4806,
+                5033,
+                5257,
+                5531,
+                5798,
+                6059,
+                6323,
+                6579,
+                6827,
+                7077,
+                7318,
+                7560,
+                7788,
+                8018,
+                8238,
+            ]
+        )
         assert_array_equal(peaks, expected)
 
     def test_extract_ss_peaks_with_low_tail(self, ppf6c):
@@ -78,16 +107,45 @@ class TestPPF6CSizeStandard:
 
         From original test: zero out signal after 8200 but keep final peak at 150rfu.
         """
-        data = get_peak_data(RD_DIR / "1A2_A01_01.hid", ppf6c, data_loading_strategy="analyzed")
+        data = get_peak_data(HID_DIR / '1A2_A01_01.hid', ppf6c, data_loading_strategy='analyzed')
         assert data is not None
         ss_lane = data[-1].copy()
 
-        expected = np.array([
-            2796, 2813, 2901, 2917, 2961, 2989, 3038, 3095, 3144,
-            3387, 3645, 3702, 3881, 4120, 4348, 4578, 4806, 5033,
-            5257, 5531, 5798, 6059, 6323, 6579, 6827, 7077, 7318,
-            7560, 7788, 8018, 8238,
-        ])
+        expected = np.array(
+            [
+                2796,
+                2813,
+                2901,
+                2917,
+                2961,
+                2989,
+                3038,
+                3095,
+                3144,
+                3387,
+                3645,
+                3702,
+                3881,
+                4120,
+                4348,
+                4578,
+                4806,
+                5033,
+                5257,
+                5531,
+                5798,
+                6059,
+                6323,
+                6579,
+                6827,
+                7077,
+                7318,
+                7560,
+                7788,
+                8018,
+                8238,
+            ]
+        )
 
         # Simulate low tail peak
         ss_lane[8199:] = 0
@@ -99,9 +157,9 @@ class TestPPF6CSizeStandard:
     def test_marker_name_to_dye_idx(self, ppf6c):
         """Marker-to-dye mapping should cover all expected PPF6C markers."""
         mapping = ppf6c.marker_name_to_dye_idx()
-        assert mapping["AMEL"] == 0
-        assert mapping["TH01"] == 2
-        assert mapping["FGA"] == 4
+        assert mapping['AMEL'] == 0
+        assert mapping['TH01'] == 2
+        assert mapping['FGA'] == 4
         assert len(mapping) == 27
 
     def test_kit_num_dyes_includes_size_standard(self, ppf6c):
@@ -118,8 +176,10 @@ class TestGlobalFilerAttemptFit:
         expected_bps = np.array([60, 160, 260])
 
         new_peaks, new_bps, diff = GlobalFilerStrategy._attempt_fit(
-            peak_idxs, expected_bps,
-            threshold=5.0, max_shrinkages=10,
+            peak_idxs,
+            expected_bps,
+            threshold=5.0,
+            max_shrinkages=10,
         )
         assert diff < 1.0
         assert_array_equal(new_peaks, peak_idxs)
@@ -137,17 +197,17 @@ class TestBasepairInterpolatorRegression:
         indices = [0, 3, 6]
         bps = [1, 7, 13]
         interp = ScalingStrategy.basepair_interpolator(indices, bps)
-        assert_array_equal(interp(np.arange(6)), np.array([1., 3., 5., 7., 9., 11.]))
+        assert_array_equal(interp(np.arange(6)), np.array([1.0, 3.0, 5.0, 7.0, 9.0, 11.0]))
 
     def test_extrapolation(self):
         """With extrapolate=True, should extend linearly beyond known range."""
         indices = [2, 3]
         bps = [12, 13]
         interp = ScalingStrategy.basepair_interpolator(indices, bps, extrapolate=True)
-        assert_array_equal(interp(np.arange(3)), np.array([10., 11., 12.]))
-        assert_array_equal(interp(0), np.array([10.]))
-        assert_array_equal(interp(4), np.array([14.]))
-        assert_array_equal(interp(5), np.array([15.]))
+        assert_array_equal(interp(np.arange(3)), np.array([10.0, 11.0, 12.0]))
+        assert_array_equal(interp(0), np.array([10.0]))
+        assert_array_equal(interp(4), np.array([14.0]))
+        assert_array_equal(interp(5), np.array([15.0]))
 
     def test_no_extrapolation(self):
         """Without extrapolation, out-of-range values should be 0."""
@@ -157,7 +217,7 @@ class TestBasepairInterpolatorRegression:
         assert interp(10) == 100
         assert interp(20) == 200
         assert interp(15) == 150
-        assert interp(5) == 0   # below range
+        assert interp(5) == 0  # below range
         assert interp(35) == 0  # above range
 
     def test_float_interpolation(self):

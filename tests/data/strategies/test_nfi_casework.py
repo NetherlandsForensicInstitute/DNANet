@@ -160,17 +160,17 @@ class TestCacheSignature:
     def test_with_robot_selection(self):
         sig = NFICaseStrategy(
             'ATLT',
-            robot_selection=['3500XL_A', '3500XL_B'],
+            subfolder_selection=['3500XL_A', '3500XL_B'],
         ).cache_signature()
-        assert 'robot_selection' in sig
-        assert set(sig['robot_selection']) == {'3500XL_A', '3500XL_B'}
+        assert 'subfolder_selection' in sig
+        assert set(sig['subfolder_selection']) == {'3500XL_A', '3500XL_B'}
 
     def test_robot_selection_deduplicates(self):
         sig = NFICaseStrategy(
             'ATLT',
-            robot_selection=['3500XL_A', '3500XL_A'],
+            subfolder_selection=['3500XL_A', '3500XL_A'],
         ).cache_signature()
-        assert len(sig['robot_selection']) == 1
+        assert len(sig['subfolder_selection']) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -197,11 +197,14 @@ class TestIsCorrectAnnotationType:
         annotation_type_mapping,
         expected,
     ):
-        assert NFICaseStrategy._is_correct_annotation_type(
-            run_id,
-            annotation_type,
-            annotation_type_mapping,
-        ) is expected
+        assert (
+            NFICaseStrategy._is_correct_annotation_type(
+                run_id,
+                annotation_type,
+                annotation_type_mapping,
+            )
+            is expected
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -493,7 +496,7 @@ class TestCollectDatasetFilesCached:
         def _collect(robot_sel):
             with patch.object(NFICaseStrategy, '_CACHE_DIR', cache_dir):
                 return list(
-                    NFICaseStrategy('ATLT', robot_selection=robot_sel).collect_dataset_files(
+                    NFICaseStrategy('ATLT', subfolder_selection=robot_sel).collect_dataset_files(
                         mock_root, scaling
                     )
                 )

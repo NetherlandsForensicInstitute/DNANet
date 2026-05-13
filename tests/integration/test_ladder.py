@@ -3,12 +3,12 @@
 import numpy as np
 import pytest
 
+from tests.conftest import RD_DIR, HID_DIR, PANEL_PATH
 from dnanet.core.panel import Panel
+from dnanet.data.strategies import PowerPlexFusion6CStrategy
+from dnanet.data.parsing.hid import get_peak_data
 from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
-from dnanet.data.parsing.hid import get_peak_data
-from dnanet.data.strategies import PowerPlexFusion6CStrategy
-from tests.conftest import RD_DIR, PANEL_PATH
 
 
 class TestLadderAlleleCatalogCSV:
@@ -59,7 +59,7 @@ class TestLadderWithRealData:
     def test_ladder_from_real_hid(self, ppf6c, catalog, default_panel):
         """Build a Ladder from Ladder_G03_21.hid and verify peak counts."""
         # Load the ladder HID data
-        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', ppf6c, data_loading_strategy='raw')
+        raw_data = get_peak_data(HID_DIR / 'Ladder_G03_21.hid', ppf6c, data_loading_strategy='raw')
         assert raw_data is not None
 
         # Parse size standard to get scaler and rescaled indices
@@ -75,7 +75,7 @@ class TestLadderWithRealData:
             data=data,
             catalog=catalog,
             num_dyes=5,
-            path=RD_DIR / 'Ladder_G03_21.hid',
+            path=HID_DIR / 'Ladder_G03_21.hid',
         )
         assert peak_indices is not None, 'Ladder peaks should have been found'
 
@@ -90,16 +90,14 @@ class TestLadderWithRealData:
 
         # Verify peak counts per dye match expected values from original tests
         expected_peaks = [89, 80, 89, 99, 76]
-        for dye, (peak_idxs, expected) in enumerate(
-            zip(peak_indices, expected_peaks, strict=True)
-        ):
+        for dye, (peak_idxs, expected) in enumerate(zip(peak_indices, expected_peaks, strict=True)):
             assert len(peak_idxs) == expected, (
                 f'Dye {dye}: expected {expected} peaks, got {len(peak_idxs)}'
             )
 
     def test_adjusted_panel_amel(self, ppf6c, catalog, default_panel):
         """Adjusted panel should have AMEL with calibrated bp values."""
-        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', ppf6c, data_loading_strategy='raw')
+        raw_data = get_peak_data(HID_DIR / 'Ladder_G03_21.hid', ppf6c, data_loading_strategy='raw')
         ss_result = ppf6c.parse_size_standard(np.array(raw_data[-1]))
         data = raw_data[:, ss_result.rescaled_indices][..., np.newaxis]
 
@@ -107,7 +105,7 @@ class TestLadderWithRealData:
             data=data,
             catalog=catalog,
             num_dyes=5,
-            path=RD_DIR / 'Ladder_G03_21.hid',
+            path=HID_DIR / 'Ladder_G03_21.hid',
         )
         assert peak_indices is not None
         adjusted_panel = Ladder._adjust_panel(
@@ -133,7 +131,7 @@ class TestLadderWithRealData:
 
     def test_adjusted_panel_preserves_allele_count(self, ppf6c, catalog, default_panel):
         """Each marker in adjusted panel should have same allele count as default."""
-        raw_data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', ppf6c, data_loading_strategy='raw')
+        raw_data = get_peak_data(HID_DIR / 'Ladder_G03_21.hid', ppf6c, data_loading_strategy='raw')
         ss_result = ppf6c.parse_size_standard(np.array(raw_data[-1]))
         data = raw_data[:, ss_result.rescaled_indices][..., np.newaxis]
 
@@ -141,7 +139,7 @@ class TestLadderWithRealData:
             data=data,
             catalog=catalog,
             num_dyes=5,
-            path=RD_DIR / 'Ladder_G03_21.hid',
+            path=HID_DIR / 'Ladder_G03_21.hid',
         )
         assert peak_indices is not None
         adjusted_panel = Ladder._adjust_panel(
