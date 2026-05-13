@@ -46,61 +46,83 @@ Input (1, 5, 4096)
 
 ## Autoencoders (`dnanet.models.autoencoder`)
 
-Reconstruction models that learn compressed representations of EPG profiles.
+Autoencoders learn a compact representation of the full electropherogram.
+That representation is later reused by PeakNet as global context for
+peak classification, so the main value is the encoder, not only the
+reconstruction.
 
 ### Conv1dAutoencoder
 
-Standard 1D convolutional autoencoder. Flattens the dye×signal input and
-processes as a single 1D sequence.
+Processes all dye channels jointly with one 1D CNN encoder/decoder.
+Use this when you want a single latent code that can mix information
+across dyes.
 
-**Input/Output:** `(batch, 1, num_dyes, signal_length)`
+**Input:** `(batch, dyes, signal_length)`
+**Output:** same shape as input
+
+Common parameters for the trainable 1D CNN autoencoders:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `num_dyes` | 5 | Number of dye channels |
-| `signal_length` | 4096 | Scan points per dye |
+| `in_channels` | 5 | Number of dye channels |
+| `input_length` | 4096 | Scan points per dye |
 | `depth` | 5 | Encoder/decoder depth |
-| `compression` | 16 | Bottleneck compression ratio |
+| `compression` | 8 | Target compression ratio |
 
 ### PerDyeConv1dAutoencoder
 
-Processes each dye channel independently with separate encoder/decoder pairs,
-then concatenates.
+Runs a separate 1D autoencoder per dye channel and concatenates the
+encoded outputs. This is the default PeakNet autoencoder because it
+preserves dye-specific structure while still producing a compact global
+representation.
 
 ### SharedWeightPerDyeConv1dAutoencoder
 
-Like PerDyeConv1dAutoencoder but shares weights across all dye channels.
+Like the per-dye model, but all dye channels share the same weights.
+This reduces parameter count while keeping channels separate.
 
 ### FourierAutoencoder
 
-Operates in the frequency domain. Applies FFT before encoding and IFFT after
-decoding.
+Non-learned baseline that compresses each signal in the frequency domain.
+Useful for comparing learned encoders against a simple fixed transform.
 
 ## Peak Classifier (`dnanet.models.peak_classifier`)
 
-Multi-class classifier for individual peaks.
+Classifies extracted peak windows. In the default setup this is a binary
+allele-versus-artefact model, but the output size is configurable.
 
-**Input:** Fixed-size peak windows
-**Output:** Class probabilities per peak
+The model uses a 1D CNN because the useful evidence is local peak shape
+along the scan axis. It can also take a marker index embedding so one
+model can adapt to locus-specific behaviour without separate per-marker
+networks.
+
+This model is used both as a standalone classifier and as the local branch
+inside PeakNet.
+
+**Input:** `(batch, channels, width)` peak windows, optionally with marker indices
+**Output:** class logits per peak
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `input_size` | 100 | Peak window size |
-| `hidden_size` | 64 | Hidden layer size |
-| `num_classes` | 5 | Number of allele classes |
-| `num_layers` | 3 | MLP depth |
+| `width` | 120 | Peak window width |
+| `n_markers` | 28 | Size of the marker embedding table |
+| `embedding_dim` | 8 | Marker embedding size |
+| `hidden_channels` | `[32, 64]` | Conv channel sizes |
+| `pooling` | `flat` | Feature pooling strategy |
 
 ## Combined Classifier (`dnanet.models.peaknet`)
 
-Combines segmentation and classification outputs using a learned combiner.
+![PeakNet](peaknet.png)
+PeakNet combines local peak features from the peak classifier with global
+profile features from an autoencoder encoder. It predicts a class for each
+detected peak and writes those predictions back into a segmentation-shaped
+output tensor so it can train against segmentation-style annotations.
 
 ### Combiner Types
 
-- **MLP** — Simple concatenation + feedforward network
-- **FiLM** — Feature-wise Linear Modulation (classification features
-  modulate segmentation features via learned scale/shift)
-- **CrossAttention** — Multi-head cross-attention between the two feature
-  streams
+- **MLP** — default and simplest option; concatenates local and global features
+- **FiLM** — global context modulates local peak features
+- **CrossAttention** — peaks attend to the encoded profile representation
 
 ## Loss Functions (`dnanet.models.loss`)
 
