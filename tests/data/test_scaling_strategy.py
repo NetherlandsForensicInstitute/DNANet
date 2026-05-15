@@ -3,9 +3,11 @@
 import numpy as np
 import pytest
 
+from dnanet.core import Panel
+from dnanet.data.image import HIDImage
 from dnanet.data.parsing.hid import get_peak_data
 from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
-from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
+from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy, MEAN_DIFFS
 from tests.conftest import PROVEDIT_DIR
 
 
@@ -158,3 +160,78 @@ class TestPPF6CValidateSSPeaks:
         expected_bps = np.arange(19) * 10 + 60
         result = PowerPlexFusion6CStrategy._validate_ss_peaks(peak_idxs, expected_bps)
         assert result is False
+
+
+@pytest.fixture
+def ss_lane():
+    ss_lane = np.zeros((9300,))
+    peak_rfus = [50, 100, 200, 350, 700, 1100, 700, 350, 200, 100, 50]
+    ss_lane[8595:8606] = peak_rfus
+    idx = 8600
+    for mean in MEAN_DIFFS[::-1]:
+        new_idx = int(idx - mean)
+        ss_lane[new_idx - 5: new_idx + 6] = peak_rfus
+        idx = new_idx
+    return ss_lane
+
+class TestPPF6CExtractPeaks:
+    def test_extract_peaks_happy(self, ss_lane):
+        strategy = PowerPlexFusion6CStrategy()
+        extracted_peaks = strategy._extract_ss_peaks(ss_lane)
+        assert np.array_equal(extracted_peaks, np.array([4460, 4623, 4839, 5044, 5253, 5462, 5666, 5869, 6118, 6360, 6598, 6841, 7075, 7301, 7531, 7750, 7974, 8183, 8394]))
+
+    def test_extract_peaks_too_high_peak(self, ss_lane):
+        """Test that abnormal peak heights are not allowed."""
+        idxs = np.where(ss_lane > 1000)[0]
+        ss_lane[idxs[0]] = 30000
+        strategy = PowerPlexFusion6CStrategy()
+        assert strategy._extract_ss_peaks(ss_lane).size == 0
+
+    def test_extract_peaks_too_low_peak(self, ss_lane):
+        """Test that too low peaks are not allowed."""
+        idxs = np.where(ss_lane > 1000)[0]
+        ss_lane[idxs[0] - 5 : idxs[0] + 6] = [100, 150, 200, 250, 300, 350, 300, 250, 200, 150, 100]
+        strategy = PowerPlexFusion6CStrategy()
+        assert strategy._extract_ss_peaks(ss_lane).size == 0
+
+    def test_extract_peaks_invalid_tail_peaks(self, ss_lane):
+        """Test that when there is another tail peak, the correct one is selected."""
+        idxs = np.where(ss_lane > 1000)[0]
+        tail_idx = idxs[-1] + 400
+        ss_lane[tail_idx - 5 : tail_idx + 6] = [50, 100, 200, 350, 700, 1100, 700, 350, 200, 100, 50]
+        strategy = PowerPlexFusion6CStrategy()
+        extracted_peaks = strategy._extract_ss_peaks(ss_lane)
+        assert extracted_peaks.size == 19
+        assert np.array_equal(extracted_peaks, np.array(
+            [4460, 4623, 4839, 5044, 5253, 5462, 5666, 5869, 6118, 6360, 6598, 6841, 7075, 7301, 7531, 7750, 7974, 8183,
+             8394]))
+
+    def test_extract_peaks_dipped_peak(self, ss_lane):
+        """Test that when we have a dipped peak, the peak top is correctly selected."""
+        idxs = np.where(ss_lane > 1000)[0]
+        ss_lane[idxs[0] - 5: idxs[0] + 6] = 0
+        # Initially the 900 rfu value will be found, but this will be corrected later to the 1100 rfu value..
+        ss_lane[idxs[0] - 50 : idxs[0] - 39] = [300, 550, 1100, 450, 500, 900, 500, 350, 200, 150, 100]
+        strategy = PowerPlexFusion6CStrategy()
+        extracted_peaks = strategy._extract_ss_peaks(ss_lane)
+        assert extracted_peaks.size == 19
+        assert np.all(ss_lane[extracted_peaks] == 1100)
+
+
+def test_ss_parsing_hid_image_1A2():
+    """Test that for the RD image 1A2_A01_01 the size standard peak extraction returns the expected peaks."""
+    panel = Panel.from_xml("resources/kits/SGPanel_PPF6C.xml")
+    strategy = PowerPlexFusion6CStrategy()
+    hid_im = HIDImage(
+        path="tests/resources/profiles/RD/1A2_A01_01.hid",
+        adjusted_panel=panel,
+        scaling_strategy=strategy,
+        include_size_standard=True,
+        data_loading_strategy="superior"
+    )
+    # Extract the raw data as we want the unparsed size standard lane.
+    profile = get_peak_data(hid_im.path, hid_im.scaling_strategy, hid_im.data_loading_strategy)
+    extracted_peaks = strategy._extract_ss_peaks(profile[-1])
+    assert np.array_equal(extracted_peaks, np.array([3702, 3881, 4119, 4348, 4578, 4806, 5033, 5257, 5531, 5798, 6059,
+       6323, 6579, 6827, 7077, 7318, 7560, 7788, 8018]))
+    assert strategy.parse_size_standard(profile[-1]) is not None

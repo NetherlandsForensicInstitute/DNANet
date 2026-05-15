@@ -132,7 +132,6 @@ class HIDImage(TrainableElement):
     def allele_annotation(self) -> AlleleAnnotation | None:
         return self._allele_annotation
 
-
     @property
     def annotation(self) -> ScanpointAnnotation | None:
         return self._annotation
@@ -164,7 +163,6 @@ class HIDImage(TrainableElement):
             raise FileNotFoundError(str(self.path))
 
         profile = get_peak_data(self.path, self.scaling_strategy, self.data_loading_strategy)
-        # return profile[:, 3400:]
         if profile is None:
             return None
 
@@ -178,7 +176,7 @@ class HIDImage(TrainableElement):
 
         if ss_result is None:
             logger.warning("Size standard parsing returned None for {}", self.path.name)
-            return profile
+            return None
 
         selected = profile if self.include_size_standard else profile[:-1]
         data = selected[:, ss_result.rescaled_indices]
