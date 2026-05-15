@@ -33,7 +33,6 @@ def plot_profile(
     title: str | None = None,
     dye_colors: Sequence[str] | None = None,
     figsize: tuple[int, int] = (20, 20),
-    data = None
 ) -> Figure:
     """Plot a full DNA profile with optional annotations and predictions.
 
@@ -63,10 +62,6 @@ def plot_profile(
     _plot_lines(axs, signal, colors)
 
     # Plot annotation as green background regions
-    if data:
-        annotation = np.zeros_like(signal)
-        for spa in data:
-            annotation[spa.dye_index, spa.start-3400:spa.end-3400 + 1] = 1.0
     if annotation is not None:
         _plot_segmentation_mask(axs, annotation, dyes_max, color="green", alpha=0.4)
 

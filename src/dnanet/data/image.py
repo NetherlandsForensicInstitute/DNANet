@@ -132,6 +132,7 @@ class HIDImage(TrainableElement):
     def allele_annotation(self) -> AlleleAnnotation | None:
         return self._allele_annotation
 
+
     @property
     def annotation(self) -> ScanpointAnnotation | None:
         return self._annotation
