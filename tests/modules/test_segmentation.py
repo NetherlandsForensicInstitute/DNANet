@@ -29,7 +29,7 @@ def module(small_model, segmentation_metrics_cfg) -> SegmentationModule:
         metrics=segmentation_metrics_cfg,
         learning_rate=1e-3,
         weight_decay=0.0,
-        scheduler=scheduler,
+        lr_scheduler=scheduler,
     )
 
 
@@ -57,16 +57,29 @@ class TestSegmentationModule:
         assert loss.item() > 0
 
     def test_validation_step(self, module, dummy_batch):
-        """Validation step should not return a value (Lightning convention)."""
+        """Validation step should return callback-safe metric tensors."""
         result = module.validation_step(dummy_batch, batch_idx=0)
-        assert result is None
+        assert set(result) == {'metric_preds', 'targets'}
+        assert result['metric_preds'].shape == (2 * 5 * 64,)
+        assert result['targets'].shape == (2 * 5 * 64,)
+
+    def test_validation_step_with_callback_predictions(self, module, dummy_batch):
+        """Validation step should expose full predictions when callbacks request them."""
+        module.enable_validation_callback_preds = True
+
+        result = module.validation_step(dummy_batch, batch_idx=0)
+
+        assert set(result) == {'metric_preds', 'targets', 'preds'}
+        assert result['metric_preds'].shape == (2 * 5 * 64,)
+        assert result['targets'].shape == (2 * 5 * 64,)
+        assert result['preds'].shape == (2, 5, 64)
 
     def test_configure_optimizers_with_scheduler(self, module):
         config = module.configure_optimizers()
-        assert "optimizer" in config
-        assert "lr_scheduler" in config
-        assert config["optimizer"] is module.optimizer
-        assert config["lr_scheduler"]["scheduler"] is module.lr_scheduler
+        assert 'optimizer' in config
+        assert 'lr_scheduler' in config
+        assert config['optimizer'] is module.optimizer
+        assert config['lr_scheduler']['scheduler'] is module.lr_scheduler
 
     def test_configure_optimizers_without_scheduler(self, small_model, segmentation_metrics_cfg):
         optimizer = AdamW(small_model.parameters(), lr=1e-3)
@@ -77,9 +90,9 @@ class TestSegmentationModule:
             metrics=segmentation_metrics_cfg,
         )
         config = module.configure_optimizers()
-        assert "optimizer" in config
-        assert config["optimizer"] is optimizer
-        assert "lr_scheduler" not in config
+        assert 'optimizer' in config
+        assert config['optimizer'] is optimizer
+        assert 'lr_scheduler' not in config
 
     def test_predict_step(self, module, dummy_batch):
         """Predict step should return sigmoid probabilities."""
@@ -91,7 +104,6 @@ class TestSegmentationModule:
     def test_hyperparameters_saved(self, module):
         """Hyperparameters should be saved for reproducibility."""
         assert module.hparams.learning_rate == 1e-3
-        assert module.hparams.threshold == 0.5
 
     def test_single_training_epoch(self, module):
         """Should survive a full training epoch with Lightning Trainer."""
@@ -137,9 +149,9 @@ class TestSegmentationModule:
         # Simulate a training step + epoch end
         module.training_step(dummy_batch, 0)
         metrics = module.train_metrics.compute()
-        assert "train/accuracy" in metrics
-        assert "train/f1" in metrics
-        assert "train/iou" in metrics
+        assert 'train/accuracy' in metrics
+        assert 'train/f1' in metrics
+        assert 'train/iou' in metrics
         module.train_metrics.reset()
 
     def test_loss_decreases_on_overfit(self, small_model, segmentation_metrics_cfg):

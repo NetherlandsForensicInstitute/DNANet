@@ -2,6 +2,7 @@
 
 import torch
 import pytest
+import torchmetrics
 
 from dnanet.models.peaknet import CombinedClassifier, PeakOnlyClassifier
 from dnanet.models.autoencoder import Conv1dAutoencoder, PerDyeConv1dAutoencoder
@@ -13,46 +14,65 @@ class TestCombinedClassifierAutoInfer:
 
     def test_auto_infer_from_conv1d_autoencoder(self):
         ae = Conv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=3,
-            input_length=4096, kernel_size=7, compression=8,
+            in_channels=5,
+            hidden_channels=16,
+            depth=3,
+            input_length=4096,
+            kernel_size=7,
+            compression=8,
         )
         pc = PeakClassificationModel(
-            num_classes=2, width=120, n_markers=28,
-            hidden_channels=[16, 32], pooling="flat",
+            num_classes=2,
+            width=120,
+            n_markers=28,
+            hidden_channels=[16, 32],
+            pooling='flat',
         )
         model = CombinedClassifier(
             autoencoder=ae,
             peak_classifier=pc,
             hidden_dims=[32, 16],
             num_classes=2,
-            combiner="mlp",
+            combiner='mlp',
         )
         assert model is not None
         assert model._autoencoder_out_shape == ae.encoded_shape()
 
     def test_auto_infer_from_per_dye_autoencoder(self):
         ae = PerDyeConv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=3,
-            input_length=4096, kernel_size=7, compression=8,
+            in_channels=5,
+            hidden_channels=16,
+            depth=3,
+            input_length=4096,
+            kernel_size=7,
+            compression=8,
         )
         pc = PeakClassificationModel(
-            num_classes=2, width=120, hidden_channels=[16, 32],
+            num_classes=2,
+            width=120,
+            hidden_channels=[16, 32],
         )
         model = CombinedClassifier(
             autoencoder=ae,
             peak_classifier=pc,
             hidden_dims=[32],
-            combiner="mlp",
+            combiner='mlp',
         )
         assert model._autoencoder_out_shape == ae.encoded_shape()
 
     def test_explicit_shapes_still_work(self):
         ae = Conv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=3,
-            input_length=4096, kernel_size=7, compression=8,
+            in_channels=5,
+            hidden_channels=16,
+            depth=3,
+            input_length=4096,
+            kernel_size=7,
+            compression=8,
         )
         pc = PeakClassificationModel(
-            num_classes=2, width=120, hidden_channels=[16, 32],
+            num_classes=2,
+            width=120,
+            hidden_channels=[16, 32],
         )
         model = CombinedClassifier(
             autoencoder=ae,
@@ -60,24 +80,31 @@ class TestCombinedClassifierAutoInfer:
             autoencoder_out_shape=ae.encoded_shape(),
             peak_classifier_out_features=pc.backbone_out_features(),
             hidden_dims=[32],
-            combiner="mlp",
+            combiner='mlp',
         )
         assert model is not None
 
     def test_forward_pass(self):
         ae = Conv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=3,
-            input_length=4096, kernel_size=7, compression=8,
+            in_channels=5,
+            hidden_channels=16,
+            depth=3,
+            input_length=4096,
+            kernel_size=7,
+            compression=8,
         )
         pc = PeakClassificationModel(
-            num_classes=2, width=120, hidden_channels=[16, 32],
-            embedding_dim=0,  # disable embedding for simpler test
+            num_classes=2,
+            width=120,
+            hidden_channels=[16, 32],
+            embedding_dim=0,
+            use_embedding=False,  # disable embedding for simpler test
         )
         model = CombinedClassifier(
             autoencoder=ae,
             peak_classifier=pc,
             hidden_dims=[32],
-            combiner="mlp",
+            combiner='mlp',
             freeze_autoencoder=True,
         )
 
@@ -97,41 +124,61 @@ class TestCombinedClassifierAutoInfer:
 
     def test_film_combiner(self):
         ae = Conv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=3,
-            input_length=4096, kernel_size=7, compression=8,
+            in_channels=5,
+            hidden_channels=16,
+            depth=3,
+            input_length=4096,
+            kernel_size=7,
+            compression=8,
         )
         pc = PeakClassificationModel(
-            num_classes=2, width=120, hidden_channels=[16, 32],
+            num_classes=2,
+            width=120,
+            hidden_channels=[16, 32],
             embedding_dim=0,
+            use_embedding=False,
         )
         model = CombinedClassifier(
-            autoencoder=ae, peak_classifier=pc,
-            hidden_dims=[32], combiner="film",
+            autoencoder=ae,
+            peak_classifier=pc,
+            hidden_dims=[32],
+            combiner='film',
         )
-        assert model.combiner_name == "film"
+        assert model.combiner_name == 'film'
 
     def test_attention_combiner(self):
         ae = Conv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=3,
-            input_length=4096, kernel_size=7, compression=8,
+            in_channels=5,
+            hidden_channels=16,
+            depth=3,
+            input_length=4096,
+            kernel_size=7,
+            compression=8,
         )
         pc = PeakClassificationModel(
-            num_classes=2, width=120, hidden_channels=[16, 32],
+            num_classes=2,
+            width=120,
+            hidden_channels=[16, 32],
             embedding_dim=0,
+            use_embedding=False,
         )
         model = CombinedClassifier(
-            autoencoder=ae, peak_classifier=pc,
-            hidden_dims=[32], combiner="attention",
+            autoencoder=ae,
+            peak_classifier=pc,
+            hidden_dims=[32],
+            combiner='attention',
         )
-        assert model.combiner_name == "attention"
+        assert model.combiner_name == 'attention'
 
 
 class TestPeakOnlyClassifier:
-
     def test_forward_pass(self):
         pc = PeakClassificationModel(
-            num_classes=2, width=120, hidden_channels=[16, 32],
+            num_classes=2,
+            width=120,
+            hidden_channels=[16, 32],
             embedding_dim=0,
+            use_embedding=False,
         )
         model = PeakOnlyClassifier(peak_classifier=pc, num_classes=2)
 
@@ -151,54 +198,61 @@ class TestPeakOnlyClassifier:
 
 
 class TestPeakNetModule:
-
     def test_training_step(self):
         from dnanet.modules.peaknet import PeakNetModule
 
         ae = Conv1dAutoencoder(
-            in_channels=5, hidden_channels=16, depth=3,
-            input_length=4096, kernel_size=7, compression=8,
+            in_channels=5,
+            hidden_channels=16,
+            depth=3,
+            input_length=4096,
+            kernel_size=7,
+            compression=8,
         )
         pc = PeakClassificationModel(
-            num_classes=2, width=120, hidden_channels=[16, 32],
+            num_classes=2,
+            width=120,
+            hidden_channels=[16, 32],
             embedding_dim=0,
+            use_embedding=False,
         )
         network = CombinedClassifier(
-            autoencoder=ae, peak_classifier=pc,
-            hidden_dims=[32], combiner="mlp",
+            autoencoder=ae,
+            peak_classifier=pc,
+            hidden_dims=[32],
+            combiner='mlp',
         )
         metrics_cfg = {
-            "accuracy": {
-                "_target_": "torchmetrics.classification.MulticlassAccuracy",
-                "num_classes": 2,
-                "average": "micro",
-            },
-            "f1": {
-                "_target_": "torchmetrics.classification.MulticlassF1Score",
-                "num_classes": 2,
-                "average": "macro",
-            },
+            'accuracy': torchmetrics.classification.MulticlassAccuracy(
+                num_classes=2, average='micro'
+            ),
+            'f1': torchmetrics.classification.MulticlassF1Score(num_classes=2, average='macro'),
         }
+        metrics = torchmetrics.MetricCollection(metrics_cfg)
 
         module = PeakNetModule(
             model=network,
             loss_fn=torch.nn.CrossEntropyLoss(),
-            metrics_cfg=metrics_cfg,
+            optimizer=torch.optim.Adam(network.parameters(), lr=1e-3),
             num_classes=2,
+            metrics=metrics,
         )
 
         N, C, L = 2, 5, 4096
         P = 5
         batch = (
-            torch.randn(N, C, L),            # full_images
-            torch.randn(P, 1, 120),           # peak_windows
-            torch.zeros(P, dtype=torch.long), # marker_idxs
-            torch.stack([
-                torch.randint(0, C, (P,)),
-                torch.randint(0, L, (P,)),
-            ], dim=1),                        # peak_centers
-            torch.tensor([3, 2]),             # peak_counts
-            torch.randint(0, 2, (N, C, L)),   # targets
+            torch.randn(N, C, L),  # full_images
+            torch.randn(P, 1, 120),  # peak_windows
+            torch.zeros(P, dtype=torch.long),  # marker_idxs
+            torch.stack(
+                [
+                    torch.randint(0, C, (P,)),
+                    torch.randint(0, L, (P,)),
+                ],
+                dim=1,
+            ),  # peak_centers
+            torch.tensor([3, 2]),  # peak_counts
+            torch.randint(0, 2, (N, C, L)),  # targets
         )
 
         loss = module.training_step(batch, 0)
@@ -213,29 +267,32 @@ class TestHydraInstantiation:
         from omegaconf import OmegaConf
         from hydra.utils import instantiate
 
-        cfg = OmegaConf.create({
-            "_target_": "dnanet.models.peaknet.CombinedClassifier",
-            "_recursive_": True,
-            "autoencoder": {
-                "_target_": "dnanet.models.autoencoder.Conv1dAutoencoder",
-                "in_channels": 5,
-                "hidden_channels": 16,
-                "depth": 3,
-                "input_length": 4096,
-                "kernel_size": 7,
-                "compression": 8,
-            },
-            "peak_classifier": {
-                "_target_": "dnanet.models.peak_classifier.PeakClassificationModel",
-                "num_classes": 2,
-                "width": 120,
-                "hidden_channels": [16, 32],
-                "embedding_dim": 0,
-            },
-            "hidden_dims": [32, 16],
-            "num_classes": 2,
-            "combiner": "mlp",
-        })
+        cfg = OmegaConf.create(
+            {
+                '_target_': 'dnanet.models.peaknet.CombinedClassifier',
+                '_recursive_': True,
+                'autoencoder': {
+                    '_target_': 'dnanet.models.autoencoder.Conv1dAutoencoder',
+                    'in_channels': 5,
+                    'hidden_channels': 16,
+                    'depth': 3,
+                    'input_length': 4096,
+                    'kernel_size': 7,
+                    'compression': 8,
+                },
+                'peak_classifier': {
+                    '_target_': 'dnanet.models.peak_classifier.PeakClassificationModel',
+                    'num_classes': 2,
+                    'width': 120,
+                    'hidden_channels': [16, 32],
+                    'embedding_dim': 0,
+                    'use_embedding': False,
+                },
+                'hidden_dims': [32, 16],
+                'num_classes': 2,
+                'combiner': 'mlp',
+            }
+        )
 
         model = instantiate(cfg)
         assert isinstance(model, CombinedClassifier)

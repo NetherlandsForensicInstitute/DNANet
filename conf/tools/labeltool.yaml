@@ -1,20 +1,24 @@
 # Configuration for the interactive label tool.
 #
-# Usage:
-#   dnanet-label -u Alice -f annotations.csv -d dnanet_rd
-#   dnanet-label -u Alice -f annotations/ -d dnanet_rd --compare
+# Example Usage:
+#   dnanet-label tools.user=Alice tools.filepath=annotations.csv
+#   dnanet-label tools.user=Alice tools.filepath=annotations/ tools.compare=true
 
-# Default user name for annotation
+# Annotator identifier (used for saving/filtering annotations).
 user: "Computer"
 
-# Path to annotation CSV file (or folder for compare mode)
+# Path to CSV file (or folder of CSVs when comparing in compare mode) for annotations.
 filepath: "annotations.csv"
 
-# Minimum RFU for automatic peak detection (null to disable)
-min_rfu_peak_detection: 200
+# Compare mode: show all annotators' spans stacked (non-interactive).
+compare: false
 
-# Whether to show allele bin positions
-plot_allele_bins: true
+params:
+  # Minimum RFU for automatic peak detection (null to disable)
+  min_rfu_peak_detection: 200
+
+  # Whether to show allele bin positions
+  plot_allele_bins: true
 
 # Labeltool format version
 version: "1.0"

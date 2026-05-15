@@ -1,11 +1,14 @@
 # Conv1d peak classifier for allele/noise classification
 name: peak_classifier
 
+defaults:
+  - /train@_global_.train: classification
+
 
 
 architecture:
   _target_: dnanet.models.peak_classifier.PeakClassificationModel
-  num_classes: 2
+  num_classes: ${data.num_classes}
   width: 120
   n_markers: 28
   embedding_dim: 8
@@ -22,3 +25,7 @@ architecture:
 
 loss:
   _target_: torch.nn.CrossEntropyLoss
+
+data_transform:
+  _target_: dnanet.data.transformer.PeakClassificationTransformer
+  include_marker: ${model.architecture.use_embedding}

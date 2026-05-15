@@ -15,10 +15,11 @@ import json
 import pickle
 import hashlib
 import itertools
-from typing import Dict, Tuple, Mapping, Sequence, Generator
+from typing import Dict, Tuple, Mapping, Callable, Sequence, Generator
 from pathlib import Path
 
 import numpy as np
+from tqdm import tqdm
 from loguru import logger
 from torch.utils.data import Subset
 from sklearn.model_selection import (
@@ -28,7 +29,7 @@ from sklearn.model_selection import (
 
 from dnanet.core.types import PathLike
 from dnanet.core.constants import LabelCategory
-from dnanet.core.annotation import AlleleAnnotation, ScanpointAnnotation
+from dnanet.core.annotation import Annotation, SpanAnnotation, AlleleAnnotation
 from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
@@ -38,16 +39,42 @@ class NFICaseStrategy(DatasetStrategy):
     _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self, annotation_type: str, robot_selection: Sequence[str] | None = None) -> None:
+    def __init__(
+        self,
+        annotation_type: str = 'ATLT',
+        subfolder_selection: Sequence[str] | None = None,
+        span_annotations_path: PathLike | None = None,
+        exclude_path: PathLike | None = None,
+        shuffle_limit: int | None = None,
+        seed: int | None = None,
+    ) -> None:
+        """Initialize the NFI casework strategy.
+
+        Args:
+            annotation_type: The type of annotation to use. Defaults to 'ATLT'.
+            subfolder_selection: A list of subfolders to include. All subfolders are included when None. Defaults to None.
+            span_annotations_path: The path to the span annotations. When None, defaults to data_path/span_annotations
+            exclude_path: The path to a file containing a list of HID files to exclude. Defaults to None.
+            shuffle_limit: Optional limit of number of files to include after shuffling. Defaults to None.
+            seed: Optional seed for shuffling, is required when shuffle_limit is set. Defaults to None.
+
+        Available annotation types:
+        - AT: only include profiles with a "high" analytical threshold (allele annotation)
+        - LT: only include profiles with a low threshold (allele annotation)
+        - ATLT: include profiles with either a high or low threshold (allele annotation)
+        - span: include profiles with a span annotation (scanpoint annotation)
+        """
         super().__init__()
-        self.annotation_type = (annotation_type,)
-        self._robot_selection = robot_selection
+        self.annotation_type = annotation_type
+        self._subfolder_selection = subfolder_selection
+        self._span_annotations_path = span_annotations_path
+        self._exclude_path = exclude_path
+        self.shuffle_limit = shuffle_limit
+        self.seed = seed
 
     def collect_dataset_files(
         self, root_path: str | Path, scaling_strategy: ScalingStrategy, **kwargs
-    ) -> Generator[
-        Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
-    ]:
+    ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         """Collect all .HID files in the casework folders.
 
         Finds all .HID files and their corresponding annotation and ladder.
@@ -80,7 +107,15 @@ class NFICaseStrategy(DatasetStrategy):
                 yield from pickle.load(f)
             return
 
-        results = list(self._collect_dataset_files_uncached(root_path, scaling_strategy))
+        results = list(self._collect_dataset_files_uncached(root_path, scaling_strategy, **kwargs))
+
+        if self.shuffle_limit:
+            if not self.seed:
+                raise ValueError('shuffle_limit is set, but seed is not provided')
+            rng = np.random.default_rng(self.seed)
+            results = rng.choice(results, self.shuffle_limit, replace=False).tolist()
+
+        logger.info(f'Found {len(results)} valid samples')
 
         cache_file.parent.mkdir(exist_ok=True, parents=True)
         with cache_file.open('wb') as f:
@@ -93,54 +128,162 @@ class NFICaseStrategy(DatasetStrategy):
         root_path: str | Path,
         scaling_strategy: ScalingStrategy,
         folder_cache: bool = True,
-    ) -> Generator[
-        Tuple[Path, ScanpointAnnotation | AlleleAnnotation | None, Path | None], None, None
-    ]:
+        allow_missing_annotations: bool = True,
+        **kwargs,
+    ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         path = Path(root_path)
 
         # Collect all .HID files from the robot folders
-        hids_folder = path / 'hids'
-        robots = self.find_robot_files(
-            hids_folder,
-            self._robot_selection,
+        file_list = self.find_robot_files(
+            path,
+            self._subfolder_selection,
             cache=folder_cache,
         )
 
-        # Collect all annotation .txt/.csv files and map from run_id -> annotation file
-        annotations_folder = path / 'annotations'
-        annotation_mapping = self.find_annotation_files(annotations_folder)
+        file_list = list(file_list)
+        logger.info(f'Found {len(file_list)} .hid files in {path}')
 
-        for _file in robots:
-            if self.categorize_file(_file.name) != 'sample':
+        resolve_annotation = self._build_annotation_resolver(
+            path, scaling_strategy, self.annotation_type, self._span_annotations_path
+        )
+        if self._exclude_path:
+            with open(Path(self._exclude_path), 'r') as f:
+                exclude_files = [line.strip() for line in f if line.strip()]
+        for hid_file in tqdm(
+            file_list, desc='Collecting HID files', unit='file', unit_scale=True, leave=False
+        ):
+            if self._exclude_path and hid_file.stem in exclude_files:
                 continue
 
-            _run_id = _file.stem.split('_')[0]
-            _sample_name = _file.stem.rsplit('_', 1)[0]
-            _annotation = annotation_mapping.get(_run_id)
+            file_category = self.categorize_file(hid_file.name)
+            if file_category != 'sample':
+                continue
 
-            _ladder = self.find_ladder_for_sample(_file)
+            annotation = resolve_annotation(hid_file)
+            if annotation is None and not allow_missing_annotations:
+                continue
 
-            _allele_annotation = None
-            if _annotation:
-                _allele_annotation_map = self.parse_annotations(
-                    _annotation, scaling_strategy=scaling_strategy
-                )
+            ladder = self.find_ladder_for_sample(hid_file)
+            yield (hid_file, annotation, ladder)
 
-                # Usually there's only one sample <-> annotation per annotation file
-                if len(_allele_annotation_map) == 1:
-                    _allele_annotation = list(_allele_annotation_map.values())[0]
-                elif len(_allele_annotation_map) > 1:
-                    _allele_annotation = _allele_annotation_map[_sample_name]
+    @classmethod
+    def _build_annotation_resolver(
+        cls,
+        path: Path,
+        scaling_strategy: ScalingStrategy,
+        annotation_type: str | None,
+        span_annotations_path: PathLike | None = None,
+    ) -> Callable[[Path], Annotation | None]:
+        """Build a per-HID annotation resolver for the configured annotation type.
 
-            yield (_file, _allele_annotation, _ladder)
+        The dataset collector iterates robot files once and delegates
+        annotation lookup to the callable returned here. Each annotation type
+        can therefore prepare its own lookup state up front while the core HID
+        filtering and ladder collection logic remains centralized in
+        :meth:`_collect_dataset_files_uncached`.
+
+        Args:
+            path: Dataset root containing the annotation directories.
+            scaling_strategy: Scaling strategy required to parse annotations.
+
+        Returns:
+            A callable that takes a HID path and returns the corresponding
+            parsed annotation, or ``None`` when no annotation is available.
+
+        Raises:
+            ValueError: If ``self.annotation_type`` is not supported.
+        """
+        if annotation_type is None:
+            return lambda hid_file: None
+        if annotation_type == 'span':
+            # parse span annotations
+            if span_annotations_path is None:
+                span_annotations_path = path / 'span_annotations'
+            span_annotations_path = Path(span_annotations_path)
+            hid_to_annotation = cls._parse_span_annotation(span_annotations_path, scaling_strategy)
+
+            def resolve_annotation(hid_file: Path) -> SpanAnnotation | None:
+                return hid_to_annotation.get(hid_file.stem)
+
+            return resolve_annotation
+        elif annotation_type == 'AT' or annotation_type == 'LT' or annotation_type == 'ATLT':
+            # parse analyst annotations
+            annotations_folder = path / 'annotations'
+            annotation_mapping = cls.find_annotation_files(annotations_folder)
+
+            # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
+            run_id_path = path / 'runid_type.csv'
+            if not run_id_path.exists():
+                raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
+            run_id_type_mapping = {
+                row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
+            }
+
+            def resolve_annotation(hid_file: Path) -> AlleleAnnotation | None:
+                run_id = hid_file.stem.split('_')[0]
+                sample_name = hid_file.stem.rsplit('_', 1)[0]
+
+                if cls._is_correct_annotation_type(run_id, annotation_type, run_id_type_mapping):
+                    annotation = annotation_mapping.get(run_id)
+                    if not annotation:
+                        return None
+
+                    allele_annotation_map = cls.parse_annotations(
+                        annotation, scaling_strategy=scaling_strategy
+                    )
+
+                    # Usually there's only one sample <-> annotation per annotation file
+                    if len(allele_annotation_map) == 1:
+                        return next(iter(allele_annotation_map.values()))
+                    elif len(allele_annotation_map) > 1:
+                        return allele_annotation_map[sample_name]
+
+                return None
+
+            return resolve_annotation
+        else:
+            raise ValueError(f'Invalid annotation type: {annotation_type}')
+
+    @staticmethod
+    def _is_correct_annotation_type(
+        run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]
+    ) -> bool:
+        """Check if the run_id corresponds to the requested annotation type.
+
+        When a run_id ends with an L, it is assumed to be a LT profile.
+        When the run_id is found in the csv with an added L, it is also assumed to be a LT profile.
+        When a run_id does not end in an L, we check the type from the csv.
+        When the run_id is not found in the csv, we assume it is an AT profile.
+        """
+        if annotation_type == 'ATLT':
+            # when ATLT is selected, include all annotations
+            return True
+        elif run_id.endswith('L'):
+            # assume the run-id is an LT profile if it ends with an L
+            return annotation_type == 'LT'
+        elif run_id + 'L' in annotation_type_mapping:
+            # sometimes the run-id is changed to end with an L, check also for this option.
+            return annotation_type == 'LT'
+        elif run_id in annotation_type_mapping:
+            # if the run-id is found in the csv, check if it matches the requested annotation type
+            return annotation_type_mapping[run_id] == annotation_type
+        elif annotation_type == 'AT':
+            # if the run-id is not found in the csv, assume it is AT
+            return True
+        # do not include LT profiles when AT is requested
+        return False
 
     def cache_signature(self) -> dict:  # noqa: D102
         return {
             'class': self.__class__.__name__,
             'annotation_type': self.annotation_type,
+            'exclude_path': self._exclude_path,
+            'span_annotations_path': self._span_annotations_path,
+            'seed': self.seed,
+            'shuffle_limit': self.shuffle_limit,
             **(
-                {'robot_selection': tuple(set(self._robot_selection))}
-                if self._robot_selection
+                {'subfolder_selection': tuple(set(self._subfolder_selection))}
+                if self._subfolder_selection
                 else {}
             ),
         }
@@ -161,31 +304,38 @@ class NFICaseStrategy(DatasetStrategy):
     @classmethod
     def find_robot_files(
         cls,
-        robots_folder: Path,
-        selected_robots: Sequence[str] | None = None,
+        data_folder: Path,
+        selected_subfolders: Sequence[str] | None = None,
         robot_limit: int | None = None,
         cache: bool = True,
     ) -> Generator[Path, None, None]:
         """Collect all files in the robot's casework folders.
 
         Args:
-            robots_folder: The root in which the robot folders reside
-            selected_robots: Allows for a subselection of robot folder names (e.g. `('3500XL_A',)`). Defaults to None.
+            data_folder: The root in which the robot folders reside
+            selected_subfolders: Allows for a subselection of folder names (e.g. `('3500XL_A',)`). Defaults to None.
             robot_limit: Limits the amount of files returned from a robot. Defaults to None.
             cache: Whether to use cache saved in /tmp/ to prevent walking the whole folder again between runs.
 
         Yields:
             File paths of .hid's found in the robot folders.
         """
-        robot_names = cls._ROBOT_NAMES if not selected_robots else selected_robots
-        for robot_name in robot_names:
-            robot_folder = robots_folder / robot_name
-            if not robot_folder.exists():
-                continue
-            logger.info(f'Retrieving files from {robot_name}')
+        if (data_folder / 'hids').exists():
+            data_folder = data_folder / 'hids'
+        if selected_subfolders is None:
+            logger.info(f'Retrieving files in {data_folder}')
             yield from itertools.islice(
-                cls._scan_directory_structure(robot_folder, cache=cache), robot_limit
+                cls._scan_directory_structure(data_folder, cache=cache), robot_limit
             )
+        else:
+            for subfolder in selected_subfolders:
+                robot_folder = data_folder / subfolder
+                if not robot_folder.exists():
+                    continue
+                logger.info(f'Retrieving files from {subfolder}')
+                yield from itertools.islice(
+                    cls._scan_directory_structure(robot_folder, cache=cache), robot_limit
+                )
 
     @classmethod
     def find_annotation_files(cls, annotations_folder: Path):  # noqa: D102
@@ -206,6 +356,7 @@ class NFICaseStrategy(DatasetStrategy):
                 return pickle.load(f)
 
         files = list(cls._scan_directory_structure_uncached(path))
+        logger.info(f'Found {len(files)} files in {path}')
 
         if cache:
             _cache_file.parent.mkdir(exist_ok=True, parents=True)
@@ -235,7 +386,8 @@ class NFICaseStrategy(DatasetStrategy):
         test_fraction: float = 0.0,
         **kwargs,
     ):
-        dataset_indices = np.arange(len(dataset.images))
+        _, idx_map = cls._unwrap(dataset)
+        dataset_indices = np.arange(len(idx_map))
         match (fraction, k_folds):
             # Case: only train/val split, no folds, no test fraction
             case (float(), None) if test_fraction == 0.0:
@@ -295,7 +447,9 @@ class NFICaseStrategy(DatasetStrategy):
             case 1:
                 _ladder = _ladders[0]
             case _:
-                logger.trace(f'Multiple ladders found, taking first: {sample_path.stem} -> {tuple(map(lambda x: x.stem, _ladders))}')
+                logger.trace(
+                    f'Multiple ladders found, taking first: {sample_path.stem} -> {tuple(map(lambda x: x.stem, _ladders))}'
+                )
                 _ladder = _ladders[0]
         return _ladder
 
@@ -316,7 +470,7 @@ class NFICaseStrategy(DatasetStrategy):
     @classmethod
     def parse_annotations(  # noqa: D102
         cls, annotation_source: str | Path, scaling_strategy: ScalingStrategy
-    ) -> Mapping[str, ScanpointAnnotation | AlleleAnnotation]:
+    ) -> Mapping[str, AlleleAnnotation]:
         return NFIRnDStrategy.parse_annotations(
             annotation_source=annotation_source, scaling_strategy=scaling_strategy
         )

@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from dnanet.data.parsing.hid import parse_hid, get_peak_data
+from tests.conftest import RD_DIR, HID_DIR
 from dnanet.data.strategies import PowerPlexFusion6CStrategy
-from tests.conftest import RD_DIR
+from dnanet.data.parsing.hid import parse_hid, get_peak_data
 
 
 class TestParseHID:
@@ -13,7 +13,7 @@ class TestParseHID:
 
     def test_parse_sample_hid(self):
         """Should successfully parse 1A2_A01_01.hid."""
-        result = parse_hid(RD_DIR / '1A2_A01_01.hid')
+        result = parse_hid(HID_DIR / '1A2_A01_01.hid')
         assert result is not None
         assert isinstance(result, dict)
         # Should contain DATA keys
@@ -22,7 +22,7 @@ class TestParseHID:
 
     def test_parse_ladder_hid(self):
         """Should successfully parse Ladder_G03_21.hid."""
-        result = parse_hid(RD_DIR / 'Ladder_G03_21.hid')
+        result = parse_hid(HID_DIR / 'Ladder_G03_21.hid')
         assert result is not None
 
     def test_parse_nonexistent_returns_none(self, tmp_path):
@@ -40,20 +40,24 @@ class TestGetPeakData:
 
     def test_raw_strategy(self):
         """Raw strategy should return 6 dye channels."""
-        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='raw')
+        data = get_peak_data(HID_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='raw')
         assert data is not None
         assert data.shape[0] == 6  # 5 dyes + 1 size standard
         assert data.dtype == np.int16
 
     def test_analyzed_strategy(self):
         """Analyzed strategy should also return 6 channels."""
-        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='analyzed')
+        data = get_peak_data(
+            HID_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='analyzed'
+        )
         assert data is not None
         assert data.shape[0] == 6
 
     def test_superior_strategy(self):
         """Superior strategy applies baseline subtraction."""
-        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='superior')
+        data = get_peak_data(
+            HID_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='superior'
+        )
         assert data is not None
         assert data.shape[0] == 6
         assert data.dtype == np.int16
@@ -64,7 +68,7 @@ class TestGetPeakData:
         The reference .npy was saved from the original DNANet pipeline (parse +
         baseline + rescale to 4096). We reproduce the full pipeline here.
         """
-        data = get_peak_data(RD_DIR / '1A2_A01_01.hid', ppf6c_kit, data_loading_strategy='superior')
+        data = get_peak_data(HID_DIR / '1A2_A01_01.hid', ppf6c_kit, data_loading_strategy='superior')
         assert data is not None
 
         # Rescale through size standard (same as HIDImage._load)
@@ -80,11 +84,13 @@ class TestGetPeakData:
 
     def test_invalid_strategy_raises(self):
         with pytest.raises(ValueError, match='strategy must be'):
-            get_peak_data(RD_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='invalid')
+            get_peak_data(HID_DIR / '1A2_A01_01.hid', self.scaling, data_loading_strategy='invalid')
 
     def test_ladder_has_data(self):
         """Ladder files should also parse successfully."""
-        data = get_peak_data(RD_DIR / 'Ladder_G03_21.hid', self.scaling, data_loading_strategy='raw')
+        data = get_peak_data(
+            HID_DIR / 'Ladder_G03_21.hid', self.scaling, data_loading_strategy='raw'
+        )
         assert data is not None
         assert data.shape[0] == 6
         # Size standard (last channel) should have signal
@@ -92,6 +98,8 @@ class TestGetPeakData:
 
     def test_second_sample_parses(self):
         """1A2_E01_13.hid should also parse."""
-        data = get_peak_data(RD_DIR / '1A2_E01_13.hid', self.scaling, data_loading_strategy='superior')
+        data = get_peak_data(
+            HID_DIR / '1A2_E01_13.hid', self.scaling, data_loading_strategy='superior'
+        )
         assert data is not None
         assert data.shape[0] == 6

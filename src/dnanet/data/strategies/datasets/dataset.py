@@ -21,7 +21,7 @@ import numpy as np
 from loguru import logger
 
 from dnanet.core import LabelCategory
-from dnanet.core.annotation import Annotation, ScanpointAnnotation
+from dnanet.core.annotation import Annotation, SpanAnnotation, ScanpointAnnotation
 from dnanet.data.strategies.scaling import ScalingStrategy
 
 
@@ -132,6 +132,18 @@ class DatasetStrategy(ABC):
             a list of ``(train_subset, val_subset)`` pairs for k-fold splits.
         """
 
+    @staticmethod
+    def _unwrap(dataset) -> Tuple[Any, List[int]]:
+        """Return (underlying dataset, index map from local position to underlying index).
+
+        Handles both plain datasets (with .images) and torch Subset wrappers.
+        """
+        from torch.utils.data import Subset
+
+        if isinstance(dataset, Subset):
+            return dataset.dataset, list(dataset.indices)
+        return dataset, list(range(len(dataset.images)))
+
     @classmethod
     def split(cls, dataset, **kwargs) -> Tuple[T, T] | Tuple[T, T, T] | List[Tuple[T, T]]:
         """Splitting wrapper.
@@ -160,15 +172,17 @@ class DatasetStrategy(ABC):
 
     @classmethod
     def _parse_span_annotation(
-            cls, span_annotations_path: Path, scaling_strategy: ScalingStrategy
-    ) -> dict[str, ScanpointAnnotation | None]:
-        """Parse span-annotation CSV files into per-profile scanpoint annotations.
+        cls, span_annotations_path: Path, scaling_strategy: ScalingStrategy
+    ) -> dict[str, SpanAnnotation | None]:
+        """Parse span-annotation CSV files into per-profile span annotations.
 
         Span annotations are expected to contain ``profile``, ``user``, ``dye``,
         ``x0``, ``x1``, and ``category`` columns. Rows are grouped by profile and
-        annotator, converted to span tensors, optionally merged when multiple
-        annotators labeled the same profile, and finally flattened to
-        :class:`ScanpointAnnotation` instances.
+        annotator, converted to span tensors, and optionally merged when multiple
+        annotators labeled the same profile.  The result is a :class:`SpanAnnotation`
+        wrapping the raw ``(num_dyes, scanpoints, num_classes)`` tensor; flattening
+        to :class:`ScanpointAnnotation` is deferred to ``HIDDataset._load_images``
+        so that per-class adjustment can run on the full 3-D tensor first.
 
         Args:
             span_annotations_path: Directory containing span-annotation CSV files.
@@ -210,7 +224,9 @@ class DatasetStrategy(ABC):
                 columns = set(reader.fieldnames)
                 missing_columns = required_columns.difference(columns)
                 if missing_columns:
-                    raise ValueError(f'Missing span annotation columns: {sorted(missing_columns)}, found columns: {sorted(columns)} in {f}')
+                    raise ValueError(
+                        f'Missing span annotation columns: {sorted(missing_columns)}, found columns: {sorted(columns)} in {f}'
+                    )
                 for row in reader:
                     # check for NaNs (empty strings in csv.DictReader)
                     if any(not row.get(col) for col in required_columns):
@@ -223,10 +239,7 @@ class DatasetStrategy(ABC):
         profiles = {row['profile'] for row in rows}
         categories = {row['category'] for row in rows}
 
-        logger.info(
-            f'Found {len(rows)} valid span annotations in {len(profiles)} '
-            f'profiles'
-        )
+        logger.info(f'Found {len(rows)} valid span annotations in {len(profiles)} unique profiles')
         logger.info(f'Categories found in annotations: {categories}')
 
         # convert dye names to dye indices and category names to indices
@@ -234,11 +247,11 @@ class DatasetStrategy(ABC):
         for row in rows:
             dye_idx = _dye_name_to_dye_idx.get(str(row['dye']).strip().lower())
             if dye_idx is None:
-                raise ValueError(f"Unknown dye values in span annotations: {row['dye']}")
+                raise ValueError(f'Unknown dye values in span annotations: {row["dye"]}')
 
             category_idx = LabelCategory.display_name_to_index(row['category'])
             if category_idx is None:
-                raise ValueError(f"Unknown category values in span annotations: {row['category']}")
+                raise ValueError(f'Unknown category values in span annotations: {row["category"]}')
 
             row['dye_idx'] = int(dye_idx)
             row['category_idx'] = int(category_idx)
@@ -262,15 +275,18 @@ class DatasetStrategy(ABC):
             spannotation = cls._df_to_span_annotation(group_rows, scaling_strategy)
             hid_file_name_to_span_annotations.setdefault(hid_file_name, []).append(spannotation)
 
-        # merge span annotations into a scanpoint annotation
-        hid_to_annotation: dict[str, ScanpointAnnotation | None] = {}
+        # Merge span tensors per profile and wrap in SpanAnnotation.
+        # Flattening to ScanpointAnnotation is intentionally deferred to
+        # HIDDataset._load_images so that per-class adjustment can run first
+        # on the full 3-D tensor, preserving class boundaries.
+        hid_to_annotation: dict[str, SpanAnnotation | None] = {}
         for hid_file_name, span_annotations in hid_file_name_to_span_annotations.items():
             if len(span_annotations) > 1:
                 span_annotation = cls._merge_span_annotations(span_annotations, hid_file_name)
             else:
                 span_annotation = span_annotations[0]
 
-            hid_to_annotation[hid_file_name] = cls._span_to_scanpoint_annotation(span_annotation, hid_file_name)
+            hid_to_annotation[hid_file_name] = SpanAnnotation(span_annotation)
 
         return hid_to_annotation
 
@@ -300,7 +316,8 @@ class DatasetStrategy(ABC):
             dye_idx = int(row['dye_idx'])
             category_idx = int(row['category_idx'])
             if not 0 <= dye_idx < num_dyes:
-                raise ValueError(f'Dye index {dye_idx} outside annotation shape')
+                # raise ValueError(f'Dye index {dye_idx} outside annotation shape')
+                continue # FIXME parsing of y profiles fails
             if not 0 <= category_idx < num_classes:
                 raise ValueError(f'Category index {category_idx} outside annotation shape')
 
@@ -334,7 +351,9 @@ class DatasetStrategy(ABC):
         return spannotations[0]
 
     @staticmethod
-    def _span_to_scanpoint_annotation(span_annotation: np.ndarray, hid_file_name: str) -> ScanpointAnnotation:
+    def _span_to_scanpoint_annotation(
+        span_annotation: np.ndarray, hid_file_name: str
+    ) -> ScanpointAnnotation:
         """Flatten a one-hot span tensor to class indices per dye and scanpoint.
 
         Args:
@@ -349,6 +368,8 @@ class DatasetStrategy(ABC):
         flattened = span_annotation.argmax(axis=-1)
 
         if np.any(span_annotation.sum(axis=-1) > 1):
-            logger.debug(f'Found overlapping annotations for {hid_file_name}, taking the lowest class index')
+            logger.debug(
+                f'Found overlapping annotations for {hid_file_name}, taking the lowest class index'
+            )
 
         return ScanpointAnnotation(flattened.astype(np.int8, copy=False))

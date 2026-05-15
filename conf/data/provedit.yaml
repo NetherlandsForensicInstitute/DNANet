@@ -1,7 +1,7 @@
 # PROVEDIt dataset (GlobalFiler kit)
 name: provedit
 
-
+num_classes: 2
 # Paths (relative to project root — adjust for your setup)
 dataset:
   _target_: dnanet.data.hid_dataset.HIDDataset
@@ -12,11 +12,11 @@ dataset:
   dataset_strategy:
     _target_: dnanet.data.strategies.datasets.ProvedItStrategy
   limit: null  # Set to integer to limit number of loaded images
-  skip_if_invalid_ladder: false
+  skip_if_invalid_ladder: true
   include_size_standard: true
   data_loading_strategy: superior  # raw, analyzed, or superior
   adjustment_of_annotations: top  # top, complete, or null
-  transform: ${oc.select:${task}.data_transform,null}  # get transform from training/evaluation task, or null if not defined
+  transform: ${oc.select:model.data_transform_active,${oc.select:model.data_transform,null}} # task-specific transform (e.g. evaluate wraps it), falls back to model's base transform
   load_in_memory: false
   cache_dir: data/cache/provedit
 

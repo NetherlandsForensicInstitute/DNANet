@@ -56,9 +56,21 @@ class NFIRnDStrategy(DatasetStrategy):
         '6': ['Z', 'AA', 'AB', 'AC', 'AD'],
     }
 
-    def __init__(self, annotation_type: str):
-        """Initialize the NFI R&D dataset strategy."""
+    def __init__(self, annotation_type: str, span_annotations_path: PathLike | None = None):
+        """Initialize the NFI R&D dataset strategy.
+
+        Args:
+            annotation_type: The type of annotation to use.
+            span_annotations_path: The path to the span annotations. When None, defaults to data_path/span_annotations
+
+        Available annotation types:
+        - ground_truth: use ground truth annotations (allele annotation)
+        - DTH: use analyst annotations with "high" analytical threshold (allele annotation)
+        - DTL: use analyst annotations with low analytical threshold (allele annotation)
+        - span: use analyst span annotations (scanpoint annotation)
+        """
         self.annotation_type = annotation_type
+        self._span_annotations_path = span_annotations_path
 
         assert annotation_type in ['DTH', 'DTL', 'ground_truth', 'span'], (
             f'Invalid annotation type: {annotation_type}'
@@ -103,11 +115,15 @@ class NFIRnDStrategy(DatasetStrategy):
                     path, hid_file_samples, scaling_strategy
                 )
             case 'span':
-                span_annotations_path = path / 'span_annotations'
-                hid_to_annotation = self._parse_span_annotation(span_annotations_path, scaling_strategy)
+                if self._span_annotations_path is None:
+                    span_annotations_path = path / 'span_annotations'
+                else:
+                    span_annotations_path = Path(self._span_annotations_path)
+                hid_to_annotation = self._parse_span_annotation(
+                    span_annotations_path, scaling_strategy
+                )
             case _:
                 raise ValueError(f'Invalid annotation type: {self.annotation_type}')
-
 
         # Hid to Ladder mapping
         _, htl_values = self._read_csv_file(hid_to_ladder_path[0])
@@ -120,7 +136,6 @@ class NFIRnDStrategy(DatasetStrategy):
                 hid_to_annotation.get(str(hid_file.stem)),
                 hid_to_ladder.get(hid_file.stem),
             )
-
 
     @classmethod
     def _parse_analyst_annotation(
@@ -356,7 +371,7 @@ class NFIRnDStrategy(DatasetStrategy):
     @classmethod
     def parse_annotations(
         cls, annotation_source: PathLike, scaling_strategy: ScalingStrategy
-    ) -> Dict[str, Annotation]:
+    ) -> Dict[str, AlleleAnnotation]:
         """Parse manually called alleles from an annotation text file.
 
         The annotation file may contain calls for multiple samples. This function
@@ -373,7 +388,7 @@ class NFIRnDStrategy(DatasetStrategy):
             logger.debug('Empty annotation file: {}', annotation_source)
             raise RuntimeError('Annotations file is emtpy')
 
-        annotation_mapping: Dict[str, Annotation] = {}
+        annotation_mapping: Dict[str, AlleleAnnotation] = {}
         with open(annotation_source, 'r') as f:
             header_result = cls._parse_csv_header(f)
             if header_result is None:
@@ -448,7 +463,6 @@ class NFIRnDStrategy(DatasetStrategy):
             rows = list(reader)
         headers, values = rows[0], filter(lambda r: len(r) > 0, rows[1:])
         return headers, list(values)
-
 
     def get_annotation_classes(self) -> list[str]:
         """Return the annotation class labels produced by this strategy."""
@@ -604,7 +618,7 @@ class NFIRnDStrategy(DatasetStrategy):
     @classmethod
     def _kfold_split(
         cls,
-        dataset: HIDDataset,
+        dataset: HIDDataset | Subset,
         k_folds: int,
         seed: int | None,
         stratify_noc: bool,
@@ -624,8 +638,11 @@ class NFIRnDStrategy(DatasetStrategy):
                 for train, val in splitter.split(group_range)  # type: ignore
             ]
 
-        indices = list(range(len(dataset.images)))
-        sample_nocs = [cls.get_number_of_contributors(dataset.images[i].path.stem) for i in indices]
+        underlying, idx_map = cls._unwrap(dataset)
+        indices = list(range(len(idx_map)))
+        sample_nocs = [
+            cls.get_number_of_contributors(underlying.images[idx_map[i]].path.stem) for i in indices
+        ]
         if any(n is None for n in sample_nocs) and stratify_noc:
             raise AttributeError(
                 "NoC couldn't be inferred for every sample, stratify=noc not possible"
@@ -646,18 +663,21 @@ class NFIRnDStrategy(DatasetStrategy):
 
     # -- Splitting helpers ---------
     @classmethod
-    def _get_mixture_dataset_groups(cls, dataset: HIDDataset) -> Tuple[List[str], List[List[int]]]:
+    def _get_mixture_dataset_groups(
+        cls, dataset: HIDDataset | Subset
+    ) -> Tuple[List[str], List[List[int]]]:
         """Return (group_names, group_index_lists) where each group is a mixture dataset."""
+        underlying, idx_map = cls._unwrap(dataset)
         group_map: Dict[str, List[int]] = {}
         mixture_folder_pattern = re.compile(r'Mixture dataset \d')
-        for i, img in enumerate(dataset.images):
-            # parent folder name is the mixture dataset identifier
+        for local_i, global_i in enumerate(idx_map):
+            img = underlying.images[global_i]
             group_key = mixture_folder_pattern.search(str(img.path.absolute()))
             if group_key is None:
                 raise ValueError(
                     f'Failed to retrieve mixture dataset group key from: {img.path.absolute()}'
                 )
-            group_map.setdefault(group_key.group(), []).append(i)
+            group_map.setdefault(group_key.group(), []).append(local_i)
 
         group_names = list(group_map.keys())
         group_indices = [group_map[name] for name in group_names]

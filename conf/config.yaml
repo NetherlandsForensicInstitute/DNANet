@@ -11,17 +11,16 @@
 #     dnanet data=provedit model=unet training=segmentation logging=mlflow
 
 defaults:
+  - splitting: train_val
+  - task: train
   - data: dnanet_rd
   - model: unet
-  - train: segmentation
-  - evaluate: segmentation
   - logging: csvlogger
   - _self_
   - override hydra/hydra_logging: disabled
   - override hydra/job_logging: disabled
 
 # -- Global settings --
-task: train          # One of: train, evaluate, cross_validate
 seed: 42
 output_dir: ${hydra:runtime.output_dir}
 verbosity: INFO      # Logging level: DEBUG, INFO, WARNING, ERROR

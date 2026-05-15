@@ -1,224 +1,227 @@
 """Cross-validation task — k-fold training and evaluation.
 
-Design pattern: **Facade**
-    Orchestrates k-fold cross-validation by repeatedly running train + evaluate
-    cycles and aggregating metrics across folds.
-
 Usage::
 
-    dnanet task=cross_validate training.n_folds=5 model=unet
+    dnanet task=cross_validate splitting=cross_validate data=<config> model=<config>
 """
 
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from pathlib import Path
+from contextlib import contextmanager
 from collections import defaultdict
 
 import numpy as np
+import mlflow
 import lightning as L
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig
 from hydra.utils import instantiate
+from flatten_dict import flatten
+from torch.utils.data import DataLoader, default_collate
 
-from dnanet.tasks.train import _build_logger, _build_module, _build_callbacks
-from dnanet.data.splitting import split_data_in_k_folds
+from dnanet.tasks.train import (
+    _build_logger,
+    _build_callbacks,
+    _validate_dataset_for_callbacks,
+    _configure_module_for_callbacks,
+)
+from dnanet.data.splitting import KFoldSplitResult, dataset_splitter
 
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
 
 
-def run(cfg: DictConfig) -> dict[str, dict[str, float]]:
+@contextmanager
+def _null_context():
+    yield (None, None)
+
+
+def _is_mlflow_logger(cfg: DictConfig) -> bool:
+    log_cfg = cfg.get("logging")
+    return bool(log_cfg and log_cfg.get("logger_type") == "mlflow")
+
+
+@contextmanager
+def _mlflow_parent_run(cfg: DictConfig, k_folds: int):
+    """Context manager: start parent MLflow run, yield mlflow_cfg, end on exit."""
+    mlflow_cfg = cfg.logging.mlflow
+    mlflow.set_tracking_uri(mlflow_cfg.get("tracking_uri", "mlruns"))
+    mlflow.set_experiment(mlflow_cfg.get("experiment_name", "dnanet"))
+    with mlflow.start_run(run_name=f"cross_validate_{k_folds}fold") as parent_run:
+        mlflow.log_params(flatten(cfg, reducer=lambda x, y: f'{x}/{y}' if x else f'{y}'))
+        mlflow.set_tags({
+            "model": cfg.get("model", {}).get("name", "unknown"),
+            "data": cfg.data.get("name", "unknown"),
+            "task": "cross_validate",
+            "k_folds": str(k_folds),
+        })
+        yield mlflow_cfg, parent_run
+
+
+def _build_fold_logger(
+    cfg: DictConfig, mlflow_cfg: DictConfig | None, fold_idx: int
+) -> L.pytorch.loggers.Logger | None:
+    if mlflow_cfg is None:
+        return _build_logger(cfg)
+    nested_run = mlflow.start_run(
+        nested=True, run_name=f"fold_{fold_idx + 1}"
+    )
+    mlflow.set_tag("fold", fold_idx + 1)
+    return L.pytorch.loggers.MLFlowLogger(
+        experiment_name=mlflow_cfg.get("experiment_name", "dnanet"),
+        tracking_uri=mlflow_cfg.get("tracking_uri", "mlruns"),
+        log_model=mlflow_cfg.get("log_model", False),
+        run_id=nested_run.info.run_id,
+    )
+
+
+def run(
+    cfg: DictConfig,
+    dataset: Dataset | None = None,
+) -> dict[str, list | dict]:
     """Run k-fold cross-validation.
 
     Args:
-        cfg: Composed Hydra config. Must include ``training.n_folds``.
+        cfg: Composed Hydra config. Must include ``splitting.k_folds``.
 
     Returns:
-        Dictionary with ``"per_fold"`` and ``"aggregate"`` keys containing
-        metric results.
-
-    Note:
-        Dataset loading from config is not yet wired. Use
-        :func:`run_with_data` with a pre-loaded dataset instead.
+        Dictionary with ``"per_fold"`` and ``"aggregate"`` keys.
     """
     L.seed_everything(cfg.seed, workers=True)
-
-    data_cfg = cfg.get("data")
-    if data_cfg and data_cfg.get("dataset"):
+    
+    # Validate config
+    if not dataset:
+        data_cfg = cfg.get("data")
+        if data_cfg is None:
+            raise ValueError(
+                "Cross-validation requires a dataset. "
+                "Set it via: dnanet task=cross_validate data=your_dataset"
+            )
         dataset = instantiate(data_cfg.dataset)
-        return run_with_data(cfg, dataset)
+    _validate_dataset_for_callbacks(cfg, dataset)
 
-    logger.warning(
-        "No data config found. Use run_with_data(cfg, dataset) or "
-        "pass a data config group (e.g. data=dnanet_rd)."
-    )
-    return {"per_fold": [], "aggregate": {}}
+    if not cfg.splitting.get("k_folds"):
+        raise ValueError(
+            "task=cross_validate requires k-fold splitting. "
+            "Run with: dnanet task=cross_validate splitting=cross_validate ..."
+        )
 
+    split_kwargs: dict = OmegaConf.to_container(cfg.splitting, resolve=True)  # type: ignore[assignment]
+    folds, _test_set = cast(KFoldSplitResult, dataset_splitter(dataset, **split_kwargs))
 
-def run_with_data(
-    cfg: DictConfig,
-    dataset: Dataset,
-) -> dict[str, dict[str, float]]:
-    """Run k-fold cross-validation with a pre-loaded dataset.
+    _transform = getattr(dataset, "transform", None)
+    collate_fn = _transform.collate_fn if _transform is not None else default_collate
 
-    This is the primary programmatic entry point. It splits the dataset
-    into k folds, trains a fresh model on each fold, evaluates on the
-    held-out fold, and aggregates metrics.
+    k_folds = len(folds)
+    logger.info("Starting {}-fold cross-validation", k_folds)
 
-    Args:
-        cfg: Composed Hydra config. Must include ``training.n_folds``.
-        dataset: A loaded :class:`~dnanet.data.dataset.InMemoryDataset`.
-
-    Returns:
-        Dictionary with ``"per_fold"`` and ``"aggregate"`` keys containing
-        metric results.
-    """
-    from torch.utils.data import DataLoader
-
-    L.seed_everything(cfg.seed, workers=True)
-
-    n_folds = cfg.training.get("n_folds", 5)
-    logger.info("Starting {}-fold cross-validation", n_folds)
-
-    # -- Split into folds --------------------------------------------------
-    all_items = list(dataset) # TODO splitting
-    folds = split_data_in_k_folds(all_items, n_folds, seed=cfg.seed)
-    logger.info("Dataset: {} samples, split into {} folds: sizes = {}",
-                len(all_items), n_folds, [len(f) for f in folds])
-
-    # -- Per-fold train + evaluate -----------------------------------------
-    all_fold_results: list[dict[str, float]] = []
+    all_fold_metrics: list[dict[str, float]] = []
     agg_metrics: dict[str, list[float]] = defaultdict(list)
 
-    eval_cfg = cfg.get("evaluation", {})
-    pixel_metric_cfg = eval_cfg.get("pixel_metrics")
-    has_pixel_metrics = pixel_metric_cfg is not None and len(pixel_metric_cfg) > 0
+    use_mlflow = _is_mlflow_logger(cfg)
+    ctx = _mlflow_parent_run(cfg, k_folds) if use_mlflow else None
 
-    for fold_idx in range(n_folds):
-        logger.info("=" * 60)
-        logger.info("Fold {}/{}", fold_idx + 1, n_folds)
-        logger.info("=" * 60)
+    with (ctx if ctx is not None else _null_context()) as mlflow_info:
+        mlflow_cfg = mlflow_info[0] if use_mlflow else None
 
-        # Create train/test split for this fold
-        test_items = folds[fold_idx]
-        train_items = [
-            item for i, fold in enumerate(folds) if i != fold_idx for item in fold
-        ]
+        for fold_idx, (train_set, val_set) in enumerate(folds):
+            logger.info("=" * 60)
+            logger.info("Fold {}/{}", fold_idx + 1, k_folds)
+            logger.info("Train: {} samples, Val: {} samples", len(train_set), len(val_set))
 
-        logger.info("Train: {} samples, Test: {} samples",
-                     len(train_items), len(test_items))
+            fold_dir = Path(cfg.output_dir) / f"fold_{fold_idx + 1}"
+            fold_dir.mkdir(parents=True, exist_ok=True)
 
-        # Build fresh model for each fold
-        model_cfg = cfg.model
-        network = instantiate(model_cfg.architecture)
-        loss_fn = instantiate(model_cfg.loss)
-        module = _build_module(cfg, network, loss_fn)
+            network = instantiate(cfg.model.architecture)
+            optimizer = instantiate(cfg.train.optimizer, params=network.parameters())
+            scheduler = (
+                instantiate(cfg.train.scheduler, optimizer=optimizer)
+                if cfg.train.get("scheduler")
+                else None
+            )
+            module = instantiate(
+                cfg.train.lightning_module,
+                model=network,
+                optimizer=optimizer,
+                lr_scheduler=scheduler,
+                _convert_="partial",
+            )
+            _configure_module_for_callbacks(cfg, module)
 
-        # Optional validation split from training fold
-        val_fraction = cfg.training.get("val_fraction", 0.0)
-        if val_fraction > 0:
-            split_idx = int(len(train_items) * (1 - val_fraction))
-            val_items = train_items[split_idx:]
-            train_items = train_items[:split_idx]
-            val_loader = DataLoader( # FIXME
-                HIDTorchDataset(val_items),
-                batch_size=cfg.training.batch_size,
-                shuffle=False,
+            train_loader = DataLoader(
+                train_set,
+                batch_size=cfg.train.batch_size,
+                shuffle=True,
+                num_workers=cfg.train.num_workers,
                 pin_memory=True,
+                collate_fn=collate_fn,
             )
-        else:
-            val_loader = None
-
-        train_loader = DataLoader( # FIXME
-            HIDTorchDataset(train_items),
-            batch_size=cfg.training.batch_size,
-            shuffle=True,
-            pin_memory=True,
-        )
-
-        # Fold output directory
-        fold_dir = Path(cfg.output_dir) / f"fold_{fold_idx + 1}"
-        fold_dir.mkdir(parents=True, exist_ok=True)
-
-        # Train
-        trainer = L.Trainer(
-            max_epochs=cfg.training.max_epochs,
-            callbacks=_build_callbacks(cfg),
-            logger=_build_logger(cfg),
-            default_root_dir=str(fold_dir),
-            deterministic=True,
-            enable_progress_bar=True,
-        )
-
-        try:
-            trainer.fit(
-                module,
-                train_dataloaders=train_loader,
-                val_dataloaders=val_loader,
+            val_loader = DataLoader(
+                val_set,
+                batch_size=cfg.train.batch_size,
+                shuffle=False,
+                num_workers=cfg.train.num_workers,
+                pin_memory=True,
+                collate_fn=collate_fn,
             )
-        except KeyboardInterrupt:
-            logger.warning("Training interrupted at fold {}", fold_idx + 1)
-            break
 
-        # Evaluate on test fold
-        test_dataset = HIDTorchDataset(test_items) # FIXME
-        test_loader = DataLoader(
-            test_dataset,
-            batch_size=cfg.training.batch_size,
-            shuffle=False,
-            pin_memory=True,
-        )
+            fold_logger = _build_fold_logger(cfg, mlflow_cfg, fold_idx)
+            trainer = L.Trainer(
+                max_epochs=cfg.train.max_epochs,
+                callbacks=_build_callbacks(cfg),
+                logger=fold_logger,
+                default_root_dir=str(fold_dir),
+                deterministic=False,
+                enable_progress_bar=True,
+                log_every_n_steps=1,
+                check_val_every_n_epoch=1,
+            )
+            if trainer.logger is not None:
+                trainer.logger.log_hyperparams(cfg)
 
-        predictions = trainer.predict(module, test_loader)
-        pred_arrays = [
-            predictions[b][i].cpu().numpy()
-            for b in range(len(predictions))
-            for i in range(predictions[b].shape[0])
-        ]
-        gt_arrays = [
-            test_dataset[i][1].numpy()
-            for i in range(len(test_dataset))
-        ]
+            interrupted = False
+            try:
+                trainer.fit(module, train_dataloaders=train_loader, val_dataloaders=val_loader)
+            except KeyboardInterrupt:
+                logger.warning("Training interrupted at fold {}", fold_idx + 1)
+                interrupted = True
+            finally:
+                if use_mlflow:
+                    mlflow.end_run()  # ends nested fold run
 
-        # Compute metrics
-        fold_results: dict[str, float] = {}
-        if has_pixel_metrics:
-            from dnanet.tasks.evaluate import _compute_pixel_metrics
-            fold_results = _compute_pixel_metrics(gt_arrays, pred_arrays, pixel_metric_cfg)
+            fold_metrics = {
+                k: float(v.item() if hasattr(v, "item") else v)
+                for k, v in trainer.callback_metrics.items()
+            }
+            all_fold_metrics.append(fold_metrics)
+            for name, value in fold_metrics.items():
+                agg_metrics[name].append(value)
 
-        all_fold_results.append(fold_results)
-        for name, value in fold_results.items():
-            agg_metrics[name].append(value)
+            fold_dir.joinpath("metrics.json").write_text(json.dumps(fold_metrics, indent=2))
+            logger.info("Fold {} complete: {}", fold_idx + 1, fold_metrics)
 
-        # Save fold results
-        fold_metrics_path = fold_dir / "metrics.json"
-        fold_metrics_path.write_text(json.dumps(fold_results, indent=2))
-        logger.info("Fold {} results saved to {}", fold_idx + 1, fold_metrics_path)
+            if interrupted:
+                break
 
-    # -- Aggregate results -------------------------------------------------
-    aggregate: dict[str, float] = {}
-    for name, values in agg_metrics.items():
-        mean = float(np.mean(values))
-        std = float(np.std(values))
-        aggregate[f"{name}_mean"] = mean
-        aggregate[f"{name}_std"] = std
-        logger.info("  {}: {:.4f} ± {:.4f}", name, mean, std)
+        aggregate: dict[str, float] = {}
+        for name, values in agg_metrics.items():
+            mean = float(np.mean(values))
+            std = float(np.std(values))
+            aggregate[f"{name}_mean"] = mean
+            aggregate[f"{name}_std"] = std
+            logger.info("  {}: {:.4f} ± {:.4f}", name, mean, std)
 
-    # Save aggregate results
+        if use_mlflow:
+            mlflow.log_metrics(aggregate)
+
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    agg_path = output_dir / "aggregate_metrics.json"
-    agg_path.write_text(json.dumps(aggregate, indent=2))
-    logger.info("Aggregate results saved to {}", agg_path)
+    output_dir.joinpath("aggregate_metrics.json").write_text(json.dumps(aggregate, indent=2))
+    output_dir.joinpath("config.yaml").write_text(OmegaConf.to_yaml(cfg))
+    logger.info("Cross-validation complete. Results saved to {}", output_dir)
 
-    # Save config
-    config_path = output_dir / "config.yaml"
-    config_path.write_text(OmegaConf.to_yaml(cfg))
-
-    return {
-        "per_fold": all_fold_results,
-        "aggregate": aggregate,
-    }
+    return {"per_fold": all_fold_metrics, "aggregate": aggregate}

@@ -1,6 +1,9 @@
 # U-Net architecture for EPG segmentation
 name: unet
 
+defaults:
+  - /train@_global_.train: segmentation
+
 architecture:
   _target_: dnanet.models.unet.UNet
   depth: 4
@@ -9,4 +12,7 @@ architecture:
 
 loss:
   _target_: dnanet.models.loss.DiceLoss
+
+data_transform:
+  _target_: dnanet.data.transformer.SegmentationTransformer
 

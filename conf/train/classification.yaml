@@ -1,6 +1,10 @@
 # Training hyperparameters for classification models
 type: classification
 
+defaults:
+  - /metrics@_global_.metrics: multi-class
+
+
 max_epochs: 150
 batch_size: 1024
 learning_rate: 0.0001
@@ -8,24 +12,6 @@ weight_decay: 0.0005
 val_fraction: 0.1
 test_fraction: 0.0
 num_workers: 7
-seed: 42
-
-# Train and validation metrics
-metrics:
-  _target_: torchmetrics.MetricCollection
-  metrics:
-    precision:
-      _target_: torchmetrics.classification.MulticlassPrecision
-      num_classes: ${model.architecture.num_classes}
-      average: macro
-    recall:
-      _target_: torchmetrics.classification.MulticlassRecall
-      num_classes: ${model.architecture.num_classes}
-      average: macro
-    f1:
-      _target_: torchmetrics.classification.MulticlassF1Score
-      num_classes: ${model.architecture.num_classes}
-      average: macro
 
 optimizer:
   _target_: torch.optim.AdamW
@@ -51,27 +37,20 @@ checkpoint:
   save_top_k: 1
   mode: max
 
-data_transform:
-  _target_: dnanet.data.transformer.PeakClassificationTransformer
-  include_marker: ${model.architecture.use_embedding}
-
-
 # module initialization. You shouldn't need to change this
 lightning_module:
   _target_: dnanet.modules.classification.ClassificationModule
   learning_rate: ${train.learning_rate}
   weight_decay: ${train.weight_decay}
   loss_fn: ${model.loss}
-  num_classes: ${model.architecture.num_classes}
-  metrics: ${train.metrics}
+  num_classes: ${data.num_classes}
+  metrics:
+    _target_: torchmetrics.MetricCollection
+    metrics: ${metrics}
   batch_size: ${train.batch_size}
 
 data_module:
   _target_: dnanet.data.datamodule.DNANetDataModule
   batch_size: ${train.batch_size}
-  val_fraction: ${train.val_fraction}
   num_workers: ${train.num_workers}
-  seed: ${train.seed}
-  stratify_noc: ${oc.select:data.stratify_noc,false}
-  group_by_replica: ${oc.select:data.group_by_replica,false}
   shuffle_train: ${oc.select:data.shuffle_train,true}

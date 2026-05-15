@@ -45,6 +45,11 @@ class FakeModule:
         self.logged[name] = float(value)
 
 
+class FakeTrainer:
+    def __init__(self, sanity_checking: bool = False):
+        self.sanity_checking = sanity_checking
+
+
 def _batch(gt_marker: Marker) -> tuple[torch.Tensor, torch.Tensor, list[dict]]:
     signal = np.zeros((1, 8, 1), dtype=np.float32)
     return (
@@ -103,6 +108,28 @@ def test_allele_metrics_callback_logs_test_metrics():
     allele_call = callback.allele_caller.calls[0]
     assert allele_call["prediction_shape"] == (1, 8)
     assert allele_call["signal_shape"] == (1, 8)
+
+
+def test_allele_metrics_callback_logs_validation_metrics():
+    gt_marker = _marker("D5S818", 0, ["13", "15"])
+    pred_marker = _marker("D5S818", 0, ["13", "14"])
+    callback = AlleleMetricsCallback(allele_caller=FakeAlleleCaller([pred_marker]))
+    module = FakeModule()
+    trainer = FakeTrainer()
+
+    callback.on_validation_epoch_start(trainer, module)
+    callback.on_validation_batch_end(
+        trainer,
+        module,
+        outputs={"preds": torch.zeros((1, 1, 8, 1), dtype=torch.float32)},
+        batch=_batch(gt_marker),
+        batch_idx=0,
+    )
+    callback.on_validation_epoch_end(trainer, module)
+
+    assert module.logged["val/allele_precision"] == pytest.approx(0.5)
+    assert module.logged["val/allele_recall"] == pytest.approx(0.5)
+    assert module.logged["val/allele_f1"] == pytest.approx(0.5)
 
 
 def test_allele_metrics_callback_accepts_peaknet_metadata_batch():

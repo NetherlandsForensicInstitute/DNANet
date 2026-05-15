@@ -39,11 +39,24 @@ class AlleleAnnotation:
 
 
 @dataclass(frozen=True, slots=True)
+class SpanAnnotation:
+    """3-D one-hot span tensor, shape ``(num_dyes, scanpoints, num_classes)``.
+
+    Produced by :meth:`DatasetStrategy._parse_span_annotation` and consumed by
+    ``HIDDataset._load_images``.  Kept in 3-D form so that per-class
+    annotation adjustment can run before the tensor is collapsed to a 2-D
+    ``ScanpointAnnotation``.
+    """
+
+    data: np.ndarray  # (num_dyes, scanpoints, num_classes), dtype int8
+
+
+@dataclass(frozen=True, slots=True)
 class ClassAnnotation:
     data: str
 
 
-Annotation = ScanpointAnnotation | AlleleAnnotation
+Annotation = ScanpointAnnotation | AlleleAnnotation | SpanAnnotation
 
 
 # TODO: Test logic here

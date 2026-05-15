@@ -61,9 +61,9 @@ class TestSegmentationTransformer:
         assert x.shape == (5, 4, 1)
         assert y.shape == (5, 4, 1)
         assert x.dtype == torch.float32
-        assert y.dtype == torch.float32
+        assert y.dtype == torch.int64
         assert_close(x, torch.tensor(data, dtype=torch.float32))
-        assert_close(y, torch.tensor(annotation, dtype=torch.float32))
+        assert_close(y, torch.tensor(annotation, dtype=torch.int64))
 
     def test_returns_zero_target_without_annotation(self):
         data = np.arange(12, dtype=np.float32).reshape(3, 4, 1)
@@ -109,6 +109,7 @@ class TestCombinedTransformer:
             threshold=30,
             window_size=64,
             include_max_pool_dyes=True,
+            autoencoder_log_scale=False,
         )
         inputs, target = transformer(image)
         full_image, out_peak_windows, out_marker_idxs, out_peak_centers, n_peaks = inputs
@@ -142,7 +143,7 @@ class TestCombinedTransformer:
             ),
         )
 
-        inputs, target = CombinedTransformer()(image)
+        inputs, target = CombinedTransformer(autoencoder_log_scale=False)(image)
         full_image, _, _, _, n_peaks = inputs
 
         assert_close(full_image, torch.tensor(data, dtype=torch.float32))
@@ -204,8 +205,8 @@ class TestReconstructionTransformer:
 
         preprocessed, raw = ReconstructionTransformer(
             n_dyes=4,
-            log_scale=False,
-            max_rfu=1000,
+            autoencoder_log_scale=False,
+            autoencoder_max_rfu=1000,
         )(image)
 
         expected_raw = torch.tensor(data[:4, :, 0], dtype=torch.float32)
@@ -217,7 +218,7 @@ class TestReconstructionTransformer:
 
 
 class TestPeakClassificationTransformer:
-    def test_maps_marker_and_label_with_configured_strategies(self, ppf6c_kit, nfi_rnd_dataset):
+    def test_maps_marker_and_label(self, ppf6c_kit, nfi_rnd_dataset):
         scaling_strategy = ppf6c_kit
         dataset_strategy = nfi_rnd_dataset
         marker_name = scaling_strategy.marker_names[0]
@@ -229,11 +230,11 @@ class TestPeakClassificationTransformer:
             peak_height=500.0,
             label='allele',
             marker_name=marker_name,
+            marker_index=scaling_strategy.marker_to_idx[marker_name],
+            annotation_idx=dataset_strategy.get_annotation_classes().index('allele'),
         )
 
         inputs, target = PeakClassificationTransformer(
-            scaling_strategy=scaling_strategy,
-            dataset_strategy=dataset_strategy,
             include_marker=True,
         )(peak)
         peak_tensor, marker_tensor = inputs
@@ -244,8 +245,9 @@ class TestPeakClassificationTransformer:
         assert target.item() == dataset_strategy.get_annotation_classes().index('allele')
         assert target.dtype == torch.long
 
-    def test_uses_negative_marker_index_when_marker_embedding_disabled(self, ppf6c_kit, nfi_rnd_dataset):
-        scaling_strategy = ppf6c_kit
+    def test_uses_negative_marker_index_when_marker_embedding_disabled(
+        self, ppf6c_kit, nfi_rnd_dataset
+    ):
         dataset_strategy = nfi_rnd_dataset
         peak = ExtractedPeak(
             data=np.ones((1, 120), dtype=np.float32),
@@ -255,14 +257,15 @@ class TestPeakClassificationTransformer:
             peak_height=250.0,
             label='noise',
             marker_name='ignored',
+            marker_index=-1,
+            annotation_idx=0,
         )
 
         inputs, target = PeakClassificationTransformer(
-            scaling_strategy=scaling_strategy,
-            dataset_strategy=dataset_strategy,
             include_marker=False,
         )(peak)
-        _, marker_tensor = inputs
+        # When include_marker=False, inputs is just the peak tensor
+        assert isinstance(inputs, torch.Tensor)
+        assert inputs.shape == (1, 120)
 
-        assert marker_tensor.item() == -1
         assert target.item() == 0
