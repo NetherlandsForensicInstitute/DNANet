@@ -366,7 +366,6 @@ class HIDDataset(Dataset, TransformableDataset):
                     allele_annotation=annotation,
                     adjusted_panel=current_panel,
                     scaler=image.scaler,
-                    include_size_standard=self.include_size_standard,
                     scaling_strategy=self._scaling,
                     profile_data=image.data if self.adjustment_of_annotations else None,
                     adjustment_type=self.adjustment_of_annotations,
@@ -399,6 +398,9 @@ class HIDDataset(Dataset, TransformableDataset):
             else:
                 scanpoint_annotation = annotation
 
+            if scanpoint_annotation and not self.include_size_standard:
+                scanpoint_annotation = ScanpointAnnotation(scanpoint_annotation.data[:-1])
+
             image.annotation = scanpoint_annotation
 
             if image.annotation is None and not self.allow_missing_annotations:
@@ -420,7 +422,6 @@ class HIDDataset(Dataset, TransformableDataset):
         allele_annotation: AlleleAnnotation,
         adjusted_panel: Panel,
         scaler: np.ndarray,
-        include_size_standard: bool,
         scaling_strategy: ScalingStrategy,
         profile_data: np.ndarray | None = None,
         adjustment_type: str | None = None,
@@ -440,10 +441,8 @@ class HIDDataset(Dataset, TransformableDataset):
         inserted at the boundary between any adjacent or overlapping bins so
         that isolated islands of 1s are always preserved.
         """
-        kit_num_dyes = scaling_strategy.kit.num_dyes
-        num_dyes = kit_num_dyes if include_size_standard else kit_num_dyes - 1
         scanpoint_annotation = np.zeros(
-            (num_dyes, scaling_strategy.scanpoint_resolution),
+            (scaling_strategy.kit.num_dyes, scaling_strategy.scanpoint_resolution),
             dtype=np.int8,
         )
 
