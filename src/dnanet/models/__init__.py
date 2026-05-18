@@ -13,6 +13,7 @@ Reconstruction:
     - :class:`~dnanet.models.autoencoder.Conv1dAutoencoder`
     - :class:`~dnanet.models.autoencoder.PerDyeConv1dAutoencoder`
     - :class:`~dnanet.models.autoencoder.SharedWeightPerDyeConv1dAutoencoder`
+    - :class:`~dnanet.models.autoencoder.UNet2DAutoEncoder`
     - :class:`~dnanet.models.autoencoder.FourierAutoencoder`
 
 Classification:

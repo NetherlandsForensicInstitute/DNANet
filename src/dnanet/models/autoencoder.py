@@ -1,29 +1,34 @@
-"""1D convolutional autoencoder architectures for EPG reconstruction.
+"""Autoencoder models for learning compact EPG profile representations.
 
-This module provides autoencoders that compress and reconstruct
-electropherogram signals. Four architecture variants are available:
+These models reconstruct full electropherograms from a compressed latent
+representation. In practice, that latent representation matters more than
+the reconstruction itself: the encoder is used by PeakNet as a source of
+global context for peak classification.
 
-- :class:`Conv1dAutoencoder` — Shared multi-channel CNN autoencoder.
-- :class:`PerDyeConv1dAutoencoder` — Independent sub-encoder per dye channel.
-- :class:`SharedWeightPerDyeConv1dAutoencoder` — Per-dye processing with
-  weight tying (single shared sub-encoder reused across channels).
-- :class:`FourierAutoencoder` — Non-trainable baseline using truncated rFFT.
+Pretraining the autoencoder is useful when labelled peak data is limited.
+It lets the combined model start from a profile-level representation that
+already preserves large-scale signal structure.
 
-Design pattern: **Template Method**
-    :class:`AbstractAutoencoder` defines the ``forward = decode(encode(x))``
-    skeleton. Subclasses fill in the encoder/decoder implementations.
+Available variants:
 
-Design pattern: **Composite**
-    :class:`PerDyeConv1dAutoencoder` composes multiple
-    :class:`Conv1dAutoencoder` instances (one per dye channel).
+- :class:`Conv1dAutoencoder` — one shared multi-channel encoder/decoder.
+- :class:`PerDyeConv1dAutoencoder` — separate encoder/decoder per dye.
+- :class:`SharedWeightPerDyeConv1dAutoencoder` — per-dye processing with
+  shared weights across dyes.
+- :class:`UNet2DAutoEncoder` — U-Net-style autoencoder over the full
+  dye-by-signal image.
+- :class:`FourierAutoencoder` — fixed non-learned frequency baseline.
 """
 
 from __future__ import annotations
 
 import abc
+from typing import Tuple
 
 import torch
 from torch import Tensor, nn
+
+from dnanet.models import UNet
 
 
 class AbstractAutoencoder(nn.Module, abc.ABC):
@@ -52,8 +57,12 @@ class AbstractAutoencoder(nn.Module, abc.ABC):
 class Conv1dAutoencoder(AbstractAutoencoder):
     """Multi-channel 1D convolutional autoencoder.
 
-    Treats all input channels jointly — convolutions operate across all
-    ``in_channels`` together.
+    Treats all dye channels jointly, so the encoder can learn cross-channel
+    structure in a single latent code.
+
+    Use this variant when a shared representation across dyes is desirable.
+    If you want to keep dye channels independent and avoid early mixing,
+    use :class:`PerDyeConv1dAutoencoder` instead.
 
     Architecture:
         - **Encoder**: ``depth`` strided Conv1d blocks (stride=2) that
@@ -201,7 +210,11 @@ class PerDyeConv1dAutoencoder(AbstractAutoencoder):
 
     Creates ``in_channels`` separate :class:`Conv1dAutoencoder` instances,
     each with ``in_channels=1``. No cross-channel mixing occurs — each dye
-    is encoded/decoded independently.
+    is encoded and decoded independently.
+
+    This is the default autoencoder used in PeakNet. It keeps dye-specific
+    structure separate while still producing a compact global summary of the
+    full profile.
 
     Args:
         in_channels: Number of dye channels.
@@ -277,6 +290,9 @@ class SharedWeightPerDyeConv1dAutoencoder(PerDyeConv1dAutoencoder):
     Same encode/decode flow as :class:`PerDyeConv1dAutoencoder`, but all
     channels share a single :class:`Conv1dAutoencoder` — reducing model
     size and enforcing the same transform per channel.
+
+    This is a useful compromise when dye channels should stay separate but
+    you want fewer parameters than the fully independent per-dye model.
     """
 
     def __init__(self, **kwargs) -> None:
@@ -297,6 +313,67 @@ class SharedWeightPerDyeConv1dAutoencoder(PerDyeConv1dAutoencoder):
             [shared_net] * kwargs.get("in_channels", 5)
         )
 
+class UNet2DAutoEncoder(AbstractAutoencoder):
+    """U-Net-style autoencoder for full electropherogram images.
+
+    This variant treats the profile as a 2D dye-by-signal image instead of
+    a set of independent 1D traces. That makes it useful when cross-dye
+    structure is part of the signal you want the latent representation to
+    preserve.
+
+    It wraps :class:`dnanet.models.UNet` as an autoencoder. The encoder
+    returns the bottleneck representation, and the decoder reconstructs the
+    input using the skip connections captured during the most recent
+    encoder pass.
+    """
+
+    def __init__(
+            self,
+            depth: int,
+            kernel_size: Tuple[int, int],
+            num_filters: int,
+            in_channels: int = 1,
+    ):
+        super().__init__(in_channels=in_channels)
+        if in_channels != 1:
+            raise ValueError("`UNet` wrapper currently supports `in_channels=1` only.")
+
+        self.net = UNet(
+            depth=depth,
+            kernel_size=kernel_size,
+            num_filters=num_filters,
+        )
+        # `UNet` stores (C, H, W) after encoder blocks (before bottleneck conv)
+        self._encoded_shape = self.net.shape_after_encoder
+
+        self._latest_skips = None
+
+    def encoder(self, x: torch.Tensor) -> torch.Tensor:
+        # Accept (N, 1, H, W) or (N, 1, H, W, 1) or (N, H, W)
+        if x.dim() == 4 and x.shape[-1] == 1:
+            x = x.squeeze(-1)
+        if x.dim() == 3:
+            x = x.unsqueeze(1)
+        if x.dim() == 5 and x.shape[-1] == 1:
+            x = x.squeeze(-1)
+        if x.dim() != 4:
+            raise ValueError(f"Expected 4D input (N, C, H, W), got shape {tuple(x.shape)}.")
+
+        # raise ValueError(f"Shape {tuple(x.shape)} not supported by UNet1DAutoEnc.")
+
+        b, skips = self.net.encode(x)
+        self._latest_skips = skips
+        return b
+
+    def decoder(self, z: torch.Tensor) -> torch.Tensor:
+        if self._latest_skips is None:
+            raise RuntimeError("encoder must run before decoder to populate skip connections.")
+        skips = list(self._latest_skips)
+        return self.net.decode(z, skips).squeeze(1)
+
+    def encoded_shape(self) -> Tuple[int, ...]:
+        return tuple(self._encoded_shape)
+
 
 class FourierAutoencoder(AbstractAutoencoder):
     """Non-trainable autoencoder using truncated real FFT.
@@ -305,7 +382,9 @@ class FourierAutoencoder(AbstractAutoencoder):
     components of the rFFT. Decodes by zero-padding the spectrum and
     applying the inverse rFFT.
 
-    This is a **baseline model** — it has no learnable parameters.
+    This is a lightweight baseline with no learnable parameters. It is
+    useful for sanity checks and for comparing learned encoders against a
+    simple frequency-domain compression scheme.
 
     Args:
         in_channels: Number of input channels.

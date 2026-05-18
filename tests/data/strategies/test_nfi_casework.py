@@ -161,18 +161,18 @@ class TestCacheSignature:
     def test_with_robot_selection(self):
         sig = NFICaseStrategy(
             'ATLT',
-            robot_selection=['3500XL_A', '3500XL_B'],
+            subfolder_selection=['3500XL_A', '3500XL_B'],
         ).cache_signature()
-        assert 'robot_selection' in sig
-        assert set(sig['robot_selection']) == {'3500XL_A', '3500XL_B'}
+        assert 'subfolder_selection' in sig
+        assert set(sig['subfolder_selection']) == {'3500XL_A', '3500XL_B'}
 
     @pytest.mark.skip(reason='robot_selection param was removed from NFICaseStrategy')
     def test_robot_selection_deduplicates(self):
         sig = NFICaseStrategy(
             'ATLT',
-            robot_selection=['3500XL_A', '3500XL_A'],
+            subfolder_selection=['3500XL_A', '3500XL_A'],
         ).cache_signature()
-        assert len(sig['robot_selection']) == 1
+        assert len(sig['subfolder_selection']) == 1
 
 
 # ---------------------------------------------------------------------------

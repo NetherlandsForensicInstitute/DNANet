@@ -74,39 +74,51 @@ loss:
 
 ```yaml
 architecture:
-  _target_: dnanet.models.autoencoder.Conv1dAutoencoder
-  num_dyes: 5
-  signal_length: 4096
-  depth: 5
-  compression: 16
+  _target_: dnanet.models.autoencoder.PerDyeConv1dAutoencoder
+  in_channels: 6
+  input_length: 4096
+  hidden_channels: 64
+  depth: 4
+  compression: 8
 loss:
   _target_: torch.nn.MSELoss
 ```
+
+Used to pretrain a compact profile representation. PeakNet later reuses
+the encoder output as global context.
 
 #### `peak_classifier` — Peak Classification
 
 ```yaml
 architecture:
   _target_: dnanet.models.peak_classifier.PeakClassificationModel
-  input_size: 100
-  hidden_size: 64
-  num_classes: 5
-  num_layers: 3
+  width: 120
+  n_markers: 28
+  embedding_dim: 8
+  hidden_channels: [32, 64]
+  pooling: flat
 loss:
-  _target_: dnanet.models.loss.FocalLoss
+  _target_: torch.nn.CrossEntropyLoss
 ```
+
+Used both as a standalone peak classifier and as the local branch inside
+PeakNet.
 
 #### `peaknet` — Combined Classifier
 
 ```yaml
 architecture:
   _target_: dnanet.models.peaknet.CombinedClassifier
-  segmentation_model: ...
-  classification_model: ...
-  combiner_type: film     # mlp, film, or cross_attention
+  autoencoder: ...
+  peak_classifier: ...
+  hidden_dims: [64, 32]
+  combiner: mlp           # mlp, film, or attention
 loss:
-  _target_: dnanet.models.loss.FocalLoss
+  _target_: torch.nn.CrossEntropyLoss
 ```
+
+Combines local peak-window features with full-profile context from the
+autoencoder encoder.
 
 ### Training (`conf/training/`)
 
