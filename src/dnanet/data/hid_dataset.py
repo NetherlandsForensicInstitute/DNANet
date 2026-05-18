@@ -560,6 +560,11 @@ class HIDDataset(Dataset, TransformableDataset):
 
                 groups = np.split(regions, np.where(np.diff(regions) != 1)[0] + 1)
                 for group in groups:
+                    if len(group) == 1:
+                        # We assume that this span-annotation of 1px is not something an annotator would (conciously) do, hence we skip
+                        logger.trace(f"Skipping 1px wide annotation 'group': {(dye_idx, group, class_idx)}")
+                        continue
+                    
                     span_data[dye_idx, group, class_idx] = 0
                     rep_idx = find_fn(dye_signal, group, threshold)  # type: ignore[operator]
                     if rep_idx.size == 0:
