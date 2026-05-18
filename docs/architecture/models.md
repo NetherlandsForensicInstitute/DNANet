@@ -81,6 +81,13 @@ representation.
 Like the per-dye model, but all dye channels share the same weights.
 This reduces parameter count while keeping channels separate.
 
+### UNet2DAutoEncoder
+
+Processes the electropherogram as a full 2D image with a U-Net-style
+encoder and decoder. Use this when information across dye channels is
+important and you want the latent representation to retain both local
+detail and broader image-level context.
+
 ### FourierAutoencoder
 
 Non-learned baseline that compresses each signal in the frequency domain.

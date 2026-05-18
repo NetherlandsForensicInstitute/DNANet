@@ -15,15 +15,20 @@ Available variants:
 - :class:`PerDyeConv1dAutoencoder` — separate encoder/decoder per dye.
 - :class:`SharedWeightPerDyeConv1dAutoencoder` — per-dye processing with
   shared weights across dyes.
+- :class:`UNet2DAutoEncoder` — U-Net-style autoencoder over the full
+  dye-by-signal image.
 - :class:`FourierAutoencoder` — fixed non-learned frequency baseline.
 """
 
 from __future__ import annotations
 
 import abc
+from typing import Tuple
 
 import torch
 from torch import Tensor, nn
+
+from dnanet.models import UNet
 
 
 class AbstractAutoencoder(nn.Module, abc.ABC):
@@ -307,6 +312,67 @@ class SharedWeightPerDyeConv1dAutoencoder(PerDyeConv1dAutoencoder):
         self.per_channel_nets = nn.ModuleList(
             [shared_net] * kwargs.get("in_channels", 5)
         )
+
+class UNet2DAutoEncoder(AbstractAutoencoder):
+    """U-Net-style autoencoder for full electropherogram images.
+
+    This variant treats the profile as a 2D dye-by-signal image instead of
+    a set of independent 1D traces. That makes it useful when cross-dye
+    structure is part of the signal you want the latent representation to
+    preserve.
+
+    It wraps :class:`dnanet.models.UNet` as an autoencoder. The encoder
+    returns the bottleneck representation, and the decoder reconstructs the
+    input using the skip connections captured during the most recent
+    encoder pass.
+    """
+
+    def __init__(
+            self,
+            depth: int,
+            kernel_size: Tuple[int, int],
+            num_filters: int,
+            in_channels: int = 1,
+    ):
+        super().__init__(in_channels=in_channels)
+        if in_channels != 1:
+            raise ValueError("`UNet` wrapper currently supports `in_channels=1` only.")
+
+        self.net = UNet(
+            depth=depth,
+            kernel_size=kernel_size,
+            num_filters=num_filters,
+        )
+        # `UNet` stores (C, H, W) after encoder blocks (before bottleneck conv)
+        self._encoded_shape = self.net.shape_after_encoder
+
+        self._latest_skips = None
+
+    def encoder(self, x: torch.Tensor) -> torch.Tensor:
+        # Accept (N, 1, H, W) or (N, 1, H, W, 1) or (N, H, W)
+        if x.dim() == 4 and x.shape[-1] == 1:
+            x = x.squeeze(-1)
+        if x.dim() == 3:
+            x = x.unsqueeze(1)
+        if x.dim() == 5 and x.shape[-1] == 1:
+            x = x.squeeze(-1)
+        if x.dim() != 4:
+            raise ValueError(f"Expected 4D input (N, C, H, W), got shape {tuple(x.shape)}.")
+
+        # raise ValueError(f"Shape {tuple(x.shape)} not supported by UNet1DAutoEnc.")
+
+        b, skips = self.net.encode(x)
+        self._latest_skips = skips
+        return b
+
+    def decoder(self, z: torch.Tensor) -> torch.Tensor:
+        if self._latest_skips is None:
+            raise RuntimeError("encoder must run before decoder to populate skip connections.")
+        skips = list(self._latest_skips)
+        return self.net.decode(z, skips).squeeze(1)
+
+    def encoded_shape(self) -> Tuple[int, ...]:
+        return tuple(self._encoded_shape)
 
 
 class FourierAutoencoder(AbstractAutoencoder):
