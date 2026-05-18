@@ -27,7 +27,7 @@ Loss functions:
     - :class:`~dnanet.models.loss.DiceLoss` — Dice loss for segmentation
     - :class:`~dnanet.models.loss.FocalLoss` — Focal loss for classification
 """
-
+from dnanet.models.unet import UNet
 from dnanet.models.autoencoder import (
     Conv1dAutoencoder,
     FourierAutoencoder,
@@ -37,7 +37,7 @@ from dnanet.models.autoencoder import (
 from dnanet.models.loss import DiceLoss, FocalLoss
 from dnanet.models.peak_classifier import PeakClassificationModel
 from dnanet.models.peaknet import CombinedClassifier, PeakOnlyClassifier
-from dnanet.models.unet import UNet
+
 
 __all__ = [
     # Segmentation
