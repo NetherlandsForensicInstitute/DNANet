@@ -4,7 +4,7 @@ Handles the NFI Zaaksdata
 
 Warning:
     This strategy is developed specifically for our in-house casework.
-    Altough file-collection and caching logic might be of use for your own implementation,
+    Although file-collection and caching logic might be of use for your own implementation,
     using this strategy for other/your own data does not make sense.
 
     Please see the documentation about developing your own strategy, or use the two other strategies for the open-source data.
@@ -61,7 +61,7 @@ class NFICaseStrategy(DatasetStrategy):
         Available annotation types:
         - AT: only include profiles with a "high" analytical threshold (allele annotation)
         - LT: only include profiles with a low threshold (allele annotation)
-        - ATLT: include profiles with either a high or low threshold (allele annotation)
+        - ATLT: include profiles with either a high or low threshold, meaning all annotations are included (allele annotation)
         - span: include profiles with a span annotation (scanpoint annotation)
         """
         super().__init__()
@@ -211,13 +211,17 @@ class NFICaseStrategy(DatasetStrategy):
             annotations_folder = path / 'annotations'
             annotation_mapping = cls.find_annotation_files(annotations_folder)
 
-            # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
-            run_id_path = path / 'runid_type.csv'
-            if not run_id_path.exists():
-                raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
-            run_id_type_mapping = {
-                row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
-            }
+            if annotation_type == 'ATLT':
+                # for ATLT, we include all annotations, there do not need a runid type mapping.
+                run_id_type_mapping = dict()
+            else:
+                # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
+                run_id_path = path / 'runid_type.csv'
+                if not run_id_path.exists():
+                    raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
+                run_id_type_mapping = {
+                    row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
+                }
 
             def resolve_annotation(hid_file: Path) -> AlleleAnnotation | None:
                 run_id = hid_file.stem.split('_')[0]

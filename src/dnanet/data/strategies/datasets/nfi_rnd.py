@@ -385,8 +385,8 @@ class NFIRnDStrategy(DatasetStrategy):
             List of Markers with their alleles, or ``None`` if not found.
         """
         if os.stat(annotation_source).st_size == 0:
-            logger.debug('Empty annotation file: {}', annotation_source)
-            raise RuntimeError('Annotations file is emtpy')
+            logger.debug('Skipping empty annotation file: {}', annotation_source)
+            return {}
 
         annotation_mapping: Dict[str, AlleleAnnotation] = {}
         with open(annotation_source, 'r') as f:
@@ -396,7 +396,8 @@ class NFIRnDStrategy(DatasetStrategy):
             delimiter, allele_cols, height_cols = header_result
 
             reader = csv.reader(f, delimiter=delimiter)
-            for sample, rows in groupby(reader, lambda row: row[0]):
+            filtered = (row for row in reader if row)  # skips empty lines
+            for sample, rows in groupby(filtered, lambda row: row[0]):
                 sample_annotation = cls._parse_sample_annotations(
                     rows, allele_cols, height_cols, scaling_strategy
                 )
