@@ -1,5 +1,10 @@
 # @package _global_
+defaults:
+  - /evaluate: segmentation
+  - _self_
+
 task: evaluate
+
 
 model:
   data_transform_active:
