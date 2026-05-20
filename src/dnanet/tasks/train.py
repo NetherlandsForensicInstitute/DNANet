@@ -21,6 +21,7 @@ Usage::
 
 from __future__ import annotations
 
+from calendar import c
 from typing import TYPE_CHECKING
 from pathlib import Path
 
@@ -32,6 +33,7 @@ from hydra.utils import instantiate
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
 from dnanet.data.transformer import AlleleMetadataTransformer
+from dnanet.data.utils import get_class_weights
 
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
@@ -292,23 +294,6 @@ def run(
         sum(p.numel() for p in network.parameters()),
     )
 
-    # -- Optimizer and scheduler -------------------------------------------
-    optimizer = instantiate(cfg.train.optimizer, params=network.parameters())
-
-    if cfg.train.get('scheduler'):
-        scheduler = instantiate(cfg.train.scheduler, optimizer=optimizer)
-    else:
-        scheduler = None
-
-    # -- Lightning module --------------------------------------------------
-    module = instantiate(
-        cfg.train.lightning_module,
-        model=network,
-        optimizer=optimizer,
-        lr_scheduler=scheduler,
-        _convert_='partial',  # convert OmegaDict to standard dict since this is not a supported type for instantiating
-    )
-
     # -- Data --------------------------------------------------------------
     if not dataset:
         if (data_cfg := cfg.get('data')) is None:
@@ -319,10 +304,42 @@ def run(
         dataset = instantiate(data_cfg.dataset)
     _validate_dataset_for_callbacks(cfg, dataset)
 
-    _configure_module_for_callbacks(cfg, module)
-
     datamodule = instantiate(cfg.train.data_module, dataset=dataset, **cfg.splitting)
     datamodule.setup('fit')
+    
+    
+    if "num_classes" in cfg.model and cfg.get('class_balance', False):
+        class_weights = get_class_weights(
+            datamodule._train_dataset, 
+            num_classes=cfg.model.num_classes
+        )
+        new_loss_fn = {
+            "_target_": cfg.model.loss._target_,
+            "weight": {
+                "_target_": "torch.Tensor",
+                "data": class_weights.tolist()
+            }
+        }
+        cfg.train.lightning_module.loss_fn = new_loss_fn
+        cfg.model.loss = new_loss_fn
+        logger.info(f"Calculated and applied class weights to Loss Function")
+    
+    # -- Optimizer and scheduler -------------------------------------------
+    optimizer = instantiate(cfg.train.optimizer, params=network.parameters())
+
+    if cfg.train.get('scheduler'):
+        scheduler = instantiate(cfg.train.scheduler, optimizer=optimizer)
+    else:
+        scheduler = None 
+    # -- Lightning module --------------------------------------------------
+    module = instantiate(
+        cfg.train.lightning_module,
+        model=network,
+        optimizer=optimizer,
+        lr_scheduler=scheduler,
+        _convert_='partial',  # convert OmegaDict to standard dict since this is not a supported type for instantiating
+    )
+    _configure_module_for_callbacks(cfg, module)
 
     logger.info(
         'Training config: {} epochs, lr={}, batch_size={}',
