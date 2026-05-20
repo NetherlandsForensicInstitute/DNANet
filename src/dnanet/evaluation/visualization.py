@@ -13,12 +13,18 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
+import matplotlib
+
+
+matplotlib.use("Agg")
+
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.patches import Patch
 
 from dnanet.core.constants import LabelCategory
+
 
 # Standard dye channel colors for forensic EPG visualization
 DYE_COLORS: tuple[str, ...] = ("blue", "green", "black", "red", "purple", "orange")

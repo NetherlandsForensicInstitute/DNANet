@@ -1,6 +1,7 @@
 """Profile plot evaluation callback.
 
-The profile plot is available during test runs."""
+The profile plot is available during test runs.
+"""
 
 from __future__ import annotations
 
@@ -8,12 +9,17 @@ import re
 from typing import TYPE_CHECKING, Any
 from pathlib import Path
 
+import matplotlib
+
+
+matplotlib.use("Agg")
+
 import numpy as np
 from loguru import logger
 from lightning import Callback
 from matplotlib import pyplot as plt
 
-from dnanet.evaluation.visualization import coerce_class_map, plot_profile
+from dnanet.evaluation.visualization import plot_profile, coerce_class_map
 from dnanet.evaluation.callbacks.allele_metrics import AlleleMetricsCallback
 
 
