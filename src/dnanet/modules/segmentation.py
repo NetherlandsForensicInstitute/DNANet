@@ -85,7 +85,6 @@ class SegmentationModule(BaseTaskModule):
             {
                 'learning_rate': learning_rate,
                 'weight_decay': weight_decay,
-                'threshold': threshold,
             }
         )
 
@@ -176,3 +175,25 @@ class MultiClassSegmentationModule(SegmentationModule):
         best_class = torch.argmax(preds, dim=1)
 
         return best_class
+
+    def compute_step_outputs(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        """Compute loss and metric inputs for a single batch.
+
+        Args:
+            batch: ``(input_tensor, target_tensor)`` from DataLoader.
+
+        Returns:
+            Scalar loss plus flattened prediction/target tensors for metrics.
+        """
+        loss, preds, y = self._compute_loss_and_probabilities(batch)
+        return loss, preds.reshape(-1), y.reshape(-1).int()
+
+    def compute_test_step_outputs(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        loss, preds, y = self._compute_loss_and_probabilities(batch)
+        return loss, preds.reshape(-1), y.reshape(-1).int(), preds
