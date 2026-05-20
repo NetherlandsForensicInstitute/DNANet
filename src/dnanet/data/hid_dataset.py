@@ -26,7 +26,7 @@ from __future__ import annotations
 import os
 import json
 import random
-from typing import TYPE_CHECKING, Any, List, Tuple, Generator
+from typing import TYPE_CHECKING, Any, List, Tuple, Generator, Optional
 from pathlib import Path
 from collections import defaultdict
 
@@ -383,17 +383,13 @@ class HIDDataset(Dataset, TransformableDataset):
                 # Adjustment runs per class-layer on the 3-D tensor before
                 # argmax-flattening so that finer-grained class labels (e.g.
                 # shoulder) are not erased by coarser ones during collapse.
-                if self.adjustment_of_annotations:
-                    adjusted_2d = self._adjust_and_flatten_span_annotation(
-                        profile=image,
-                        span_annotation=annotation,
-                        adjustment_type=self.adjustment_of_annotations,
-                    )
-                    scanpoint_annotation = ScanpointAnnotation(adjusted_2d)
-                else:
-                    scanpoint_annotation = self._dataset_strategy._span_to_scanpoint_annotation(
-                        annotation.data, path.stem
-                    )
+                adjusted_2d = self._adjust_and_flatten_span_annotation(
+                    profile=image,
+                    span_annotation=annotation,
+                    adjustment_type=self.adjustment_of_annotations,
+                )
+                scanpoint_annotation = ScanpointAnnotation(adjusted_2d)
+
             elif isinstance(annotation, ScanpointAnnotation) and self.adjustment_of_annotations:
                 # Is there a scenario where we're already loading a ScanpointAnnotation
                 # and want to adjust it? If so, that'd be done here.
@@ -516,7 +512,7 @@ class HIDDataset(Dataset, TransformableDataset):
         self,
         profile: HIDImage,
         span_annotation: SpanAnnotation,
-        adjustment_type: str,
+        adjustment_type: Optional[str],
         threshold: int = 0,
     ) -> np.ndarray:
         """Adjust a 3-D span annotation per class, then flatten to a 2-D label array.
@@ -534,15 +530,15 @@ class HIDDataset(Dataset, TransformableDataset):
         Args:
             profile: The HID profile whose signal is used for peak detection.
             span_annotation: The ``(num_dyes, scanpoints, num_classes)`` tensor.
-            adjustment_type: ``'top'`` or ``'complete'``.
+            adjustment_type: ``'top'``, ``'complete'`` or None for no annotation
             threshold: Minimum RFU for a scanpoint to be considered a peak.
 
         Returns:
             ``(num_dyes, scanpoints)`` int8 array of class indices ready for
             wrapping in :class:`ScanpointAnnotation`.
         """
-        if profile.data is None:
-            return span_annotation.data.argmax(axis=-1).astype(np.int8)
+        if profile.data is None or not adjustment_type:
+            return convert_3d_span_to_2d_scanpoint_annotations(span_annotation.data)
 
         span_data = span_annotation.data.copy()
         num_classes = span_data.shape[-1]
@@ -596,10 +592,18 @@ class HIDDataset(Dataset, TransformableDataset):
                     else:
                         span_data[dye_idx, rep_idx, class_idx] = 1
 
-        # Flatten: highest (most specific) class index wins when two peaks
-        # happen to land on the same scanpoint after adjustment.
-        weights = span_data * np.arange(num_classes, dtype=np.int8)
-        return weights.max(axis=-1).astype(np.int8)
+        return convert_3d_span_to_2d_scanpoint_annotations(span_data)
+
+
+def convert_3d_span_to_2d_scanpoint_annotations(span_data: np.ndarray) -> np.ndarray:
+    """
+    Flattens a 3d span annotation to 2d scan point annotations.
+    highest (most specific) class index wins when two peaks
+    # happen to land on the same scanpoint after adjustment.
+    """
+    weights = span_data * np.arange(span_data.shape[-1], dtype=np.int8)
+    return weights.max(axis=-1).astype(np.int8)
+
 
     # -- Properties -------------------------------------------------------- #
 

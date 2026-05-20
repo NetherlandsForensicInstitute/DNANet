@@ -350,26 +350,4 @@ class DatasetStrategy(ABC):
         )
         return spannotations[0]
 
-    @staticmethod
-    def _span_to_scanpoint_annotation(
-        span_annotation: np.ndarray, hid_file_name: str
-    ) -> ScanpointAnnotation:
-        """Flatten a one-hot span tensor to class indices per dye and scanpoint.
 
-        Args:
-            span_annotation: ``(num_dyes, scanpoints, num_classes)`` span tensor.
-            hid_file_name: HID profile filename used for overlap logging.
-
-        Returns:
-            A :class:`ScanpointAnnotation` containing a ``(num_dyes, scanpoints)``
-            integer label array.
-        """
-        # TODO this should optionally adjust annotations to top to avoid overlap
-        flattened = span_annotation.argmax(axis=-1)
-
-        if np.any(span_annotation.sum(axis=-1) > 1):
-            logger.debug(
-                f'Found overlapping annotations for {hid_file_name}, taking the lowest class index'
-            )
-
-        return ScanpointAnnotation(flattened.astype(np.int8, copy=False))
