@@ -85,7 +85,6 @@ class SegmentationModule(BaseTaskModule):
             {
                 'learning_rate': learning_rate,
                 'weight_decay': weight_decay,
-                'threshold': threshold,
             }
         )
 

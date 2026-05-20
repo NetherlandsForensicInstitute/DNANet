@@ -28,8 +28,6 @@ from typing import Tuple
 import torch
 from torch import Tensor, nn
 
-from dnanet.models import UNet
-
 
 class AbstractAutoencoder(nn.Module, abc.ABC):
     """Abstract base class for 1D autoencoders.
@@ -337,7 +335,9 @@ class UNet2DAutoEncoder(AbstractAutoencoder):
         super().__init__(in_channels=in_channels)
         if in_channels != 1:
             raise ValueError("`UNet` wrapper currently supports `in_channels=1` only.")
-
+        
+        # Import here to prevent circular imports
+        from dnanet.models import UNet
         self.net = UNet(
             depth=depth,
             kernel_size=kernel_size,
