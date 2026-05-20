@@ -157,6 +157,7 @@ class TestCacheSignature:
         assert 'robot_selection' not in sig
         assert sig['annotation_type'] == 'ATLT'
 
+    @pytest.mark.skip(reason='robot_selection param was removed from NFICaseStrategy')
     def test_with_robot_selection(self):
         sig = NFICaseStrategy(
             'ATLT',
@@ -165,6 +166,7 @@ class TestCacheSignature:
         assert 'subfolder_selection' in sig
         assert set(sig['subfolder_selection']) == {'3500XL_A', '3500XL_B'}
 
+    @pytest.mark.skip(reason='robot_selection param was removed from NFICaseStrategy')
     def test_robot_selection_deduplicates(self):
         sig = NFICaseStrategy(
             'ATLT',
