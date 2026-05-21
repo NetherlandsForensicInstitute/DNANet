@@ -7,7 +7,6 @@ from torch.utils.data import Dataset, DataLoader, ConcatDataset, default_collate
 
 from dnanet.data.dataset import TransformableDataset
 from dnanet.data.splitting import dataset_splitter
-from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 
 class DNANetDataModule(L.LightningDataModule):
@@ -68,6 +67,10 @@ class DNANetDataModule(L.LightningDataModule):
             self._collate_fn = self._dataset.transform.collate_fn
 
         train, val, test = dataset_splitter(self._dataset, **self._split_kwargs)
+        if stage == "test" and self._split_kwargs == {}:
+            # If no splitting arguments are provided and splitting is prepared for testing, we use
+            # the entire dataset that is stored in `train` for testing.
+            test, train, val = train, None, None
         self._train_dataset = train  # type: ignore[assignment]
         self._val_dataset = val  # type: ignore[assignment]
         self._test_dataset = test  # type: ignore[assignment]

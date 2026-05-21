@@ -36,6 +36,7 @@ def dataset_splitter(dataset: AnyDataset, **split_kwargs: Any) -> FractionalSpli
         return cast(Dataset, dataset), None, None  # type: ignore[return-value]
 
     match (val_fraction, test_fraction, k_folds):
+        # Catch unexpected splitting arguments
         case (float(), float(), None) if val_fraction + test_fraction >= 1.0:
             raise ValueError(
                 f'val_fraction ({val_fraction}) + test_fraction ({test_fraction}) must be < 1.0'
@@ -44,21 +45,21 @@ def dataset_splitter(dataset: AnyDataset, **split_kwargs: Any) -> FractionalSpli
             raise ValueError(f'val_fraction must be > 0, got {val_fraction}')
         case (_, float(), _) if test_fraction < .0:
             raise ValueError(f'test_fraction must be >= 0, got {test_fraction}')
-
+        # Fractional splitting
         case (float(), float(), None) if isinstance(dataset, ConcatDataset):
             return _apply_concatenated_dataset_splitting(dataset, **split_kwargs)
         case (float(), float(), None):
             return _apply_single_dataset_splitting(dataset, **split_kwargs)
-
+        # K-fold splitting
         case (None, float(), int()) if isinstance(dataset, ConcatDataset):
             return _apply_concatenated_dataset_kfold_splitting(dataset, **split_kwargs)  # type: ignore[return-value]
         case (None, float(), int()):
             return _apply_single_dataset_kfold_splitting(dataset, **split_kwargs)  # type: ignore[return-value]
-
-    raise ValueError(
-        f'Unrecognised split_kwargs combination: {split_kwargs}. '
-        'Provide val_fraction for fractional splits or k_folds (without val_fraction) for k-fold.'
-    )
+        case _:
+            raise ValueError(
+                f'Unrecognised split_kwargs combination: {split_kwargs}. '
+                'Provide val_fraction for fractional splits or k_folds (without val_fraction) for k-fold.'
+            )
 
 
 def _apply_single_dataset_splitting(
