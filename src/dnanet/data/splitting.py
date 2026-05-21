@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from torch.utils.data import Subset, Dataset, ConcatDataset
 
 from dnanet.data.dataset import TransformableDataset
-from dnanet.data.strategies.datasets.dataset import DatasetStrategy
+
+
+if TYPE_CHECKING:
+    from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 
 AnyDataset = Dataset | TransformableDataset

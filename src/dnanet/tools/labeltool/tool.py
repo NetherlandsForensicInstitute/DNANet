@@ -16,20 +16,24 @@ Design pattern: **Observer** (matplotlib event system)
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import numpy as np
 import matplotlib as mpl
 from loguru import logger
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from matplotlib.ticker import FixedLocator
 from matplotlib.widgets import MultiCursor, RadioButtons
-from matplotlib.collections import PolyCollection
 
 from dnanet.core.constants import LabelCategory
-from dnanet.tools.labeltool.annotations import AnnotationStore
 from dnanet.tools.labeltool.interactivity import Interactivity
+
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+    from matplotlib.collections import PolyCollection
+
+    from dnanet.tools.labeltool.annotations import AnnotationStore
 
 
 # Linear scan-to-bp conversion constants (default for 4096-point profiles)
@@ -146,7 +150,7 @@ class LabelTool(Interactivity):
         self.radio.set_active(labels.index(self.current_category))
 
         # Color each radio button label with its category color
-        for label_text, cat in zip(self.radio.labels, LabelCategory):
+        for label_text, cat in zip(self.radio.labels, LabelCategory, strict=True):
             label_text.set_color(cat.color)
             label_text.set_fontsize(8)
 

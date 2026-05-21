@@ -18,10 +18,14 @@ Design pattern: **Value Object**
 
 from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
 
 from dnanet.core import Annotation, ClassAnnotation
 from dnanet.data.image import TrainableElement
+
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class ExtractedPeak(TrainableElement):

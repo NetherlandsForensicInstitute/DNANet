@@ -294,7 +294,7 @@ class ProvedItStrategy(DatasetStrategy):
             k_folds: KFold splitting for cross-validation. Defaults to None.
             stratify_noc: Balance the NoC over the split(s). Defaults to True.
             test_fraction: Fraction of total data held out as test set. Defaults to 0.0.
-            **kwargs
+            **kwargs: Extra kwargs used in other split methods (unused)
 
         Raises:
             ValueError: When fraction and/or k_folds parameters aren't valid.

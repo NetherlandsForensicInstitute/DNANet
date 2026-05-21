@@ -11,7 +11,7 @@ Design pattern: **Pure Functions**
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import matplotlib
 
@@ -20,10 +20,13 @@ matplotlib.use("Agg")
 
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib.figure import Figure
 from matplotlib.patches import Patch
 
 from dnanet.core.constants import LabelCategory
+
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 
 # Standard dye channel colors for forensic EPG visualization
@@ -325,7 +328,7 @@ def _plot_lines(
     if isinstance(color, str) or (isinstance(color, tuple) and isinstance(color[0], float)):
         color = [color] * len(data)
 
-    for i, (c, row, max_val) in enumerate(zip(color, data, scale_to)):
+    for i, (c, row, max_val) in enumerate(zip(color, data, scale_to, strict=True)):
         y = row.copy()
         if max_val is not None and max_val > 0:
             y_max = max(y.max(), 1)

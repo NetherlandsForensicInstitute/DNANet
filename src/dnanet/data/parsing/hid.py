@@ -29,11 +29,11 @@ import numpy as np
 import construct
 from loguru import logger
 
-from dnanet.core.types import PathLike
 from dnanet.data.preprocessing.baseline import baseline_superior
 
 
 if TYPE_CHECKING:
+    from dnanet.core.types import PathLike
     from dnanet.data.strategies.scaling import ScalingStrategy
 
 

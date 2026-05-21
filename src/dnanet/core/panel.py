@@ -27,15 +27,18 @@ from __future__ import annotations
 
 import math
 import xml.etree.ElementTree as ET
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 from functools import cached_property
 from collections import defaultdict
 
 from loguru import logger
 
-from dnanet.core.types import PathLike
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
+
+
+if TYPE_CHECKING:
+    from dnanet.core.types import PathLike
 
 
 # Default dye mapping: PPF6C style (1-based HID indices, skipping dye 5)

@@ -87,6 +87,7 @@ def run(
 
     Args:
         cfg: Composed Hydra config. Must include ``splitting.k_folds``.
+        dataset: The dataset to use for cross validation.
 
     Returns:
         Dictionary with ``"per_fold"`` and ``"aggregate"`` keys.

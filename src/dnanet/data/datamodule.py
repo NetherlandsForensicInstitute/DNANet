@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import lightning as L
 from torch.utils.data import Dataset, DataLoader, ConcatDataset, default_collate
 
-from dnanet.data.dataset import TransformableDataset
 from dnanet.data.splitting import dataset_splitter
 from dnanet.data.strategies.datasets.dataset import DatasetStrategy
+
+
+if TYPE_CHECKING:
+    from dnanet.data.dataset import TransformableDataset
 
 
 class DNANetDataModule(L.LightningDataModule):

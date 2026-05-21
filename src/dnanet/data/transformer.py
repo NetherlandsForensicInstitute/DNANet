@@ -27,7 +27,7 @@ def _allele_metadata_from_image(image: HIDImage) -> dict[str, Any]:
 
 
 class TransformDataCallable(abc.ABC, Generic[TrainableT]):
-
+    """Base class for transforms."""
     @abstractmethod
     def __call__(self, image: TrainableT) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         raise NotImplementedError
@@ -39,6 +39,10 @@ class TransformDataCallable(abc.ABC, Generic[TrainableT]):
 
 @dataclass(frozen=True)
 class SegmentationTransformer(TransformDataCallable[HIDImage]):
+    """Transformer used for segmentation tasks.
+
+    Target output here is a scanpoint indexed label.
+    """
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = image.data
         x = torch.tensor(data, dtype=torch.float32)
@@ -56,6 +60,7 @@ class SegmentationTransformer(TransformDataCallable[HIDImage]):
 
 @dataclass(frozen=True)
 class AlleleMetadataTransformer(TransformDataCallable[HIDImage]):
+    """Transformer that adds allele metadata to predictions to enable allele-metrics."""
     transformer: TransformDataCallable[HIDImage]
 
     def __call__(
@@ -77,7 +82,7 @@ class AlleleMetadataTransformer(TransformDataCallable[HIDImage]):
 
 
 @dataclass(frozen=True)
-class CombinedTransformer(TransformDataCallable[HIDImage]):
+class CombinedTransformer(TransformDataCallable[HIDImage]):  # noqa: D101
     threshold: int = 25
     window_size: int = 120
     include_max_pool_dyes: bool = False
@@ -156,6 +161,10 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
 
 @dataclass(frozen=True)
 class ReconstructionTransformer(TransformDataCallable[HIDImage]):
+    """Transformer for reconstruction tasks.
+    
+    This transformer will set sample and target to the same value to enable reconstruction.
+    """
     n_dyes: int = 5
     autoencoder_log_scale: bool = True
     autoencoder_max_rfu: int | None = None
@@ -181,6 +190,7 @@ class ReconstructionTransformer(TransformDataCallable[HIDImage]):
 
 @dataclass(frozen=True)
 class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
+    """Transformer for the PeakNet Classifier."""
     include_marker: bool = True
 
     def __call__(self, peak: ExtractedPeak) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:

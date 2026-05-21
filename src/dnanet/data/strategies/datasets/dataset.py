@@ -22,7 +22,6 @@ from loguru import logger
 
 from dnanet.core import LabelCategory
 from dnanet.core.annotation import Annotation, SpanAnnotation, ScanpointAnnotation
-from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 if typing.TYPE_CHECKING:
@@ -31,6 +30,7 @@ if typing.TYPE_CHECKING:
     from annotated_types import T
 
     from dnanet.core.types import PathLike
+    from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 FileCategory = Literal['sample', 'ladder', 'control', 'unknown']

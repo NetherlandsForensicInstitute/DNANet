@@ -35,8 +35,7 @@ from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrateg
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 
 
-class NFICaseStrategy(DatasetStrategy):
-    _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
+class NFICaseStrategy(DatasetStrategy):  # noqa: D101
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
     def __init__(
@@ -133,7 +132,7 @@ class NFICaseStrategy(DatasetStrategy):
     ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         path = Path(root_path)
 
-        # Collect all .HID files from the robot folders
+        # Collect all .HID files
         file_list = self.find_subfolder_files(
             path,
             self._subfolder_selection,
@@ -176,7 +175,7 @@ class NFICaseStrategy(DatasetStrategy):
     ) -> Callable[[Path], Annotation | None]:
         """Build a per-HID annotation resolver for the configured annotation type.
 
-        The dataset collector iterates robot files once and delegates
+        The dataset collector iterates files once and delegates
         annotation lookup to the callable returned here. Each annotation type
         can therefore prepare its own lookup state up front while the core HID
         filtering and ladder collection logic remains centralized in
@@ -315,16 +314,16 @@ class NFICaseStrategy(DatasetStrategy):
         subfolder_limit: int | None = None,
         cache: bool = True,
     ) -> Generator[Path, None, None]:
-        """Collect all files in the robot's casework folders.
+        """Collect all files in the subfolders .
 
         Args:
-            data_folder: The root in which the robot folders reside
+            data_folder: The root in which subfolders reside
             selected_subfolders: Allows for a subselection of folder names (e.g. `('3500XL_A',)`). Defaults to None.
-            subfolder_limit: Limits the amount of files returned from a robot. Defaults to None.
+            subfolder_limit: Limits the amount of files returned from a subfolder. Defaults to None.
             cache: Whether to use cache saved in /tmp/ to prevent walking the whole folder again between runs.
 
         Yields:
-            File paths of .hid's found in the robot folders.
+            File paths of .hid's found in the folders.
         """
         if (data_folder / 'hids').exists():
             data_folder = data_folder / 'hids'

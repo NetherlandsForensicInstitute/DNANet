@@ -29,7 +29,6 @@ import numpy as np
 from loguru import logger
 
 from dnanet.data.parsing import get_peak_data
-from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 if TYPE_CHECKING:
@@ -41,12 +40,13 @@ if TYPE_CHECKING:
         AlleleAnnotation,
         ScanpointAnnotation,
     )
+    from dnanet.data.strategies.scaling import ScalingStrategy
 
 
 # Default RFU detection threshold
 _DEFAULT_RFU_THRESHOLD = 40
 
-class TrainableElement(abc.ABC):
+class TrainableElement(abc.ABC):  # noqa: D101
 
     @property
     @abstractmethod

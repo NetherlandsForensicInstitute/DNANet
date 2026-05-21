@@ -9,7 +9,7 @@ DYE_LABELS = ["Blue", "Green", "Black", "Red", "Purple", "Orange"]
 DYE_COLORS = ["blue", "green", "black", "red", "purple", "orange"]
 
 
-def squeeze_epg(epg: np.ndarray) -> np.ndarray:
+def _squeeze_epg(epg: np.ndarray) -> np.ndarray:
     arr = np.squeeze(epg)
     if arr.ndim == 1:
         arr = arr[None, :]
@@ -18,9 +18,9 @@ def squeeze_epg(epg: np.ndarray) -> np.ndarray:
     return arr
 
 
-def plot_epg_pair(epg_without: np.ndarray, epg_with: np.ndarray, title: str = "EPG comparison") -> None:
-    arr_without = squeeze_epg(epg_without)
-    arr_with = squeeze_epg(epg_with)
+def _plot_epg_pair(epg_without: np.ndarray, epg_with: np.ndarray, title: str = "EPG comparison") -> None:
+    arr_without = _squeeze_epg(epg_without)
+    arr_with = _squeeze_epg(epg_with)
     n_channels = min(arr_without.shape[0], arr_with.shape[0], len(DYE_LABELS))
 
     fig, axes = plt.subplots(n_channels, 2, figsize=(14, 2.8 * n_channels), sharex="col")
@@ -46,7 +46,7 @@ def plot_epg_pair(epg_without: np.ndarray, epg_with: np.ndarray, title: str = "E
     plt.show()
 
 
-def list_files(epg_dir: Path, limit: int = 10) -> None:
+def _list_files(epg_dir: Path, limit: int = 10) -> None:
     epg_files = sorted((epg_dir / "epgs").glob("*.npy"))
     print(f"Listing first {min(limit, len(epg_files))} files in {epg_dir/'epgs'}:")
     for f in epg_files[:limit]:
@@ -56,11 +56,12 @@ def list_files(epg_dir: Path, limit: int = 10) -> None:
 
 
 def main(args: argparse.Namespace) -> None:
+    """Main runner for the visualization program."""
     base_dir = Path(__file__).resolve().parent
     with_dir = base_dir / "generated_epgs" / "with_generator" / "epgs"
     without_dir = base_dir / "generated_epgs" / "without_generator" / "epgs"
 
-    list_files(with_dir)
+    _list_files(with_dir)
 
     file_name = args.file
     if file_name is None:
@@ -80,7 +81,7 @@ def main(args: argparse.Namespace) -> None:
     epg_with = np.load(epg_with_path)
     epg_without = np.load(epg_without_path)
 
-    plot_epg_pair(epg_without, epg_with, title=file_name)
+    _plot_epg_pair(epg_without, epg_with, title=file_name)
 
 
 if __name__ == "__main__":

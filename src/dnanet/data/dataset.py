@@ -6,7 +6,7 @@ from dnanet.data.strategies import DatasetStrategy
 from dnanet.data.transformer import TransformDataCallable
 
 
-class TransformableDataset(abc.ABC):
+class TransformableDataset(abc.ABC):  # noqa: D101
     @property
     @abc.abstractmethod
     def images(self) -> List[HIDImage]:

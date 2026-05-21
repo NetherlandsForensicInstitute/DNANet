@@ -233,7 +233,9 @@ class NearestBasePairCaller(FromSegmentationImageCaller):
         base_pair: float,
         panel: Panel,
     ) -> tuple[str, str]:
-        """Find the nearest allele in the panel for a given dye and base-pair and returns its allele name and
+        """Return allele name for a given dye and base-pair.
+        
+        Find the nearest allele in the panel for a given dye and base-pair and returns its allele name and
         marker name. If no alleles can be found, return 'Unknown' for both names.
 
         Args:
@@ -278,7 +280,9 @@ class ExactBasePairCaller(FromSegmentationImageCaller):
             base_pair: float,
             panel: Panel,
     ) -> tuple[str, str]:
-        """Find the allele and marker for a given dye and base-pair by comparing the base pair to the bin base pairs
+        """Find the allele and marker for a given dye and base-pair.
+        
+        ...by comparing the base pair to the bin base pairs
         stored in the panel. Demand that the base pair must be within 0.3 difference of the bin base pair, otherwise
         regard the peak as 'Out of Bin'.
 

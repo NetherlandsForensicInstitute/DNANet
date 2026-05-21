@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 
 def main() -> None:
+    """Main runner for the labeltool cli."""
     with initialize_config_dir(version_base=None, config_dir=str(WORKSPACE_FOLDER / "conf")):
         cfg = compose(
             config_name="config",

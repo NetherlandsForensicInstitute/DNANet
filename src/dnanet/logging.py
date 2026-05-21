@@ -25,7 +25,7 @@ from loguru import logger
 
 
 class _InterceptHandler(logging.Handler):
-    """Forward standard-library logging records to loguru"""
+    """Forward standard-library logging records to loguru."""
 
     def emit(self, record: logging.LogRecord) -> None:
         try:

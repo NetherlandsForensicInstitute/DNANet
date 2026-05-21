@@ -150,12 +150,14 @@ class CrossAttentionCombiner(nn.Module):
         peak_to_image: Tensor,
         global_signal: Tensor,
     ) -> Tensor:
-        """Args:
-        global_features: Unused (kept for interface compat).
-        local_features: (P, D_local) per-peak features.
-        peak_to_image: (P,) mapping each peak to its source image.
-        global_signal: (N, C_global, W) autoencoder encoded output.
-        E: embedding dimension.
+        """Forward pass of the peaknet.
+        
+        Args:
+            global_features: Unused (kept for interface compat).
+            local_features: (P, D_local) per-peak features.
+            peak_to_image: (P,) mapping each peak to its source image.
+            global_signal: (N, C_global, W) autoencoder encoded output.
+            E: embedding dimension.
         """
         g = self.global_proj(global_signal) + self.positional_encoding # (N, E, W)
         g = g.transpose(1, 2)  # (N, W, E)

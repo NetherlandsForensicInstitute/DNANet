@@ -15,13 +15,13 @@ from tensorflow.keras.models import load_model
 os.chdir(os.path.dirname(os.path.abspath(sys.argv[0])))
 
 
-def generate_random_latent(batch_size=1, n_lanes=6, length=500):
-    return np.random.uniform(low=0, high=1, size=(batch_size, n_lanes, length, 1))
-
+def _generate_random_latent(batch_size=1, n_lanes=6, length=500):
+    rng = np.random.default_rng()
+    return rng.uniform(low=0, high=1, size=(batch_size, n_lanes, length, 1))
 
 
 # Generate a batch of clean EPGs
-def epg_from_df(df, n_lanes=6, epg_length=5000, scan_min=4000, std_dev=4) -> np.ndarray:
+def _epg_from_df(df, n_lanes=6, epg_length=5000, scan_min=4000, std_dev=4) -> np.ndarray:
     scan_max = scan_min + epg_length
     color_map = {"blue": 0, "green": 1, "yellow": 2, "red": 3, "purple": 4, "orange": 5}
     epg = np.zeros((1, n_lanes, epg_length, 1))
@@ -43,7 +43,7 @@ def epg_from_df(df, n_lanes=6, epg_length=5000, scan_min=4000, std_dev=4) -> np.
 
 
 # Preprocess EPG: subtract baseline and scale
-def preprocess_epg(epg: np.ndarray) -> np.ndarray:
+def _preprocess_epg(epg: np.ndarray) -> np.ndarray:
     epg_bs = epg.copy()
     # Turns out baselines are not needed for the current implementation
     for channel in range(epg.shape[1]):
@@ -53,12 +53,12 @@ def preprocess_epg(epg: np.ndarray) -> np.ndarray:
 
 
 # Undo preprocessing: add baseline and scale up
-def undo_preprocess_epg(epg: np.ndarray) -> np.ndarray:
+def _undo_preprocess_epg(epg: np.ndarray) -> np.ndarray:
     epg_restored = epg * 100.0
     return epg_restored
 
 
-def save_epg_data(epg: np.ndarray, save_path: str):
+def _save_epg_data(epg: np.ndarray, save_path: str):
     # Save the EPG numpy array as a .npy file
     np.save(save_path, epg)
 
@@ -69,6 +69,7 @@ def save_epg_data(epg: np.ndarray, save_path: str):
 # and save them in the specified directory
 def main(csv_dir, output_dir, batch_size, epg_length, scan_min, use_generator=True, std_dev=4):
     """Generates and saves electropherogram (EPG) data using a pre-trained generator model (optional).
+    
     This function processes all CSV files in the specified `csv_dir`.
     For each file, it:
       - Loads and preprocesses the EPG data.
@@ -88,10 +89,10 @@ def main(csv_dir, output_dir, batch_size, epg_length, scan_min, use_generator=Tr
     dfs = [pd.read_csv(f) for f in csv_files]
     clean_epgs = []
     for df in dfs:
-        epg = preprocess_epg(epg_from_df(df, epg_length=epg_length, scan_min=scan_min, std_dev=std_dev))
+        epg = _preprocess_epg(_epg_from_df(df, epg_length=epg_length, scan_min=scan_min, std_dev=std_dev))
         clean_epgs.append(epg)
     clean_epgs = np.concatenate(clean_epgs, axis=0)
-    latent = generate_random_latent(batch_size=n_files, n_lanes=6, length=500)
+    latent = _generate_random_latent(batch_size=n_files, n_lanes=6, length=500)
 
     # Output directory for EPGs
     epgs_dir = os.path.join(output_dir, "epgs")
@@ -107,19 +108,19 @@ def main(csv_dir, output_dir, batch_size, epg_length, scan_min, use_generator=Tr
             batch_generated_epgs = generator.predict([batch_clean_epgs, batch_latent], batch_size=(end-start))
             # Undo preprocessing after generator
             batch_generated_epgs = np.stack([
-                undo_preprocess_epg(epg)
+                _undo_preprocess_epg(epg)
                 for epg in batch_generated_epgs
             ])
         else:
             # Undo preprocessing for raw EPGs as well
             batch_generated_epgs = np.stack([
-                undo_preprocess_epg(epg)
+                _undo_preprocess_epg(epg)
                 for epg in batch_clean_epgs
             ])
-        for _, (csv_file, gen_epg) in enumerate(zip(batch_csv_files, batch_generated_epgs)):
+        for _, (csv_file, gen_epg) in enumerate(zip(batch_csv_files, batch_generated_epgs, strict=True)):
             base = os.path.splitext(os.path.basename(csv_file))[0]
             save_path = os.path.join(epgs_dir, base + ".npy")
-            save_epg_data(gen_epg, save_path)
+            _save_epg_data(gen_epg, save_path)
 
     r_output_dir = os.path.join(csv_dir, "..")        
     if r_output_dir is not None:
