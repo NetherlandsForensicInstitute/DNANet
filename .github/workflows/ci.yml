@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, major/2.0]
   pull_request:
-    branches: [main, major/2.0s]
+    branches: [main, major/2.0]
 
 jobs:
   test:
@@ -25,6 +25,8 @@ jobs:
 
       - name: Install pdm
         uses: pdm-project/setup-pdm@v4
+        with:
+          update-python: false
 
       - name: Install dependencies
         run: pdm install -v
@@ -40,6 +42,8 @@ jobs:
           badge: true
           hide_branch_rate: false
           thresholds: '50 80'
+          format: markdown
+          output: both
 
       - name: Add Coverage PR Comment
         if: github.event_name == 'pull_request' && matrix.python-version == '3.13'
@@ -61,6 +65,8 @@ jobs:
 
       - name: Install pdm
         uses: pdm-project/setup-pdm@v4
+        with:
+          update-python: false
 
       - name: Install dependencies
         run: pdm install -v
