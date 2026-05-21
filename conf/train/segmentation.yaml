@@ -4,10 +4,10 @@ type: segmentation
 defaults:
   - /metrics@_global_.metrics: binary
 
-max_epochs: 1000
+max_epochs: 15
 batch_size: 16
-learning_rate: 0.01
-weight_decay: 0
+learning_rate: 0.0001
+weight_decay: 0.0005
 num_workers: 5
 threshold: 0.5
 
@@ -18,15 +18,15 @@ optimizer:
 
 # Learning rate scheduler
 scheduler:
-#  _target_: torch.optim.lr_scheduler.ExponentialLR
-#  gamma: 0.8
+  _target_: torch.optim.lr_scheduler.ExponentialLR
+  gamma: 0.8
 
 # Early stopping
 early_stopping:
-  monitor: val/f1
+  monitor: val/loss
   patience: 5
   min_delta: 0.01
-  mode: max
+  mode: min
 
 # Checkpointing
 checkpoint:
