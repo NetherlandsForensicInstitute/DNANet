@@ -64,8 +64,8 @@ class DNANetDataModule(L.LightningDataModule):
             collate_fns = [getattr(ds, 'transform', None) for ds in self._dataset.datasets]
             if len(set(collate_fns)) != 1:
                 raise ValueError(
-                    f"Found multiple collate functions for ConcatDataset ({collate_fns}), "
-                    "but expected same function for all datasets."
+                    f'Found multiple collate functions for ConcatDataset ({collate_fns}), '
+                    'but expected same function for all datasets.'
                 )
             if collate_fns[0] is not None:
                 self._collate_fn = collate_fns[0].collate_fn
@@ -78,7 +78,7 @@ class DNANetDataModule(L.LightningDataModule):
         self._test_dataset = test  # type: ignore[assignment]
 
     def train_dataloader(self) -> DataLoader:
-        assert self._train_dataset is not None, "call setup() before train_dataloader()"
+        assert self._train_dataset is not None, 'call setup() before train_dataloader()'
         return DataLoader(
             self._train_dataset,
             batch_size=self.batch_size,
@@ -90,7 +90,9 @@ class DNANetDataModule(L.LightningDataModule):
         )
 
     def val_dataloader(self) -> DataLoader:
-        assert self._val_dataset is not None, "call setup() with val_fraction > 0 before val_dataloader()"
+        assert self._val_dataset is not None, (
+            'call setup() with val_fraction > 0 before val_dataloader()'
+        )
         return DataLoader(
             self._val_dataset,
             batch_size=self.batch_size,

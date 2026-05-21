@@ -12,7 +12,7 @@ from pathlib import Path
 import matplotlib
 
 
-matplotlib.use("Agg")
+matplotlib.use('Agg')
 
 import numpy as np
 import seaborn as sns

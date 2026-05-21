@@ -45,17 +45,17 @@ class ExtractedPeak(TrainableElement):
     """
 
     __slots__ = (
-        "_data",
-        "dye_index",
-        "peak_center",
-        "window_size",
-        "peak_height",
-        "label",
-        "annotation_idx",
-        "marker_name",
-        "marker_index",
-        "peak_basepair",
-        "window_start",
+        '_data',
+        'dye_index',
+        'peak_center',
+        'window_size',
+        'peak_height',
+        'label',
+        'annotation_idx',
+        'marker_name',
+        'marker_index',
+        'peak_basepair',
+        'window_start',
     )
 
     def __init__(
@@ -96,8 +96,7 @@ class ExtractedPeak(TrainableElement):
     @property
     def is_allele(self) -> bool:
         """Whether this peak is labeled as an allele."""
-        return self.label == "allele"
-
+        return self.label == 'allele'
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ExtractedPeak):

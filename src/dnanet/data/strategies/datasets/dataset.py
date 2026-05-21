@@ -317,7 +317,7 @@ class DatasetStrategy(ABC):
             category_idx = int(row['category_idx'])
             if not 0 <= dye_idx < num_dyes:
                 # raise ValueError(f'Dye index {dye_idx} outside annotation shape')
-                continue # FIXME parsing of y profiles fails
+                continue  # FIXME parsing of y profiles fails
             if not 0 <= category_idx < num_classes:
                 raise ValueError(f'Category index {category_idx} outside annotation shape')
 

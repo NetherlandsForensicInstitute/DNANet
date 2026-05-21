@@ -41,6 +41,7 @@ if TYPE_CHECKING:
 _ALLELE_METRICS_CALLBACK_TARGET = 'dnanet.evaluation.callbacks.AlleleMetricsCallback'
 _ALLELE_METRICS_TRAIN_TYPES = frozenset({'segmentation', 'segmentation_mc', 'peaknet'})
 
+
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""
     callbacks: list[L.Callback] = []

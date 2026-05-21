@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from dnanet.modules import BaseTaskModule
 
 
-
 def _as_2d_array(array: np.ndarray) -> np.ndarray:
     if array.ndim == 3 and array.shape[-1] == 1:
         return array[..., 0]
@@ -42,7 +41,7 @@ def _as_2d_array(array: np.ndarray) -> np.ndarray:
 def _save_results(
     results: List[Mapping[str, float]],
     output_dir: str,
-    filename: str = "metrics.json",
+    filename: str = 'metrics.json',
 ) -> Path:
     """Save metric results to JSON file."""
     output_path = Path(output_dir)
@@ -54,7 +53,7 @@ def _save_results(
 
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build test-stage callbacks from evaluation config."""
-    callbacks_cfg = cfg.evaluate.get("callbacks")
+    callbacks_cfg = cfg.evaluate.get('callbacks')
     if not callbacks_cfg:
         return []
 
@@ -63,11 +62,9 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     elif isinstance(callbacks_cfg, ListConfig):
         callback_specs = callbacks_cfg
     else:
-        raise TypeError(
-            "evaluate.callbacks must be a mapping or list of Hydra callback configs."
-        )
+        raise TypeError('evaluate.callbacks must be a mapping or list of Hydra callback configs.')
 
-    return [instantiate(callback_cfg, _convert_="partial") for callback_cfg in callback_specs]
+    return [instantiate(callback_cfg, _convert_='partial') for callback_cfg in callback_specs]
 
 
 def run(
@@ -92,47 +89,43 @@ def run(
     L.seed_everything(cfg.seed, workers=True)
 
     # -- Validate config ---------------------------------------------------
-    checkpoint_path = cfg.get("checkpoint")
+    checkpoint_path = cfg.get('checkpoint')
     if not checkpoint_path:
         raise ValueError(
-            "Evaluation requires a checkpoint path. "
-            "Set it via: dnanet task=evaluate checkpoint=/path/to/model.ckpt"
+            'Evaluation requires a checkpoint path. '
+            'Set it via: dnanet task=evaluate checkpoint=/path/to/model.ckpt'
         )
-    logger.info("Loading checkpoint: {}", checkpoint_path)
+    logger.info('Loading checkpoint: {}', checkpoint_path)
 
     checkpoint_dir = Path(checkpoint_path).parent.parent  # go up from /checkpoints/
-    checkpoint_config_path = checkpoint_dir / "config.yaml"
+    checkpoint_config_path = checkpoint_dir / 'config.yaml'
 
     if not checkpoint_config_path.exists():
-        raise ValueError(
-            f"Config file not found in checkpoint directory: {checkpoint_config_path}"
-        )
+        raise ValueError(f'Config file not found in checkpoint directory: {checkpoint_config_path}')
 
     # Load the original training config from checkpoint
     checkpoint_cfg = OmegaConf.load(checkpoint_config_path)
-    logger.info("Loaded checkpoint config from {}", checkpoint_config_path)
+    logger.info('Loaded checkpoint config from {}', checkpoint_config_path)
 
     # -- Build model and loss from checkpoint config -----------------------
     network = instantiate(checkpoint_cfg.model.architecture)
     loss_fn = instantiate(checkpoint_cfg.model.loss)
 
-
-    eval_metrics = instantiate(cfg.evaluate.metrics, _convert_="partial")
+    eval_metrics = instantiate(cfg.evaluate.metrics, _convert_='partial')
 
     # -- Lightning module --------------------------------------------------
     # noinspection PyTypeChecker
     module_class: type[BaseTaskModule] = get_class(cfg.evaluate.lightning_module)
-
 
     model = module_class.load_from_checkpoint(
         checkpoint_path=checkpoint_path,
         metrics=eval_metrics,
         model=network,
         optimizer=None,
-        loss_fn=loss_fn
+        loss_fn=loss_fn,
     )
     model.eval()
-    logger.info("Model loaded: {}", type(network).__name__)
+    logger.info('Model loaded: {}', type(network).__name__)
 
     # -- Data --------------------------------------------------------------
     if not dataset:
@@ -143,10 +136,10 @@ def run(
     datamodule = instantiate(
         checkpoint_cfg.train.data_module,
         dataset=dataset,
-        batch_size=cfg.evaluate.get("batch_size", 1),
-        num_workers=cfg.evaluate.get("num_workers", 0),
+        batch_size=cfg.evaluate.get('batch_size', 1),
+        num_workers=cfg.evaluate.get('num_workers', 0),
     )
-    datamodule.setup("test")
+    datamodule.setup('test')
 
     # -- Predict -----------------------------------------------------------
     trainer = L.Trainer(
@@ -160,29 +153,32 @@ def run(
     if trainer.logger is not None:
         trainer.logger.log_hyperparams(cfg)
 
-    logger.info("Running predictions...")
-    logger.warning("Evaluating on entire dataset (no split applied).")
-    results = trainer.test(model, dataloaders=datamodule.train_dataloader()) # FIXME: use datamodule test dataloader
-
+    logger.info('Running predictions...')
+    logger.warning('Evaluating on entire dataset (no split applied).')
+    results = trainer.test(
+        model, dataloaders=datamodule.train_dataloader()
+    )  # FIXME: use datamodule test dataloader
 
     # -- Save results ------------------------------------------------------
     if results:
         metrics_path = _save_results(results, cfg.output_dir)
-        logger.info("Results saved to {}", metrics_path)
+        logger.info('Results saved to {}', metrics_path)
 
     # Save config
-    config_path = Path(cfg.output_dir) / "config.yaml"
+    config_path = Path(cfg.output_dir) / 'config.yaml'
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(OmegaConf.to_yaml(cfg))
 
     # Optionally save predictions
-    if cfg.evaluate.get("save_predictions", False):
+    if cfg.evaluate.get('save_predictions', False):
         # TODO do not do a second loop of predictions to save them to disk
-        pred_arrays = trainer.predict(model, dataloaders=datamodule.train_dataloader(), return_predictions=True) # FIXME: use datamodule test dataloader
-        pred_dir = Path(cfg.output_dir) / cfg.evaluate.get("predictions_dir", "predictions")
+        pred_arrays = trainer.predict(
+            model, dataloaders=datamodule.train_dataloader(), return_predictions=True
+        )  # FIXME: use datamodule test dataloader
+        pred_dir = Path(cfg.output_dir) / cfg.evaluate.get('predictions_dir', 'predictions')
         pred_dir.mkdir(parents=True, exist_ok=True)
         for i, pred in enumerate(pred_arrays):
-            np.save(pred_dir / f"prediction_{i:04d}.npy", pred)
-        logger.info("Predictions` saved to {}", pred_dir)
+            np.save(pred_dir / f'prediction_{i:04d}.npy', pred)
+        logger.info('Predictions` saved to {}', pred_dir)
 
     return results

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 import matplotlib
 
 
-matplotlib.use("Agg")
+matplotlib.use('Agg')
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 # Standard dye channel colors for forensic EPG visualization
-DYE_COLORS: tuple[str, ...] = ("blue", "green", "black", "red", "purple", "orange")
+DYE_COLORS: tuple[str, ...] = ('blue', 'green', 'black', 'red', 'purple', 'orange')
 
 
 def plot_profile(
@@ -65,7 +65,7 @@ def plot_profile(
         annotation_map = coerce_class_map(
             annotation,
             signal_shape=signal.shape,
-            source="annotation",
+            source='annotation',
         )
 
     prediction_map = None
@@ -73,15 +73,15 @@ def plot_profile(
         prediction_map = coerce_class_map(
             prediction,
             signal_shape=signal.shape,
-            source="prediction",
+            source='prediction',
         )
 
-    track_names = ["signal"]
-    track_height_ratios = {"signal": 6, "annotation": 1, "prediction": 1}
+    track_names = ['signal']
+    track_height_ratios = {'signal': 6, 'annotation': 1, 'prediction': 1}
     if annotation_map is not None:
-        track_names.append("annotation")
+        track_names.append('annotation')
     if prediction_map is not None:
-        track_names.append("prediction")
+        track_names.append('prediction')
 
     num_tracks = len(track_names)
     fig, axes = plt.subplots(
@@ -90,10 +90,8 @@ def plot_profile(
         figsize=figsize,
         sharex=True,
         gridspec_kw={
-            "height_ratios": [
-                track_height_ratios[track_name]
-                for _ in range(n_dyes)
-                for track_name in track_names
+            'height_ratios': [
+                track_height_ratios[track_name] for _ in range(n_dyes) for track_name in track_names
             ],
         },
     )
@@ -102,30 +100,30 @@ def plot_profile(
         track_name: axes[track_index::num_tracks]
         for track_index, track_name in enumerate(track_names)
     }
-    signal_axes = axes_by_track["signal"]
+    signal_axes = axes_by_track['signal']
 
     _plot_lines(signal_axes, signal, colors)
     for signal_ax in signal_axes:
         signal_ax.set_xlim(-0.5, signal_length - 0.5)
         signal_ax.margins(x=0)
-        signal_ax.spines["top"].set_visible(False)
-        signal_ax.spines["right"].set_visible(False)
+        signal_ax.spines['top'].set_visible(False)
+        signal_ax.spines['right'].set_visible(False)
 
     present_classes: set[int] = set()
     if annotation_map is not None:
         present_classes.update(
             _plot_class_tracks(
-                axes_by_track["annotation"],
+                axes_by_track['annotation'],
                 annotation_map,
-                lane_label="Ann",
+                lane_label='Ann',
             )
         )
     if prediction_map is not None:
         present_classes.update(
             _plot_class_tracks(
-                axes_by_track["prediction"],
+                axes_by_track['prediction'],
                 prediction_map,
-                lane_label="Pred",
+                lane_label='Pred',
             )
         )
 
@@ -137,15 +135,15 @@ def plot_profile(
             handles=[
                 Patch(
                     facecolor=LabelCategory.from_index(class_idx).color,
-                    edgecolor="none",
+                    edgecolor='none',
                     label=LabelCategory.from_index(class_idx).display_name,
                 )
                 for class_idx in sorted(present_classes)
             ],
-            loc="upper right",
+            loc='upper right',
         )
 
-    axes[-1].set_xlabel("Scanpoint")
+    axes[-1].set_xlabel('Scanpoint')
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     return fig
 
@@ -177,7 +175,7 @@ def coerce_class_map(
             result,
             signal_shape=signal_shape,
             source=source,
-            threshold_binary=source == "prediction",
+            threshold_binary=source == 'prediction',
         )
 
     if result.ndim == 3 and result.shape[1:] == signal_shape:
@@ -186,7 +184,7 @@ def coerce_class_map(
                 result[0],
                 signal_shape=signal_shape,
                 source=source,
-                threshold_binary=source == "prediction",
+                threshold_binary=source == 'prediction',
             )
         return _coerce_integer_class_map(
             result.argmax(axis=0),
@@ -200,7 +198,7 @@ def coerce_class_map(
                 result[..., 0],
                 signal_shape=signal_shape,
                 source=source,
-                threshold_binary=source == "prediction",
+                threshold_binary=source == 'prediction',
             )
         return _coerce_integer_class_map(
             result.argmax(axis=-1),
@@ -209,8 +207,8 @@ def coerce_class_map(
         )
 
     raise ValueError(
-        f"{source} must have shape {signal_shape}, (classes, *{signal_shape}), "
-        f"or (*{signal_shape}, classes); got {result.shape}."
+        f'{source} must have shape {signal_shape}, (classes, *{signal_shape}), '
+        f'or (*{signal_shape}, classes); got {result.shape}.'
     )
 
 
@@ -256,7 +254,7 @@ def plot_profile_marker(
     marker_signal = signal[dye_row, scan_slice]
     fig, ax = plt.subplots(1, 1, figsize=(10, 4))
 
-    color = DYE_COLORS[dye_row] if dye_row < len(DYE_COLORS) else "black"
+    color = DYE_COLORS[dye_row] if dye_row < len(DYE_COLORS) else 'black'
     ax.plot(marker_signal, color=color)
 
     if annotation is not None:
@@ -264,7 +262,7 @@ def plot_profile_marker(
         _plot_segmentation_mask(
             [ax],
             ann_slice[np.newaxis, :],
-            color="green",
+            color='green',
             alpha=0.55,
             y_range=(0.88, 0.94),
             min_width=3,
@@ -275,7 +273,7 @@ def plot_profile_marker(
         _plot_segmentation_mask(
             [ax],
             ((pred_slice > 0.5).astype(int))[np.newaxis, :],
-            color="orange",
+            color='orange',
             alpha=0.75,
             y_range=(0.95, 1.0),
             min_width=3,
@@ -292,6 +290,7 @@ def plot_profile_marker(
 # Private helpers
 # ---------------------------------------------------------------------------
 
+
 def _coerce_signal(signal: np.ndarray) -> np.ndarray:
     """Return signal as a 2-D ``(num_dyes, scanpoints)`` array."""
     result = np.asarray(signal)
@@ -301,7 +300,7 @@ def _coerce_signal(signal: np.ndarray) -> np.ndarray:
         result = result[..., 0]
     if result.ndim != 2:
         raise ValueError(
-            f"signal must be a 2-D array of shape (num_dyes, scanpoints); got {result.shape}."
+            f'signal must be a 2-D array of shape (num_dyes, scanpoints); got {result.shape}.'
         )
     return result
 
@@ -309,7 +308,7 @@ def _coerce_signal(signal: np.ndarray) -> np.ndarray:
 def _plot_lines(
     axs: Sequence[plt.Axes],
     data: np.ndarray,
-    color: Any = "black",
+    color: Any = 'black',
     scale_to: np.ndarray | None = None,
     alpha: float = 1.0,
 ) -> None:
@@ -348,11 +347,11 @@ def _plot_class_tracks(
     for ax in axs:
         ax.set_ylim(0.0, 1.0)
         ax.set_yticks([])
-        ax.set_ylabel(lane_label, rotation=0, labelpad=18, va="center")
+        ax.set_ylabel(lane_label, rotation=0, labelpad=18, va='center')
         ax.margins(x=0)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.spines["left"].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
 
     if class_map is None:
         return present_classes
@@ -367,10 +366,10 @@ def _plot_class_tracks(
                 ax.scatter(
                     [start],
                     [0.5],
-                    marker="s",
+                    marker='s',
                     s=36,
                     color=category.color,
-                    edgecolors="black",
+                    edgecolors='black',
                     linewidths=0.6,
                     zorder=3,
                 )
@@ -381,8 +380,8 @@ def _plot_class_tracks(
                     left=start - 0.5,
                     height=0.7,
                     color=category.color,
-                    edgecolor="none",
-                    align="center",
+                    edgecolor='none',
+                    align='center',
                 )
 
     return present_classes
@@ -397,9 +396,7 @@ def _coerce_integer_class_map(
 ) -> np.ndarray:
     """Validate a 2-D class map and convert it to integer indices."""
     if class_map.shape != signal_shape:
-        raise ValueError(
-            f"{source} must match signal shape {signal_shape}; got {class_map.shape}."
-        )
+        raise ValueError(f'{source} must match signal shape {signal_shape}; got {class_map.shape}.')
 
     rounded = np.rint(class_map)
     if np.allclose(class_map, rounded):
@@ -408,14 +405,14 @@ def _coerce_integer_class_map(
         class_indices = (np.asarray(class_map) > 0.5).astype(np.int32, copy=False)
     else:
         raise ValueError(
-            f"{source} must be an integer class map for plotting; got non-integer values."
+            f'{source} must be an integer class map for plotting; got non-integer values.'
         )
 
     num_classes = len(LabelCategory)
     if np.any(class_indices < 0) or np.any(class_indices >= num_classes):
         raise ValueError(
-            f"{source} class indices must be in [0, {num_classes}); "
-            f"got range [{class_indices.min()}, {class_indices.max()}]."
+            f'{source} class indices must be in [0, {num_classes}); '
+            f'got range [{class_indices.min()}, {class_indices.max()}].'
         )
 
     return class_indices
@@ -448,7 +445,7 @@ def _iter_class_spans(class_row: np.ndarray) -> list[tuple[int, int, int]]:
 def _plot_segmentation_mask(
     axs: Sequence[plt.Axes],
     mask: np.ndarray,
-    color: str = "green",
+    color: str = 'green',
     alpha: float = 0.5,
     y_range: tuple[float, float] = (0.0, 1.0),
     min_width: int = 1,
@@ -471,7 +468,7 @@ def _plot_segmentation_mask(
                 ymin=y_range[0],
                 ymax=y_range[1],
                 facecolor=color,
-                edgecolor="none",
+                edgecolor='none',
                 alpha=alpha,
             )
 

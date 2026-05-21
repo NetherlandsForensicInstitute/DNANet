@@ -22,6 +22,7 @@ from dnanet.evaluation.visualization import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def signal_5dye() -> np.ndarray:
     """Synthetic 5-dye EPG signal."""
@@ -50,6 +51,7 @@ def prediction_5dye() -> np.ndarray:
 # plot_profile
 # ---------------------------------------------------------------------------
 
+
 class TestPlotProfile:
     def test_signal_only(self, signal_5dye):
         fig = plot_profile(signal_5dye)
@@ -67,31 +69,34 @@ class TestPlotProfile:
         assert len(fig.axes) == 10
 
     def test_with_title(self, signal_5dye):
-        fig = plot_profile(signal_5dye, title="Test Profile")
+        fig = plot_profile(signal_5dye, title='Test Profile')
         assert fig._suptitle is not None
 
     def test_custom_dye_colors(self, signal_5dye):
         fig = plot_profile(
             signal_5dye,
-            dye_colors=["r", "g", "b", "k", "m"],
+            dye_colors=['r', 'g', 'b', 'k', 'm'],
         )
         assert isinstance(fig, Figure)
 
     def test_all_annotations_and_predictions(
-        self, signal_5dye, annotation_5dye, prediction_5dye,
+        self,
+        signal_5dye,
+        annotation_5dye,
+        prediction_5dye,
     ):
         fig = plot_profile(
             signal_5dye,
             annotation=annotation_5dye,
             prediction=prediction_5dye,
-            title="Full Profile",
+            title='Full Profile',
         )
         assert isinstance(fig, Figure)
         assert [text.get_text() for text in fig.legends[0].get_texts()] == [
-            "Allele",
-            "Stutter",
-            "Pull Up",
-            "Bleed Through",
+            'Allele',
+            'Stutter',
+            'Pull Up',
+            'Bleed Through',
         ]
 
     def test_single_dye(self):
@@ -121,7 +126,7 @@ class TestPlotProfile:
 
         assert len(fig.axes[1].patches) == 0
         assert len(fig.axes[1].collections) == 1
-        assert tuple(fig.axes[1].collections[0].get_edgecolors()[0]) == to_rgba("black")
+        assert tuple(fig.axes[1].collections[0].get_edgecolors()[0]) == to_rgba('black')
 
     def test_multi_scanpoint_annotation_is_rendered_as_bar(self):
         signal = np.random.default_rng(13).random((1, 100))
@@ -153,6 +158,7 @@ class TestPlotProfile:
 # plot_profile_marker
 # ---------------------------------------------------------------------------
 
+
 class TestPlotProfileMarker:
     def test_basic_marker_plot(self, signal_5dye):
         scaler = np.linspace(50, 350, 200)
@@ -161,7 +167,7 @@ class TestPlotProfileMarker:
             scaler,
             marker_bp_range=(100.0, 150.0),
             dye_row=0,
-            title="Test Marker",
+            title='Test Marker',
         )
         assert isinstance(fig, Figure)
 
@@ -192,7 +198,8 @@ class TestPlotProfileMarker:
 # Constants
 # ---------------------------------------------------------------------------
 
+
 def test_dye_colors_standard():
     assert len(DYE_COLORS) == 6
-    assert DYE_COLORS[0] == "blue"
-    assert "orange" in DYE_COLORS
+    assert DYE_COLORS[0] == 'blue'
+    assert 'orange' in DYE_COLORS

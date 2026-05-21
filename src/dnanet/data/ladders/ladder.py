@@ -81,7 +81,7 @@ class Ladder:
         catalog: LadderAlleleCatalog,
         data_loading_strategy: str,
         scaling_strategy: ScalingStrategy,
-        dataset_strategy: DatasetStrategy
+        dataset_strategy: DatasetStrategy,
     ) -> Panel | None:
         """Read in a ladder HID file and create an adjusted panel.
 
@@ -107,7 +107,7 @@ class Ladder:
         if ladder_image.data is None:
             return None
 
-        num_dyes = scaling_strategy.kit.num_dyes - 1 # exclude size standard
+        num_dyes = scaling_strategy.kit.num_dyes - 1  # exclude size standard
         default_panel = scaling_strategy.panel
 
         detected_peaks = cls._find_all_peaks(

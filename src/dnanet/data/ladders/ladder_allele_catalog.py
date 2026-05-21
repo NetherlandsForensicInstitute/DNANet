@@ -23,7 +23,7 @@ class LadderAlleleCatalog:
         return len(self.alleles_by_dye.get(dye_row, []))
 
     @classmethod
-    def from_panel(cls, panel: Panel) -> "LadderAlleleCatalog":
+    def from_panel(cls, panel: Panel) -> 'LadderAlleleCatalog':
         """Create a catalog from a panel."""
         alleles: dict[int, list[tuple[str, str]]] = defaultdict(list)
         for marker in panel.markers:
@@ -43,10 +43,7 @@ class LadderAlleleCatalog:
 
     def __hash__(self):
         return hash(
-            tuple(
-                (dye, tuple(alleles))
-                for dye, alleles in sorted(self.alleles_by_dye.items())
-            )
+            tuple((dye, tuple(alleles)) for dye, alleles in sorted(self.alleles_by_dye.items()))
         )
 
     def __eq__(self, other):

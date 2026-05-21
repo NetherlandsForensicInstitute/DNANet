@@ -110,7 +110,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
             dataset_strategy=base_dataset.dataset_strategy,
             base_dataset=base_dataset,
             transform=base_dataset.transform,
-            **kwargs
+            **kwargs,
         )
 
     def _iterate_peaks(self) -> Iterator[ExtractedPeak]:
@@ -125,7 +125,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
             threshold=self.threshold,
             window_size=self.window_size,
             include_max_pool_dyes=self.include_max_pool_dyes,
-            dataset_strategy=self.dataset_strategy
+            dataset_strategy=self.dataset_strategy,
         )
 
         for peak in peaks:
@@ -135,7 +135,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
 
     def _materialize_peaks(self) -> list[list[ExtractedPeak]]:
         """Eagerly extract peaks for each image in this dataset."""
-        logger.info("Eagerly extracting peaks for all images...")
+        logger.info('Eagerly extracting peaks for all images...')
         return [
             list(self._extract_peaks(self._materialize_image(index)))
             for index in tqdm(self._image_indices, desc='Extracting peaks', unit='image')
@@ -160,7 +160,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         worker_info = get_worker_info()
         if worker_info is None:
             return self._image_indices
-        return self._image_indices[worker_info.id::worker_info.num_workers]
+        return self._image_indices[worker_info.id :: worker_info.num_workers]
 
     def _iter_worker_images(self) -> Iterator[HIDImage]:
         """Yield only the images needed by the current worker."""
@@ -186,7 +186,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
             yield from self._cached_peak_lists
             return
 
-        yield from self._cached_peak_lists[worker_info.id::worker_info.num_workers]
+        yield from self._cached_peak_lists[worker_info.id :: worker_info.num_workers]
 
     def _preprocess_peak(self, peak: ExtractedPeak) -> None:
         """Apply in-place preprocessing to a peak's data.
@@ -212,7 +212,7 @@ class PeakWindowDataset(IterableDataset, TransformableDataset):
         if self._base_dataset is not None:
             return [self._base_dataset.get_stub_image(idx) for idx in self._image_indices]
         if self._images is None:
-            raise ValueError("PeakWindowDataset has no .images")
+            raise ValueError('PeakWindowDataset has no .images')
         return [self._images[idx] for idx in self._image_indices]
 
     @property

@@ -95,9 +95,9 @@ class Conv1dAutoencoder(AbstractAutoencoder):
         super().__init__()
 
         if depth < 1:
-            raise ValueError("depth must be at least 1.")
+            raise ValueError('depth must be at least 1.')
         if kernel_size % 2 == 0:
-            raise ValueError("kernel_size must be odd for symmetric padding.")
+            raise ValueError('kernel_size must be odd for symmetric padding.')
 
         self.in_channels = in_channels
         self.depth = depth
@@ -110,9 +110,7 @@ class Conv1dAutoencoder(AbstractAutoencoder):
         channels_latent = latent_size // latent_length
 
         if channels_latent < 1:
-            raise ValueError(
-                "input_length too small for requested depth and compression."
-            )
+            raise ValueError('input_length too small for requested depth and compression.')
 
         # Verify exact compression is achievable
         lz = input_length
@@ -120,8 +118,8 @@ class Conv1dAutoencoder(AbstractAutoencoder):
             lz = (lz + 1) // 2
         if latent_size % lz != 0:
             raise ValueError(
-                f"Cannot achieve exact {compression}x compression with "
-                f"depth={depth}: latent_size={latent_size} not divisible by Lz={lz}"
+                f'Cannot achieve exact {compression}x compression with '
+                f'depth={depth}: latent_size={latent_size} not divisible by Lz={lz}'
             )
 
         self._encoded_channels = channels_latent
@@ -134,9 +132,12 @@ class Conv1dAutoencoder(AbstractAutoencoder):
         for _ in range(depth):
             encoder_layers.append(
                 nn.Conv1d(
-                    ch_in, hidden_channels,
-                    kernel_size=kernel_size, stride=2,
-                    padding=padding, padding_mode="reflect",
+                    ch_in,
+                    hidden_channels,
+                    kernel_size=kernel_size,
+                    stride=2,
+                    padding=padding,
+                    padding_mode='reflect',
                 )
             )
             if use_batchnorm:
@@ -146,28 +147,24 @@ class Conv1dAutoencoder(AbstractAutoencoder):
             ch_in = hidden_channels
 
         # Bottleneck projection to latent channels
-        encoder_layers.append(
-            nn.Conv1d(ch_in, channels_latent, kernel_size=1)
-        )
+        encoder_layers.append(nn.Conv1d(ch_in, channels_latent, kernel_size=1))
         self.encoder_net = nn.Sequential(*encoder_layers)
 
         # Build decoder
         decoder_layers: list[nn.Module] = []
         rev = channels_per_level[::-1]
 
-        decoder_layers.append(
-            nn.Conv1d(channels_latent, rev[0], kernel_size=1)
-        )
+        decoder_layers.append(nn.Conv1d(channels_latent, rev[0], kernel_size=1))
 
         for i in range(len(rev) - 1):
-            decoder_layers.append(
-                nn.Upsample(scale_factor=2, mode="linear", align_corners=False)
-            )
+            decoder_layers.append(nn.Upsample(scale_factor=2, mode='linear', align_corners=False))
             decoder_layers.append(
                 nn.Conv1d(
-                    rev[i], rev[i + 1],
-                    kernel_size=kernel_size, padding=padding,
-                    padding_mode="reflect",
+                    rev[i],
+                    rev[i + 1],
+                    kernel_size=kernel_size,
+                    padding=padding,
+                    padding_mode='reflect',
                 )
             )
             if use_batchnorm:
@@ -175,14 +172,14 @@ class Conv1dAutoencoder(AbstractAutoencoder):
             decoder_layers.append(nn.ReLU())
 
         # Final upsample + project back to in_channels
-        decoder_layers.append(
-            nn.Upsample(scale_factor=2, mode="linear", align_corners=False)
-        )
+        decoder_layers.append(nn.Upsample(scale_factor=2, mode='linear', align_corners=False))
         decoder_layers.append(
             nn.Conv1d(
-                rev[-1], in_channels,
-                kernel_size=kernel_size, padding=padding,
-                padding_mode="reflect",
+                rev[-1],
+                in_channels,
+                kernel_size=kernel_size,
+                padding=padding,
+                padding_mode='reflect',
             )
         )
         if use_sigmoid:
@@ -239,19 +236,21 @@ class PerDyeConv1dAutoencoder(AbstractAutoencoder):
         super().__init__()
         self.in_channels = in_channels
 
-        self.per_channel_nets = nn.ModuleList([
-            Conv1dAutoencoder(
-                in_channels=1,
-                hidden_channels=hidden_channels,
-                depth=depth,
-                input_length=input_length,
-                kernel_size=kernel_size,
-                compression=compression,
-                use_sigmoid=use_sigmoid,
-                use_batchnorm=use_batchnorm,
-            )
-            for _ in range(in_channels)
-        ])
+        self.per_channel_nets = nn.ModuleList(
+            [
+                Conv1dAutoencoder(
+                    in_channels=1,
+                    hidden_channels=hidden_channels,
+                    depth=depth,
+                    input_length=input_length,
+                    kernel_size=kernel_size,
+                    compression=compression,
+                    use_sigmoid=use_sigmoid,
+                    use_batchnorm=use_batchnorm,
+                )
+                for _ in range(in_channels)
+            ]
+        )
 
         sub = self.per_channel_nets[0]
         enc_ch = sub._encoded_channels
@@ -263,17 +262,14 @@ class PerDyeConv1dAutoencoder(AbstractAutoencoder):
             x = x.squeeze(-1)
 
         encoded = [
-            self.per_channel_nets[ch].encode(x[:, ch : ch + 1, :])
-            for ch in range(self.in_channels)
+            self.per_channel_nets[ch].encode(x[:, ch : ch + 1, :]) for ch in range(self.in_channels)
         ]
         return torch.cat(encoded, dim=1)
 
     def decode(self, z: Tensor) -> Tensor:
         enc_ch = self.per_channel_nets[0]._encoded_channels
         decoded = [
-            self.per_channel_nets[ch].decode(
-                z[:, ch * enc_ch : (ch + 1) * enc_ch, :]
-            )
+            self.per_channel_nets[ch].decode(z[:, ch * enc_ch : (ch + 1) * enc_ch, :])
             for ch in range(self.in_channels)
         ]
         return torch.cat(decoded, dim=1)
@@ -299,17 +295,16 @@ class SharedWeightPerDyeConv1dAutoencoder(PerDyeConv1dAutoencoder):
         # Replace the independent per-channel nets with a single shared one
         shared_net = Conv1dAutoencoder(
             in_channels=1,
-            hidden_channels=kwargs.get("hidden_channels", 16),
-            depth=kwargs.get("depth", 2),
-            input_length=kwargs.get("input_length", 4096),
-            kernel_size=kwargs.get("kernel_size", 9),
-            compression=kwargs.get("compression", 8),
-            use_sigmoid=kwargs.get("use_sigmoid", True),
-            use_batchnorm=kwargs.get("use_batchnorm", False),
+            hidden_channels=kwargs.get('hidden_channels', 16),
+            depth=kwargs.get('depth', 2),
+            input_length=kwargs.get('input_length', 4096),
+            kernel_size=kwargs.get('kernel_size', 9),
+            compression=kwargs.get('compression', 8),
+            use_sigmoid=kwargs.get('use_sigmoid', True),
+            use_batchnorm=kwargs.get('use_batchnorm', False),
         )
-        self.per_channel_nets = nn.ModuleList(
-            [shared_net] * kwargs.get("in_channels", 5)
-        )
+        self.per_channel_nets = nn.ModuleList([shared_net] * kwargs.get('in_channels', 5))
+
 
 class UNet2DAutoEncoder(AbstractAutoencoder):
     """U-Net-style autoencoder for full electropherogram images.
@@ -326,18 +321,19 @@ class UNet2DAutoEncoder(AbstractAutoencoder):
     """
 
     def __init__(
-            self,
-            depth: int,
-            kernel_size: Tuple[int, int],
-            num_filters: int,
-            in_channels: int = 1,
+        self,
+        depth: int,
+        kernel_size: Tuple[int, int],
+        num_filters: int,
+        in_channels: int = 1,
     ):
         super().__init__(in_channels=in_channels)
         if in_channels != 1:
-            raise ValueError("`UNet` wrapper currently supports `in_channels=1` only.")
-        
+            raise ValueError('`UNet` wrapper currently supports `in_channels=1` only.')
+
         # Import here to prevent circular imports
         from dnanet.models import UNet
+
         self.net = UNet(
             depth=depth,
             kernel_size=kernel_size,
@@ -357,7 +353,7 @@ class UNet2DAutoEncoder(AbstractAutoencoder):
         if x.dim() == 5 and x.shape[-1] == 1:
             x = x.squeeze(-1)
         if x.dim() != 4:
-            raise ValueError(f"Expected 4D input (N, C, H, W), got shape {tuple(x.shape)}.")
+            raise ValueError(f'Expected 4D input (N, C, H, W), got shape {tuple(x.shape)}.')
 
         # raise ValueError(f"Shape {tuple(x.shape)} not supported by UNet1DAutoEnc.")
 
@@ -367,7 +363,7 @@ class UNet2DAutoEncoder(AbstractAutoencoder):
 
     def decoder(self, z: torch.Tensor) -> torch.Tensor:
         if self._latest_skips is None:
-            raise RuntimeError("encoder must run before decoder to populate skip connections.")
+            raise RuntimeError('encoder must run before decoder to populate skip connections.')
         skips = list(self._latest_skips)
         return self.net.decode(z, skips).squeeze(1)
 
@@ -398,7 +394,7 @@ class FourierAutoencoder(AbstractAutoencoder):
         in_channels: int = 5,
         signal_length: int = 4096,
         latent_coeffs: int = 256,
-        norm: str = "backward",
+        norm: str = 'backward',
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -409,8 +405,7 @@ class FourierAutoencoder(AbstractAutoencoder):
 
         if latent_coeffs > self.full_freq_len:
             raise ValueError(
-                f"latent_coeffs={latent_coeffs} exceeds max rFFT length "
-                f"({self.full_freq_len})"
+                f'latent_coeffs={latent_coeffs} exceeds max rFFT length ({self.full_freq_len})'
             )
 
     def encode(self, x: Tensor) -> Tensor:
@@ -429,7 +424,8 @@ class FourierAutoencoder(AbstractAutoencoder):
 
         full = torch.zeros(
             (b, c, self.full_freq_len),
-            dtype=truncated.dtype, device=truncated.device,
+            dtype=truncated.dtype,
+            device=truncated.device,
         )
         full[..., :k] = truncated
 

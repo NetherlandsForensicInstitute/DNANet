@@ -11,6 +11,7 @@ class TransformableDataset(abc.ABC):  # noqa: D101
     @abc.abstractmethod
     def images(self) -> List[HIDImage]:
         raise NotImplementedError
+
     @property
     @abc.abstractmethod
     def transform(self) -> TransformDataCallable | None:

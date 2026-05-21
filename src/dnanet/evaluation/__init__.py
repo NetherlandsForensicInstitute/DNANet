@@ -22,13 +22,13 @@ from dnanet.evaluation.allele_caller import (
 
 
 __all__ = [
-    "AlleleCaller",
-    "FromSegmentationImageCaller",
-    "NearestBasePairCaller",
-    "ExactBasePairCaller",
-    "AlleleMetric",
-    "AllelePrecision",
-    "AlleleRecall",
-    "AlleleF1Score",
-    "PerRFUOutcomeMetric",
+    'AlleleCaller',
+    'FromSegmentationImageCaller',
+    'NearestBasePairCaller',
+    'ExactBasePairCaller',
+    'AlleleMetric',
+    'AllelePrecision',
+    'AlleleRecall',
+    'AlleleF1Score',
+    'PerRFUOutcomeMetric',
 ]

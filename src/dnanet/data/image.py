@@ -46,8 +46,8 @@ if TYPE_CHECKING:
 # Default RFU detection threshold
 _DEFAULT_RFU_THRESHOLD = 40
 
-class TrainableElement(abc.ABC):  # noqa: D101
 
+class TrainableElement(abc.ABC):  # noqa: D101
     @property
     @abstractmethod
     def data(self) -> np.ndarray:
@@ -57,7 +57,6 @@ class TrainableElement(abc.ABC):  # noqa: D101
     @abstractmethod
     def annotation(self) -> Annotation | ClassAnnotation | None:
         raise NotImplementedError
-
 
 
 class HIDImage(TrainableElement):
@@ -90,7 +89,7 @@ class HIDImage(TrainableElement):
         annotation: ScanpointAnnotation | None = None,
         allele_annotation: AlleleAnnotation | None = None,
         load_in_memory: bool = True,
-        data_loading_strategy: str = "superior",
+        data_loading_strategy: str = 'superior',
         rfu_threshold: float = _DEFAULT_RFU_THRESHOLD,
         meta: MutableMapping[str, Any] | None = None,
     ) -> None:
@@ -133,7 +132,6 @@ class HIDImage(TrainableElement):
     def allele_annotation(self) -> AlleleAnnotation | None:
         return self._allele_annotation
 
-
     @property
     def annotation(self) -> ScanpointAnnotation | None:
         return self._annotation
@@ -173,11 +171,11 @@ class HIDImage(TrainableElement):
         try:
             ss_result = self.scaling_strategy.parse_size_standard(ss_lane)
         except ValueError as e:
-            logger.warning("Size standard invalid for {}: {}", self.path.name, e)
+            logger.warning('Size standard invalid for {}: {}', self.path.name, e)
             return None
 
         if ss_result is None:
-            logger.warning("Size standard parsing returned None for {}", self.path.name)
+            logger.warning('Size standard parsing returned None for {}', self.path.name)
             return None
 
         selected = profile if self.include_size_standard else profile[:-1]
@@ -189,4 +187,4 @@ class HIDImage(TrainableElement):
     # -- Dunder ----------------------------------------------------------- #
 
     def __repr__(self) -> str:
-        return f"HIDImage({self.path.name})"
+        return f'HIDImage({self.path.name})'

@@ -101,11 +101,11 @@ class FiLMCombiner(nn.Module):
         local_features: Tensor,
         **_kwargs,
     ) -> Tensor:
-        film_params = self.film_generator(global_features) # (P, 2 * F_p)
-        gamma, beta = torch.chunk(film_params, 2, dim=1) # Each is (P, F_p)
+        film_params = self.film_generator(global_features)  # (P, 2 * F_p)
+        gamma, beta = torch.chunk(film_params, 2, dim=1)  # Each is (P, F_p)
         # Apply non-linearity after modulation with ReLu (common in FiLM blocks)
-        modulated = torch.relu(gamma * local_features + beta) # (P, F_p)
-        return self.classifier(modulated) # (P, num_classes)
+        modulated = torch.relu(gamma * local_features + beta)  # (P, F_p)
+        return self.classifier(modulated)  # (P, num_classes)
 
 
 class CrossAttentionCombiner(nn.Module):
@@ -151,7 +151,7 @@ class CrossAttentionCombiner(nn.Module):
         global_signal: Tensor,
     ) -> Tensor:
         """Forward pass of the peaknet.
-        
+
         Args:
             global_features: Unused (kept for interface compat).
             local_features: (P, D_local) per-peak features.
@@ -159,7 +159,7 @@ class CrossAttentionCombiner(nn.Module):
             global_signal: (N, C_global, W) autoencoder encoded output.
             E: embedding dimension.
         """
-        g = self.global_proj(global_signal) + self.positional_encoding # (N, E, W)
+        g = self.global_proj(global_signal) + self.positional_encoding  # (N, E, W)
         g = g.transpose(1, 2)  # (N, W, E)
         peak_context = g[peak_to_image]  # (P, W, E)
 
@@ -168,8 +168,8 @@ class CrossAttentionCombiner(nn.Module):
         attn_out, _ = self.mha(query, peak_context, peak_context)
         attn_out = self.norm(attn_out.squeeze(1))  # (P, E)
 
-        combined = torch.cat([local_features, attn_out], dim=1) # (P, D_local + E)
-        return self.classifier(combined) # (P, num_classes)
+        combined = torch.cat([local_features, attn_out], dim=1)  # (P, D_local + E)
+        return self.classifier(combined)  # (P, num_classes)
 
 
 # ---------------------------------------------------------------------------
@@ -305,7 +305,7 @@ class CombinedClassifier(nn.Module):
         # N: Number of images in batch
         # C: Number of channels/dyes
         # L: Length of electropherogram (4096)
-        # C_peak: 
+        # C_peak:
         # P: Total number of peaks across batch (sum of N_p over N)
         # W: Width of peak window
         # F_a: Dimension of autoencoder features (when flattened)
@@ -321,18 +321,16 @@ class CombinedClassifier(nn.Module):
         # 1) GLOBAL BRANCH (per image)
         ctx = torch.no_grad() if self.freeze_autoencoder else torch.enable_grad()
         with ctx:
-            ae_encoded = self.autoencoder.encode(full_image) # Output has no defined shape
+            ae_encoded = self.autoencoder.encode(full_image)  # Output has no defined shape
         ae_flat = torch.flatten(ae_encoded, start_dim=1)  # (N, F_a)
-        
+
         # Map each peak to its image’s global features -> (P, F_a)
         ae_per_peak = ae_flat[peak_to_image]  # (P, F_a)
-
 
         # 2) LOCAL BRANCH (per peak)
         # peaks:   (P, C, W)
         # markers: (P,)
         local_features = self.peak_classifier.backbone((peak_windows, marker_idxs))  # (P, F_p)
-
 
         # 3) COMBINE + CLASSIFY (per peak)
         if self.combiner_name == 'attention':
@@ -342,12 +340,11 @@ class CombinedClassifier(nn.Module):
                 local_features,
                 peak_to_image=peak_to_image,
                 global_signal=ae_encoded,
-            ) # (P, num_classes)
+            )  # (P, num_classes)
         else:
             # For the other combination strategies we don't need the full autoencoder output
-            logits = self.combiner(ae_per_peak, local_features) # (P, num_classes)
+            logits = self.combiner(ae_per_peak, local_features)  # (P, num_classes)
         # logits now contains a classification for each peak: (P, num_classes)
-
 
         # 4) MAP BACK TO IMAGE
         # Scatter logits back to image coordinates
@@ -355,7 +352,7 @@ class CombinedClassifier(nn.Module):
             (N, C, L, self.num_classes),
             device=logits.device,
             dtype=logits.dtype,
-        ) # (N, C, L, num_classes)
+        )  # (N, C, L, num_classes)
 
         # Set default class (background noise) logits to 8, while other classes are 0,
         # this should make sure that non-peak regions are classified as noise
@@ -428,21 +425,21 @@ class PeakOnlyClassifier(nn.Module):
 
         peak_to_image = torch.repeat_interleave(
             torch.arange(N, device=full_image.device), peak_counts
-        ) # (P,)
+        )  # (P,)
 
-        logits = self.peak_classifier((peak_windows, marker_idxs)) # (P, num_classes)
+        logits = self.peak_classifier((peak_windows, marker_idxs))  # (P, num_classes)
 
         segmented = torch.zeros(
             (N, C, L, self.num_classes),
             device=logits.device,
             dtype=logits.dtype,
-        ) # (N, C, L, num_classes)
-        
+        )  # (N, C, L, num_classes)
+
         # See notes from CombinedClassifier
         segmented[:, :, :, self.default_class_idx] = 8.0
 
-        dye_idx = peak_centers[:, 0].long() # (P,)
-        pos_idx = peak_centers[:, 1].long() # (P,)
-        segmented[peak_to_image, dye_idx, pos_idx, :] = logits # (N, C, L, num_classes)
+        dye_idx = peak_centers[:, 0].long()  # (P,)
+        pos_idx = peak_centers[:, 1].long()  # (P,)
+        segmented[peak_to_image, dye_idx, pos_idx, :] = logits  # (N, C, L, num_classes)
 
         return segmented.permute(0, 3, 1, 2)  # (N, num_classes, C, L)

@@ -20,18 +20,26 @@ from dnanet.models.peaknet import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def autoencoder():
     return Conv1dAutoencoder(
-        in_channels=5, hidden_channels=8, depth=2,
-        input_length=256, kernel_size=5, compression=4,
+        in_channels=5,
+        hidden_channels=8,
+        depth=2,
+        input_length=256,
+        kernel_size=5,
+        compression=4,
     )
 
 
 @pytest.fixture
 def peak_classifier():
     return PeakClassificationModel(
-        num_classes=2, width=120, n_markers=28, embedding_dim=8,
+        num_classes=2,
+        width=120,
+        n_markers=28,
+        embedding_dim=8,
         hidden_channels=[16],
     )
 
@@ -48,10 +56,13 @@ def peaknet_inputs():
     peak_windows = torch.randn(P, 1, 120)
     marker_idxs = torch.randint(0, 28, (P,))
     # peak_centers: (P, 2) — [dye_idx, scan_position]
-    peak_centers = torch.stack([
-        torch.randint(0, C, (P,)),
-        torch.randint(0, L, (P,)),
-    ], dim=1)
+    peak_centers = torch.stack(
+        [
+            torch.randint(0, C, (P,)),
+            torch.randint(0, L, (P,)),
+        ],
+        dim=1,
+    )
     peak_counts = torch.tensor([3, 2])
     return full_image, peak_windows, marker_idxs, peak_centers, peak_counts
 
@@ -59,6 +70,7 @@ def peaknet_inputs():
 # ---------------------------------------------------------------------------
 # Combiner units
 # ---------------------------------------------------------------------------
+
 
 class TestMLPCombiner:
     def test_forward_shape(self):
@@ -72,7 +84,10 @@ class TestMLPCombiner:
 class TestFiLMCombiner:
     def test_forward_shape(self):
         combiner = FiLMCombiner(
-            global_dim=16, local_dim=16, hidden_dims=[8], out_dim=2,
+            global_dim=16,
+            local_dim=16,
+            hidden_dims=[8],
+            out_dim=2,
         )
         out = combiner(torch.randn(4, 16), torch.randn(4, 16))
         assert out.shape == (4, 2)
@@ -80,7 +95,10 @@ class TestFiLMCombiner:
     def test_film_init_near_identity(self):
         """FiLM generator should start close to identity (γ≈1, β≈0)."""
         combiner = FiLMCombiner(
-            global_dim=16, local_dim=16, hidden_dims=[8], out_dim=2,
+            global_dim=16,
+            local_dim=16,
+            hidden_dims=[8],
+            out_dim=2,
         )
         params = combiner.film_generator(torch.zeros(1, 16))
         gamma, beta = torch.chunk(params, 2, dim=1)
@@ -91,8 +109,12 @@ class TestFiLMCombiner:
 class TestCrossAttentionCombiner:
     def test_forward_shape(self):
         combiner = CrossAttentionCombiner(
-            global_channels=8, local_dim=16, embed_dim=16,
-            num_heads=2, hidden_dims=[16], out_dim=2,
+            global_channels=8,
+            local_dim=16,
+            embed_dim=16,
+            num_heads=2,
+            hidden_dims=[16],
+            out_dim=2,
         )
         local_feat = torch.randn(5, 16)
         global_signal = torch.randn(2, 8, 32)
@@ -110,8 +132,9 @@ class TestCrossAttentionCombiner:
 # CombinedClassifier
 # ---------------------------------------------------------------------------
 
+
 class TestCombinedClassifier:
-    @pytest.mark.parametrize("combiner", ["mlp", "film", "attention"])
+    @pytest.mark.parametrize('combiner', ['mlp', 'film', 'attention'])
     def test_forward_shape(self, autoencoder, peak_classifier, peaknet_inputs, combiner):
         model = CombinedClassifier(
             autoencoder=autoencoder,
@@ -171,13 +194,13 @@ class TestCombinedClassifier:
         # Just ensure it runs; exact values depend on scatter
 
     def test_invalid_combiner(self, autoencoder, peak_classifier):
-        with pytest.raises(ValueError, match="Unknown combiner"):
+        with pytest.raises(ValueError, match='Unknown combiner'):
             CombinedClassifier(
                 autoencoder=autoencoder,
                 autoencoder_out_shape=autoencoder.encoded_shape(),
                 peak_classifier=peak_classifier,
                 peak_classifier_out_features=peak_classifier.backbone_out_features(),
-                combiner="bad",
+                combiner='bad',
             )
 
     def test_train_keeps_ae_eval(self, autoencoder, peak_classifier):
@@ -195,6 +218,7 @@ class TestCombinedClassifier:
 # ---------------------------------------------------------------------------
 # PeakOnlyClassifier
 # ---------------------------------------------------------------------------
+
 
 class TestPeakOnlyClassifier:
     def test_forward_shape(self, peak_classifier, peaknet_inputs):

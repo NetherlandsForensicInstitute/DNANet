@@ -18,12 +18,12 @@ from dnanet.core.annotation import (
 
 
 __all__ = [
-    "Allele",
-    "AlleleAnnotation",
-    "Annotation",
-    "ClassAnnotation",
-    "LabelCategory",
-    "Marker",
-    "Panel",
-    "ScanpointAnnotation",
+    'Allele',
+    'AlleleAnnotation',
+    'Annotation',
+    'ClassAnnotation',
+    'LabelCategory',
+    'Marker',
+    'Panel',
+    'ScanpointAnnotation',
 ]

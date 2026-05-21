@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
 
-RFU_OUTCOMES: tuple[str, ...] = ("tp", "fp", "fn")
+RFU_OUTCOMES: tuple[str, ...] = ('tp', 'fp', 'fn')
 
 
 class PerRFUOutcomeMetric(Metric):
@@ -35,9 +35,9 @@ class PerRFUOutcomeMetric(Metric):
         """Initialize the accumulator with a prediction threshold."""
         super().__init__(**kwargs)
         self.threshold = threshold
-        self.add_state("tp_rfus", default=[], dist_reduce_fx="cat")
-        self.add_state("fp_rfus", default=[], dist_reduce_fx="cat")
-        self.add_state("fn_rfus", default=[], dist_reduce_fx="cat")
+        self.add_state('tp_rfus', default=[], dist_reduce_fx='cat')
+        self.add_state('fp_rfus', default=[], dist_reduce_fx='cat')
+        self.add_state('fn_rfus', default=[], dist_reduce_fx='cat')
 
     def update(self, preds: Tensor, targets: Tensor, rfu_values: Tensor) -> None:
         """Collect RFU values for TP, FP, and FN scanpoints."""
@@ -47,9 +47,9 @@ class PerRFUOutcomeMetric(Metric):
 
         if preds.shape != targets.shape or preds.shape != rfu_values.shape:
             raise ValueError(
-                "preds, targets, and rfu_values must have identical shapes, got "
-                f"{tuple(preds.shape)}, {tuple(targets.shape)}, and "
-                f"{tuple(rfu_values.shape)}."
+                'preds, targets, and rfu_values must have identical shapes, got '
+                f'{tuple(preds.shape)}, {tuple(targets.shape)}, and '
+                f'{tuple(rfu_values.shape)}.'
             )
 
         pred_mask = preds >= self.threshold
@@ -68,9 +68,9 @@ class PerRFUOutcomeMetric(Metric):
     def compute_outcomes(self) -> dict[str, Tensor]:
         """Return accumulated RFU values as stable one-dimensional tensors."""
         return {
-            "tp_rfus": _cat_tensors(self.tp_rfus, device=self.device),
-            "fp_rfus": _cat_tensors(self.fp_rfus, device=self.device),
-            "fn_rfus": _cat_tensors(self.fn_rfus, device=self.device),
+            'tp_rfus': _cat_tensors(self.tp_rfus, device=self.device),
+            'fp_rfus': _cat_tensors(self.fp_rfus, device=self.device),
+            'fn_rfus': _cat_tensors(self.fn_rfus, device=self.device),
         }
 
 
@@ -81,13 +81,12 @@ def write_rfu_outcome_file(
     """Write RFU outcomes based on the filename extension."""
     output_path = Path(path)
     suffix = output_path.suffix.lower()
-    if suffix == ".npz":
+    if suffix == '.npz':
         return write_rfu_outcome_npz(output_path, outcomes)
-    if suffix == ".csv":
+    if suffix == '.csv':
         return write_rfu_outcome_csv(output_path, outcomes)
     raise ValueError(
-        "RFU outcome filename must end with '.npz' or '.csv', got "
-        f"{output_path.name!r}."
+        f"RFU outcome filename must end with '.npz' or '.csv', got {output_path.name!r}."
     )
 
 
@@ -99,13 +98,10 @@ def write_rfu_outcome_npz(
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with output_path.open("wb") as handle:
+    with output_path.open('wb') as handle:
         np.savez_compressed(
             handle,
-            **{
-                f"{outcome}_rfus": _outcome_array(outcomes, outcome)
-                for outcome in RFU_OUTCOMES
-            },
+            **{f'{outcome}_rfus': _outcome_array(outcomes, outcome) for outcome in RFU_OUTCOMES},
         )
 
     return output_path
@@ -119,12 +115,12 @@ def write_rfu_outcome_csv(
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with output_path.open("w", newline="", encoding="utf-8") as handle:
+    with output_path.open('w', newline='', encoding='utf-8') as handle:
         writer = csv.writer(handle)
-        writer.writerow(("outcome", "rfu"))
+        writer.writerow(('outcome', 'rfu'))
         for outcome in RFU_OUTCOMES:
             for rfu in _outcome_array(outcomes, outcome):
-                writer.writerow((outcome, f"{rfu:g}"))
+                writer.writerow((outcome, f'{rfu:g}'))
 
     return output_path
 
@@ -132,32 +128,29 @@ def write_rfu_outcome_csv(
 def load_rfu_outcome_npz(path: str | Path) -> dict[str, np.ndarray]:
     """Load an RFU outcome NPZ written by :func:`write_rfu_outcome_npz`."""
     with np.load(Path(path)) as data:
-        missing = [f"{outcome}_rfus" for outcome in RFU_OUTCOMES if f"{outcome}_rfus" not in data]
+        missing = [f'{outcome}_rfus' for outcome in RFU_OUTCOMES if f'{outcome}_rfus' not in data]
         if missing:
-            raise ValueError(f"Missing RFU outcome array(s): {', '.join(missing)}.")
+            raise ValueError(f'Missing RFU outcome array(s): {", ".join(missing)}.')
 
         return {
-            f"{outcome}_rfus": np.asarray(data[f"{outcome}_rfus"], dtype=float).reshape(-1)
+            f'{outcome}_rfus': np.asarray(data[f'{outcome}_rfus'], dtype=float).reshape(-1)
             for outcome in RFU_OUTCOMES
         }
 
 
 def load_rfu_outcome_csv(path: str | Path) -> dict[str, np.ndarray]:
     """Load an RFU outcome CSV written by :func:`write_rfu_outcome_csv`."""
-    values: dict[str, list[float]] = {f"{outcome}_rfus": [] for outcome in RFU_OUTCOMES}
+    values: dict[str, list[float]] = {f'{outcome}_rfus': [] for outcome in RFU_OUTCOMES}
 
-    with Path(path).open(newline="", encoding="utf-8") as handle:
+    with Path(path).open(newline='', encoding='utf-8') as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            outcome = row["outcome"]
+            outcome = row['outcome']
             if outcome not in RFU_OUTCOMES:
-                raise ValueError(f"Unknown RFU outcome {outcome!r}.")
-            values[f"{outcome}_rfus"].append(float(row["rfu"]))
+                raise ValueError(f'Unknown RFU outcome {outcome!r}.')
+            values[f'{outcome}_rfus'].append(float(row['rfu']))
 
-    return {
-        key: np.asarray(outcome_values, dtype=float)
-        for key, outcome_values in values.items()
-    }
+    return {key: np.asarray(outcome_values, dtype=float) for key, outcome_values in values.items()}
 
 
 def compute_binned_f1(
@@ -167,13 +160,13 @@ def compute_binned_f1(
     """Compute precision, recall, and F1 for arbitrary RFU bins."""
     edges = np.asarray(bin_edges, dtype=float)
     if edges.ndim != 1 or len(edges) < 2:
-        raise ValueError("bin_edges must be a one-dimensional sequence with at least two values.")
+        raise ValueError('bin_edges must be a one-dimensional sequence with at least two values.')
     if not np.all(np.diff(edges) > 0):
-        raise ValueError("bin_edges must be strictly increasing.")
+        raise ValueError('bin_edges must be strictly increasing.')
 
-    tp = np.histogram(_outcome_array(outcomes, "tp"), bins=edges)[0]
-    fp = np.histogram(_outcome_array(outcomes, "fp"), bins=edges)[0]
-    fn = np.histogram(_outcome_array(outcomes, "fn"), bins=edges)[0]
+    tp = np.histogram(_outcome_array(outcomes, 'tp'), bins=edges)[0]
+    fp = np.histogram(_outcome_array(outcomes, 'fp'), bins=edges)[0]
+    fn = np.histogram(_outcome_array(outcomes, 'fn'), bins=edges)[0]
 
     precision = _safe_divide_np(tp, tp + fp)
     recall = _safe_divide_np(tp, tp + fn)
@@ -181,15 +174,15 @@ def compute_binned_f1(
 
     return [
         {
-            "bin_left": float(edges[idx]),
-            "bin_right": float(edges[idx + 1]),
-            "tp": int(tp[idx]),
-            "fp": int(fp[idx]),
-            "fn": int(fn[idx]),
-            "support": int(tp[idx] + fn[idx]),
-            "precision": float(precision[idx]),
-            "recall": float(recall[idx]),
-            "f1": float(f1[idx]),
+            'bin_left': float(edges[idx]),
+            'bin_right': float(edges[idx + 1]),
+            'tp': int(tp[idx]),
+            'fp': int(fp[idx]),
+            'fn': int(fn[idx]),
+            'support': int(tp[idx] + fn[idx]),
+            'precision': float(precision[idx]),
+            'recall': float(recall[idx]),
+            'f1': float(f1[idx]),
         }
         for idx in range(len(edges) - 1)
     ]
@@ -227,7 +220,7 @@ def _outcome_array(
     outcomes: Mapping[str, Tensor | np.ndarray | Sequence[float] | Sequence[Tensor]],
     outcome: str,
 ) -> np.ndarray:
-    key = f"{outcome}_rfus"
+    key = f'{outcome}_rfus'
     values = outcomes.get(key, outcomes.get(outcome))
     if values is None:
         return np.empty(0, dtype=float)
@@ -238,7 +231,7 @@ def _outcome_array(
     if len(values) == 0:
         return np.empty(0, dtype=float)
     if all(isinstance(value, Tensor) for value in values):
-        return _cat_tensors(values, device=torch.device("cpu")).numpy()
+        return _cat_tensors(values, device=torch.device('cpu')).numpy()
     return np.asarray(values, dtype=float).reshape(-1)
 
 

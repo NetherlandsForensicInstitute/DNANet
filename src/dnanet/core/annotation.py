@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True)
 class ScanpointAnnotation:
     """Annotation type containing labels per scanpoint index."""
+
     data: np.ndarray
 
     def __eq__(self, other: object) -> bool:
@@ -34,6 +35,7 @@ class ScanpointAnnotation:
 @dataclass(frozen=True, slots=True)
 class AlleleAnnotation:
     """Annotation type containing a list of markers."""
+
     data: list[Marker]
 
     def __add__(self, other: AlleleAnnotation) -> AlleleAnnotation:

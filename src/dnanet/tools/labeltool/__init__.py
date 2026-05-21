@@ -11,4 +11,4 @@ from dnanet.tools.labeltool.tool import LabelTool
 from dnanet.tools.labeltool.annotations import AnnotationStore
 
 
-__all__ = ["LabelTool", "AnnotationStore", "main"]
+__all__ = ['LabelTool', 'AnnotationStore', 'main']

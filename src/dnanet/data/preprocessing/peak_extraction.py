@@ -96,7 +96,7 @@ def _build_peak_data(
     pad_value: int = 0,
 ) -> np.ndarray:
     """Builds information about peaks in an image.
-    
+
     Creates a 2D array of shape (2, length) if include_max_pool_dyes is True,
     otherwise a 1D array of shape (length,).
     The first row is the slice of the specified dye_index, and the second row
@@ -193,7 +193,8 @@ def _label_peak_from_annotation_fast(
         # in any case, "noise" should never be the answer here
         # so we filter the unique and counts below
         unique, counts = map(
-            np.array, zip(*[(u, c) for u, c in zip(unique, counts, strict=True) if u != 0.0], strict=True)
+            np.array,
+            zip(*[(u, c) for u, c in zip(unique, counts, strict=True) if u != 0.0], strict=True),
         )
 
         sorted_idx = np.lexsort((unique, -counts))
@@ -209,11 +210,11 @@ def _label_peak_from_annotation_fast(
 
 
 def extract_peak_windows(
-        image: HIDImage,
-        threshold: float,
-        window_size: int,
-        dataset_strategy: DatasetStrategy,
-        include_max_pool_dyes: bool = False,
+    image: HIDImage,
+    threshold: float,
+    window_size: int,
+    dataset_strategy: DatasetStrategy,
+    include_max_pool_dyes: bool = False,
 ) -> list[ExtractedPeak]:
     """Extract peak windows from a HIDImage using NumPy.
 
@@ -329,7 +330,9 @@ def extract_peak_windows(
             )
 
             # Fast annotation check without function call overhead
-            peak_annotation = _label_peak_from_annotation_fast(ann_channel, peak_scanpoint, padding=2, dataset_strategy=dataset_strategy)
+            peak_annotation = _label_peak_from_annotation_fast(
+                ann_channel, peak_scanpoint, padding=2, dataset_strategy=dataset_strategy
+            )
             peak_annotation_idx = annotation_to_idx[peak_annotation]
 
             peaks.append(

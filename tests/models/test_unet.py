@@ -79,8 +79,7 @@ class TestUNet:
 
     def test_custom_channels_legacy_4d_input(self):
         """Legacy 4D inputs should still support custom in/out channels."""
-        unet = UNet(depth=2, kernel_size=(3, 3), num_filters=8,
-                     in_channels=3, out_channels=5)
+        unet = UNet(depth=2, kernel_size=(3, 3), num_filters=8, in_channels=3, out_channels=5)
         x = torch.randn(1, 3, 5, 128)
         out = unet(x)
         assert out.shape == (1, 5, 5, 128)
@@ -132,12 +131,14 @@ class TestUNet:
         from omegaconf import OmegaConf
         from hydra.utils import instantiate
 
-        cfg = OmegaConf.create({
-            "_target_": "dnanet.models.unet.UNet",
-            "depth": 2,
-            "kernel_size": [3, 5],
-            "num_filters": 8,
-        })
+        cfg = OmegaConf.create(
+            {
+                '_target_': 'dnanet.models.unet.UNet',
+                'depth': 2,
+                'kernel_size': [3, 5],
+                'num_filters': 8,
+            }
+        )
         unet = instantiate(cfg)
         assert isinstance(unet, UNet)
         x = torch.randn(1, 5, 128)
@@ -155,5 +156,5 @@ class TestUNet:
         """3D input is only valid when the network expects one input channel."""
         unet = UNet(depth=1, kernel_size=(3, 3), num_filters=8, in_channels=2)
         x = torch.randn(1, 5, 64)
-        with pytest.raises(ValueError, match="in_channels=1"):
+        with pytest.raises(ValueError, match='in_channels=1'):
             unet(x)

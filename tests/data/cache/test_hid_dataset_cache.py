@@ -73,7 +73,6 @@ class TestCacheBuildAndReload:
 # ---------------------------------------------------------------------------
 
 
-
 class TestCacheInvalidation:
     def test_modified_source_invalidates_fingerprint(self, tmp_path):
         ds1 = _make(tmp_path)

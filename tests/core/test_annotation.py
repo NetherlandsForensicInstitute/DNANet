@@ -10,13 +10,13 @@ from dnanet.core.marker import Marker
 
 class TestClassAnnotation:
     def test_stores_label(self):
-        ann = ClassAnnotation(data="Allele")
-        assert ann.data == "Allele"
+        ann = ClassAnnotation(data='Allele')
+        assert ann.data == 'Allele'
 
     def test_is_immutable(self):
-        ann = ClassAnnotation(data="Allele")
+        ann = ClassAnnotation(data='Allele')
         with pytest.raises(AttributeError):
-            ann.data = "Stutter"
+            ann.data = 'Stutter'
 
 
 class TestScanpointAnnotation:
@@ -35,22 +35,26 @@ class TestScanpointAnnotation:
 class TestAlleleAnnotation:
     def test_add_merges_matching_markers(self):
         marker_a = Marker(
-            name="D3S1358",
+            name='D3S1358',
             dye_row=0,
-            alleles=frozenset([
-                Allele(name="12", base_pair=120.0, left_bin=0.4, right_bin=0.4),
-            ]),
+            alleles=frozenset(
+                [
+                    Allele(name='12', base_pair=120.0, left_bin=0.4, right_bin=0.4),
+                ]
+            ),
         )
         marker_b = Marker(
-            name="D3S1358",
+            name='D3S1358',
             dye_row=0,
-            alleles=frozenset([
-                Allele(name="13", base_pair=124.0, left_bin=0.4, right_bin=0.4),
-            ]),
+            alleles=frozenset(
+                [
+                    Allele(name='13', base_pair=124.0, left_bin=0.4, right_bin=0.4),
+                ]
+            ),
         )
 
         merged = AlleleAnnotation(data=[marker_a]) + AlleleAnnotation(data=[marker_b])
 
         assert len(merged.data) == 1
-        assert merged.data[0].name == "D3S1358"
-        assert {allele.name for allele in merged.data[0].alleles} == {"12", "13"}
+        assert merged.data[0].name == 'D3S1358'
+        assert {allele.name for allele in merged.data[0].alleles} == {'12', '13'}

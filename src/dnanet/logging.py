@@ -38,22 +38,14 @@ class _InterceptHandler(logging.Handler):
             frame = frame.f_back
             depth += 1
 
-        logger.opt(depth=depth, exception=record.exc_info).log(
-            level, record.getMessage()
-        )
+        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
-_THIRD_PARTY_LOGGERS = [
-    'lightning',
-    'lightning.pytorch',
-    'pytorch_lightning',
-    'hydra',
-    'omegaconf'
-]
+_THIRD_PARTY_LOGGERS = ['lightning', 'lightning.pytorch', 'pytorch_lightning', 'hydra', 'omegaconf']
 
 
 def configure(
-    verbosity: str = "INFO",
+    verbosity: str = 'INFO',
     log_file: Path | None = None,
     serialize: bool = False,
 ) -> None:
@@ -71,22 +63,22 @@ def configure(
     """
     # Remove default sink so we don't get duplicate output
     logger.remove()
+
     def _tqdm_sink(msg: str) -> None:
-        tqdm.write(msg, end="")
+        tqdm.write(msg, end='')
 
     # Console sink — human-readable with colors
     logger.add(
         _tqdm_sink,
         level=verbosity.upper(),
         format=(
-            "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-            "<level>{message}</level>"
+            '<green>{time:YYYY-MM-DD HH:mm:ss}</green> | '
+            '<level>{level: <8}</level> | '
+            '<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - '
+            '<level>{message}</level>'
         ),
         colorize=True,
     )
-
 
     # Optional file sink — rotated, with full detail
     if log_file is not None:
@@ -94,20 +86,17 @@ def configure(
         log_file.parent.mkdir(parents=True, exist_ok=True)
         logger.add(
             str(log_file),
-            level="DEBUG",  # file always captures everything
-            rotation="10 MB",
-            retention="30 days",
+            level='DEBUG',  # file always captures everything
+            rotation='10 MB',
+            retention='30 days',
             serialize=serialize,
             format=(
-                "{time:YYYY-MM-DD HH:mm:ss.SSS} | "
-                "{level: <8} | "
-                "{name}:{function}:{line} - "
-                "{message}"
+                '{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}'
             ),
         )
 
     _intercept_third_party_loggers(verbosity)
-    logger.debug("Logging configured: verbosity={}, log_file={}", verbosity, log_file)
+    logger.debug('Logging configured: verbosity={}, log_file={}', verbosity, log_file)
 
 
 def _intercept_third_party_loggers(verbosity: str) -> None:

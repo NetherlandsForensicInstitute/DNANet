@@ -28,13 +28,14 @@ from scipy.ndimage import percentile_filter
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _to_2d(x: np.ndarray) -> tuple[np.ndarray, bool]:
     """Ensure input is 2D ``(channels, samples)``. Returns ``(array_2d, was_1d)``."""
     if x.ndim == 1:
         return x[np.newaxis, :], True
     if x.ndim == 2:
         return x, False
-    raise ValueError(f"Expected 1D or 2D array, got {x.ndim}D.")
+    raise ValueError(f'Expected 1D or 2D array, got {x.ndim}D.')
 
 
 def _from_2d(x: np.ndarray, was_1d: bool) -> np.ndarray:
@@ -45,6 +46,7 @@ def _from_2d(x: np.ndarray, was_1d: bool) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # Core: percentile window baseline
 # ---------------------------------------------------------------------------
+
 
 def percentile_window_baseline(
     x: np.ndarray,
@@ -75,7 +77,7 @@ def percentile_window_baseline(
     n_channels = data.shape[0] - 1 if skip_last_channel else data.shape[0]
     for i in range(n_channels):
         baseline[i] = percentile_filter(
-            data[i], percentile=percentile, size=window_size, mode="nearest"
+            data[i], percentile=percentile, size=window_size, mode='nearest'
         )
 
     return _from_2d(baseline, was_1d)
@@ -84,6 +86,7 @@ def percentile_window_baseline(
 # ---------------------------------------------------------------------------
 # Named baseline methods
 # ---------------------------------------------------------------------------
+
 
 def baseline_classic(x: np.ndarray) -> np.ndarray:
     """Classic GeneMarker baseline (550-pt window, 20th percentile)."""
@@ -149,6 +152,7 @@ def baseline_enhanced(x: np.ndarray) -> np.ndarray:
 # Smoothing
 # ---------------------------------------------------------------------------
 
+
 def fft_lowpass_smooth(x: np.ndarray, keep_fraction: float) -> np.ndarray:
     """Gaussian low-pass filter in the Fourier domain.
 
@@ -162,15 +166,13 @@ def fft_lowpass_smooth(x: np.ndarray, keep_fraction: float) -> np.ndarray:
 
     # Reflect-pad to reduce edge artifacts
     pad = n // 2
-    padded = np.concatenate(
-        [data[..., pad:0:-1], data, data[..., -2 : -pad - 2 : -1]], axis=-1
-    )
+    padded = np.concatenate([data[..., pad:0:-1], data, data[..., -2 : -pad - 2 : -1]], axis=-1)
     m = padded.shape[-1]
 
     fft = np.fft.rfft(padded, axis=-1)
     freqs = np.fft.rfftfreq(m)
     cutoff = keep_fraction * 0.5
-    kernel = np.exp(-(freqs / max(cutoff, 1e-12)) ** 2)
+    kernel = np.exp(-((freqs / max(cutoff, 1e-12)) ** 2))
     smoothed = np.fft.irfft(fft * kernel, n=m, axis=-1)
 
     # Remove padding
@@ -185,9 +187,9 @@ def fft_lowpass_smooth(x: np.ndarray, keep_fraction: float) -> np.ndarray:
 BaselineMethod = Callable[[np.ndarray], np.ndarray]
 
 BASELINE_METHODS: dict[str, BaselineMethod] = {
-    "classic": baseline_classic,
-    "superior": baseline_superior,
-    "enhanced": baseline_enhanced,
+    'classic': baseline_classic,
+    'superior': baseline_superior,
+    'enhanced': baseline_enhanced,
 }
 
 
@@ -202,7 +204,6 @@ def get_baseline_method(name: str) -> BaselineMethod:
     """
     if name not in BASELINE_METHODS:
         raise ValueError(
-            f"Unknown baseline method '{name}'. "
-            f"Available: {list(BASELINE_METHODS.keys())}"
+            f"Unknown baseline method '{name}'. Available: {list(BASELINE_METHODS.keys())}"
         )
     return BASELINE_METHODS[name]
