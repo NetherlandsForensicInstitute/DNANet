@@ -33,6 +33,7 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
 from dnanet.data.transformer import AlleleMetadataTransformer
 
+
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
 

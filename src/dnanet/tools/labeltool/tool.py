@@ -18,15 +18,14 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
-import matplotlib as mpl
 import numpy as np
+import matplotlib as mpl
+from loguru import logger
 from matplotlib.axes import Axes
-from matplotlib.collections import PolyCollection
 from matplotlib.figure import Figure
 from matplotlib.ticker import FixedLocator
 from matplotlib.widgets import MultiCursor, RadioButtons
-
-from loguru import logger
+from matplotlib.collections import PolyCollection
 
 from dnanet.core.constants import LabelCategory
 from dnanet.tools.labeltool.annotations import AnnotationStore

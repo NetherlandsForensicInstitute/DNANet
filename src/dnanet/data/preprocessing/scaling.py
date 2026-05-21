@@ -19,6 +19,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
+
 RFU_MAX_VALUE: int = 32768
 
 

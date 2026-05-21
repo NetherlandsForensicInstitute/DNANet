@@ -16,12 +16,12 @@ Usage in any module:
     >>> logger.info("Training started with lr={}", lr)
 """
 
-import logging
 import sys
+import logging
 from pathlib import Path
 
-from loguru import logger
 from tqdm import tqdm
+from loguru import logger
 
 
 class _InterceptHandler(logging.Handler):

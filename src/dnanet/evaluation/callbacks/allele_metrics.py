@@ -1,5 +1,4 @@
-"""
-Allele metric evaluation callback.
+"""Allele metric evaluation callback.
 
 Allele metrics are available during validation and test runs.
 """

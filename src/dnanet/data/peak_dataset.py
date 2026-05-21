@@ -17,21 +17,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List, Iterator
 
+from tqdm import tqdm
 from loguru import logger
 from torch.utils.data import IterableDataset, get_worker_info
 
 from dnanet.data.dataset import TransformableDataset
+from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
 from dnanet.data.preprocessing.baseline import fft_lowpass_smooth
 from dnanet.data.preprocessing.peak_extraction import extract_peak_windows
-from dnanet.data.preprocessing.scaling import RFU_MAX_VALUE, scale_rfu_numpy
-from tqdm import tqdm
+
 
 if TYPE_CHECKING:
     from dnanet.data.image import HIDImage
+    from dnanet.data.strategies import DatasetStrategy
     from dnanet.data.hid_dataset import HIDDataset
     from dnanet.data.transformer import TransformDataCallable
     from dnanet.data.extracted_peak import ExtractedPeak
-    from dnanet.data.strategies import DatasetStrategy
 
 
 class PeakWindowDataset(IterableDataset, TransformableDataset):

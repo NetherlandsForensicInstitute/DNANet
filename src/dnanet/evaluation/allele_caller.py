@@ -18,13 +18,13 @@ Implemented are:
 from __future__ import annotations
 
 import abc
-from collections import defaultdict
 from typing import Literal
+from collections import defaultdict
 
 import numpy as np
 from loguru import logger
 
-from dnanet.core import Allele, Marker, Panel, LabelCategory
+from dnanet.core import Panel, Allele, Marker, LabelCategory
 
 
 class AlleleCaller(abc.ABC):

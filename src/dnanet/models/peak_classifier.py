@@ -20,8 +20,8 @@ from __future__ import annotations
 import abc
 
 import torch
-from loguru import logger
 from torch import Tensor, nn
+from loguru import logger
 
 
 class BackboneModule(nn.Module, abc.ABC):

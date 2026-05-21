@@ -34,9 +34,10 @@ import numpy as np
 from loguru import logger
 from scipy.signal import find_peaks
 
+from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.core.panel import Panel
+
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -7,7 +7,7 @@ base-pair axis formatting, and multi-annotator display.
 
 from __future__ import annotations
 
-from typing import Any, Tuple, Iterable, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Tuple, Iterable, Sequence
 
 import numpy as np
 from loguru import logger
@@ -16,16 +16,18 @@ from scipy.signal import find_peaks
 from matplotlib.ticker import FixedLocator, FuncFormatter
 from matplotlib.patches import Rectangle
 
-
 from dnanet.tools.labeltool.tool import bp_to_scan, scan_to_bp
 
+
 if TYPE_CHECKING:
+    from functools import partial
+
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+
     from dnanet.data import HIDDataset
     from dnanet.data.image import HIDImage
     from dnanet.tools.labeltool.interactivity import Interactivity
-    from matplotlib.figure import Figure
-    from matplotlib.axes import Axes
-    from functools import partial
 
 # Canonical dye channel names used in CSV annotation files.
 # These are fixed identifiers (NOT the same as plot colors from the scaling

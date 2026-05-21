@@ -21,16 +21,17 @@ Design pattern: **Layered Parsing Pipeline**
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Union, Mapping, Sequence
 from collections import Counter
 from dataclasses import dataclass
-from typing import Union, Mapping, Sequence, TYPE_CHECKING
 
-import construct
 import numpy as np
+import construct
 from loguru import logger
 
 from dnanet.core.types import PathLike
 from dnanet.data.preprocessing.baseline import baseline_superior
+
 
 if TYPE_CHECKING:
     from dnanet.data.strategies.scaling import ScalingStrategy

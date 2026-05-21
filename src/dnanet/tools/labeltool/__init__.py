@@ -6,8 +6,9 @@ Provides:
     - :func:`main` — CLI entry point for ``dnanet-label``.
 """
 
-from dnanet.tools.labeltool.annotations import AnnotationStore
 from dnanet.tools.labeltool.cli import main
 from dnanet.tools.labeltool.tool import LabelTool
+from dnanet.tools.labeltool.annotations import AnnotationStore
+
 
 __all__ = ["LabelTool", "AnnotationStore", "main"]

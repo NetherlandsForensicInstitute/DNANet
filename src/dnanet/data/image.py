@@ -21,15 +21,16 @@ from __future__ import annotations
 
 import abc
 from abc import abstractmethod
-from functools import cached_property
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, MutableMapping
+from pathlib import Path
+from functools import cached_property
 
 import numpy as np
 from loguru import logger
 
 from dnanet.data.parsing import get_peak_data
 from dnanet.data.strategies.scaling import ScalingStrategy
+
 
 if TYPE_CHECKING:
     from dnanet.core.panel import Panel

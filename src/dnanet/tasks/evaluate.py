@@ -17,11 +17,11 @@ import json
 from typing import TYPE_CHECKING, List, Mapping
 from pathlib import Path
 
+import numpy as np
 import lightning as L
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig, ListConfig
 from hydra.utils import get_class, instantiate
-import numpy as np
 
 from dnanet.tasks.train import _build_logger
 

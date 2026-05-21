@@ -25,6 +25,7 @@ from dnanet.tools.labeltool.visualization import plot_profile_interactive
 
 if TYPE_CHECKING:
     from omegaconf import DictConfig
+
     from dnanet.data import HIDDataset
 
 

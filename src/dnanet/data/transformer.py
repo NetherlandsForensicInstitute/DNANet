@@ -1,17 +1,18 @@
 import abc
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import Any, Tuple, Generic, TypeVar
+from dataclasses import dataclass
 
 import torch
 from torch.utils.data import default_collate
 
-from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.image import HIDImage, TrainableElement
-from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
-from dnanet.data.preprocessing.scaling import scale_rfu_torch
 from dnanet.data.strategies import DatasetStrategy
+from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.strategies.scaling import ScalingStrategy
+from dnanet.data.preprocessing.scaling import scale_rfu_torch
+from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
+
 
 TrainableT = TypeVar('TrainableT', bound=TrainableElement)
 

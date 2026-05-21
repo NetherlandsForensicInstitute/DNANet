@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from torch.utils.data import ConcatDataset, Dataset, Subset
+from torch.utils.data import Subset, Dataset, ConcatDataset
 
 from dnanet.data.dataset import TransformableDataset
 from dnanet.data.strategies.datasets.dataset import DatasetStrategy
@@ -33,7 +33,7 @@ def dataset_splitter(dataset: AnyDataset, **split_kwargs: Any) -> FractionalSpli
     test_fraction = split_kwargs.get("test_fraction")
 
     if val_fraction is None and test_fraction is None and k_folds is None:
-        return cast(Dataset, dataset), None, None  # type: ignore[return-value]
+        return cast("Dataset", dataset), None, None  # type: ignore[return-value]
 
     match (val_fraction, test_fraction, k_folds):
         case (float(), float(), None) if val_fraction + test_fraction >= 1.0:
@@ -76,16 +76,16 @@ def _apply_single_dataset_splitting(
 
     if test_fraction > 0.0:
         train_data, val_data, test_data = cast(
-            tuple[Subset, Subset, Subset],
+            "tuple[Subset, Subset, Subset]",
             strategy.split(dataset, fraction=train_fraction, **split_kwargs),
         )
     elif val_fraction > 0.0:
         train_data, val_data = cast(
-            tuple[Subset, Subset],
+            "tuple[Subset, Subset]",
             strategy.split(dataset, fraction=train_fraction, **split_kwargs),
         )
     else:
-        train_data = cast(Subset, dataset)
+        train_data = cast("Subset", dataset)
 
     return train_data, val_data, test_data
 
@@ -124,17 +124,17 @@ def _apply_single_dataset_kfold_splitting(
     if test_fraction:
         # Split off test set first, then k-fold the remainder
         k_fold_set, test_set = cast(
-            tuple[Subset, Subset],
+            "tuple[Subset, Subset]",
             strategy.split(dataset=dataset, fraction=1.0 - test_fraction, **split_parameters),
         )
         folds = cast(
-            list[tuple[Dataset, Dataset]],
+            "list[tuple[Dataset, Dataset]]",
             strategy.split(dataset=k_fold_set, k_folds=k_folds, **split_parameters),
         )
         return folds, test_set
 
     folds = cast(
-        list[tuple[Dataset, Dataset]],
+        "list[tuple[Dataset, Dataset]]",
         strategy.split(dataset=dataset, k_folds=k_folds, **split_parameters),
     )
     return folds, None

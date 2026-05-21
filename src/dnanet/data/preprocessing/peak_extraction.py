@@ -23,10 +23,11 @@ import torch
 from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.strategies.scaling import ScalingStrategy
 
+
 if TYPE_CHECKING:
-    from dnanet.data.strategies import DatasetStrategy
     from dnanet.core.panel import Panel
     from dnanet.data.image import HIDImage
+    from dnanet.data.strategies import DatasetStrategy
 
 
 def setup_marker_to_idx(scaling_strategy: ScalingStrategy) -> Tuple[Dict[str, int], int]:

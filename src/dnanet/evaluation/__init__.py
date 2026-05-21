@@ -16,8 +16,8 @@ from dnanet.evaluation.metrics import (
 from dnanet.evaluation.allele_caller import (
     AlleleCaller,
     ExactBasePairCaller,
-    FromSegmentationImageCaller,
     NearestBasePairCaller,
+    FromSegmentationImageCaller,
 )
 
 

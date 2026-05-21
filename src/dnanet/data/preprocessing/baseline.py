@@ -20,8 +20,8 @@ from __future__ import annotations
 from typing import Callable
 
 import numpy as np
-from scipy.ndimage import percentile_filter
 from scipy.signal import savgol_filter
+from scipy.ndimage import percentile_filter
 
 
 # ---------------------------------------------------------------------------

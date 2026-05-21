@@ -1,13 +1,14 @@
-import argparse
-from tensorflow.keras.models import load_model
-import numpy as np
-from scipy.stats import mode
-import matplotlib.pyplot as plt
-import pandas as pd
-import glob
 import os
 import sys
+import glob
 import shutil
+import argparse
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import mode
+from tensorflow.keras.models import load_model
 
 
 # Set working directory to the script's directory
@@ -67,8 +68,7 @@ def save_epg_data(epg: np.ndarray, save_path: str):
 # Main function to generate EPGs from CSV files
 # and save them in the specified directory
 def main(csv_dir, output_dir, batch_size, epg_length, scan_min, use_generator=True, std_dev=4):
-    """
-    Generates and saves electropherogram (EPG) data using a pre-trained generator model (optional).
+    """Generates and saves electropherogram (EPG) data using a pre-trained generator model (optional).
     This function processes all CSV files in the specified `csv_dir`.
     For each file, it:
       - Loads and preprocesses the EPG data.

@@ -25,8 +25,8 @@ from torch.utils.data import DataLoader, default_collate
 from dnanet.tasks.train import (
     _build_logger,
     _build_callbacks,
-    _validate_dataset_for_callbacks,
     _configure_module_for_callbacks,
+    _validate_dataset_for_callbacks,
 )
 from dnanet.data.splitting import KFoldSplitResult, dataset_splitter
 
@@ -111,7 +111,7 @@ def run(
         )
 
     split_kwargs: dict = OmegaConf.to_container(cfg.splitting, resolve=True)  # type: ignore[assignment]
-    folds, _test_set = cast(KFoldSplitResult, dataset_splitter(dataset, **split_kwargs))
+    folds, _test_set = cast("KFoldSplitResult", dataset_splitter(dataset, **split_kwargs))
 
     _transform = getattr(dataset, "transform", None)
     collate_fn = _transform.collate_fn if _transform is not None else default_collate
