@@ -1,4 +1,10 @@
 # DNANet
+![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FNetherlandsForensicInstitute%2FDNANet%2Frefs%2Fheads%2Fmain%2Fpyproject.toml&logo=python&label=Python&color=bright-green)
+![GitHub License](https://img.shields.io/github/license/NetherlandsForensicInstitute/DNANet)
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/NetherlandsForensicInstitute/DNANet)
+[![pdm-managed](https://img.shields.io/endpoint?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fpdm-project%2F.github%2Fbadge.json)](https://pdm-project.org)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 
 Deep learning framework for forensic DNA electropherogram (EPG) analysis.
 
