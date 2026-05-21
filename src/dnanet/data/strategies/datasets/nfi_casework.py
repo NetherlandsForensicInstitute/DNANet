@@ -102,7 +102,7 @@ class NFICaseStrategy(DatasetStrategy):
         cache_file = self._CACHE_DIR / f'collect-{cache_key}'
 
         if cache_file.exists():
-            logger.debug(f'Reading collect_dataset_files from cache: {cache_file}')
+            logger.info(f'Reading collect_dataset_files from cache: {cache_file}')
             with cache_file.open('rb') as f:
                 yield from pickle.load(f)
             return
@@ -134,7 +134,7 @@ class NFICaseStrategy(DatasetStrategy):
         path = Path(root_path)
 
         # Collect all .HID files from the robot folders
-        file_list = self.find_robot_files(
+        file_list = self.find_subfolder_files(
             path,
             self._subfolder_selection,
             cache=folder_cache,
@@ -185,6 +185,8 @@ class NFICaseStrategy(DatasetStrategy):
         Args:
             path: Dataset root containing the annotation directories.
             scaling_strategy: Scaling strategy required to parse annotations.
+            annotation_type: What type of annotation to resolve for ('span', 'AT', 'LT', 'ATLT')
+            span_annotations_path: Path to the span annotation csv's (if using span)
 
         Returns:
             A callable that takes a HID path and returns the corresponding
@@ -194,7 +196,7 @@ class NFICaseStrategy(DatasetStrategy):
             ValueError: If ``self.annotation_type`` is not supported.
         """
         if annotation_type is None:
-            return lambda hid_file: None
+            return lambda _: None
         if annotation_type == 'span':
             # parse span annotations
             if span_annotations_path is None:
@@ -306,11 +308,11 @@ class NFICaseStrategy(DatasetStrategy):
         return 'sample'
 
     @classmethod
-    def find_robot_files(
+    def find_subfolder_files(
         cls,
         data_folder: Path,
         selected_subfolders: Sequence[str] | None = None,
-        robot_limit: int | None = None,
+        subfolder_limit: int | None = None,
         cache: bool = True,
     ) -> Generator[Path, None, None]:
         """Collect all files in the robot's casework folders.
@@ -318,7 +320,7 @@ class NFICaseStrategy(DatasetStrategy):
         Args:
             data_folder: The root in which the robot folders reside
             selected_subfolders: Allows for a subselection of folder names (e.g. `('3500XL_A',)`). Defaults to None.
-            robot_limit: Limits the amount of files returned from a robot. Defaults to None.
+            subfolder_limit: Limits the amount of files returned from a robot. Defaults to None.
             cache: Whether to use cache saved in /tmp/ to prevent walking the whole folder again between runs.
 
         Yields:
@@ -329,16 +331,16 @@ class NFICaseStrategy(DatasetStrategy):
         if selected_subfolders is None:
             logger.info(f'Retrieving files in {data_folder}')
             yield from itertools.islice(
-                cls._scan_directory_structure(data_folder, cache=cache), robot_limit
+                cls._scan_directory_structure(data_folder, cache=cache), subfolder_limit
             )
         else:
-            for subfolder in selected_subfolders:
-                robot_folder = data_folder / subfolder
-                if not robot_folder.exists():
+            for subfolder_name in selected_subfolders:
+                subfolder = data_folder / subfolder_name
+                if not subfolder.exists():
                     continue
                 logger.info(f'Retrieving files from {subfolder}')
                 yield from itertools.islice(
-                    cls._scan_directory_structure(robot_folder, cache=cache), robot_limit
+                    cls._scan_directory_structure(subfolder, cache=cache), subfolder_limit
                 )
 
     @classmethod
@@ -353,7 +355,7 @@ class NFICaseStrategy(DatasetStrategy):
 
     @classmethod
     def _scan_directory_structure(cls, path: PathLike, cache: bool = True):
-        _cache_file = cls._CACHE_DIR / f'{Path(path).stem}-cache'
+        _cache_file = cls._CACHE_DIR / f'{Path(path)}-cache'
         if cache and _cache_file.exists():
             logger.debug(f'Reading folder contents from cache: {_cache_file}')
             with _cache_file.open('rb') as f:
