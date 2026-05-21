@@ -40,6 +40,7 @@ jobs:
           badge: true
           hide_branch_rate: false
           thresholds: '50 80'
+          output: both
 
       - name: Add Coverage PR Comment
         if: github.event_name == 'pull_request' && matrix.python-version == '3.13'
