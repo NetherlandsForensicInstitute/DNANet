@@ -25,6 +25,8 @@ jobs:
 
       - name: Install pdm
         uses: pdm-project/setup-pdm@v4
+        with:
+          update-python: false
 
       - name: Install dependencies
         run: pdm install -v
@@ -40,6 +42,7 @@ jobs:
           badge: true
           hide_branch_rate: false
           thresholds: '50 80'
+          format: markdown
           output: both
 
       - name: Add Coverage PR Comment
@@ -62,6 +65,8 @@ jobs:
 
       - name: Install pdm
         uses: pdm-project/setup-pdm@v4
+        with:
+          update-python: false
 
       - name: Install dependencies
         run: pdm install -v
