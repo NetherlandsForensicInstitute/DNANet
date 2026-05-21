@@ -18,6 +18,7 @@ from dnanet.data.preprocessing.scaling import (
 # scale_rfu_torch
 # ---------------------------------------------------------------------------
 
+
 class TestScaleRfuTorch:
     def test_log_clamp_output_range(self):
         """log + max_rfu should produce values in [0, 1]."""
@@ -64,6 +65,7 @@ class TestScaleRfuTorch:
 # inverse_scale_rfu_torch
 # ---------------------------------------------------------------------------
 
+
 class TestInverseScaleRfuTorch:
     def test_roundtrip_log_clamp(self):
         """scale → inverse should recover original (within tolerance)."""
@@ -100,6 +102,7 @@ class TestInverseScaleRfuTorch:
 # scale_rfu_numpy
 # ---------------------------------------------------------------------------
 
+
 class TestScaleRfuNumpy:
     def test_log_clamp_output_range(self):
         x = np.array([0.0, 100.0, 32768.0, 50000.0])
@@ -116,7 +119,9 @@ class TestScaleRfuNumpy:
         scaled_torch = scale_rfu_torch(x_torch, log_scale=True, max_rfu=RFU_MAX_VALUE)
 
         np.testing.assert_allclose(
-            scaled_np, scaled_torch.numpy(), atol=1e-6,
+            scaled_np,
+            scaled_torch.numpy(),
+            atol=1e-6,
         )
 
     def test_log_only(self):
@@ -139,6 +144,7 @@ class TestScaleRfuNumpy:
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
+
 
 def test_rfu_max_value():
     assert RFU_MAX_VALUE == 32768

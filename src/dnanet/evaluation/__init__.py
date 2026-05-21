@@ -16,19 +16,19 @@ from dnanet.evaluation.metrics import (
 from dnanet.evaluation.allele_caller import (
     AlleleCaller,
     ExactBasePairCaller,
-    FromSegmentationImageCaller,
     NearestBasePairCaller,
+    FromSegmentationImageCaller,
 )
 
 
 __all__ = [
-    "AlleleCaller",
-    "FromSegmentationImageCaller",
-    "NearestBasePairCaller",
-    "ExactBasePairCaller",
-    "AlleleMetric",
-    "AllelePrecision",
-    "AlleleRecall",
-    "AlleleF1Score",
-    "PerRFUOutcomeMetric",
+    'AlleleCaller',
+    'FromSegmentationImageCaller',
+    'NearestBasePairCaller',
+    'ExactBasePairCaller',
+    'AlleleMetric',
+    'AllelePrecision',
+    'AlleleRecall',
+    'AlleleF1Score',
+    'PerRFUOutcomeMetric',
 ]

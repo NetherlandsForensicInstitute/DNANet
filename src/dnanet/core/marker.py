@@ -43,7 +43,6 @@ class Marker:
     upper_boundary: float | None = None
     n_nucleotide_repeats: int | None = None
 
-
     @property
     def is_autosomal(self) -> bool:
         """True if this marker is autosomal (not sex-linked or Y-STR)."""
@@ -62,7 +61,7 @@ class Marker:
                 for a in self.alleles
                 if a.base_pair is not None and a.left_bin is not None
             ),
-            default=float("inf"),
+            default=float('inf'),
         )
 
     @property
@@ -76,7 +75,7 @@ class Marker:
                 for a in self.alleles
                 if a.base_pair is not None and a.right_bin is not None
             ),
-            default=float("-inf"),
+            default=float('-inf'),
         )
 
     # -- Serialization --
@@ -84,29 +83,29 @@ class Marker:
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain dictionary."""
         return {
-            "name": self.name,
-            "dye_row": self.dye_row,
-            "alleles": [a.to_dict() for a in sorted(self.alleles, key=lambda a: a.name)],
-            "lower_boundary": self.lower_boundary,
-            "upper_boundary": self.upper_boundary,
-            "n_nucleotide_repeats": self.n_nucleotide_repeats,
+            'name': self.name,
+            'dye_row': self.dye_row,
+            'alleles': [a.to_dict() for a in sorted(self.alleles, key=lambda a: a.name)],
+            'lower_boundary': self.lower_boundary,
+            'upper_boundary': self.upper_boundary,
+            'n_nucleotide_repeats': self.n_nucleotide_repeats,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Marker:
         """Deserialize from a plain dictionary."""
         return cls(
-            name=data["name"],
-            dye_row=data["dye_row"],
-            alleles=frozenset(Allele.from_dict(a) for a in data.get("alleles", [])),
-            lower_boundary=data.get("lower_boundary"),
-            upper_boundary=data.get("upper_boundary"),
-            n_nucleotide_repeats=data.get("n_nucleotide_repeats"),
+            name=data['name'],
+            dye_row=data['dye_row'],
+            alleles=frozenset(Allele.from_dict(a) for a in data.get('alleles', [])),
+            lower_boundary=data.get('lower_boundary'),
+            upper_boundary=data.get('upper_boundary'),
+            n_nucleotide_repeats=data.get('n_nucleotide_repeats'),
         )
 
     def __add__(self, other: Marker) -> Marker:
         if self.name != other.name or self.dye_row != other.dye_row:
-            raise ValueError("can only merge markers with the same name and dye_row")
+            raise ValueError('can only merge markers with the same name and dye_row')
         return Marker(
             name=self.name,
             dye_row=self.dye_row,

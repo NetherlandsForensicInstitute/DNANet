@@ -13,9 +13,18 @@ class TestLabelCategory:
     def test_label_names_match_original(self):
         """Ensure backward compatibility with the original LABEL_CATEGORIES_STR."""
         expected = [
-            "", "Allele", "Stutter", "PullUp", "BleedThrough", "Spike",
-            "DyeBlob", "Artefact", "Unclear", "Shoulder", "ForeignDna",
-            "OverloadingArtefact",
+            '',
+            'Allele',
+            'Stutter',
+            'PullUp',
+            'BleedThrough',
+            'Spike',
+            'DyeBlob',
+            'Artefact',
+            'Unclear',
+            'Shoulder',
+            'ForeignDna',
+            'OverloadingArtefact',
         ]
         actual = LabelCategory.label_names()
         assert len(actual) == len(expected)
@@ -29,4 +38,4 @@ class TestLabelCategory:
         assert LabelCategory.from_index(1) is LabelCategory.ALLELE
 
     def test_unlabeled_has_empty_name(self):
-        assert LabelCategory.UNLABELED.label_name == ""
+        assert LabelCategory.UNLABELED.label_name == ''

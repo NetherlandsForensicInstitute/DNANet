@@ -3,8 +3,8 @@
 Kept minimal: only aliases that appear in 3+ modules belong here.
 """
 
-from pathlib import Path
 from typing import Union
+from pathlib import Path
 
 
 PathLike = Union[str, Path]

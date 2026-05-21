@@ -8,10 +8,10 @@ Design pattern: **Repository**
 from __future__ import annotations
 
 import csv
-from collections import defaultdict
-from datetime import datetime
-from pathlib import Path
 from typing import Any
+from pathlib import Path
+from datetime import datetime
+from collections import defaultdict
 
 from loguru import logger
 
@@ -19,12 +19,19 @@ from dnanet.core.constants import LabelCategory
 
 
 # Current annotation format version
-LABELTOOL_VERSION = "1.0"
+LABELTOOL_VERSION = '1.0'
 
 # CSV column order
 HEADER = [
-    "user", "date", "profile", "dye", "x0", "x1",
-    "peak_idx", "category", "version",
+    'user',
+    'date',
+    'profile',
+    'dye',
+    'x0',
+    'x1',
+    'peak_idx',
+    'category',
+    'version',
 ]
 
 
@@ -82,32 +89,34 @@ class AnnotationStore:
         label_lookup = _build_label_lookup()
 
         for row in rows:
-            if user and row.get("user") != user:
+            if user and row.get('user') != user:
                 continue
 
-            category = row.get("category", "")
-            color, alpha = label_lookup.get(category, ("gray", 0.2))
+            category = row.get('category', '')
+            color, alpha = label_lookup.get(category, ('gray', 0.2))
 
             try:
-                x0 = int(row["x0"])
-                x1 = int(row["x1"])
-                peak_idx = int(row.get("peak_idx", -1))
+                x0 = int(row['x0'])
+                x1 = int(row['x1'])
+                peak_idx = int(row.get('peak_idx', -1))
             except (ValueError, TypeError):
-                logger.warning("Skipping malformed row: {}", row)
+                logger.warning('Skipping malformed row: {}', row)
                 continue
 
-            grouped[row["profile"]].append({
-                "annotator": row["user"],
-                "artist": None,
-                "ax": None,
-                "dye": row["dye"],
-                "category": category,
-                "x0": x0,
-                "x1": x1,
-                "peak_idx": peak_idx,
-                "color": color,
-                "alpha": alpha,
-            })
+            grouped[row['profile']].append(
+                {
+                    'annotator': row['user'],
+                    'artist': None,
+                    'ax': None,
+                    'dye': row['dye'],
+                    'category': category,
+                    'x0': x0,
+                    'x1': x1,
+                    'peak_idx': peak_idx,
+                    'color': color,
+                    'alpha': alpha,
+                }
+            )
 
         return dict(grouped)
 
@@ -133,61 +142,76 @@ class AnnotationStore:
             dye_names: Ordered dye channel names.
             axes: Matplotlib axes array (used to map span axis to dye index).
         """
-        date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         new_rows: list[list[str]] = []
         for span in spans:
             if axes is not None:
                 import numpy as np
-                dye_idx = int(np.where(axes == span["ax"])[0][0])
+
+                dye_idx = int(np.where(axes == span['ax'])[0][0])
             else:
-                dye_idx = dye_names.index(span.get("dye", dye_names[0]))
+                dye_idx = dye_names.index(span.get('dye', dye_names[0]))
             dye_name = dye_names[dye_idx]
 
-            new_rows.append([
-                user, date, profile_name, dye_name,
-                str(int(span["x0"])),
-                str(int(span["x1"])),
-                str(int(span.get("peak_idx", -1))),
-                span.get("category", ""),
-                LABELTOOL_VERSION,
-            ])
+            new_rows.append(
+                [
+                    user,
+                    date,
+                    profile_name,
+                    dye_name,
+                    str(int(span['x0'])),
+                    str(int(span['x1'])),
+                    str(int(span.get('peak_idx', -1))),
+                    span.get('category', ''),
+                    LABELTOOL_VERSION,
+                ]
+            )
 
         # Read existing, filter out same profile+user
         existing: list[list[str]] = []
         if self.path.is_file() and self.path.exists():
-            with open(self.path, newline="") as f:
+            with open(self.path, newline='') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    if not (row["profile"] == profile_name and row["user"] == user):
-                        existing.append([
-                            row["user"], row["date"], row["profile"], row["dye"],
-                            row["x0"], row["x1"],
-                            row.get("peak_idx", "-1"),
-                            row.get("category", ""),
-                            row.get("version", "0.1"),
-                        ])
+                    if not (row['profile'] == profile_name and row['user'] == user):
+                        existing.append(
+                            [
+                                row['user'],
+                                row['date'],
+                                row['profile'],
+                                row['dye'],
+                                row['x0'],
+                                row['x1'],
+                                row.get('peak_idx', '-1'),
+                                row.get('category', ''),
+                                row.get('version', '0.1'),
+                            ]
+                        )
 
         all_rows = existing + new_rows
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.path, "w", newline="") as f:
+        with open(self.path, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(HEADER)
             writer.writerows(all_rows)
 
         logger.info(
-            "Saved {} annotations for {} (user={}), file={}",
-            len(new_rows), profile_name, user, self.path,
+            'Saved {} annotations for {} (user={}), file={}',
+            len(new_rows),
+            profile_name,
+            user,
+            self.path,
         )
 
     def ensure_file(self) -> None:
         """Create the CSV with headers if it doesn't exist."""
         if not self.path.exists():
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.path, "w", newline="") as f:
+            with open(self.path, 'w', newline='') as f:
                 csv.writer(f).writerow(HEADER)
-            logger.info("Created new annotation file: {}", self.path)
+            logger.info('Created new annotation file: {}', self.path)
 
     # ------------------------------------------------------------------
     # Private
@@ -198,7 +222,7 @@ class AnnotationStore:
         if self.path.is_file():
             return [self.path]
         elif self.path.is_dir():
-            return sorted(self.path.rglob("*.csv"))
+            return sorted(self.path.rglob('*.csv'))
         elif not self.path.exists():
             return []
         return []
@@ -208,11 +232,11 @@ class AnnotationStore:
         """Read a single CSV file into a list of dicts."""
         rows: list[dict[str, Any]] = []
         try:
-            with open(path, newline="") as f:
+            with open(path, newline='') as f:
                 reader = csv.DictReader(f)
                 rows.extend(reader)
         except PermissionError:
-            logger.warning("Permission denied reading {}", path)
+            logger.warning('Permission denied reading {}', path)
         return rows
 
 
@@ -222,6 +246,6 @@ def _build_label_lookup() -> dict[str, tuple[str, float]]:
     for cat in LabelCategory:
         lookup[cat.label_name] = (cat.color, cat.alpha)
     # Also map empty string for UNLABELED
-    lookup[""] = ("gray", 0.2)
-    lookup[None] = ("gray", 0.2)  # type: ignore[index]
+    lookup[''] = ('gray', 0.2)
+    lookup[None] = ('gray', 0.2)  # type: ignore[index]
     return lookup

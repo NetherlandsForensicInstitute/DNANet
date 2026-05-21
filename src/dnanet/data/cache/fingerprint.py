@@ -142,10 +142,12 @@ def compute_fingerprint(
 
 
 def write_fingerprint(cache_dir: Path, fingerprint: dict[str, Any]) -> None:
+    """Write the cache fingerprint to re-open cache."""
     (Path(cache_dir) / FINGERPRINT_JSON).write_text(json.dumps(fingerprint, indent=2))
 
 
 def read_fingerprint(cache_dir: Path) -> dict[str, Any] | None:
+    """Read the cache fingerprint."""
     p = Path(cache_dir) / FINGERPRINT_JSON
     if not p.exists():
         return None

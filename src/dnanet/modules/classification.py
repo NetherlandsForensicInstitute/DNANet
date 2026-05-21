@@ -21,6 +21,7 @@ from dnanet.modules.base import BaseTaskModule
 if TYPE_CHECKING:
     from torchmetrics import MetricCollection
 
+
 class ClassificationModule(BaseTaskModule):
     """PyTorch Lightning module for peak classification.
 
@@ -52,21 +53,25 @@ class ClassificationModule(BaseTaskModule):
         metrics: MetricCollection | None = None,
         batch_size: int | None = None,
     ) -> None:
-        super().__init__(model=model,
-                         loss_fn=loss_fn,
-                         metrics=metrics,
-                         optimizer=optimizer,
-                         lr_scheduler=lr_scheduler,
-                         batch_size=batch_size,
-                         )
-        self.save_hyperparameters({
-            "num_classes": num_classes,
-            "learning_rate": learning_rate,
-            "weight_decay": weight_decay,
-        })
+        super().__init__(
+            model=model,
+            loss_fn=loss_fn,
+            metrics=metrics,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+            batch_size=batch_size,
+        )
+        self.save_hyperparameters(
+            {
+                'num_classes': num_classes,
+                'learning_rate': learning_rate,
+                'weight_decay': weight_decay,
+            }
+        )
 
     def compute_step_outputs(
-        self, batch: tuple[Tensor, ...],
+        self,
+        batch: tuple[Tensor, ...],
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Compute loss and metric inputs.
 
@@ -88,7 +93,7 @@ class ClassificationModule(BaseTaskModule):
         if not isinstance(batch, (tuple, list)):
             return batch
         if len(batch) == 0:
-            raise ValueError("ClassificationModule.predict_step received an empty batch.")
+            raise ValueError('ClassificationModule.predict_step received an empty batch.')
         if len(batch) == 3:
             peak_data, marker_idx, _ = batch
             return peak_data, marker_idx
@@ -97,7 +102,7 @@ class ClassificationModule(BaseTaskModule):
         if isinstance(first, (tuple, list)):
             return first[0], first[1]
 
-        if len(batch) == 2 and getattr(self.model, "use_embedding", False):
+        if len(batch) == 2 and getattr(self.model, 'use_embedding', False):
             peak_data, marker_idx = batch
             return peak_data, marker_idx
 

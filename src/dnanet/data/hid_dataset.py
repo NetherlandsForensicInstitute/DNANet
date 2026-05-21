@@ -265,7 +265,11 @@ class HIDDataset(Dataset, TransformableDataset):
         # Collect sources. This is used for (a) fingerprint validation and
         # (b) driving a fresh build; it's a cheap walk (stat-only).
         logger.info('Looking for dataset cache...')
-        file_entries = list(self._dataset_strategy.collect_dataset_files(self.root, self._scaling, allow_missing_annotations=self.allow_missing_annotations))
+        file_entries = list(
+            self._dataset_strategy.collect_dataset_files(
+                self.root, self._scaling, allow_missing_annotations=self.allow_missing_annotations
+            )
+        )
 
         if is_complete(self._cache_dir) and self._use_cache:
             source_paths = [e[0] for e in file_entries]
@@ -570,9 +574,11 @@ class HIDDataset(Dataset, TransformableDataset):
                 for group in groups:
                     if len(group) == 1:
                         # We assume that this span-annotation of 1px is not something an annotator would (conciously) do, hence we skip
-                        logger.trace(f"Skipping 1px wide annotation 'group': {(dye_idx, group, class_idx)}")
+                        logger.trace(
+                            f"Skipping 1px wide annotation 'group': {(dye_idx, group, class_idx)}"
+                        )
                         continue
-                    
+
                     span_data[dye_idx, group, class_idx] = 0
                     rep_idx = find_fn(dye_signal, group, threshold)  # type: ignore[operator]
                     if rep_idx.size == 0:

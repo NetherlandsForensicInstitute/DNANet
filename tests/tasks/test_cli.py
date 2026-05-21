@@ -15,10 +15,10 @@ import dnanet
 
 def _compose(*overrides: str):
     workspace = Path(dnanet.__file__).parents[2]
-    conf_dir = workspace / "conf"
+    conf_dir = workspace / 'conf'
 
     with initialize_config_dir(config_dir=str(conf_dir), version_base=None):
-        return compose(config_name="config", overrides=list(overrides))
+        return compose(config_name='config', overrides=list(overrides))
 
 
 class TestCLIImport:

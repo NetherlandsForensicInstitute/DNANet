@@ -27,15 +27,18 @@ from __future__ import annotations
 
 import math
 import xml.etree.ElementTree as ET
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 from functools import cached_property
 from collections import defaultdict
 
 from loguru import logger
 
-from dnanet.core.types import PathLike
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
+
+
+if TYPE_CHECKING:
+    from dnanet.core.types import PathLike
 
 
 # Default dye mapping: PPF6C style (1-based HID indices, skipping dye 5)
@@ -81,44 +84,46 @@ class Panel:
         mapping = hid_dye_mapping or _DEFAULT_HID_DYE_MAPPING
         markers: list[Marker] = []
 
-        for _event, elem in ET.iterparse(str(path), events=("end",)):
-            if elem.tag != "Locus":
+        for _event, elem in ET.iterparse(str(path), events=('end',)):
+            if elem.tag != 'Locus':
                 continue
 
-            hid_idx = int(elem.find("DyeIndex").text) # type: ignore
+            hid_idx = int(elem.find('DyeIndex').text)  # type: ignore
             if hid_idx not in mapping:
                 # Skip dye channels not in the mapping (e.g. size standard)
                 elem.clear()
                 continue
             dye_index = mapping[hid_idx]
-            marker_name = elem.find("MarkerTitle").text # type: ignore
+            marker_name = elem.find('MarkerTitle').text  # type: ignore
             if marker_name is None:
                 continue
-            lower_boundary = float(elem.find("LowerBoundary").text) # type: ignore
-            upper_boundary = float(elem.find("UpperBoundary").text) # type: ignore
-            n_nucleotide_repeats = int(elem.find("n_NucleotideRepeats").text) # type: ignore
+            lower_boundary = float(elem.find('LowerBoundary').text)  # type: ignore
+            upper_boundary = float(elem.find('UpperBoundary').text)  # type: ignore
+            n_nucleotide_repeats = int(elem.find('n_NucleotideRepeats').text)  # type: ignore
             alleles = frozenset(
                 Allele(
-                    name=a.attrib["Label"],
-                    base_pair=float(a.attrib["Size"]),
-                    left_bin=float(a.attrib["Left_Binning"]),
-                    right_bin=float(a.attrib["Right_Binning"]),
-                    in_ladder=bool(int(a.attrib["Control"]))
+                    name=a.attrib['Label'],
+                    base_pair=float(a.attrib['Size']),
+                    left_bin=float(a.attrib['Left_Binning']),
+                    right_bin=float(a.attrib['Right_Binning']),
+                    in_ladder=bool(int(a.attrib['Control'])),
                 )
-                for a in elem.findall("Allele")
+                for a in elem.findall('Allele')
             )
 
-            markers.append(Marker(
-                name=marker_name,
-                dye_row=dye_index,
-                alleles=alleles,
-                lower_boundary=lower_boundary,
-                upper_boundary=upper_boundary,
-                n_nucleotide_repeats=n_nucleotide_repeats,
-            ))
+            markers.append(
+                Marker(
+                    name=marker_name,
+                    dye_row=dye_index,
+                    alleles=alleles,
+                    lower_boundary=lower_boundary,
+                    upper_boundary=upper_boundary,
+                    n_nucleotide_repeats=n_nucleotide_repeats,
+                )
+            )
             elem.clear()
 
-        logger.debug("Parsed panel from {}: {} markers", path, len(markers))
+        logger.debug('Parsed panel from {}: {} markers', path, len(markers))
         return cls(markers)
 
     # -- Public query interface ------------------------------------------- #
@@ -150,12 +155,10 @@ class Panel:
             if marker.name != marker_name:
                 continue
             for allele in marker.alleles:
-                if (
-                    allele.base_pair is None or
-                    allele.left_bin is None or
-                    allele.right_bin is None
-                ):
-                    raise AttributeError(f'Allele does not contain basepair/bin information: {allele}')
+                if allele.base_pair is None or allele.left_bin is None or allele.right_bin is None:
+                    raise AttributeError(
+                        f'Allele does not contain basepair/bin information: {allele}'
+                    )
                 if allele.name == allele_name:
                     return (
                         allele.base_pair,
@@ -164,8 +167,8 @@ class Panel:
                     )
 
         # Micro-variant fallback: "21.1" -> base on allele "21" + 1 bp
-        if "." in allele_name:
-            parts = allele_name.split(".")
+        if '.' in allele_name:
+            parts = allele_name.split('.')
             if len(parts) == 2:
                 base_name, extra_bp = parts
                 mid, left, right = self.get_allele_basepair_and_bins(marker_name, base_name)
@@ -173,11 +176,15 @@ class Panel:
                 return mid + offset, left + offset, right + offset
 
         # Y-STR fallback
-        if marker_name.startswith("DYS"):
-            logger.debug("Y-STR marker {} allele {} not in panel, using default bins", marker_name, allele_name)
+        if marker_name.startswith('DYS'):
+            logger.debug(
+                'Y-STR marker {} allele {} not in panel, using default bins',
+                marker_name,
+                allele_name,
+            )
             return 10, 9, 11
 
-        logger.error("Marker {} allele {} not found in panel", marker_name, allele_name)
+        logger.error('Marker {} allele {} not found in panel', marker_name, allele_name)
         # TODO: should we raise a ValueError?
         return 10, 9, 11
 
@@ -189,12 +196,12 @@ class Panel:
         """
         lut_entry = self._marker_lut.get(dye_row)
         if lut_entry is None:
-            return "Out of Bin"
+            return 'Out of Bin'
 
         lut, offset = lut_entry
         index = int(round(base_pair * self._LUT_SCALE)) + offset
         if index < 0 or index >= len(lut) or lut[index] is None:
-            return "Out of Bin"
+            return 'Out of Bin'
         if (marker_name := lut[index]) is None:
             raise ValueError(f'Did not catch OOB: {lut}')
         return marker_name
@@ -238,7 +245,7 @@ class Panel:
             ranges = [
                 (m.min_bp, m.max_bp, m.name)
                 for m in markers
-                if m.min_bp != float("inf") and m.max_bp != float("-inf")
+                if m.min_bp != float('inf') and m.max_bp != float('-inf')
             ]
             if not ranges:
                 continue
@@ -267,4 +274,4 @@ class Panel:
         return iter(self._markers)
 
     def __repr__(self) -> str:
-        return f"Panel(markers={len(self._markers)})"
+        return f'Panel(markers={len(self._markers)})'

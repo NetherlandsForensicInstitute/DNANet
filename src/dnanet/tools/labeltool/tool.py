@@ -16,21 +16,24 @@ Design pattern: **Observer** (matplotlib event system)
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-import matplotlib as mpl
 import numpy as np
-from matplotlib.axes import Axes
-from matplotlib.collections import PolyCollection
-from matplotlib.figure import Figure
+import matplotlib as mpl
+from loguru import logger
 from matplotlib.ticker import FixedLocator
 from matplotlib.widgets import MultiCursor, RadioButtons
 
-from loguru import logger
-
 from dnanet.core.constants import LabelCategory
-from dnanet.tools.labeltool.annotations import AnnotationStore
 from dnanet.tools.labeltool.interactivity import Interactivity
+
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
+    from matplotlib.collections import PolyCollection
+
+    from dnanet.tools.labeltool.annotations import AnnotationStore
 
 
 # Linear scan-to-bp conversion constants (default for 4096-point profiles)
@@ -71,7 +74,7 @@ class LabelTool(Interactivity):
         spans: list[dict[str, Any]] | None = None,
         *,
         annotation_store: AnnotationStore | None = None,
-        user: str = "Computer",
+        user: str = 'Computer',
         dye_names: list[str] | None = None,
     ) -> None:
         super().__init__(figure, axes, spans)
@@ -79,7 +82,12 @@ class LabelTool(Interactivity):
         self.annotation_store = annotation_store
         self.user = user
         self.dye_names = dye_names or [
-            "blue", "green", "yellow", "red", "purple", "orange",
+            'blue',
+            'green',
+            'yellow',
+            'red',
+            'purple',
+            'orange',
         ]
 
         # Drag state for new span creation
@@ -100,14 +108,14 @@ class LabelTool(Interactivity):
         self.active_span: dict[str, Any] | None = None
 
         # Line styles
-        self._ACTIVE_EDGE = {"color": "blue", "linewidth": 2}
-        self._HOVER_EDGE = {"color": "black", "linewidth": 1.5}
+        self._ACTIVE_EDGE = {'color': 'blue', 'linewidth': 2}
+        self._HOVER_EDGE = {'color': 'black', 'linewidth': 1.5}
 
         # Set when the user presses 'q' — signals the plot loop to stop.
         self.quit_requested: bool = False
 
         # Dynamic x-tick updates when zooming
-        self.axs[-1].callbacks.connect("xlim_changed", self._on_xlim_changed)
+        self.axs[-1].callbacks.connect('xlim_changed', self._on_xlim_changed)
 
     # ------------------------------------------------------------------
     # Interactivity implementation
@@ -115,21 +123,25 @@ class LabelTool(Interactivity):
 
     def activate_interactivity(self) -> None:
         """Wire up all matplotlib event handlers."""
-        mpl.rcParams["keymap.back"] = ["alt+left"]
-        mpl.rcParams["keymap.forward"] = ["alt+right"]
+        mpl.rcParams['keymap.back'] = ['alt+left']
+        mpl.rcParams['keymap.forward'] = ['alt+right']
 
         self._create_radio_buttons()
 
-        self.figure.canvas.mpl_connect("button_press_event", self._on_press)
-        self.figure.canvas.mpl_connect("motion_notify_event", self._on_motion)
-        self.figure.canvas.mpl_connect("button_release_event", self._on_release)
-        self.figure.canvas.mpl_connect("key_press_event", self._on_key_press)
-        self.figure.canvas.mpl_connect("close_event", self._on_close)
+        self.figure.canvas.mpl_connect('button_press_event', self._on_press)
+        self.figure.canvas.mpl_connect('motion_notify_event', self._on_motion)
+        self.figure.canvas.mpl_connect('button_release_event', self._on_release)
+        self.figure.canvas.mpl_connect('key_press_event', self._on_key_press)
+        self.figure.canvas.mpl_connect('close_event', self._on_close)
 
         # Crosshair cursor
         self.cursor = MultiCursor(
-            self.figure.canvas, self.axs, color="k", lw=0.5,
-            horizOn=True, vertOn=True,
+            self.figure.canvas,
+            self.axs,
+            color='k',
+            lw=0.5,
+            horizOn=True,
+            vertOn=True,
         )
 
     # ------------------------------------------------------------------
@@ -147,7 +159,7 @@ class LabelTool(Interactivity):
         self.radio.set_active(labels.index(self.current_category))
 
         # Color each radio button label with its category color
-        for label_text, cat in zip(self.radio.labels, LabelCategory):
+        for label_text, cat in zip(self.radio.labels, LabelCategory, strict=True):
             label_text.set_color(cat.color)
             label_text.set_fontsize(8)
 
@@ -170,24 +182,26 @@ class LabelTool(Interactivity):
         if event.button == 3:
             if self.hover_span is not None:
                 unlabeled = LabelCategory.UNLABELED
-                artist = self.hover_span["artist"]
+                artist = self.hover_span['artist']
                 artist.set_color(unlabeled.color)
                 artist.set_alpha(unlabeled.alpha)
-                self.hover_span["category"] = None
+                self.hover_span['category'] = None
                 self.figure.canvas.draw_idle()
-                logger.debug("Unlabeled span via right-click")
+                logger.debug('Unlabeled span via right-click')
             return
 
         # Ctrl + Left: begin new span
-        modifiers = getattr(event, "modifiers", None) or set()
-        ctrl_down = "control" in modifiers or getattr(event, "key", None) == "control"
+        modifiers = getattr(event, 'modifiers', None) or set()
+        ctrl_down = 'control' in modifiers or getattr(event, 'key', None) == 'control'
         if event.button == 1 and ctrl_down:
             self.ctrl_press = True
             self.start_x = event.xdata
             cat = self._categories[self.current_category]
             self.temp_poly = event.inaxes.axvspan(
-                self.start_x, self.start_x,
-                color=cat.color, alpha=0.2,
+                self.start_x,
+                self.start_x,
+                color=cat.color,
+                alpha=0.2,
             )
             self.figure.canvas.draw_idle()
 
@@ -203,8 +217,10 @@ class LabelTool(Interactivity):
             self.temp_poly.remove()
             cat = self._categories[self.current_category]
             self.temp_poly = event.inaxes.axvspan(
-                self.start_x, event.xdata,
-                color=cat.color, alpha=0.2,
+                self.start_x,
+                event.xdata,
+                color=cat.color,
+                alpha=0.2,
             )
             self.figure.canvas.draw_idle()
             return
@@ -212,7 +228,7 @@ class LabelTool(Interactivity):
         # Hover detection
         if event.inaxes not in self.axs:
             if self.hover_span is not None and self._hover_edge_on:
-                artist: PolyCollection = self.hover_span["artist"]
+                artist: PolyCollection = self.hover_span['artist']
                 artist.set_edgecolor(None)
                 artist.set_linewidth(0)
                 self._hover_edge_on = False
@@ -222,15 +238,15 @@ class LabelTool(Interactivity):
 
         hovered: dict[str, Any] | None = None
         for s in self.spans:
-            artist = s["artist"]
+            artist = s['artist']
             if artist is not None:
                 hit, _ = artist.contains(event)
-                if hit and s["ax"] is event.inaxes:
+                if hit and s['ax'] is event.inaxes:
                     hovered = s
 
         if hovered is not self.hover_span:
             if self.hover_span is not None and self._hover_edge_on:
-                prev: PolyCollection = self.hover_span["artist"]
+                prev: PolyCollection = self.hover_span['artist']
                 prev.set_edgecolor(None)
                 prev.set_linewidth(0)
                 self._hover_edge_on = False
@@ -238,8 +254,8 @@ class LabelTool(Interactivity):
             self.hover_span = hovered
 
             if self.hover_span is not None:
-                new_artist: PolyCollection = self.hover_span["artist"]
-                new_artist.set_edgecolor("black")
+                new_artist: PolyCollection = self.hover_span['artist']
+                new_artist.set_edgecolor('black')
                 new_artist.set_linewidth(1.5)
                 self._hover_edge_on = True
 
@@ -258,13 +274,13 @@ class LabelTool(Interactivity):
             self.temp_poly.remove()
             artist = event.inaxes.axvspan(x0, x1, color=cat.color, alpha=cat.alpha)
             span_dict = {
-                "artist": artist,
-                "ax": event.inaxes,
+                'artist': artist,
+                'ax': event.inaxes,
                 # Store pyval-style category (None for Unlabeled, "Allele" etc.)
-                "category": cat.label_name or None,
-                "x0": x0,
-                "x1": x1,
-                "peak_idx": -1,
+                'category': cat.label_name or None,
+                'x0': x0,
+                'x1': x1,
+                'peak_idx': -1,
             }
             self.spans.append(span_dict)
             self._set_active_span(span_dict)
@@ -275,26 +291,27 @@ class LabelTool(Interactivity):
 
     def _on_key_press(self, event: Any) -> None:
         """Key press: delete span, change category, or quit."""
-        logger.debug("Key: {}", event.key)
+        logger.debug('Key: {}', event.key)
 
         # Quit — save annotations, then close the figure and signal exit.
-        if event.key == "q":
+        if event.key == 'q':
             import matplotlib.pyplot as plt
+
             self.quit_requested = True
             self._on_close(event)  # save annotations before closing
             plt.close(self.figure)
             return
 
         # Delete hovered span
-        if event.key == "delete":
+        if event.key == 'delete':
             if self.hover_span is not None:
-                artist: PolyCollection = self.hover_span["artist"]
+                artist: PolyCollection = self.hover_span['artist']
                 artist.remove()
                 self.spans.remove(self.hover_span)
                 self.hover_span = None
                 self._hover_edge_on = False
                 self.figure.canvas.draw_idle()
-                logger.debug("Removed span")
+                logger.debug('Removed span')
             return
 
         # Number/letter keys: change category of hovered span or selection
@@ -303,23 +320,23 @@ class LabelTool(Interactivity):
                 self.current_category = name
                 self.radio.set_active(list(self._categories.keys()).index(name))
                 self.radio.activecolor = cat.color
-                logger.debug("[Key {}] Selected category: {}", event.key, name)
+                logger.debug('[Key {}] Selected category: {}', event.key, name)
 
                 if self.hover_span is not None:
-                    artist = self.hover_span["artist"]
+                    artist = self.hover_span['artist']
                     artist.set_color(cat.color)
                     artist.set_alpha(cat.alpha)
                     # Store pyval-style category (None for Unlabeled)
-                    self.hover_span["category"] = cat.label_name or None
+                    self.hover_span['category'] = cat.label_name or None
                     self.figure.canvas.draw_idle()
-                    logger.debug("Updated hovered span category")
+                    logger.debug('Updated hovered span category')
                 return
 
     def _on_close(self, event: Any) -> None:
         """Window close: save annotations (only once)."""
         if self.annotation_store is None:
             return
-        if getattr(self, "_saved", False):
+        if getattr(self, '_saved', False):
             return
         self._saved = True
 
@@ -363,16 +380,16 @@ class LabelTool(Interactivity):
         self.current_category = label
         cat = self._categories[self.current_category]
         self.radio.activecolor = cat.color
-        logger.debug("Selected category: {}", self.current_category)
+        logger.debug('Selected category: {}', self.current_category)
         self._focus_canvas()
 
     def _focus_canvas(self) -> None:
         """Give keyboard focus back to the canvas (best-effort)."""
         canvas = self.figure.canvas
         try:
-            if hasattr(canvas, "get_tk_widget"):
+            if hasattr(canvas, 'get_tk_widget'):
                 canvas.get_tk_widget().focus_set()
-            elif getattr(canvas, "manager", None) and hasattr(canvas.manager, "window"):
+            elif getattr(canvas, 'manager', None) and hasattr(canvas.manager, 'window'):
                 canvas.manager.window.focus_force()
         except Exception:
             pass
@@ -386,14 +403,14 @@ class LabelTool(Interactivity):
 
         self.active_span = span_dict
         self.hover_span = span_dict
-        a = span_dict["artist"]
-        a.set_edgecolor(self._ACTIVE_EDGE["color"])
-        a.set_linewidth(self._ACTIVE_EDGE["linewidth"])
+        a = span_dict['artist']
+        a.set_edgecolor(self._ACTIVE_EDGE['color'])
+        a.set_linewidth(self._ACTIVE_EDGE['linewidth'])
         self.figure.canvas.draw_idle()
 
     @staticmethod
     def _clear_edge(span_dict: dict[str, Any]) -> None:
         """Remove any outline on a span."""
-        artist = span_dict["artist"]
+        artist = span_dict['artist']
         artist.set_edgecolor(None)
         artist.set_linewidth(0)

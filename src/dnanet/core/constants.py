@@ -12,6 +12,7 @@ Note:
     and ``ScalingStrategy``, NOT here. This module only holds constants that
     are truly universal across all kits and datasets.
 """
+
 import re
 from enum import Enum, unique
 from functools import lru_cache
@@ -25,18 +26,18 @@ class LabelCategory(Enum):
         (color, alpha, shortcut_key)
     """
 
-    UNLABELED = ("gray", 0.2, "0")
-    ALLELE = ("green", 0.4, "1")
-    STUTTER = ("yellow", 0.4, "2")
-    PULL_UP = ("blue", 0.4, "3")
-    BLEED_THROUGH = ("red", 0.4, "4")
-    SPIKE = ("cyan", 0.4, "5")
-    DYE_BLOB = ("purple", 0.4, "6")
-    ARTEFACT = ("pink", 0.4, "7")
-    UNCLEAR = ("tab:orange", 0.4, "8")
-    SHOULDER = ("tab:olive", 0.4, "9")
-    FOREIGN_DNA = ("tab:brown", 0.4, "f")
-    OVERLOADING_ARTEFACT = ("lime", 0.4, "o")
+    UNLABELED = ('gray', 0.2, '0')
+    ALLELE = ('green', 0.4, '1')
+    STUTTER = ('yellow', 0.4, '2')
+    PULL_UP = ('blue', 0.4, '3')
+    BLEED_THROUGH = ('red', 0.4, '4')
+    SPIKE = ('cyan', 0.4, '5')
+    DYE_BLOB = ('purple', 0.4, '6')
+    ARTEFACT = ('pink', 0.4, '7')
+    UNCLEAR = ('tab:orange', 0.4, '8')
+    SHOULDER = ('tab:olive', 0.4, '9')
+    FOREIGN_DNA = ('tab:brown', 0.4, 'f')
+    OVERLOADING_ARTEFACT = ('lime', 0.4, 'o')
 
     def __init__(self, color: str, alpha: float, shortcut: str) -> None:
         self.color = color
@@ -51,11 +52,11 @@ class LabelCategory(Enum):
         """
         # UNLABELED has no label name (was `None` in the original)
         if self is LabelCategory.UNLABELED:
-            return ""
+            return ''
         # Convert PULL_UP -> PullUp, BLEED_THROUGH -> BleedThrough, etc.
-        result = "".join(part.capitalize() for part in self.name.split("_"))
+        result = ''.join(part.capitalize() for part in self.name.split('_'))
         # Preserve "DNA" acronym (capitalize() lowercases it to "Dna")
-        return result.replace("Dna", "DNA")
+        return result.replace('Dna', 'DNA')
 
     @property
     def display_name(self) -> str:
@@ -64,33 +65,33 @@ class LabelCategory(Enum):
         Used in radio button labels for the interactive label tool.
         """
         _NAMES: dict[str, str] = {
-            "UNLABELED": "Unlabeled",
-            "ALLELE": "Allele",
-            "STUTTER": "Stutter",
-            "PULL_UP": "Pull Up",
-            "BLEED_THROUGH": "Bleed Through",
-            "SPIKE": "Spike",
-            "DYE_BLOB": "Dye Blob",
-            "ARTEFACT": "Artefact",
-            "UNCLEAR": "Unclear",
-            "SHOULDER": "Shoulder",
-            "FOREIGN_DNA": "Foreign DNA",
-            "OVERLOADING_ARTEFACT": "Overloading artefact",
+            'UNLABELED': 'Unlabeled',
+            'ALLELE': 'Allele',
+            'STUTTER': 'Stutter',
+            'PULL_UP': 'Pull Up',
+            'BLEED_THROUGH': 'Bleed Through',
+            'SPIKE': 'Spike',
+            'DYE_BLOB': 'Dye Blob',
+            'ARTEFACT': 'Artefact',
+            'UNCLEAR': 'Unclear',
+            'SHOULDER': 'Shoulder',
+            'FOREIGN_DNA': 'Foreign DNA',
+            'OVERLOADING_ARTEFACT': 'Overloading artefact',
         }
         return _NAMES[self.name]
 
     @property
     def color_display(self) -> str:
         """Human-readable color name, e.g. 'Green', 'Orange'."""
-        return self.color.replace("tab:", "").capitalize()
+        return self.color.replace('tab:', '').capitalize()
 
     @property
     def radio_label(self) -> str:
         """Full radio-button label, e.g. ``'Allele (Green - 1)'``."""
-        return f"{self.display_name} ({self.color_display} - {self.shortcut.upper()})"
+        return f'{self.display_name} ({self.color_display} - {self.shortcut.upper()})'
 
     @classmethod
-    def from_index(cls, index: int) -> "LabelCategory":
+    def from_index(cls, index: int) -> 'LabelCategory':
         """Look up a category by its integer position (0-based)."""
         return list(cls)[index]
 
@@ -106,14 +107,18 @@ class LabelCategory(Enum):
         name = re.sub(r'[^a-z0-9]', '', search_name.strip().lower()).replace('artifact', 'artefact')
 
         for i, member in enumerate(cls):
-            display_name = re.sub(r'[^a-z0-9]', '', member.display_name.strip().lower()).replace('artifact', 'artefact')
-            label_name = re.sub(r'[^a-z0-9]', '', member.label_name.strip().lower()).replace('artifact', 'artefact')
-            member_name = re.sub(r'[^a-z0-9]', '', member.name.strip().lower()).replace('artifact', 'artefact')
+            display_name = re.sub(r'[^a-z0-9]', '', member.display_name.strip().lower()).replace(
+                'artifact', 'artefact'
+            )
+            label_name = re.sub(r'[^a-z0-9]', '', member.label_name.strip().lower()).replace(
+                'artifact', 'artefact'
+            )
+            member_name = re.sub(r'[^a-z0-9]', '', member.name.strip().lower()).replace(
+                'artifact', 'artefact'
+            )
             if display_name == name or label_name == name or member_name == name:
                 return i
-        raise ValueError(f"Unknown label name: {search_name!r}")
-
-
+        raise ValueError(f'Unknown label name: {search_name!r}')
 
 
 # Default signal length (number of scan points per dye channel)
@@ -121,9 +126,9 @@ class LabelCategory(Enum):
 DEFAULT_SIGNAL_LENGTH: int = 4096
 
 # Label tool format version
-LABELTOOL_VERSION: str = "1.0"
+LABELTOOL_VERSION: str = '1.0'
 
 # Markers that are not autosomal (used for filtering in allele calling)
-#TODO Should these be part of the datset/scaling strategy?
-NON_AUTOSOMAL_PREFIXES: tuple[str, ...] = ("DYS",)
-NON_AUTOSOMAL_MARKERS: frozenset[str] = frozenset({"AMEL"})
+# TODO Should these be part of the datset/scaling strategy?
+NON_AUTOSOMAL_PREFIXES: tuple[str, ...] = ('DYS',)
+NON_AUTOSOMAL_MARKERS: frozenset[str] = frozenset({'AMEL'})

@@ -23,9 +23,9 @@ class FakeModule:
 
 @pytest.fixture(autouse=True)
 def close_figures():
-    plt.close("all")
+    plt.close('all')
     yield
-    plt.close("all")
+    plt.close('all')
 
 
 def _batch(size: int = 3) -> tuple[tuple[torch.Tensor, torch.Tensor, list[dict]], dict]:
@@ -35,20 +35,20 @@ def _batch(size: int = 3) -> tuple[tuple[torch.Tensor, torch.Tensor, list[dict]]
     preds[:, 2, 0, 2:4] = 0.9
     metadata = [
         {
-            "path": f"sample {index}.hid",
-            "signal_image": np.full((1, 4, 1), index + 1, dtype=np.float32),
+            'path': f'sample {index}.hid',
+            'signal_image': np.full((1, 4, 1), index + 1, dtype=np.float32),
         }
         for index in range(size)
     ]
 
     batch = torch.zeros((size, 1, 4, 1), dtype=torch.float32), targets, metadata
-    outputs = {"preds": preds}
+    outputs = {'preds': preds}
     return batch, outputs
 
 
 def test_profile_plot_callback_writes_limited_pngs_to_evaluation_output_dir(tmp_path):
     callback = ProfilePlotCallback(num_profiles=2)
-    trainer = FakeTrainer(tmp_path / "evaluation")
+    trainer = FakeTrainer(tmp_path / 'evaluation')
     batch, outputs = _batch(size=3)
 
     callback.on_test_epoch_start(trainer, FakeModule())
@@ -67,10 +67,10 @@ def test_profile_plot_callback_writes_limited_pngs_to_evaluation_output_dir(tmp_
         batch_idx=1,
     )
 
-    plot_paths = sorted((tmp_path / "evaluation" / "plots").glob("*.png"))
+    plot_paths = sorted((tmp_path / 'evaluation' / 'plots').glob('*.png'))
     assert [path.name for path in plot_paths] == [
-        "profile_0000_sample_0.png",
-        "profile_0001_sample_1.png",
+        'profile_0000_sample_0.png',
+        'profile_0001_sample_1.png',
     ]
     assert plt.get_fignums() == []
 
@@ -83,14 +83,16 @@ def test_profile_plot_callback_respects_annotation_and_prediction_toggles(
 
     def fake_plot_profile(signal, *, annotation=None, prediction=None, **kwargs):
         del kwargs
-        calls.append({
-            "signal": signal,
-            "annotation": annotation,
-            "prediction": prediction,
-        })
+        calls.append(
+            {
+                'signal': signal,
+                'annotation': annotation,
+                'prediction': prediction,
+            }
+        )
         return plt.figure()
 
-    monkeypatch.setattr(profile_plot_module, "plot_profile", fake_plot_profile)
+    monkeypatch.setattr(profile_plot_module, 'plot_profile', fake_plot_profile)
     callback = ProfilePlotCallback(
         include_annotations=False,
         include_predictions=False,
@@ -108,9 +110,9 @@ def test_profile_plot_callback_respects_annotation_and_prediction_toggles(
     )
 
     assert len(calls) == 1
-    assert calls[0]["signal"].shape == (1, 4)
-    assert calls[0]["annotation"] is None
-    assert calls[0]["prediction"] is None
+    assert calls[0]['signal'].shape == (1, 4)
+    assert calls[0]['annotation'] is None
+    assert calls[0]['prediction'] is None
     assert plt.get_fignums() == []
 
 
@@ -122,14 +124,16 @@ def test_profile_plot_callback_passes_annotations_and_predictions(
 
     def fake_plot_profile(signal, *, annotation=None, prediction=None, **kwargs):
         del kwargs
-        calls.append({
-            "signal": signal,
-            "annotation": annotation,
-            "prediction": prediction,
-        })
+        calls.append(
+            {
+                'signal': signal,
+                'annotation': annotation,
+                'prediction': prediction,
+            }
+        )
         return plt.figure()
 
-    monkeypatch.setattr(profile_plot_module, "plot_profile", fake_plot_profile)
+    monkeypatch.setattr(profile_plot_module, 'plot_profile', fake_plot_profile)
     callback = ProfilePlotCallback(
         include_annotations=True,
         include_predictions=True,
@@ -147,10 +151,10 @@ def test_profile_plot_callback_passes_annotations_and_predictions(
     )
 
     assert len(calls) == 1
-    assert calls[0]["annotation"].shape == (1, 4)
-    assert calls[0]["prediction"].shape == (1, 4)
-    np.testing.assert_array_equal(calls[0]["annotation"], np.array([[0, 1, 1, 0]]))
-    np.testing.assert_array_equal(calls[0]["prediction"], np.array([[0, 0, 2, 2]]))
+    assert calls[0]['annotation'].shape == (1, 4)
+    assert calls[0]['prediction'].shape == (1, 4)
+    np.testing.assert_array_equal(calls[0]['annotation'], np.array([[0, 1, 1, 0]]))
+    np.testing.assert_array_equal(calls[0]['prediction'], np.array([[0, 0, 2, 2]]))
 
 
 def test_profile_plot_callback_requires_predictions_when_enabled(tmp_path):
@@ -160,7 +164,7 @@ def test_profile_plot_callback_requires_predictions_when_enabled(tmp_path):
     )
     batch, _outputs = _batch(size=1)
 
-    with pytest.raises(ValueError, match="include_predictions=True"):
+    with pytest.raises(ValueError, match='include_predictions=True'):
         callback.on_test_batch_end(
             FakeTrainer(tmp_path),
             FakeModule(),
@@ -178,14 +182,14 @@ def test_profile_plot_callback_thresholds_binary_probability_predictions(tmp_pat
         calls.append(prediction)
         return plt.figure()
 
-    monkeypatch.setattr(profile_plot_module, "plot_profile", fake_plot_profile)
+    monkeypatch.setattr(profile_plot_module, 'plot_profile', fake_plot_profile)
     callback = ProfilePlotCallback(include_predictions=True, num_profiles=1)
 
     targets = torch.zeros((1, 1, 4, 1), dtype=torch.float32)
     preds = torch.tensor([[[0.2], [0.6], [0.49], [0.51]]], dtype=torch.float32).unsqueeze(0)
-    metadata = [{"path": "sample 0.hid", "signal_image": np.ones((1, 4, 1), dtype=np.float32)}]
+    metadata = [{'path': 'sample 0.hid', 'signal_image': np.ones((1, 4, 1), dtype=np.float32)}]
     batch = torch.zeros((1, 1, 4, 1), dtype=torch.float32), targets, metadata
-    outputs = {"preds": preds}
+    outputs = {'preds': preds}
 
     callback.on_test_epoch_start(FakeTrainer(tmp_path), FakeModule())
     callback.on_test_batch_end(

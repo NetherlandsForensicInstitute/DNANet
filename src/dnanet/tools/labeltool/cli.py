@@ -25,18 +25,16 @@ from dnanet.tools.labeltool.visualization import plot_profile_interactive
 
 if TYPE_CHECKING:
     from omegaconf import DictConfig
+
     from dnanet.data import HIDDataset
 
 
 def main() -> None:
-    with initialize_config_dir(version_base=None, config_dir=str(WORKSPACE_FOLDER / "conf")):
+    """Main runner for the labeltool cli."""
+    with initialize_config_dir(version_base=None, config_dir=str(WORKSPACE_FOLDER / 'conf')):
         cfg = compose(
-            config_name="config",
-            overrides=[
-                "+tools=labeltool",
-                *sys.argv[1:]
-
-            ],
+            config_name='config',
+            overrides=['+tools=labeltool', *sys.argv[1:]],
         )
     """Entry point for ``dnanet-label`` console script."""
     # instantiate dataset
@@ -48,14 +46,14 @@ def main() -> None:
 
     # Use TkAgg backend for interactive mode
     if not labeltool_cfs.compare:
-        matplotlib.use("TkAgg")
+        matplotlib.use('TkAgg')
 
     # Suppress default matplotlib key bindings that interfere
-    matplotlib.rcParams["keymap.quit"] = []
-    matplotlib.rcParams["keymap.zoom"] = []
-    matplotlib.rcParams["keymap.fullscreen"] = []
+    matplotlib.rcParams['keymap.quit'] = []
+    matplotlib.rcParams['keymap.zoom'] = []
+    matplotlib.rcParams['keymap.fullscreen'] = []
 
-    params = labeltool_cfs.params if "params" in labeltool_cfs else {}
+    params = labeltool_cfs.params if 'params' in labeltool_cfs else {}
 
     load_label_tool(
         user=labeltool_cfs.user,
@@ -68,13 +66,13 @@ def main() -> None:
 
 WORKSPACE_FOLDER = Path(__file__).parents[4]
 
+
 def load_label_tool(
     user: str,
     label_file_path: str,
     profile_data: HIDDataset,
     params: DictConfig,
     compare_mode: bool = False,
-
 ) -> None:
     """Load data and launch the label tool or compare view.
 
@@ -86,7 +84,7 @@ def load_label_tool(
         params: Additional label tool parameters
     """
     if compare_mode:
-        logger.info("Running in compare mode (non-interactive)")
+        logger.info('Running in compare mode (non-interactive)')
 
     store = AnnotationStore(label_file_path)
 
@@ -97,7 +95,7 @@ def load_label_tool(
     # Load existing annotations
     label_path = Path(label_file_path)
     if label_path.is_dir() and not compare_mode:
-        raise ValueError("Folder input requires --compare mode")
+        raise ValueError('Folder input requires --compare mode')
 
     entries_by_profile = None
     if label_path.exists():
@@ -122,5 +120,5 @@ def load_label_tool(
     )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

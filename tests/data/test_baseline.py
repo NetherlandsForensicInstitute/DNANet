@@ -82,10 +82,10 @@ class TestFFTSmooth:
 
 class TestGetBaselineMethod:
     def test_known_methods(self):
-        for name in ("classic", "superior", "enhanced"):
+        for name in ('classic', 'superior', 'enhanced'):
             method = get_baseline_method(name)
             assert callable(method)
 
     def test_unknown_raises(self):
-        with pytest.raises(ValueError, match="Unknown baseline"):
-            get_baseline_method("nonexistent")
+        with pytest.raises(ValueError, match='Unknown baseline'):
+            get_baseline_method('nonexistent')

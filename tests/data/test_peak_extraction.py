@@ -72,8 +72,6 @@ class TestBuildPeakData:
         assert result[1, 0] == 5.0
 
 
-
-
 class TestMarkerToIdx:
     """Tests for the marker index mapping."""
 
@@ -245,7 +243,9 @@ class TestExtractPeakWindows:
 
         d3s1358_peaks = [p for p in peaks if p.marker_name == 'D3S1358']
         assert d3s1358_peaks
-        assert all(p.marker_index == setup_marker_to_idx(nfi_rnd_kit)[0]['D3S1358'] for p in d3s1358_peaks)
+        assert all(
+            p.marker_index == setup_marker_to_idx(nfi_rnd_kit)[0]['D3S1358'] for p in d3s1358_peaks
+        )
 
 
 class TestExtractPeaksTorch:

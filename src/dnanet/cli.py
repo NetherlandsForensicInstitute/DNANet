@@ -35,39 +35,39 @@ if TYPE_CHECKING:
 
 WORKSPACE_FOLDER = Path(__file__).parents[2]
 
-@hydra.main(version_base=None, config_path=str(WORKSPACE_FOLDER / "conf"), config_name="config")
+
+@hydra.main(version_base=None, config_path=str(WORKSPACE_FOLDER / 'conf'), config_name='config')
 def main(cfg: DictConfig) -> None:
     """DNANet CLI — train, evaluate, or cross-validate DNA profile models."""
     # Configure Hydra to pass the full error stacktrace
     os.environ['HYDRA_FULL_ERROR'] = '1'
     # Configure logging first (before any other import triggers log messages)
     dnanet_logging.configure(
-        verbosity=cfg.get("verbosity", "INFO"),
-        log_file=Path(cfg.get('output_dir', './')) / 'cli.log'
+        verbosity=cfg.get('verbosity', 'INFO'),
+        log_file=Path(cfg.get('output_dir', './')) / 'cli.log',
     )
 
-    task = cfg.get("task", "train")
+    task = cfg.get('task', 'train')
     if torch.cuda.is_available():
         torch.set_float32_matmul_precision('high')
 
-    if task == "train":
+    if task == 'train':
         from dnanet.tasks.train import run
-    elif task == "evaluate":
+    elif task == 'evaluate':
         from dnanet.tasks.evaluate import run
-    elif task == "cross_validate":
+    elif task == 'cross_validate':
         from dnanet.tasks.cross_validate import run
     else:
-        raise ValueError(
-            f"Unknown task: '{task}'. Choose from: train, evaluate, cross_validate"
-        )
+        raise ValueError(f"Unknown task: '{task}'. Choose from: train, evaluate, cross_validate")
 
     try:
         run(cfg)
     except Exception:
         from loguru import logger
-        logger.exception("Fatal error during execution")
+
+        logger.exception('Fatal error during execution')
         raise
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -12,7 +12,7 @@ from pathlib import Path
 import matplotlib
 
 
-matplotlib.use("Agg")
+matplotlib.use('Agg')
 
 import numpy as np
 from loguru import logger
@@ -41,7 +41,7 @@ class ProfilePlotCallback(Callback):
     ) -> None:
         """Initialize profile plotting options."""
         if num_profiles < 0:
-            raise ValueError("num_profiles must be non-negative.")
+            raise ValueError('num_profiles must be non-negative.')
 
         self.include_annotations = include_annotations
         self.include_predictions = include_predictions
@@ -67,7 +67,7 @@ class ProfilePlotCallback(Callback):
 
         if self._saved_profiles >= self.num_profiles:
             return
-        if not getattr(trainer, "is_global_zero", True):
+        if not getattr(trainer, 'is_global_zero', True):
             return
 
         metadata = AlleleMetricsCallback._metadata_from_batch(batch)
@@ -77,12 +77,12 @@ class ProfilePlotCallback(Callback):
 
         preds = None
         if self.include_predictions:
-            if outputs is None or "preds" not in outputs:
+            if outputs is None or 'preds' not in outputs:
                 raise ValueError(
-                    "ProfilePlotCallback requires test_step to return a mapping "
+                    'ProfilePlotCallback requires test_step to return a mapping '
                     "with a 'preds' tensor when include_predictions=True."
                 )
-            preds = outputs["preds"].detach().cpu().numpy()
+            preds = outputs['preds'].detach().cpu().numpy()
 
         self._validate_lengths(metadata, targets, preds)
 
@@ -91,9 +91,9 @@ class ProfilePlotCallback(Callback):
         remaining = self.num_profiles - self._saved_profiles
 
         for index, sample_metadata in enumerate(metadata[:remaining]):
-            signal = sample_metadata.get("signal_image")
+            signal = sample_metadata.get('signal_image')
             if signal is None:
-                raise ValueError("Missing signal_image in sample metadata.")
+                raise ValueError('Missing signal_image in sample metadata.')
             signal_for_plot = self._as_2d_array(signal)
 
             annotation = None
@@ -122,7 +122,7 @@ class ProfilePlotCallback(Callback):
             figure.savefig(
                 self._profile_path(output_dir, sample_metadata),
                 dpi=150,
-                bbox_inches="tight",
+                bbox_inches='tight',
             )
             plt.close(figure)
             self._saved_profiles += 1
@@ -133,9 +133,9 @@ class ProfilePlotCallback(Callback):
     def on_test_epoch_end(self, trainer: L.Trainer, pl_module: L.LightningModule) -> None:
         """Log where profile plots were saved."""
         del pl_module
-        if getattr(trainer, "is_global_zero", True) and self._saved_profiles:
+        if getattr(trainer, 'is_global_zero', True) and self._saved_profiles:
             logger.info(
-                "Saved {} profile plot(s) to {}",
+                'Saved {} profile plot(s) to {}',
                 self._saved_profiles,
                 self._output_dir(trainer),
             )
@@ -144,13 +144,13 @@ class ProfilePlotCallback(Callback):
     def _targets_from_batch(batch: Any) -> Tensor:
         if not isinstance(batch, (tuple, list)) or len(batch) != 3:
             raise ValueError(
-                "ProfilePlotCallback requires batches from a metadata transformer "
-                "with shape (inputs, targets, metadata)."
+                'ProfilePlotCallback requires batches from a metadata transformer '
+                'with shape (inputs, targets, metadata).'
             )
 
         targets = batch[1]
-        if not hasattr(targets, "detach"):
-            raise TypeError("Expected batch targets to be a tensor.")
+        if not hasattr(targets, 'detach'):
+            raise TypeError('Expected batch targets to be a tensor.')
         return targets
 
     @staticmethod
@@ -168,12 +168,12 @@ class ProfilePlotCallback(Callback):
         *,
         signal_shape: tuple[int, int],
     ) -> np.ndarray:
-        scanpoint_annotation = sample_metadata.get("scanpoint_annotation")
+        scanpoint_annotation = sample_metadata.get('scanpoint_annotation')
         if scanpoint_annotation is None:
-            return coerce_class_map(target, signal_shape=signal_shape, source="annotation")
+            return coerce_class_map(target, signal_shape=signal_shape, source='annotation')
 
-        data = getattr(scanpoint_annotation, "data", scanpoint_annotation)
-        return coerce_class_map(data, signal_shape=signal_shape, source="annotation")
+        data = getattr(scanpoint_annotation, 'data', scanpoint_annotation)
+        return coerce_class_map(data, signal_shape=signal_shape, source='annotation')
 
     @staticmethod
     def _prediction_for_plot(
@@ -181,7 +181,7 @@ class ProfilePlotCallback(Callback):
         *,
         signal_shape: tuple[int, int],
     ) -> np.ndarray:
-        return coerce_class_map(prediction, signal_shape=signal_shape, source="prediction")
+        return coerce_class_map(prediction, signal_shape=signal_shape, source='prediction')
 
     @staticmethod
     def _validate_lengths(
@@ -190,35 +190,34 @@ class ProfilePlotCallback(Callback):
         preds: np.ndarray | None,
     ) -> None:
         expected = len(metadata)
-        lengths = {"metadata": expected}
+        lengths = {'metadata': expected}
         if targets is not None:
-            lengths["targets"] = len(targets)
+            lengths['targets'] = len(targets)
         if preds is not None:
-            lengths["predictions"] = len(preds)
+            lengths['predictions'] = len(preds)
 
         if any(length != expected for length in lengths.values()):
-            lengths_text = ", ".join(f"{name}={length}" for name, length in lengths.items())
+            lengths_text = ', '.join(f'{name}={length}' for name, length in lengths.items())
             raise ValueError(
-                "Number of profile plot inputs must match batch metadata; "
-                f"got {lengths_text}."
+                f'Number of profile plot inputs must match batch metadata; got {lengths_text}.'
             )
 
     def _output_dir(self, trainer: L.Trainer) -> Path:
-        root_dir = Path(getattr(trainer, "default_root_dir", ".") or ".")
-        return root_dir / "plots"
+        root_dir = Path(getattr(trainer, 'default_root_dir', '.') or '.')
+        return root_dir / 'plots'
 
     def _profile_path(self, output_dir: Path, sample_metadata: Mapping[str, Any]) -> Path:
         sample_name = self._safe_sample_name(sample_metadata)
-        return output_dir / f"profile_{self._saved_profiles:04d}_{sample_name}.png"
+        return output_dir / f'profile_{self._saved_profiles:04d}_{sample_name}.png'
 
     @staticmethod
     def _title_for_plot(sample_metadata: Mapping[str, Any]) -> str | None:
-        sample_path = sample_metadata.get("path")
+        sample_path = sample_metadata.get('path')
         return str(sample_path) if sample_path is not None else None
 
     @staticmethod
     def _safe_sample_name(sample_metadata: Mapping[str, Any]) -> str:
-        sample_path = sample_metadata.get("path")
-        sample_name = Path(str(sample_path)).stem if sample_path is not None else "sample"
-        sample_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", sample_name).strip("._")
-        return sample_name or "sample"
+        sample_path = sample_metadata.get('path')
+        sample_name = Path(str(sample_path)).stem if sample_path is not None else 'sample'
+        sample_name = re.sub(r'[^A-Za-z0-9_.-]+', '_', sample_name).strip('._')
+        return sample_name or 'sample'
