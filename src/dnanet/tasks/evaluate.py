@@ -76,9 +76,8 @@ def run(
     This is the primary programmatic entry point. It loads a checkpoint,
     runs predictions on the dataset, computes metrics, and saves results.
 
-    The dataset and splitting configs can be extracted from the checkpoint
-    config file by disabling the default data and splitting configs:
-    `dnanet -m task=evaluate checkpoint=... ~data ~splitting
+    The dataset and splitting configs are by default removed so they can be
+    extracted from the checkpoint config.
 
     Args:
         cfg: Composed Hydra config. Must include ``checkpoint`` path.
