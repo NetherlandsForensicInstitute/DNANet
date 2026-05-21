@@ -44,3 +44,4 @@ annotations.csv
 conf/data/*zaaksdata*.yaml
 conf/data/*casework*.yaml
 conf/**/*private*.yaml
+AGENTS.md
