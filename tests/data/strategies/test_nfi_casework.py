@@ -279,7 +279,7 @@ class TestFindRobotFiles:
         robot_a = tmp_path / '3500XL_A'
         robot_a.mkdir()
         (robot_a / 'file.hid').touch()
-        files = list(NFICaseStrategy.find_robot_files(tmp_path, cache=False))
+        files = list(NFICaseStrategy.find_subfolder_files(tmp_path, cache=False))
         assert len(files) == 1
 
     def test_selected_robots_filters(self, tmp_path):
@@ -288,12 +288,12 @@ class TestFindRobotFiles:
             folder.mkdir()
             (folder / 'file.hid').touch()
         files = list(
-            NFICaseStrategy.find_robot_files(tmp_path, selected_subfolders=['3500XL_A'], cache=False)
+            NFICaseStrategy.find_subfolder_files(tmp_path, selected_subfolders=['3500XL_A'], cache=False)
         )
         assert len(files) == 1
 
     def test_missing_robot_folder_skipped(self, tmp_path):
-        files = list(NFICaseStrategy.find_robot_files(tmp_path, cache=False))
+        files = list(NFICaseStrategy.find_subfolder_files(tmp_path, cache=False))
         assert files == []
 
     def test_robot_limit(self, tmp_path):
@@ -301,14 +301,14 @@ class TestFindRobotFiles:
         robot_a.mkdir()
         for i in range(5):
             (robot_a / f'file{i}.hid').touch()
-        files = list(NFICaseStrategy.find_robot_files(tmp_path, robot_limit=2, cache=False))
+        files = list(NFICaseStrategy.find_subfolder_files(tmp_path, subfolder_limit=2, cache=False))
         assert len(files) == 2
 
     def test_recursive_scan(self, tmp_path):
         sub = tmp_path / '3500XL_A' / 'deep' / 'nested'
         sub.mkdir(parents=True)
         (sub / 'file.hid').touch()
-        files = list(NFICaseStrategy.find_robot_files(tmp_path, cache=False))
+        files = list(NFICaseStrategy.find_subfolder_files(tmp_path, cache=False))
         assert len(files) == 1
 
 
