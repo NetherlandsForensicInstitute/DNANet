@@ -355,7 +355,9 @@ class NFICaseStrategy(DatasetStrategy):
 
     @classmethod
     def _scan_directory_structure(cls, path: PathLike, cache: bool = True):
-        _cache_file = cls._CACHE_DIR / f'{Path(path)}-cache'
+        _path = Path(path)
+        _path_hash = hashlib.md5(str(_path).encode()).hexdigest()
+        _cache_file = cls._CACHE_DIR / f'scan-{_path_hash}'
         if cache and _cache_file.exists():
             logger.debug(f'Reading folder contents from cache: {_cache_file}')
             with _cache_file.open('rb') as f:

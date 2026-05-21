@@ -332,17 +332,19 @@ class TestScanDirectoryStructure:
     def test_cached_writes_and_reads(self, tmp_path):
         (tmp_path / 'file.hid').touch()
         cache_dir = tmp_path / 'cache'
+        path_hash = hashlib.md5(str(tmp_path).encode()).hexdigest()
+        expected_cache_file = cache_dir / f'scan-{path_hash}'
         with patch.object(NFICaseStrategy, '_CACHE_DIR', cache_dir):
             result = NFICaseStrategy._scan_directory_structure(tmp_path, cache=True)
         assert len(result) == 1
-        cache_files = list(cache_dir.glob('*'))
-        assert len(cache_files) == 1
+        assert expected_cache_file.exists()
 
     def test_cache_hit_returns_stored_value(self, tmp_path):
         cached = [Path('/fake/cached.hid')]
         cache_dir = tmp_path / 'cache'
         cache_dir.mkdir()
-        cache_file = cache_dir / f'{tmp_path.stem}-cache'
+        path_hash = hashlib.md5(str(tmp_path).encode()).hexdigest()
+        cache_file = cache_dir / f'scan-{path_hash}'
         with cache_file.open('wb') as f:
             pickle.dump(cached, f)
         with patch.object(NFICaseStrategy, '_CACHE_DIR', cache_dir):
