@@ -8,7 +8,7 @@ Design pattern: **Facade**
 Usage::
 
     dnanet task=evaluate checkpoint=/path/to/best.ckpt
-    dnanet task=evaluate checkpoint=/path/to/best.ckpt evaluation=segmentation
+    dnanet task=evaluate checkpoint=/path/to/best.ckpt evaluate=segmentation
 """
 
 from __future__ import annotations
@@ -74,10 +74,14 @@ def run(
     cfg: DictConfig,
     dataset: Dataset | None = None,
 ) -> dict[str, float]:
-    """Run evaluation with a pre-loaded dataset.
+    """Run evaluation with an optional pre-loaded dataset.
 
     This is the primary programmatic entry point. It loads a checkpoint,
     runs predictions on the dataset, computes metrics, and saves results.
+
+    The dataset and splitting configs can be extracted from the checkpoint
+    config file by disabling the default data and splitting configs:
+    `dnanet -m task=evaluate checkpoint=... ~data ~splitting
 
     Args:
         cfg: Composed Hydra config. Must include ``checkpoint`` path.
