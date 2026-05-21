@@ -1,8 +1,6 @@
 # U-Net architecture for EPG segmentation
 name: multiclass_unet
 
-num_classes: 12
-
 defaults:
   - /train@_global_.train: multiclass_segmentation
 
@@ -16,6 +14,7 @@ architecture:
 
 loss:
   _target_: torch.nn.CrossEntropyLoss
+  ignore_index: null
 
 data_transform:
   _target_: dnanet.data.transformer.SegmentationTransformer
