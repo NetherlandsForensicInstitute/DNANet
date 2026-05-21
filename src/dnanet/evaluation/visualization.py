@@ -326,6 +326,8 @@ def _plot_lines(
 
     if isinstance(color, str) or (isinstance(color, tuple) and isinstance(color[0], float)):
         color = [color] * len(data)
+    if len(color) > len(data):
+        color = color[:len(data)]
 
     for i, (c, row, max_val) in enumerate(zip(color, data, scale_to, strict=True)):
         y = row.copy()
