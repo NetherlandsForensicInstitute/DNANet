@@ -83,6 +83,24 @@ pip install -e ".[tools]"
 
 Requires Python 3.12–3.14.
 
+## Pre-commit hooks
+
+Install pre-commit to validate code before each commit and push:
+
+```bash
+pdm run pip install pre-commit
+pre-commit install
+pre-commit install --hook-type pre-push
+```
+
+This runs **ruff lint + format** on every commit and **pytest** before each push.
+
+To run all hooks manually:
+
+```bash
+pre-commit run --all-files
+```
+
 ## Usage
 
 ```bash
