@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
 import torch
+import pytest
 
 from dnanet.models.autoencoder import (
     Conv1dAutoencoder,

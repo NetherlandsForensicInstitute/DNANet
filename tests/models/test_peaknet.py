@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-import pytest
 import torch
+import pytest
 
+from dnanet.models.peaknet import (
+    MLPCombiner,
+    FiLMCombiner,
+    CombinedClassifier,
+    PeakOnlyClassifier,
+    CrossAttentionCombiner,
+)
 from dnanet.models.autoencoder import Conv1dAutoencoder
 from dnanet.models.peak_classifier import PeakClassificationModel
-from dnanet.models.peaknet import (
-    CombinedClassifier,
-    CrossAttentionCombiner,
-    FiLMCombiner,
-    MLPCombiner,
-    PeakOnlyClassifier,
-)
 
 
 # ---------------------------------------------------------------------------

@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
+from tests.conftest import PROVEDIT_DIR
 from dnanet.data.parsing.hid import get_peak_data
 from dnanet.data.strategies.scaling.globalfiler import GlobalFilerStrategy
 from dnanet.data.strategies.scaling.powerplex_fusion_6c import PowerPlexFusion6CStrategy
-from tests.conftest import PROVEDIT_DIR
 
 
 # ---------------------------------------------------------------------------

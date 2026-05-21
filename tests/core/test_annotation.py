@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from dnanet.core.allele import Allele
-from dnanet.core.annotation import AlleleAnnotation, ClassAnnotation, ScanpointAnnotation
 from dnanet.core.marker import Marker
+from dnanet.core.annotation import ClassAnnotation, AlleleAnnotation, ScanpointAnnotation
 
 
 class TestClassAnnotation:

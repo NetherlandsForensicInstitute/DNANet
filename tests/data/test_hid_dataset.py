@@ -2,9 +2,9 @@
 
 import pytest
 
-from dnanet.data.hid_dataset import HIDDataset
-from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
 from tests.conftest import RD_DIR
+from dnanet.data.strategies import NFIRnDStrategy, PowerPlexFusion6CStrategy
+from dnanet.data.hid_dataset import HIDDataset
 
 
 def _make_hid_dataset(**kwargs) -> HIDDataset:

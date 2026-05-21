@@ -8,9 +8,9 @@ import pytest
 
 from dnanet.data.preprocessing.peaks import (
     find_peak_boundary,
-    find_peak_idx_near_or_in_range,
     find_peak_near_idx,
     find_peaks_above_threshold,
+    find_peak_idx_near_or_in_range,
 )
 
 

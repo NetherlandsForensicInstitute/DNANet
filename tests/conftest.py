@@ -202,3 +202,13 @@ def provedit_dataset():
 def ppf6c_panel() -> Panel:
     """The PPF6C panel loaded from the real XML file."""
     return Panel.from_xml(PANEL_PATH)
+
+
+# ---------------------------------------------------------------------------
+# Helpful fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def npy_rng():
+    return np.random.default_rng()
