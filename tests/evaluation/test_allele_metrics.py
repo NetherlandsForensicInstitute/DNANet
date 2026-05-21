@@ -17,6 +17,7 @@ from dnanet.evaluation.metrics.allele import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _marker(name: str, dye: int, alleles: list[tuple[str, int]]) -> Marker:
     """Shorthand to create a Marker with named alleles and heights."""
     return Marker(
@@ -35,11 +36,12 @@ def _compute(metric, gts, preds) -> float:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def perfect_match():
     """Prediction matches ground truth exactly."""
-    gt = [_marker("D5S818", 0, [("13", 500), ("15", 300)])]
-    pred = [_marker("D5S818", 0, [("13", 480), ("15", 310)])]
+    gt = [_marker('D5S818', 0, [('13', 500), ('15', 300)])]
+    pred = [_marker('D5S818', 0, [('13', 480), ('15', 310)])]
     return [gt], [pred]
 
 
@@ -47,10 +49,10 @@ def perfect_match():
 def partial_match():
     """One correct, one extra, one missed."""
     gt = [
-        _marker("D5S818", 0, [("13", 500), ("15", 300)]),
+        _marker('D5S818', 0, [('13', 500), ('15', 300)]),
     ]
     pred = [
-        _marker("D5S818", 0, [("13", 500), ("14", 200)]),
+        _marker('D5S818', 0, [('13', 500), ('14', 200)]),
     ]
     # Predicted: D5S818_13, D5S818_14
     # GT:        D5S818_13, D5S818_15
@@ -61,7 +63,7 @@ def partial_match():
 @pytest.fixture
 def no_predictions():
     """No alleles predicted."""
-    gt = [_marker("D5S818", 0, [("13", 500)])]
+    gt = [_marker('D5S818', 0, [('13', 500)])]
     pred = []
     return [gt], [pred]
 
@@ -69,6 +71,7 @@ def no_predictions():
 # ---------------------------------------------------------------------------
 # Precision
 # ---------------------------------------------------------------------------
+
 
 class TestAllelePrecision:
     def test_perfect(self, perfect_match):
@@ -85,10 +88,10 @@ class TestAllelePrecision:
         assert _compute(AllelePrecision(), gts, preds) == 0.0
 
     def test_multiple_samples(self):
-        gt1 = [_marker("D5S818", 0, [("13", 500)])]
-        pred1 = [_marker("D5S818", 0, [("13", 480)])]  # TP=1
-        gt2 = [_marker("vWA", 1, [("16", 300)])]
-        pred2 = [_marker("vWA", 1, [("17", 400)])]  # FP=1
+        gt1 = [_marker('D5S818', 0, [('13', 500)])]
+        pred1 = [_marker('D5S818', 0, [('13', 480)])]  # TP=1
+        gt2 = [_marker('vWA', 1, [('16', 300)])]
+        pred2 = [_marker('vWA', 1, [('17', 400)])]  # FP=1
         # Total: TP=1, FP=1 => precision=0.5
         metric = AllelePrecision()
         metric.update([gt1], [pred1])
@@ -105,15 +108,16 @@ class TestAllelePrecision:
 
     def test_rejects_mismatched_sample_counts(self):
         metric = AllelePrecision()
-        gt = [_marker("D5S818", 0, [("13", 500)])]
-        pred = [_marker("D5S818", 0, [("13", 480)])]
-        with pytest.raises(ValueError, match="same number of samples"):
+        gt = [_marker('D5S818', 0, [('13', 500)])]
+        pred = [_marker('D5S818', 0, [('13', 480)])]
+        with pytest.raises(ValueError, match='same number of samples'):
             metric.update([gt], [pred, pred])
 
 
 # ---------------------------------------------------------------------------
 # Recall
 # ---------------------------------------------------------------------------
+
 
 class TestAlleleRecall:
     def test_perfect(self, perfect_match):
@@ -127,13 +131,14 @@ class TestAlleleRecall:
 
     def test_no_gt_alleles(self):
         gts = [[]]
-        preds = [[_marker("D5S818", 0, [("13", 500)])]]
+        preds = [[_marker('D5S818', 0, [('13', 500)])]]
         assert _compute(AlleleRecall(), gts, preds) == 0.0
 
 
 # ---------------------------------------------------------------------------
 # F1 Score
 # ---------------------------------------------------------------------------
+
 
 class TestAlleleF1:
     def test_perfect(self, perfect_match):
@@ -153,18 +158,18 @@ class TestAlleleF1:
 # Locus filtering
 # ---------------------------------------------------------------------------
 
+
 class TestLocusFiltering:
     def test_filter_to_specific_locus(self):
         gt = [
-            _marker("D5S818", 0, [("13", 500)]),
-            _marker("vWA", 1, [("16", 300)]),
+            _marker('D5S818', 0, [('13', 500)]),
+            _marker('vWA', 1, [('16', 300)]),
         ]
         pred = [
-            _marker("D5S818", 0, [("13", 480)]),
-            _marker("vWA", 1, [("17", 400)]),  # wrong allele
+            _marker('D5S818', 0, [('13', 480)]),
+            _marker('vWA', 1, [('17', 400)]),  # wrong allele
         ]
         # Only D5S818: TP=1, FP=0 => precision=1.0
-        assert _compute(AllelePrecision(locus="D5S818"), [gt], [pred]) == pytest.approx(1.0)
+        assert _compute(AllelePrecision(locus='D5S818'), [gt], [pred]) == pytest.approx(1.0)
         # Only vWA: TP=0, FP=1 => precision=0.0
-        assert _compute(AllelePrecision(locus="vWA"), [gt], [pred]) == pytest.approx(0.0)
-
+        assert _compute(AllelePrecision(locus='vWA'), [gt], [pred]) == pytest.approx(0.0)

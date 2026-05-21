@@ -35,4 +35,3 @@ class TestBasepairInterpolator:
         interp = ScalingStrategy.basepair_interpolator(indices, bps, extrapolate=True)
         result = interp(5)  # extrapolate before first point
         assert result[0] != 0.0  # should extrapolate, not zero
-

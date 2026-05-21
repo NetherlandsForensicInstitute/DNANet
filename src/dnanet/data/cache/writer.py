@@ -23,7 +23,6 @@ Write path:
 
 from __future__ import annotations
 
-import io
 import json
 from typing import TYPE_CHECKING, Any, Iterable
 from pathlib import Path
@@ -49,6 +48,8 @@ from dnanet.data.cache.fingerprint import write_fingerprint, compute_fingerprint
 
 
 if TYPE_CHECKING:
+    import io
+
     from dnanet.data.image import HIDImage
 
 

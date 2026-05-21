@@ -10,7 +10,6 @@ Handles the NFI Research & Development dataset conventions:
 
 from __future__ import annotations
 
-import io
 import os
 import re
 import csv
@@ -34,6 +33,8 @@ from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 
 if TYPE_CHECKING:
+    import io
+
     from dnanet.core.types import PathLike
     from dnanet.data.strategies import ScalingStrategy
     from dnanet.data.hid_dataset import HIDDataset

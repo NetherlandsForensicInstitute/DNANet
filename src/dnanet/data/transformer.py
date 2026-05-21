@@ -1,43 +1,53 @@
 import abc
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import Any, Tuple, Generic, TypeVar
+from dataclasses import dataclass
 
 import torch
 from torch.utils.data import default_collate
 
-from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.image import HIDImage, TrainableElement
-from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
-from dnanet.data.preprocessing.scaling import scale_rfu_torch
 from dnanet.data.strategies import DatasetStrategy
+from dnanet.data.extracted_peak import ExtractedPeak
 from dnanet.data.strategies.scaling import ScalingStrategy
+from dnanet.data.preprocessing.scaling import scale_rfu_torch
+from dnanet.data.preprocessing.peak_extraction import extract_peaks_torch
+
 
 TrainableT = TypeVar('TrainableT', bound=TrainableElement)
 
+
 def _allele_metadata_from_image(image: HIDImage) -> dict[str, Any]:
     return {
-        "allele_annotation": image.allele_annotation,
-        "panel": image.adjusted_panel,
-        "path": image.path,
-        "scaler": image.scaler,
-        "signal_image": image.data,
+        'allele_annotation': image.allele_annotation,
+        'panel': image.adjusted_panel,
+        'path': image.path,
+        'scaler': image.scaler,
+        'signal_image': image.data,
     }
 
 
 class TransformDataCallable(abc.ABC, Generic[TrainableT]):
+    """Base class for transforms."""
 
     @abstractmethod
     def __call__(self, image: TrainableT) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         raise NotImplementedError
 
     @staticmethod
-    def collate_fn(batch: list[Tuple[torch.Tensor | Tuple, torch.Tensor]]) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
+    def collate_fn(
+        batch: list[Tuple[torch.Tensor | Tuple, torch.Tensor]],
+    ) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         return default_collate(batch)
 
 
 @dataclass(frozen=True)
 class SegmentationTransformer(TransformDataCallable[HIDImage]):
+    """Transformer used for segmentation tasks.
+
+    Target output here is a scanpoint indexed label.
+    """
+
     def __call__(self, image: HIDImage) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         data = image.data
         x = torch.tensor(data, dtype=torch.float32)
@@ -53,8 +63,11 @@ class SegmentationTransformer(TransformDataCallable[HIDImage]):
 
         return x, y
 
+
 @dataclass(frozen=True)
 class AlleleMetadataTransformer(TransformDataCallable[HIDImage]):
+    """Transformer that adds allele metadata to predictions to enable allele-metrics."""
+
     transformer: TransformDataCallable[HIDImage]
 
     def __call__(
@@ -76,7 +89,7 @@ class AlleleMetadataTransformer(TransformDataCallable[HIDImage]):
 
 
 @dataclass(frozen=True)
-class CombinedTransformer(TransformDataCallable[HIDImage]):
+class CombinedTransformer(TransformDataCallable[HIDImage]):  # noqa: D101
     threshold: int = 25
     window_size: int = 120
     include_max_pool_dyes: bool = False
@@ -104,7 +117,9 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
 
         ## preprocess image for autoencoder
         full_image = torch.tensor(data_2d, dtype=torch.float32)
-        full_image = scale_rfu_torch(full_image, log_scale=self.autoencoder_log_scale, max_rfu=self.autoencoder_max_rfu)
+        full_image = scale_rfu_torch(
+            full_image, log_scale=self.autoencoder_log_scale, max_rfu=self.autoencoder_max_rfu
+        )
 
         # TODO: preprocess peaks
 
@@ -121,7 +136,9 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
         return inputs, target
 
     @staticmethod
-    def collate_fn(batch: list[Tuple[torch.Tensor | Tuple, torch.Tensor]]) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
+    def collate_fn(
+        batch: list[Tuple[torch.Tensor | Tuple, torch.Tensor]],
+    ) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:
         full_images = []
         targets = []
         peak_counts = []
@@ -140,13 +157,12 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
             all_marker_idxs.append(marker_idxs)
             all_peak_centers.append(peak_centers)
 
-
-        full_images = torch.stack(full_images, dim=0)   # (N, D, L)
-        targets = torch.stack(targets, dim=0)           # (N, D, L)
+        full_images = torch.stack(full_images, dim=0)  # (N, D, L)
+        targets = torch.stack(targets, dim=0)  # (N, D, L)
         peak_counts = torch.tensor(peak_counts, dtype=torch.long)  # (N,)
 
         peak_windows = torch.cat(all_peak_windows, dim=0)  # (P_total, C, W)
-        marker_idxs = torch.cat(all_marker_idxs, dim=0)    # (P_total,)
+        marker_idxs = torch.cat(all_marker_idxs, dim=0)  # (P_total,)
         peak_centers = torch.cat(all_peak_centers, dim=0)
 
         new_inputs = (full_images, peak_windows, marker_idxs, peak_centers, peak_counts)
@@ -155,6 +171,11 @@ class CombinedTransformer(TransformDataCallable[HIDImage]):
 
 @dataclass(frozen=True)
 class ReconstructionTransformer(TransformDataCallable[HIDImage]):
+    """Transformer for reconstruction tasks.
+
+    This transformer will set sample and target to the same value to enable reconstruction.
+    """
+
     n_dyes: int = 5
     autoencoder_log_scale: bool = True
     autoencoder_max_rfu: int | None = None
@@ -178,8 +199,11 @@ class ReconstructionTransformer(TransformDataCallable[HIDImage]):
         # reconstruction module)
         return preprocessed, raw
 
+
 @dataclass(frozen=True)
 class PeakClassificationTransformer(TransformDataCallable[ExtractedPeak]):
+    """Transformer for the PeakNet Classifier."""
+
     include_marker: bool = True
 
     def __call__(self, peak: ExtractedPeak) -> Tuple[torch.Tensor | Tuple, torch.Tensor]:

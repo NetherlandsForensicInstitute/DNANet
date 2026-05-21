@@ -7,9 +7,9 @@ from dnanet.data.strategies.datasets.nfi_casework import NFICaseStrategy
 
 
 __all__ = [
-    "DatasetStrategy",
-    "FileCategory",
-    "NFIRnDStrategy",
-    "NFICaseStrategy",
-    "ProvedItStrategy",
+    'DatasetStrategy',
+    'FileCategory',
+    'NFIRnDStrategy',
+    'NFICaseStrategy',
+    'ProvedItStrategy',
 ]

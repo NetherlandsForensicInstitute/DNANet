@@ -27,6 +27,7 @@ Loss functions:
     - :class:`~dnanet.models.loss.DiceLoss` — Dice loss for segmentation
     - :class:`~dnanet.models.loss.FocalLoss` — Focal loss for classification
 """
+
 from dnanet.models.unet import UNet  # noqa
 from dnanet.models.autoencoder import (
     Conv1dAutoencoder,
@@ -41,18 +42,18 @@ from dnanet.models.peaknet import CombinedClassifier, PeakOnlyClassifier
 
 __all__ = [
     # Segmentation
-    "UNet",
+    'UNet',
     # Reconstruction
-    "Conv1dAutoencoder",
-    "PerDyeConv1dAutoencoder",
-    "SharedWeightPerDyeConv1dAutoencoder",
-    "FourierAutoencoder",
+    'Conv1dAutoencoder',
+    'PerDyeConv1dAutoencoder',
+    'SharedWeightPerDyeConv1dAutoencoder',
+    'FourierAutoencoder',
     # Classification
-    "PeakClassificationModel",
+    'PeakClassificationModel',
     # Combined
-    "CombinedClassifier",
-    "PeakOnlyClassifier",
+    'CombinedClassifier',
+    'PeakOnlyClassifier',
     # Loss
-    "DiceLoss",
-    "FocalLoss",
+    'DiceLoss',
+    'FocalLoss',
 ]

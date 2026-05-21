@@ -33,12 +33,14 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 
 from dnanet.data.transformer import AlleleMetadataTransformer
 
+
 if TYPE_CHECKING:
     from torch.utils.data import Dataset
 
 
 _ALLELE_METRICS_CALLBACK_TARGET = 'dnanet.evaluation.callbacks.AlleleMetricsCallback'
 _ALLELE_METRICS_TRAIN_TYPES = frozenset({'segmentation', 'segmentation_mc', 'peaknet'})
+
 
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
     """Build Lightning callbacks from training config."""

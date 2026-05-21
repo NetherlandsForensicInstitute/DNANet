@@ -46,9 +46,9 @@ def flatten_markers_to_allele_names(
             continue
 
         for allele in marker.alleles:
-            result.append(f"{marker.name}_{allele.name}")
+            result.append(f'{marker.name}_{allele.name}')
 
     result_set = frozenset(result)
     if len(result_set) != len(result):
-        logger.warning("Non-unique locus-allele combinations found")
+        logger.warning('Non-unique locus-allele combinations found')
     return result_set
