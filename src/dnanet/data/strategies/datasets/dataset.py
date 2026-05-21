@@ -172,7 +172,10 @@ class DatasetStrategy(ABC):
 
     @classmethod
     def _parse_span_annotation(
-        cls, span_annotations_path: Path, scaling_strategy: ScalingStrategy
+        cls,
+        span_annotations_path: Path,
+        scaling_strategy: ScalingStrategy,
+        label_adjustment: typing.Optional[str],
     ) -> dict[str, SpanAnnotation | None]:
         """Parse span-annotation CSV files into per-profile span annotations.
 
@@ -188,7 +191,8 @@ class DatasetStrategy(ABC):
             span_annotations_path: Directory containing span-annotation CSV files.
             scaling_strategy: Scaling strategy that defines dye count and
                 scanpoint resolution.
-
+            label_adjustment: str that specifies whether labels should be simplified.
+                If 'simple', this makes three categories: Allele/Stutter, Bleedthrough, Rest
         Returns:
             Mapping from HID profile filename to scanpoint annotation. Returns an
             empty mapping when no CSV files are found.
@@ -249,7 +253,7 @@ class DatasetStrategy(ABC):
             if dye_idx is None:
                 raise ValueError(f'Unknown dye values in span annotations: {row["dye"]}')
 
-            category_idx = LabelCategory.display_name_to_index(row['category'])
+            category_idx = LabelCategory.display_name_to_index(row['category'], label_adjustment)
             if category_idx is None:
                 raise ValueError(f'Unknown category values in span annotations: {row["category"]}')
 

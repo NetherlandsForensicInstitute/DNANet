@@ -84,7 +84,8 @@ class NFICaseStrategy(DatasetStrategy):
         Args:
             root_path: The path in which to find the data, must contain a 'hids', and 'annotations' folder.
             scaling_strategy: The Scaling strategy to use for the data, PPF6C for our casework.
-            **kwargs: Extra parameters allowed by the abstract method, not used here.
+            **kwargs: Extra parameters allowed by the abstract method, used for label_adjustment
+            here
 
         Yields:
             A tuple of HID path, annotation, and ladder path
@@ -144,7 +145,11 @@ class NFICaseStrategy(DatasetStrategy):
         logger.info(f'Found {len(file_list)} .hid files in {path}')
 
         resolve_annotation = self._build_annotation_resolver(
-            path, scaling_strategy, self.annotation_type, self._span_annotations_path
+            path,
+            scaling_strategy,
+            self.annotation_type,
+            self._span_annotations_path,
+            kwargs.get('label_adjustment'),
         )
         if self._exclude_path:
             with open(Path(self._exclude_path), 'r') as f:
@@ -173,6 +178,7 @@ class NFICaseStrategy(DatasetStrategy):
         scaling_strategy: ScalingStrategy,
         annotation_type: str | None,
         span_annotations_path: PathLike | None = None,
+        label_adjustment: str | None = None,
     ) -> Callable[[Path], Annotation | None]:
         """Build a per-HID annotation resolver for the configured annotation type.
 
@@ -185,6 +191,9 @@ class NFICaseStrategy(DatasetStrategy):
         Args:
             path: Dataset root containing the annotation directories.
             scaling_strategy: Scaling strategy required to parse annotations.
+            annotation_type: One of {span, AT, LT, ATLT, None}
+            label_adjustment: Keep labels (None) or simplify to three classes ('simplify')
+            span_annotations_path: where to find the span annotations
 
         Returns:
             A callable that takes a HID path and returns the corresponding
@@ -200,7 +209,9 @@ class NFICaseStrategy(DatasetStrategy):
             if span_annotations_path is None:
                 span_annotations_path = path / 'span_annotations'
             span_annotations_path = Path(span_annotations_path)
-            hid_to_annotation = cls._parse_span_annotation(span_annotations_path, scaling_strategy)
+            hid_to_annotation = cls._parse_span_annotation(span_annotations_path,
+                                                           scaling_strategy,
+                                                           label_adjustment=label_adjustment)
 
             def resolve_annotation(hid_file: Path) -> SpanAnnotation | None:
                 return hid_to_annotation.get(hid_file.stem)

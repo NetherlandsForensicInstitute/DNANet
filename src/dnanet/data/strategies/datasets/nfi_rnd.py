@@ -80,7 +80,9 @@ class NFIRnDStrategy(DatasetStrategy):
         return {'class': self.__class__.__name__, 'annotation_type': self.annotation_type}
 
     def collect_dataset_files(
-        self, root_path: PathLike, scaling_strategy: ScalingStrategy, **kwargs
+        self, root_path: PathLike,
+            scaling_strategy: ScalingStrategy,
+            **kwargs
     ) -> Generator[Tuple[Path, Annotation | None, Path | None]]:
         """Collect the dataset files for this specific dataset strategy.
 
@@ -90,7 +92,8 @@ class NFIRnDStrategy(DatasetStrategy):
         Args:
             root_path: The path to the root of this dataset
             scaling_strategy: The scaling strategy to use for the annotations.
-            **kwargs: Additional dataset collection options; currently unused.
+            **kwargs: Additional dataset collection options; such as 'label_adjustment' for
+            simplifying span annotation labels.
         """
         path = Path(root_path)
 
@@ -120,7 +123,8 @@ class NFIRnDStrategy(DatasetStrategy):
                 else:
                     span_annotations_path = Path(self._span_annotations_path)
                 hid_to_annotation = self._parse_span_annotation(
-                    span_annotations_path, scaling_strategy
+                    span_annotations_path, scaling_strategy,
+                    label_adjustment=kwargs.get('label_adjustment')
                 )
             case _:
                 raise ValueError(f'Invalid annotation type: {self.annotation_type}')

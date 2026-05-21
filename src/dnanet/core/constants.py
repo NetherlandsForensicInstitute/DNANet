@@ -15,6 +15,7 @@ Note:
 import re
 from enum import Enum, unique
 from functools import lru_cache
+from typing import Optional
 
 
 @unique
@@ -101,7 +102,7 @@ class LabelCategory(Enum):
 
     @classmethod
     @lru_cache()
-    def display_name_to_index(cls, search_name: str) -> int:
+    def display_name_to_index(cls, search_name: str, label_adjustment: Optional[str]) -> int:
         """Look up a category by any of its names (case-insensitive)."""
         name = re.sub(r'[^a-z0-9]', '', search_name.strip().lower()).replace('artifact', 'artefact')
 
@@ -110,6 +111,14 @@ class LabelCategory(Enum):
             label_name = re.sub(r'[^a-z0-9]', '', member.label_name.strip().lower()).replace('artifact', 'artefact')
             member_name = re.sub(r'[^a-z0-9]', '', member.name.strip().lower()).replace('artifact', 'artefact')
             if display_name == name or label_name == name or member_name == name:
+                if label_adjustment == 'simple':
+                    # Simplify to three categories
+                    if (i == list(LabelCategory).index(LabelCategory.STUTTER) or
+                            i == list(LabelCategory).index(LabelCategory.ALLELE)):
+                        return 1
+                    if i == list(LabelCategory).index(LabelCategory.BLEED_THROUGH):
+                        return 2
+                    return 0
                 return i
         raise ValueError(f"Unknown label name: {search_name!r}")
 
