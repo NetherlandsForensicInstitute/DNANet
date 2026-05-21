@@ -17,12 +17,12 @@ class TestPercentileWindowBaseline:
     """Tests for the core percentile-window baseline."""
 
     def test_output_shape_matches_input_2d(self, npy_rng):
-        signal = npy_rng.randn(5, 4096).astype(np.float64)
+        signal = npy_rng.random((5, 4096)).astype(np.float64)
         baseline = percentile_window_baseline(signal, window_size=101, percentile=20)
         assert baseline.shape == signal.shape
 
     def test_output_shape_matches_input_1d(self, npy_rng):
-        signal = npy_rng.randn(4096).astype(np.float64)
+        signal = npy_rng.random((4096)).astype(np.float64)
         baseline = percentile_window_baseline(signal, window_size=101, percentile=20)
         assert baseline.shape == signal.shape
 
@@ -43,7 +43,7 @@ class TestPercentileWindowBaseline:
 
     def test_even_window_made_odd(self, npy_rng):
         """Even window sizes should be handled without error."""
-        signal = npy_rng.randn(5, 100)
+        signal = npy_rng.random((5, 100))
         baseline = percentile_window_baseline(signal, window_size=100, percentile=20)
         assert baseline.shape == signal.shape
 
@@ -53,7 +53,7 @@ class TestNamedBaselines:
 
     @pytest.fixture
     def signal(self, npy_rng):
-        return npy_rng.randn(5, 4096).astype(np.float64)
+        return npy_rng.random((5, 4096)).astype(np.float64)
 
     def test_classic(self, signal):
         result = baseline_classic(signal)
@@ -70,12 +70,12 @@ class TestNamedBaselines:
 
 class TestFFTSmooth:
     def test_output_shape(self, npy_rng):
-        signal = npy_rng.randn(5, 1000)
+        signal = npy_rng.random((5, 1000))
         smoothed = fft_lowpass_smooth(signal, keep_fraction=0.1)
         assert smoothed.shape == signal.shape
 
     def test_1d_input(self, npy_rng):
-        signal = npy_rng.randn(1000)
+        signal = npy_rng.random((1000))
         smoothed = fft_lowpass_smooth(signal, keep_fraction=0.1)
         assert smoothed.shape == signal.shape
 
