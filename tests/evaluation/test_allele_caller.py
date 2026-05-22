@@ -7,14 +7,14 @@ from typing import Tuple
 import numpy as np
 import pytest
 
+from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.core.panel import Panel
 from dnanet.evaluation.allele_caller import (
     AlleleCaller,
     ExactBasePairCaller,
-    FromSegmentationImageCaller,
     NearestBasePairCaller,
+    FromSegmentationImageCaller,
 )
 
 

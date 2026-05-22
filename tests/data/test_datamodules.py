@@ -82,7 +82,9 @@ def _make_fake_image(
         load_in_memory=True,
         meta={'peak_count': peak_count},
     )
-    img._data = (np.random.rand(num_dyes, signal_length, 1) * 100).astype(np.float32)
+    img._data = (np.random.default_rng().random((num_dyes, signal_length, 1)) * 100).astype(
+        np.float32
+    )
     if with_annotation:
         mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
         mask[0, 5:15, 0] = 1
@@ -94,7 +96,7 @@ def _make_mock_peaks(n: int = 8) -> list[ExtractedPeak]:
     labels = ['allele' if i % 2 == 0 else 'noise' for i in range(n)]
     return [
         ExtractedPeak(
-            data=np.random.rand(1, 120).astype(np.float32),
+            data=np.random.default_rng().random((1, 120)).astype(np.float32),
             dye_index=i % 5,
             peak_center=1000 + i * 25,
             window_size=120,

@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, ConcatDataset
 from dnanet.data.image import HIDImage
 from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
-from dnanet.data.transformer import SegmentationTransformer, CombinedTransformer
+from dnanet.data.transformer import CombinedTransformer, SegmentationTransformer
 
 
 class SplitStrategy:
@@ -75,7 +75,7 @@ def _make_fake_image(
         scaling_strategy=scaling_strategy,
         load_in_memory=True,
     )
-    img._data = np.random.rand(num_dyes, signal_length, 1).astype(np.float32)
+    img._data = np.random.default_rng().random((num_dyes, signal_length, 1)).astype(np.float32)
     if with_annotation:
         mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
         mask[0, 10:20, 0] = 1

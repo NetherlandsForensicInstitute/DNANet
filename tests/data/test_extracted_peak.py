@@ -65,12 +65,12 @@ class TestExtractedPeak:
         assert hash(p1) == hash(p2)
         assert len({p1, p2}) == 1  # deduplication in set
 
-    def test_data_shape_single_channel(self):
-        data = np.random.rand(1, 120)
+    def test_data_shape_single_channel(self, npy_rng):
+        data = npy_rng.random((1, 120))
         peak = self._make_peak(data=data)
         assert peak.data.shape == (1, 120)
 
-    def test_data_shape_two_channels(self):
-        data = np.random.rand(2, 120)
+    def test_data_shape_two_channels(self, npy_rng):
+        data = npy_rng.random((2, 120))
         peak = self._make_peak(data=data)
         assert peak.data.shape == (2, 120)
