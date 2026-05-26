@@ -132,20 +132,20 @@ def run(
     if not dataset:
         if cfg.get('data') and 'name' in cfg.get('data', ''):
             data_cfg = cfg.get('data')
-            logger.info("Loading data from provided data config...")
+            logger.info('Loading data from provided data config...')
         elif data_cfg := checkpoint_cfg.get('data'):
-            logger.info("Loading data from checkpoint data config...")
+            logger.info('Loading data from checkpoint data config...')
         else:
-            raise ValueError("No data config provided. Set it via `dnanet data=<path/to/data.yaml>`")
+            raise ValueError('No data config provided. Set it via `dnanet data=<path/to/data.yaml>`')
         dataset = instantiate(data_cfg.dataset)
 
     # Splitting arguments
     if splitting_args := cfg.get('splitting'):
-        logger.info("Loading splitting arguments from provided config: {}.", splitting_args)
+        logger.info('Loading splitting arguments from provided config: {}.', splitting_args)
     elif splitting_args := checkpoint_cfg.get('splitting'):
-        logger.info("Loading splitting arguments from checkpoint config: {}.", splitting_args)
+        logger.info('Loading splitting arguments from checkpoint config: {}.', splitting_args)
     else:
-        logger.info("No splitting arguments found, using entire dataset for evaluation.")
+        logger.info('No splitting arguments found, using entire dataset for evaluation.')
         splitting_args = {}
 
     # load datamodule with the same seed and split from the checkpoint config
