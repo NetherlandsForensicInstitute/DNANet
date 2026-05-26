@@ -100,8 +100,7 @@ class TestCacheInvalidation:
         # fingerprint, so modifying one would leave the cache untouched).
         strategy = NFIRnDStrategy('DTH')
         sample_hids = [
-            p for p in data_dir.rglob('*.hid')
-            if strategy.categorize_file(p.name) == 'sample'
+            p for p in data_dir.rglob('*.hid') if strategy.categorize_file(p.name) == 'sample'
         ]
         assert sample_hids, 'No sample .hid files found'
         sample_hids[0].write_bytes(sample_hids[0].read_bytes() + b'\x00')
