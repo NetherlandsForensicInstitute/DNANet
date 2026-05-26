@@ -24,9 +24,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install pdm
-        uses: pdm-project/setup-pdm@v4
-        with:
-          update-python: false
+        run: pip install pdm
 
       - name: Install dependencies
         run: pdm install -v
@@ -64,9 +62,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install pdm
-        uses: pdm-project/setup-pdm@v4
-        with:
-          update-python: false
+        run: pip install pdm
 
       - name: Install dependencies
         run: pdm install -v
