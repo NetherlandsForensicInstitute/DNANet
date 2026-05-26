@@ -229,12 +229,14 @@ def parse_hid(path: PathLike) -> dict[str, ElementValue | None] | None:
     try:
         with open(path, 'rb') as f:
             raw = f.read()
+
         if raw[:4] != b'ABIF':
             if raw[:7] == b'version':
                 logger.error('Git LFS stub detected for {}: run `git lfs pull` to fetch the real file', path)
             else:
                 logger.error('Not a valid HID file (missing ABIF magic bytes): {}', path)
             return None
+
         header = parse_hid_header(raw)
         directory = parse_hid_directory(raw, header)
         return parse_hid_data(raw, header, directory)
