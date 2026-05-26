@@ -1,0 +1,27 @@
+# NFI R&D 2p/5p mixture dataset (PPF6C kit)
+name: dnanet_rd
+
+num_classes: 2
+# Dataset loading options
+dataset:
+  _target_: dnanet.data.hid_dataset.HIDDataset
+  root: data/2p_5p_Dataset_NFI
+  scaling_strategy:
+      _target_: dnanet.data.strategies.scaling.powerplex_fusion_6c.PowerPlexFusion6CStrategy
+      scanpoint_resolution: 4096
+  dataset_strategy:
+      _target_: dnanet.data.strategies.datasets.NFIRnDStrategy
+      annotation_type: ground_truth # DTH (analyst high threshold), or DTL (analyst low threshold), span, or ground_truth
+  limit: null  # Set to integer to limit number of loaded images
+  skip_if_invalid_ladder: true
+  allow_missing_annotations: false
+  include_size_standard: true
+  data_loading_strategy: superior  # raw, analyzed, or superior
+  adjustment_of_annotations: top  # top, complete, or null
+  transform: ${oc.select:model.data_transform_active,${oc.select:model.data_transform,null}}  # get transform from training/evaluation task, or null if not defined
+  load_in_memory: false
+  cache_dir: data/cache/dnanet_rd
+
+# splitting options
+stratify_noc: false
+group_by_replica: false
