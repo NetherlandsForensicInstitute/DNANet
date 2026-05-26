@@ -1,6 +1,0 @@
-# TensorBoard logging
-logger_type: tensorboard
-
-tensorboard:
-  save_dir: tb_logs
-  name: dnanet

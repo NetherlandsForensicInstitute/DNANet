@@ -1,5 +1,0 @@
-# @package _global_
-defaults:
-  - override /splitting: cross_validate
-
-task: cross_validate

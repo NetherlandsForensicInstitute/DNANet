@@ -1,7 +1,0 @@
-logger_type: csv
-
-
-logger:
-  _target_: lightning.pytorch.loggers.CSVLogger
-  save_dir: logs
-  name: dnanet

@@ -1,214 +1,117 @@
-"""Shared test fixtures for DNANet."""
-
+import os
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Iterator, Mapping, Protocol, Union
 
 import numpy as np
 import pytest
-from torchmetrics import MetricCollection
-from torchmetrics.regression import MeanSquaredError
-from torchmetrics.classification import (
-    BinaryRecall,
-    BinaryF1Score,
-    BinaryAccuracy,
-    BinaryPrecision,
-    MulticlassRecall,
-    MulticlassF1Score,
-    BinaryJaccardIndex,
-    MulticlassPrecision,
+
+from DNAnet.data.data_models import Annotation, Panel
+from DNAnet.data.data_models.hid_dataset import HIDDataset
+from DNAnet.data.data_models.hid_image import HIDImage, Ladder
+from DNAnet.data.parsing import parse_called_alleles
+
+
+def pytest_configure():
+    """Global variables for tests can be configured here and accessed in any test
+    using `pytest.<variable>`.
+    """
+    tests_dir = Path(os.path.abspath(os.path.dirname(__file__)))
+    pytest.RESOURCES_DIR = tests_dir / 'resources'
+    pytest.PANEL_PATH = pytest.RESOURCES_DIR / "panel.xml"
+
+
+@pytest.fixture
+def hid_dataset_rd():
+    return HIDDataset(
+        root=pytest.RESOURCES_DIR / "profiles" / "RD",
+        panel=pytest.PANEL_PATH,
+        annotations_path=pytest.RESOURCES_DIR / "profiles" / "RD",
+        hid_to_annotations_path=(pytest.RESOURCES_DIR / "profiles" /
+                                 "RD" / "2p_5p_hid_to_annotation.csv"),
+        analysis_threshold_type="DTH",
+        best_ladder_paths_csv=(pytest.RESOURCES_DIR / "profiles" /
+                               "RD" / "best_ladder_paths.csv")
+    )
+
+
+@pytest.fixture
+def hid_image():
+    annotation_path = os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "1A2_A01_01_annotation.npy")
+    return HIDImage(
+        path=os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "1A2_A01_01.hid"),
+        annotation=Annotation(image=np.load(annotation_path))
+    )
+
+
+@pytest.fixture
+def ladder():
+    ladder_path = os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "Ladder_G03_21.hid")
+    panel = Panel(pytest.PANEL_PATH)
+    ladder = Ladder(ladder_path, panel)
+    return ladder
+
+
+@pytest.fixture
+def hid_image_with_ladder(ladder):
+    annotation_path = os.path.join(pytest.RESOURCES_DIR,  "profiles", "RD",
+                                   "1A2_A01_01_annotation.npy")
+    image = HIDImage(
+        path=os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "1A2_A01_01.hid"),
+        annotation=Annotation(image=np.load(annotation_path)),
+        panel=ladder._panel
+    )
+    image.meta["called_alleles"] = parse_called_alleles(
+        os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "Dataset 1 DTH_AlleleReport.txt"),
+        ladder.panel,
+        "1_11148_1A2"
+    )
+    return image
+
+
+@pytest.fixture
+def called_alleles():
+    return parse_called_alleles(
+        os.path.join(pytest.RESOURCES_DIR, "profiles", "RD", "Dataset 1 DTH_AlleleReport.txt"),
+        ladder.panel,
+        "1_11148_1A2"
+    )
+
+
+class SupportsBool(Protocol):
+    def __bool__(self) -> bool:
+        pass
+
+
+@dataclass
+class SkipCondition(Mapping[str, Any]):
+    condition: SupportsBool
+    description: str
+
+    @property
+    def reason(self) -> str:
+        return f"{self.description} ({self.condition})"
+
+    def __bool__(self):
+        return bool(self.condition)
+
+    def __getitem__(self, k: str) -> Union[str, Any]:
+        return getattr(self, k)
+
+    def __len__(self) -> int:
+        return 2
+
+    def __iter__(self) -> Iterator[str]:
+        yield "condition"
+        yield "reason"
+
+
+SKIP_MODELS = SkipCondition(
+    condition=int(os.environ.get("TEST_SKIP_MODELS", 0)),
+    description="TEST_SKIP_MODELS environment variable set to non-zero value",
 )
 
-from dnanet.core.panel import Panel
-from dnanet.core.allele import Allele
-from dnanet.core.marker import Marker
-from dnanet.data.strategies import (
-    NFIRnDStrategy,
-    ProvedItStrategy,
-    GlobalFilerStrategy,
-    PowerPlexFusion6CStrategy,
+SKIP_DATASETS = SkipCondition(
+    condition=int(os.environ.get("TEST_SKIP_DATASETS", 0)),
+    description="TEST_SKIP_DATASETS environment variable set to non-zero value",
 )
-
-
-# ---------------------------------------------------------------------------
-# Resource paths
-# ---------------------------------------------------------------------------
-
-TESTS_DIR = Path(__file__).parent
-RESOURCES_DIR = TESTS_DIR / 'resources'
-PANEL_PATH = RESOURCES_DIR / 'panel.xml'
-LADDER_ALLELES_CSV = RESOURCES_DIR / 'ladder_alleles.csv'
-
-RD_DIR = RESOURCES_DIR / 'profiles' / 'RD'
-HID_DIR = RD_DIR / 'Raw data .HID files'
-ANNOT_DIR = RD_DIR / 'txt_annotations_2024'
-PROVEDIT_DIR = RESOURCES_DIR / 'PROVEDIt'
-
-
-# ---------------------------------------------------------------------------
-# Core domain fixtures (synthetic / in-memory)
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def sample_alleles() -> frozenset[Allele]:
-    """A handful of alleles for testing."""
-    return frozenset(
-        [
-            Allele(name='12', base_pair=120.0, left_bin=0.4, right_bin=0.4, height=1500.0),
-            Allele(name='15', base_pair=132.0, left_bin=0.5, right_bin=0.5, height=2200.0),
-            Allele(name='13.2', base_pair=125.6, left_bin=0.4, right_bin=0.4, height=800.0),
-        ]
-    )
-
-
-@pytest.fixture
-def sample_marker(sample_alleles) -> Marker:
-    """A single autosomal marker."""
-    return Marker(name='D3S1358', dye_row=0, alleles=sample_alleles)
-
-
-@pytest.fixture
-def amel_marker() -> Marker:
-    """The amelogenin sex marker."""
-    return Marker(
-        name='AMEL',
-        dye_row=1,
-        alleles=frozenset(
-            [Allele(name='X', base_pair=107.0, left_bin=0.5, right_bin=0.5, height=3000.0)]
-        ),
-    )
-
-
-@pytest.fixture
-def sample_panel(sample_marker, amel_marker) -> Panel:
-    """A minimal panel with two markers."""
-    return Panel(markers=[sample_marker, amel_marker])
-
-
-@pytest.fixture
-def segmentation_mask() -> np.ndarray:
-    """A small fake segmentation mask."""
-    return np.zeros((5, 100), dtype=np.float32)
-
-
-@pytest.fixture
-def segmentation_metrics_cfg() -> MetricCollection:
-    return MetricCollection(
-        {
-            'accuracy': BinaryAccuracy(threshold=0.5),
-            'precision': BinaryPrecision(threshold=0.5),
-            'recall': BinaryRecall(threshold=0.5),
-            'f1': BinaryF1Score(threshold=0.5),
-            'iou': BinaryJaccardIndex(threshold=0.5),
-        }
-    )
-
-
-@pytest.fixture
-def classification_metrics_cfg() -> MetricCollection:
-    return MetricCollection(
-        {
-            'precision': MulticlassPrecision(num_classes=3, average='macro'),
-            'recall': MulticlassRecall(num_classes=3, average='macro'),
-            'f1': MulticlassF1Score(num_classes=3, average='macro'),
-        }
-    )
-
-
-@pytest.fixture
-def reconstruction_metrics_cfg() -> MetricCollection:
-    return MetricCollection(
-        {
-            'mse': MeanSquaredError(),
-        }
-    )
-
-
-@pytest.fixture
-def peaknet_metrics_cfg() -> MetricCollection:
-    return MetricCollection(
-        {
-            'precision': MulticlassPrecision(num_classes=3, average='macro'),
-            'recall': MulticlassRecall(num_classes=3, average='macro'),
-            'f1': MulticlassF1Score(num_classes=3, average='macro'),
-        }
-    )
-
-
-@pytest.fixture
-def evaluation_pixel_metrics_cfg() -> dict[str, object]:
-    return {
-        'pixel_precision': {
-            '_target_': 'dnanet.evaluation.metrics.pixel.pixel_precision',
-            '_partial_': True,
-            'threshold': 0.5,
-        },
-        'pixel_recall': {
-            '_target_': 'dnanet.evaluation.metrics.pixel.pixel_recall',
-            '_partial_': True,
-            'threshold': 0.5,
-        },
-        'pixel_f1_score': {
-            '_target_': 'dnanet.evaluation.metrics.pixel.pixel_f1_score',
-            '_partial_': True,
-            'threshold': 0.5,
-        },
-        'average_binary_iou': {
-            '_target_': 'dnanet.evaluation.metrics.pixel.average_binary_iou',
-            '_partial_': True,
-            'threshold': 0.5,
-        },
-    }
-
-
-# ---------------------------------------------------------------------------
-# Strategy fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def ppf6c_kit():
-    """Return the PPF6C scaling strategy."""
-    return PowerPlexFusion6CStrategy()
-
-
-@pytest.fixture
-def nfi_rnd_kit():
-    """Return the PPF6C scaling strategy."""
-    return PowerPlexFusion6CStrategy()
-
-
-@pytest.fixture
-def globalfiler_kit():
-    """Return the GlobalFiler scaling strategy."""
-    return GlobalFilerStrategy()
-
-
-@pytest.fixture
-def nfi_rnd_dataset():
-    return NFIRnDStrategy(annotation_type='ground_truth')
-
-
-@pytest.fixture
-def provedit_dataset():
-    return ProvedItStrategy()
-
-
-# ---------------------------------------------------------------------------
-# Real-data fixtures (from test resources)
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def ppf6c_panel() -> Panel:
-    """The PPF6C panel loaded from the real XML file."""
-    return Panel.from_xml(PANEL_PATH)
-
-
-# ---------------------------------------------------------------------------
-# Helpful fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def npy_rng():
-    return np.random.default_rng()
