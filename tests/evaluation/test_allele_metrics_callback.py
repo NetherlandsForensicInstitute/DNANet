@@ -27,12 +27,14 @@ class FakeAlleleCaller:
         self.calls = []
 
     def call_alleles(self, prediction_image, signal_image, scaler, panel):
-        self.calls.append({
-            "prediction_shape": prediction_image.shape,
-            "signal_shape": signal_image.shape,
-            "scaler": scaler,
-            "panel": panel,
-        })
+        self.calls.append(
+            {
+                'prediction_shape': prediction_image.shape,
+                'signal_shape': signal_image.shape,
+                'scaler': scaler,
+                'panel': panel,
+            }
+        )
         return self.markers
 
 
@@ -45,18 +47,25 @@ class FakeModule:
         self.logged[name] = float(value)
 
 
+class FakeTrainer:
+    def __init__(self, sanity_checking: bool = False):
+        self.sanity_checking = sanity_checking
+
+
 def _batch(gt_marker: Marker) -> tuple[torch.Tensor, torch.Tensor, list[dict]]:
     signal = np.zeros((1, 8, 1), dtype=np.float32)
     return (
         torch.zeros((1, 1, 8, 1), dtype=torch.float32),
         torch.zeros((1, 1, 8, 1), dtype=torch.float32),
-        [{
-            "allele_annotation": AlleleAnnotation([gt_marker]),
-            "panel": Panel(markers=[gt_marker]),
-            "path": "sample.hid",
-            "scaler": np.arange(8),
-            "signal_image": signal,
-        }],
+        [
+            {
+                'allele_annotation': AlleleAnnotation([gt_marker]),
+                'panel': Panel(markers=[gt_marker]),
+                'path': 'sample.hid',
+                'scaler': np.arange(8),
+                'signal_image': signal,
+            }
+        ],
     )
 
 
@@ -70,19 +79,21 @@ def _peaknet_batch(gt_marker: Marker) -> tuple[tuple[torch.Tensor, ...], torch.T
         torch.tensor([1], dtype=torch.long),
     )
     targets = torch.zeros((1, 1, 8), dtype=torch.long)
-    metadata = [{
-        "allele_annotation": AlleleAnnotation([gt_marker]),
-        "panel": Panel(markers=[gt_marker]),
-        "path": "sample.hid",
-        "scaler": np.arange(8),
-        "signal_image": signal,
-    }]
+    metadata = [
+        {
+            'allele_annotation': AlleleAnnotation([gt_marker]),
+            'panel': Panel(markers=[gt_marker]),
+            'path': 'sample.hid',
+            'scaler': np.arange(8),
+            'signal_image': signal,
+        }
+    ]
     return inputs, targets, metadata
 
 
 def test_allele_metrics_callback_logs_test_metrics():
-    gt_marker = _marker("D5S818", 0, ["13", "15"])
-    pred_marker = _marker("D5S818", 0, ["13", "14"])
+    gt_marker = _marker('D5S818', 0, ['13', '15'])
+    pred_marker = _marker('D5S818', 0, ['13', '14'])
     callback = AlleleMetricsCallback(allele_caller=FakeAlleleCaller([pred_marker]))
     module = FakeModule()
 
@@ -90,24 +101,46 @@ def test_allele_metrics_callback_logs_test_metrics():
     callback.on_test_batch_end(
         None,
         module,
-        outputs={"preds": torch.zeros((1, 1, 8, 1), dtype=torch.float32)},
+        outputs={'preds': torch.zeros((1, 1, 8, 1), dtype=torch.float32)},
         batch=_batch(gt_marker),
         batch_idx=0,
     )
     callback.on_test_epoch_end(None, module)
 
-    assert module.logged["test/allele_precision"] == pytest.approx(0.5)
-    assert module.logged["test/allele_recall"] == pytest.approx(0.5)
-    assert module.logged["test/allele_f1"] == pytest.approx(0.5)
+    assert module.logged['test/allele_precision'] == pytest.approx(0.5)
+    assert module.logged['test/allele_recall'] == pytest.approx(0.5)
+    assert module.logged['test/allele_f1'] == pytest.approx(0.5)
 
     allele_call = callback.allele_caller.calls[0]
-    assert allele_call["prediction_shape"] == (1, 8)
-    assert allele_call["signal_shape"] == (1, 8)
+    assert allele_call['prediction_shape'] == (1, 8)
+    assert allele_call['signal_shape'] == (1, 8)
+
+
+def test_allele_metrics_callback_logs_validation_metrics():
+    gt_marker = _marker('D5S818', 0, ['13', '15'])
+    pred_marker = _marker('D5S818', 0, ['13', '14'])
+    callback = AlleleMetricsCallback(allele_caller=FakeAlleleCaller([pred_marker]))
+    module = FakeModule()
+    trainer = FakeTrainer()
+
+    callback.on_validation_epoch_start(trainer, module)
+    callback.on_validation_batch_end(
+        trainer,
+        module,
+        outputs={'preds': torch.zeros((1, 1, 8, 1), dtype=torch.float32)},
+        batch=_batch(gt_marker),
+        batch_idx=0,
+    )
+    callback.on_validation_epoch_end(trainer, module)
+
+    assert module.logged['val/allele_precision'] == pytest.approx(0.5)
+    assert module.logged['val/allele_recall'] == pytest.approx(0.5)
+    assert module.logged['val/allele_f1'] == pytest.approx(0.5)
 
 
 def test_allele_metrics_callback_accepts_peaknet_metadata_batch():
-    gt_marker = _marker("D5S818", 0, ["13"])
-    pred_marker = _marker("D5S818", 0, ["13"])
+    gt_marker = _marker('D5S818', 0, ['13'])
+    pred_marker = _marker('D5S818', 0, ['13'])
     callback = AlleleMetricsCallback(allele_caller=FakeAlleleCaller([pred_marker]))
     module = FakeModule()
 
@@ -115,25 +148,25 @@ def test_allele_metrics_callback_accepts_peaknet_metadata_batch():
     callback.on_test_batch_end(
         None,
         module,
-        outputs={"preds": torch.zeros((1, 1, 8), dtype=torch.float32)},
+        outputs={'preds': torch.zeros((1, 1, 8), dtype=torch.float32)},
         batch=_peaknet_batch(gt_marker),
         batch_idx=0,
     )
     callback.on_test_epoch_end(None, module)
 
-    assert module.logged["test/allele_precision"] == pytest.approx(1.0)
-    assert module.logged["test/allele_recall"] == pytest.approx(1.0)
-    assert module.logged["test/allele_f1"] == pytest.approx(1.0)
+    assert module.logged['test/allele_precision'] == pytest.approx(1.0)
+    assert module.logged['test/allele_recall'] == pytest.approx(1.0)
+    assert module.logged['test/allele_f1'] == pytest.approx(1.0)
 
 
 def test_allele_metrics_callback_requires_metadata_batch():
     callback = AlleleMetricsCallback(allele_caller=FakeAlleleCaller([]))
 
-    with pytest.raises(ValueError, match="metadata transformer"):
+    with pytest.raises(ValueError, match='metadata transformer'):
         callback.on_test_batch_end(
             None,
             FakeModule(),
-            outputs={"preds": torch.zeros((1, 1, 8), dtype=torch.float32)},
+            outputs={'preds': torch.zeros((1, 1, 8), dtype=torch.float32)},
             batch=(torch.zeros((1, 1, 8)), torch.zeros((1, 1, 8))),
             batch_idx=0,
         )

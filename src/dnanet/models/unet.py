@@ -52,14 +52,16 @@ class DoubleConv(nn.Module):
         kh, kw = kernel_size
         self.double_conv = nn.Sequential(
             nn.Conv2d(
-                in_channels, out_channels,
+                in_channels,
+                out_channels,
                 kernel_size=(kh, kw),
                 padding=(kh // 2, kw // 2),
             ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(
-                out_channels, out_channels,
+                out_channels,
+                out_channels,
                 kernel_size=(kh, kw),
                 padding=(kh // 2, kw // 2),
             ),
@@ -111,7 +113,8 @@ class DecoderBlock(nn.Module):
     ) -> None:
         super().__init__()
         self.up = nn.ConvTranspose2d(
-            in_channels, out_channels,
+            in_channels,
+            out_channels,
             kernel_size=(1, 2),
             stride=(1, 2),
         )
@@ -190,15 +193,14 @@ class UNet(nn.Module):
         if x.ndim == 3:
             if self.in_channels != 1:
                 raise ValueError(
-                    "Channel-less inputs require in_channels=1; "
-                    f"got in_channels={self.in_channels}."
+                    f'Channel-less inputs require in_channels=1; got in_channels={self.in_channels}.'
                 )
             x = x.unsqueeze(1)
             added_channel_dim = True
         elif x.ndim != 4:
             raise ValueError(
-                "UNet expects input with shape (B, H, W) or (B, C, H, W); "
-                f"got shape {tuple(x.shape)}."
+                'UNet expects input with shape (B, H, W) or (B, C, H, W); '
+                f'got shape {tuple(x.shape)}.'
             )
 
         # Encode — collect skip connections

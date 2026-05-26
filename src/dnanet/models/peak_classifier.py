@@ -1,20 +1,18 @@
-"""Peak classification architecture for individual EPG peak windows.
+"""Peak-level classifier for extracted electropherogram windows.
 
-Classifies extracted peak windows (e.g. 120 scan points around a peak)
-into categories like allele, noise, stutter, pull-up, etc.
+This model looks at a small window around each detected peak and predicts
+whether that peak is allelic or artefactual. It is used in two ways:
 
-Architecture:
-    - **Backbone**: Stack of Conv1d blocks with configurable pooling
-      (flat/avg/attention), optional BatchNorm, dropout, and downsampling.
-    - **Head**: MLP classifier with optional marker embedding.
+- as a standalone classifier for faster iteration on peak-level changes;
+- as the local feature extractor inside :class:`dnanet.models.peaknet.CombinedClassifier`.
 
-The backbone extracts features from the 1D peak window, optionally
-concatenates a learned marker embedding, then the head produces class
-logits.
+The architecture is intentionally 1D. For peak classification, the useful
+signal is mostly in local shape along the scan axis: peak width, symmetry,
+and nearby stutter-like structure. A 1D CNN fits that use case well without
+assuming that neighbouring dye channels form a meaningful spatial pattern.
 
-Design pattern: **Template Method**
-    :class:`BackboneModule` defines ``forward = head(backbone(x))``
-    while subclasses implement the specific backbone/head logic.
+An optional marker embedding lets one model adapt to locus-specific peak
+behaviour without maintaining separate models per marker.
 """
 
 from __future__ import annotations
@@ -22,8 +20,8 @@ from __future__ import annotations
 import abc
 
 import torch
-from loguru import logger
 from torch import Tensor, nn
+from loguru import logger
 
 
 class BackboneModule(nn.Module, abc.ABC):
@@ -50,7 +48,16 @@ class BackboneModule(nn.Module, abc.ABC):
 
 
 class PeakClassificationModel(BackboneModule):
-    """Conv1d peak classifier with optional marker embedding.
+    """Conv1d classifier for peak windows with optional marker embedding.
+
+    The convolutional backbone learns local peak-shape cues from a fixed
+    window around each detected peak. The classifier head can be used
+    directly for per-peak labels, while :meth:`backbone` is also exposed so
+    PeakNet can reuse the learned peak representation.
+
+    When ``use_embedding=True``, the model expects a marker index per peak.
+    This gives the network locus context, which is useful because the same
+    peak shape can mean different things in different marker regions.
 
     Args:
         num_classes: Number of output classes.
@@ -81,56 +88,56 @@ class PeakClassificationModel(BackboneModule):
         include_max_pool_dyes: bool = False,
         hidden_channels: list[int] | None = None,
         kernel_size: int = 3,
-        pooling: str = "flat",
-        activation: str = "relu",
+        pooling: str = 'flat',
+        activation: str = 'relu',
         use_batchnorm: bool = False,
         bn_momentum: float = 0.1,
         conv_dropout_p: float = 0.0,
         head_dropout_p: float = 0.0,
-        downsample: str = "maxpool",
+        downsample: str = 'maxpool',
     ) -> None:
         super().__init__()
 
         if hidden_channels is None:
             hidden_channels = [32, 64]
 
-        if pooling not in {"flat", "avg", "attn"}:
+        if pooling not in {'flat', 'avg', 'attn'}:
             raise ValueError(f"pooling must be 'flat', 'avg', or 'attn', got '{pooling}'")
-        if downsample not in {"maxpool", "conv"}:
+        if downsample not in {'maxpool', 'conv'}:
             raise ValueError(f"downsample must be 'maxpool' or 'conv', got '{downsample}'")
-        if activation not in {"relu", "tanh", "gelu"}:
+        if activation not in {'relu', 'tanh', 'gelu'}:
             raise ValueError(f"activation must be 'relu', 'tanh', or 'gelu', got '{activation}'")
 
         if embedding_dim <= 0 and use_embedding:
-            raise ValueError("embedding_dim must be > 0 if use_embedding=True")
+            raise ValueError('embedding_dim must be > 0 if use_embedding=True')
 
         if not use_embedding and embedding_dim > 0:
-            logger.warning("embedding_dim > 0 but use_embedding=False. Ignoring.")
+            logger.warning('embedding_dim > 0 but use_embedding=False. Ignoring.')
 
         self.pooling = pooling
         in_channels = 2 if include_max_pool_dyes else 1
 
         # Activation factory
-        act_cls = {"relu": nn.ReLU, "tanh": nn.Tanh, "gelu": nn.GELU}[activation]
+        act_cls = {'relu': nn.ReLU, 'tanh': nn.Tanh, 'gelu': nn.GELU}[activation]
 
         # Conv + downsample stack
         conv_blocks: list[nn.Module] = []
         prev_ch = in_channels
         for out_ch in hidden_channels:
             block: list[nn.Module] = [
-                nn.Conv1d(prev_ch, out_ch, kernel_size=kernel_size,
-                          padding=kernel_size // 2, stride=1),
+                nn.Conv1d(
+                    prev_ch, out_ch, kernel_size=kernel_size, padding=kernel_size // 2, stride=1
+                ),
             ]
             if use_batchnorm:
                 block.append(nn.BatchNorm1d(out_ch, momentum=bn_momentum))
             block.append(act_cls())
             if conv_dropout_p > 0:
                 block.append(nn.Dropout(p=conv_dropout_p))
-            if downsample == "maxpool":
+            if downsample == 'maxpool':
                 block.append(nn.MaxPool1d(kernel_size=2, stride=2))
             else:
-                block.append(nn.Conv1d(out_ch, out_ch, kernel_size=3,
-                                       stride=2, padding=1))
+                block.append(nn.Conv1d(out_ch, out_ch, kernel_size=3, stride=2, padding=1))
             conv_blocks.append(nn.Sequential(*block))
             prev_ch = out_ch
 
@@ -138,15 +145,13 @@ class PeakClassificationModel(BackboneModule):
         self._out_channels = prev_ch
 
         # Attention pooling projection (if needed)
-        if pooling == "attn":
+        if pooling == 'attn':
             self.attn_proj = nn.Linear(self._out_channels, 1)
 
         # Optional marker embedding
         self.use_embedding = use_embedding
         if self.use_embedding:
-            self.embed = nn.Embedding(
-                num_embeddings=n_markers, embedding_dim=embedding_dim
-            )
+            self.embed = nn.Embedding(num_embeddings=n_markers, embedding_dim=embedding_dim)
 
         # Infer feature dimension with a dummy forward pass
         with torch.no_grad():
@@ -166,9 +171,9 @@ class PeakClassificationModel(BackboneModule):
 
     def _pool(self, x: Tensor) -> Tensor:
         """Apply pooling to conv output (B, C, T) → (B, F)."""
-        if self.pooling == "flat":
+        if self.pooling == 'flat':
             return torch.flatten(x, start_dim=1)
-        elif self.pooling == "avg":
+        elif self.pooling == 'avg':
             return x.mean(dim=-1)
         else:  # attn
             scores = self.attn_proj(x.permute(0, 2, 1)).squeeze(-1)
@@ -197,20 +202,20 @@ class PeakClassificationModel(BackboneModule):
         # peak_data: (B, C, W), where C = 1 or 2 (dye + max-pooled other dyes)
         # marker_idx: (B, 1), or None
 
-        features = self._pool(self.conv(peak_data)) # (B, F_p)
+        features = self._pool(self.conv(peak_data))  # (B, F_p)
 
         if self.use_embedding:
             if marker_idx is None:
-                raise ValueError("Marker index is required for embedding")
+                raise ValueError('Marker index is required for embedding')
             if torch.any(marker_idx < 0) or torch.any(marker_idx >= self.embed.num_embeddings):
                 raise ValueError(
-                    f"marker_idx out of range: min={marker_idx.min().item()}, "
-                    f"max={marker_idx.max().item()}, "
-                    f"allowed=[0, {self.embed.num_embeddings - 1}]"
+                    f'marker_idx out of range: min={marker_idx.min().item()}, '
+                    f'max={marker_idx.max().item()}, '
+                    f'allowed=[0, {self.embed.num_embeddings - 1}]'
                 )
-            marker_idx = marker_idx.squeeze(-1) # (B,)
-            emb = self.embed(marker_idx) # (B, F_e), where F_e = embedding_dim
-            features = torch.cat((features, emb), dim=1) # (B, F), where F = F_p + F_e
+            marker_idx = marker_idx.squeeze(-1)  # (B,)
+            emb = self.embed(marker_idx)  # (B, F_e), where F_e = embedding_dim
+            features = torch.cat((features, emb), dim=1)  # (B, F), where F = F_p + F_e
 
         return features
 

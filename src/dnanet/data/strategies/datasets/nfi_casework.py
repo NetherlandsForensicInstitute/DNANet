@@ -4,59 +4,72 @@ Handles the NFI Zaaksdata
 
 Warning:
     This strategy is developed specifically for our in-house casework.
-    Altough file-collection and caching logic might be of use for your own implementation,
+    Although file-collection and caching logic might be of use for your own implementation,
     using this strategy for other/your own data does not make sense.
 
     Please see the documentation about developing your own strategy, or use the two other strategies for the open-source data.
 """
 
+import os
+import json
+import pickle
 import hashlib
 import itertools
-import json
-import os
-import pickle
+from typing import Dict, Tuple, Mapping, Callable, Sequence, Generator
 from pathlib import Path
-from typing import Callable, Dict, Tuple, Mapping, Sequence, Generator
 
 import numpy as np
+from tqdm import tqdm
 from loguru import logger
+from torch.utils.data import Subset
 from sklearn.model_selection import (
     KFold,
     train_test_split,
 )
-from torch.utils.data import Subset
 
-from dnanet.core.annotation import Annotation, AlleleAnnotation, ScanpointAnnotation
-from dnanet.core.constants import LabelCategory
 from dnanet.core.types import PathLike
+from dnanet.core.constants import LabelCategory
+from dnanet.core.annotation import Annotation, SpanAnnotation, AlleleAnnotation
+from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrategy
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
-from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 
 
-class NFICaseStrategy(DatasetStrategy):
-    _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
+class NFICaseStrategy(DatasetStrategy):  # noqa: D101
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
-    def __init__(self,
-                 annotation_type: str = 'ATLT',
-                 robot_selection: Sequence[str] | None = None,
-                 span_annotations_path: PathLike | None = None,
-        ) -> None:
-        """
-        Initialize the NFI casework strategy
+    def __init__(
+        self,
+        annotation_type: str = 'ATLT',
+        subfolder_selection: Sequence[str] | None = None,
+        span_annotations_path: PathLike | None = None,
+        exclude_path: PathLike | None = None,
+        shuffle_limit: int | None = None,
+        seed: int | None = None,
+    ) -> None:
+        """Initialize the NFI casework strategy.
+
+        Args:
+            annotation_type: The type of annotation to use. Defaults to 'ATLT'.
+            subfolder_selection: A list of subfolders to include. All subfolders are included when None. Defaults to None.
+            span_annotations_path: The path to the span annotations. When None, defaults to data_path/span_annotations
+            exclude_path: The path to a file containing a list of HID files to exclude. Defaults to None.
+            shuffle_limit: Optional limit of number of files to include after shuffling. Defaults to None.
+            seed: Optional seed for shuffling, is required when shuffle_limit is set. Defaults to None.
 
         Available annotation types:
         - AT: only include profiles with a "high" analytical threshold (allele annotation)
         - LT: only include profiles with a low threshold (allele annotation)
-        - ATLT: include profiles with either a high or low threshold (allele annotation)
+        - ATLT: include profiles with either a high or low threshold, meaning all annotations are included (allele annotation)
         - span: include profiles with a span annotation (scanpoint annotation)
         """
         super().__init__()
         self.annotation_type = annotation_type
-        self._robot_selection = robot_selection
+        self._subfolder_selection = subfolder_selection
         self._span_annotations_path = span_annotations_path
-
+        self._exclude_path = exclude_path
+        self.shuffle_limit = shuffle_limit
+        self.seed = seed
 
     def collect_dataset_files(
         self, root_path: str | Path, scaling_strategy: ScalingStrategy, **kwargs
@@ -88,12 +101,20 @@ class NFICaseStrategy(DatasetStrategy):
         cache_file = self._CACHE_DIR / f'collect-{cache_key}'
 
         if cache_file.exists():
-            logger.debug(f'Reading collect_dataset_files from cache: {cache_file}')
+            logger.info(f'Reading collect_dataset_files from cache: {cache_file}')
             with cache_file.open('rb') as f:
                 yield from pickle.load(f)
             return
 
-        results = list(self._collect_dataset_files_uncached(root_path, scaling_strategy))
+        results = list(self._collect_dataset_files_uncached(root_path, scaling_strategy, **kwargs))
+
+        if self.shuffle_limit:
+            if not self.seed:
+                raise ValueError('shuffle_limit is set, but seed is not provided')
+            rng = np.random.default_rng(self.seed)
+            results = rng.choice(results, self.shuffle_limit, replace=False).tolist()
+
+        logger.info(f'Found {len(results)} valid samples')
 
         cache_file.parent.mkdir(exist_ok=True, parents=True)
         with cache_file.open('wb') as f:
@@ -106,38 +127,55 @@ class NFICaseStrategy(DatasetStrategy):
         root_path: str | Path,
         scaling_strategy: ScalingStrategy,
         folder_cache: bool = True,
+        allow_missing_annotations: bool = True,
+        **kwargs,
     ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         path = Path(root_path)
 
-        # Collect all .HID files from the robot folders
-        hids_folder = path / 'hids'
-        robots = self.find_robot_files(
-            hids_folder,
-            self._robot_selection,
+        # Collect all .HID files
+        file_list = self.find_subfolder_files(
+            path,
+            self._subfolder_selection,
             cache=folder_cache,
         )
-        resolve_annotation = self._build_annotation_resolver(path, scaling_strategy, self.annotation_type, self._span_annotations_path)
 
-        for hid_file in robots:
+        file_list = list(file_list)
+        logger.info(f'Found {len(file_list)} .hid files in {path}')
+
+        resolve_annotation = self._build_annotation_resolver(
+            path, scaling_strategy, self.annotation_type, self._span_annotations_path
+        )
+        if self._exclude_path:
+            with open(Path(self._exclude_path), 'r') as f:
+                exclude_files = [line.strip() for line in f if line.strip()]
+        for hid_file in tqdm(
+            file_list, desc='Collecting HID files', unit='file', unit_scale=True, leave=False
+        ):
+            if self._exclude_path and hid_file.stem in exclude_files:
+                continue
+
             file_category = self.categorize_file(hid_file.name)
             if file_category != 'sample':
-                logger.debug(f'Skipping {file_category} file: {hid_file.stem}')
+                continue
+
+            annotation = resolve_annotation(hid_file)
+            if annotation is None and not allow_missing_annotations:
                 continue
 
             ladder = self.find_ladder_for_sample(hid_file)
-            yield (hid_file, resolve_annotation(hid_file), ladder)
+            yield (hid_file, annotation, ladder)
 
     @classmethod
     def _build_annotation_resolver(
         cls,
         path: Path,
         scaling_strategy: ScalingStrategy,
-        annotation_type: str,
+        annotation_type: str | None,
         span_annotations_path: PathLike | None = None,
     ) -> Callable[[Path], Annotation | None]:
         """Build a per-HID annotation resolver for the configured annotation type.
 
-        The dataset collector iterates robot files once and delegates
+        The dataset collector iterates files once and delegates
         annotation lookup to the callable returned here. Each annotation type
         can therefore prepare its own lookup state up front while the core HID
         filtering and ladder collection logic remains centralized in
@@ -146,6 +184,8 @@ class NFICaseStrategy(DatasetStrategy):
         Args:
             path: Dataset root containing the annotation directories.
             scaling_strategy: Scaling strategy required to parse annotations.
+            annotation_type: What type of annotation to resolve for ('span', 'AT', 'LT', 'ATLT')
+            span_annotations_path: Path to the span annotation csv's (if using span)
 
         Returns:
             A callable that takes a HID path and returns the corresponding
@@ -154,6 +194,8 @@ class NFICaseStrategy(DatasetStrategy):
         Raises:
             ValueError: If ``self.annotation_type`` is not supported.
         """
+        if annotation_type is None:
+            return lambda _: None
         if annotation_type == 'span':
             # parse span annotations
             if span_annotations_path is None:
@@ -161,7 +203,7 @@ class NFICaseStrategy(DatasetStrategy):
             span_annotations_path = Path(span_annotations_path)
             hid_to_annotation = cls._parse_span_annotation(span_annotations_path, scaling_strategy)
 
-            def resolve_annotation(hid_file: Path) -> ScanpointAnnotation | None:
+            def resolve_annotation(hid_file: Path) -> SpanAnnotation | None:
                 return hid_to_annotation.get(hid_file.stem)
 
             return resolve_annotation
@@ -170,13 +212,17 @@ class NFICaseStrategy(DatasetStrategy):
             annotations_folder = path / 'annotations'
             annotation_mapping = cls.find_annotation_files(annotations_folder)
 
-            # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
-            run_id_path = path / 'runid_type.csv'
-            if not run_id_path.exists():
-                raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
-            run_id_type_mapping = {
-                row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
-            }
+            if annotation_type == 'ATLT':
+                # for ATLT, we include all annotations, there do not need a runid type mapping.
+                run_id_type_mapping = dict()
+            else:
+                # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
+                run_id_path = path / 'runid_type.csv'
+                if not run_id_path.exists():
+                    raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
+                run_id_type_mapping = {
+                    row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
+                }
 
             def resolve_annotation(hid_file: Path) -> AlleleAnnotation | None:
                 run_id = hid_file.stem.split('_')[0]
@@ -203,11 +249,11 @@ class NFICaseStrategy(DatasetStrategy):
         else:
             raise ValueError(f'Invalid annotation type: {annotation_type}')
 
-
     @staticmethod
-    def _is_correct_annotation_type(run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]) -> bool:
-        """
-        Check if the run_id corresponds to the requested annotation type.
+    def _is_correct_annotation_type(
+        run_id: str, annotation_type: str, annotation_type_mapping: dict[str, str]
+    ) -> bool:
+        """Check if the run_id corresponds to the requested annotation type.
 
         When a run_id ends with an L, it is assumed to be a LT profile.
         When the run_id is found in the csv with an added L, it is also assumed to be a LT profile.
@@ -236,9 +282,13 @@ class NFICaseStrategy(DatasetStrategy):
         return {
             'class': self.__class__.__name__,
             'annotation_type': self.annotation_type,
+            'exclude_path': self._exclude_path,
+            'span_annotations_path': self._span_annotations_path,
+            'seed': self.seed,
+            'shuffle_limit': self.shuffle_limit,
             **(
-                {'robot_selection': tuple(set(self._robot_selection))}
-                if self._robot_selection
+                {'subfolder_selection': tuple(set(self._subfolder_selection))}
+                if self._subfolder_selection
                 else {}
             ),
         }
@@ -257,33 +307,40 @@ class NFICaseStrategy(DatasetStrategy):
         return 'sample'
 
     @classmethod
-    def find_robot_files(
+    def find_subfolder_files(
         cls,
-        robots_folder: Path,
-        selected_robots: Sequence[str] | None = None,
-        robot_limit: int | None = None,
+        data_folder: Path,
+        selected_subfolders: Sequence[str] | None = None,
+        subfolder_limit: int | None = None,
         cache: bool = True,
     ) -> Generator[Path, None, None]:
-        """Collect all files in the robot's casework folders.
+        """Collect all files in the subfolders .
 
         Args:
-            robots_folder: The root in which the robot folders reside
-            selected_robots: Allows for a subselection of robot folder names (e.g. `('3500XL_A',)`). Defaults to None.
-            robot_limit: Limits the amount of files returned from a robot. Defaults to None.
+            data_folder: The root in which subfolders reside
+            selected_subfolders: Allows for a subselection of folder names (e.g. `('3500XL_A',)`). Defaults to None.
+            subfolder_limit: Limits the amount of files returned from a subfolder. Defaults to None.
             cache: Whether to use cache saved in /tmp/ to prevent walking the whole folder again between runs.
 
         Yields:
-            File paths of .hid's found in the robot folders.
+            File paths of .hid's found in the folders.
         """
-        robot_names = cls._ROBOT_NAMES if not selected_robots else selected_robots
-        for robot_name in robot_names:
-            robot_folder = robots_folder / robot_name
-            if not robot_folder.exists():
-                continue
-            logger.info(f'Retrieving files from {robot_name}')
+        if (data_folder / 'hids').exists():
+            data_folder = data_folder / 'hids'
+        if selected_subfolders is None:
+            logger.info(f'Retrieving files in {data_folder}')
             yield from itertools.islice(
-                cls._scan_directory_structure(robot_folder, cache=cache), robot_limit
+                cls._scan_directory_structure(data_folder, cache=cache), subfolder_limit
             )
+        else:
+            for subfolder_name in selected_subfolders:
+                subfolder = data_folder / subfolder_name
+                if not subfolder.exists():
+                    continue
+                logger.info(f'Retrieving files from {subfolder}')
+                yield from itertools.islice(
+                    cls._scan_directory_structure(subfolder, cache=cache), subfolder_limit
+                )
 
     @classmethod
     def find_annotation_files(cls, annotations_folder: Path):  # noqa: D102
@@ -297,13 +354,16 @@ class NFICaseStrategy(DatasetStrategy):
 
     @classmethod
     def _scan_directory_structure(cls, path: PathLike, cache: bool = True):
-        _cache_file = cls._CACHE_DIR / f'{Path(path).stem}-cache'
+        _path = Path(path)
+        _path_hash = hashlib.md5(str(_path).encode()).hexdigest()
+        _cache_file = cls._CACHE_DIR / f'scan-{_path_hash}'
         if cache and _cache_file.exists():
             logger.debug(f'Reading folder contents from cache: {_cache_file}')
             with _cache_file.open('rb') as f:
                 return pickle.load(f)
 
         files = list(cls._scan_directory_structure_uncached(path))
+        logger.info(f'Found {len(files)} files in {path}')
 
         if cache:
             _cache_file.parent.mkdir(exist_ok=True, parents=True)
@@ -333,7 +393,8 @@ class NFICaseStrategy(DatasetStrategy):
         test_fraction: float = 0.0,
         **kwargs,
     ):
-        dataset_indices = np.arange(len(dataset.images))
+        _, idx_map = cls._unwrap(dataset)
+        dataset_indices = np.arange(len(idx_map))
         match (fraction, k_folds):
             # Case: only train/val split, no folds, no test fraction
             case (float(), None) if test_fraction == 0.0:
@@ -393,7 +454,9 @@ class NFICaseStrategy(DatasetStrategy):
             case 1:
                 _ladder = _ladders[0]
             case _:
-                logger.trace(f'Multiple ladders found, taking first: {sample_path.stem} -> {tuple(map(lambda x: x.stem, _ladders))}')
+                logger.trace(
+                    f'Multiple ladders found, taking first: {sample_path.stem} -> {tuple(map(lambda x: x.stem, _ladders))}'
+                )
                 _ladder = _ladders[0]
         return _ladder
 

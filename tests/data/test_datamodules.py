@@ -43,7 +43,7 @@ class SplitPreservingDataset:
         self,
         fraction: float,
         seed: int | None = None,
-    ) -> tuple["SplitPreservingDataset", "SplitPreservingDataset"]:
+    ) -> tuple['SplitPreservingDataset', 'SplitPreservingDataset']:
         shuffled = random.Random(seed).sample(self._data, len(self._data))
         split_idx = int(len(shuffled) * fraction)
         return (
@@ -70,7 +70,7 @@ class SplitStrategy:
 
 
 def _make_fake_image(
-    name: str = "fake.hid",
+    name: str = 'fake.hid',
     num_dyes: int = 5,
     signal_length: int = 100,
     with_annotation: bool = True,
@@ -80,9 +80,11 @@ def _make_fake_image(
         path=name,
         scaling_strategy=PowerPlexFusion6CStrategy(),
         load_in_memory=True,
-        meta={"peak_count": peak_count},
+        meta={'peak_count': peak_count},
     )
-    img._data = (np.random.rand(num_dyes, signal_length, 1) * 100).astype(np.float32)
+    img._data = (np.random.default_rng().random((num_dyes, signal_length, 1)) * 100).astype(
+        np.float32
+    )
     if with_annotation:
         mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
         mask[0, 5:15, 0] = 1
@@ -91,25 +93,26 @@ def _make_fake_image(
 
 
 def _make_mock_peaks(n: int = 8) -> list[ExtractedPeak]:
+    labels = ['allele' if i % 2 == 0 else 'noise' for i in range(n)]
     return [
         ExtractedPeak(
-            data=np.random.rand(1, 120).astype(np.float32),
+            data=np.random.default_rng().random((1, 120)).astype(np.float32),
             dye_index=i % 5,
             peak_center=1000 + i * 25,
             window_size=120,
             peak_height=float(200 + i * 10),
-            label="allele" if i % 2 == 0 else "noise",
-            marker_name="D3S1358",
+            label=labels[i],
+            marker_name='D3S1358',
             marker_index=i % 28,
+            annotation_idx=0 if labels[i] == 'allele' else 1,
         )
         for i in range(n)
     ]
 
+
 @pytest.fixture
 def ppf6c() -> PowerPlexFusion6CStrategy:
     return PowerPlexFusion6CStrategy()
-
-
 
 
 @pytest.fixture
@@ -122,17 +125,20 @@ def fake_peak_extractor(monkeypatch: pytest.MonkeyPatch) -> None:
         include_max_pool_dyes,
     ):
         del scaling_strategy, threshold
-        peak_count = image.meta["peak_count"]
+        peak_count = image.meta['peak_count']
         channels = 2 if include_max_pool_dyes else 1
         peak_windows = torch.randn(peak_count, channels, window_size)
         marker_idxs = torch.arange(peak_count, dtype=torch.long)
-        peak_centers = torch.stack([
-            torch.zeros(peak_count, dtype=torch.long),
-            torch.arange(peak_count, dtype=torch.long),
-        ], dim=1)
+        peak_centers = torch.stack(
+            [
+                torch.zeros(peak_count, dtype=torch.long),
+                torch.arange(peak_count, dtype=torch.long),
+            ],
+            dim=1,
+        )
         return peak_windows, marker_idxs, peak_centers
 
-    monkeypatch.setattr(transformer_module, "extract_peaks_torch", _extract_peaks_torch)
+    monkeypatch.setattr(transformer_module, 'extract_peaks_torch', _extract_peaks_torch)
 
 
 class TestPeakClassificationTransformer:
@@ -145,13 +151,11 @@ class TestPeakClassificationTransformer:
         dataset = SplitPreservingDataset(
             peaks,
             transform=PeakClassificationTransformer(
-                scaling_strategy=ppf6c,
-                dataset_strategy=nfi_rnd_dataset,
                 include_marker=True,
             ),
         )
         dm = DNANetDataModule(dataset, batch_size=4, val_fraction=0.2, seed=42)
-        dm.setup("fit")
+        dm.setup('fit')
 
         inputs, targets = next(iter(dm.train_dataloader()))
         peak_data, marker_idx = inputs
@@ -162,7 +166,7 @@ class TestPeakClassificationTransformer:
         assert targets.shape[0] == peak_data.shape[0]
         assert targets.dtype == torch.long
 
-    def test_datamodule_batches_negative_marker_when_disabled(
+    def test_datamodule_batches_without_marker_when_disabled(
         self,
         ppf6c,
         nfi_rnd_dataset,
@@ -171,28 +175,27 @@ class TestPeakClassificationTransformer:
         dataset = SplitPreservingDataset(
             peaks,
             transform=PeakClassificationTransformer(
-                scaling_strategy=ppf6c,
-                dataset_strategy=nfi_rnd_dataset,
                 include_marker=False,
             ),
         )
         dm = DNANetDataModule(dataset, batch_size=4, val_fraction=0.2, seed=42)
-        dm.setup("fit")
+        dm.setup('fit')
 
         inputs, _targets = next(iter(dm.train_dataloader()))
-        _peak_data, marker_idx = inputs
-        assert torch.all(marker_idx == -1)
+        # When include_marker=False, inputs is just the peak tensor (not a tuple)
+        assert inputs.shape[0] <= 4
+        assert inputs.shape[1:] == (1, 120)
 
 
 class TestReconstructionTransformer:
     def test_datamodule_returns_preprocessed_pairs(self) -> None:
-        images = [_make_fake_image(f"reconstruction_{i}.hid") for i in range(10)]
+        images = [_make_fake_image(f'reconstruction_{i}.hid') for i in range(10)]
         dataset = SplitPreservingDataset(
             images,
-            transform=ReconstructionTransformer(log_scale=True, n_dyes=5),
+            transform=ReconstructionTransformer(autoencoder_log_scale=True, n_dyes=5),
         )
         dm = DNANetDataModule(dataset, batch_size=4, val_fraction=0.2, seed=42)
-        dm.setup("fit")
+        dm.setup('fit')
 
         x, target = next(iter(dm.train_dataloader()))
         assert x.shape[0] <= 4
@@ -202,20 +205,17 @@ class TestReconstructionTransformer:
 
 
 class TestCombinedTransformer:
-    @pytest.mark.usefixtures("fake_peak_extractor")
+    @pytest.mark.usefixtures('fake_peak_extractor')
     def test_datamodule_returns_nested_peaknet_batch(
         self,
     ) -> None:
-        images = [
-            _make_fake_image(f"combined_{i}.hid", peak_count=3)
-            for i in range(10)
-        ]
+        images = [_make_fake_image(f'combined_{i}.hid', peak_count=3) for i in range(10)]
         dataset = SplitPreservingDataset(
             images,
             transform=CombinedTransformer(window_size=120),
         )
         dm = DNANetDataModule(dataset, batch_size=2, val_fraction=0.2, seed=42)
-        dm.setup("fit")
+        dm.setup('fit')
 
         inputs, targets = next(iter(dm.train_dataloader()))
         full_images, peak_windows, marker_idxs, peak_centers, peak_counts = inputs

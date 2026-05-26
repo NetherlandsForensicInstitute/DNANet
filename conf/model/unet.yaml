@@ -15,4 +15,3 @@ loss:
 
 data_transform:
   _target_: dnanet.data.transformer.SegmentationTransformer
-

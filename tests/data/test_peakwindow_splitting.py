@@ -56,7 +56,6 @@ def _fake_dataset(stems: list[str]):
 
 
 class TestPeakWindowSplit:
-
     def test_fractional_split(self):
         ds = _fake_dataset(STEMS)
         splits: tuple[PeakWindowDataset] = NFIRnDStrategy.split(ds, fraction=0.84)

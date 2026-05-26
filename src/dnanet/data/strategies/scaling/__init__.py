@@ -19,14 +19,14 @@ from dnanet.data.strategies.scaling.powerplex_fusion_6c import (
 
 
 __all__ = [
-    "STRKit",
-    "SizeStandard",
-    "WEN_ILS",
-    "GENESCAN_600_LIZ",
-    "SYNTHETIC_GENESCAN_600_LIZ",
-    "ScalingStrategy",
-    "SizeStandardParseResult",
-    "GlobalFilerStrategy",
-    "PowerPlexFusion6CStrategy",
-    "PowerplexY23",
+    'STRKit',
+    'SizeStandard',
+    'WEN_ILS',
+    'GENESCAN_600_LIZ',
+    'SYNTHETIC_GENESCAN_600_LIZ',
+    'ScalingStrategy',
+    'SizeStandardParseResult',
+    'GlobalFilerStrategy',
+    'PowerPlexFusion6CStrategy',
+    'PowerplexY23',
 ]

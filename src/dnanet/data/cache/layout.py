@@ -23,19 +23,19 @@ PANELS_JSON = 'panels.json'
 ALLELES_JSON = 'alleles.json'
 
 
-def cache_key_dir(cache_root: Path, key: str) -> Path:
+def cache_key_dir(cache_root: Path, key: str) -> Path:  # noqa: D103
     return Path(cache_root) / key
 
 
-def is_complete(cache_dir: Path) -> bool:
+def is_complete(cache_dir: Path) -> bool:  # noqa: D103
     return (Path(cache_dir) / _COMPLETE_MARKER).exists()
 
 
-def mark_complete(cache_dir: Path) -> None:
+def mark_complete(cache_dir: Path) -> None:  # noqa: D103
     (Path(cache_dir) / _COMPLETE_MARKER).touch()
 
 
-def clear_complete(cache_dir: Path) -> None:
+def clear_complete(cache_dir: Path) -> None:  # noqa: D103
     p = Path(cache_dir) / _COMPLETE_MARKER
     if p.exists():
         p.unlink()

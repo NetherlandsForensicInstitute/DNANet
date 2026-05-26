@@ -5,8 +5,12 @@ Two hashes are used:
 - **key**: 16-char hex derived from config parameters only. Drives the cache
   directory name, so changing any config field yields a fresh cache directory.
 - **fingerprint**: full-SHA hex derived from (config + every source file's
-  ``(path, mtime, size)``). Stored inside the cache dir and validated on load;
+  content hash). Stored inside the cache dir and validated on load;
   a mismatch means sources changed on disk and the cache must be rebuilt.
+
+Content-based validation (sha256 of file contents) is used instead of
+mtime/size so that cached datasets survive copies to NFS shares, mount
+point changes, and file renames — as long as the contents are identical.
 """
 
 from __future__ import annotations
@@ -22,6 +26,23 @@ from dnanet.data.cache.layout import CACHE_VERSION, FINGERPRINT_JSON
 if TYPE_CHECKING:
     from dnanet.data.strategies.scaling.scaling import ScalingStrategy
     from dnanet.data.strategies.datasets.dataset import DatasetStrategy
+
+_CHUNK_SIZE = 8192
+
+
+def _file_hash(path: Path) -> str | None:
+    """Return sha256 hex digest of file contents, or None if unreadable."""
+    h = hashlib.sha256()
+    try:
+        with open(path, 'rb') as f:
+            while True:
+                chunk = f.read(_CHUNK_SIZE)
+                if not chunk:
+                    break
+                h.update(chunk)
+        return h.hexdigest()
+    except (OSError, IOError):
+        return None
 
 
 def _config_payload(
@@ -71,14 +92,35 @@ def compute_key(
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
 
 
-def _source_stamps(source_paths: Iterable[Path]) -> list[dict[str, Any]]:
+def _source_stamps(source_paths: Iterable[Path], root: Path | None = None) -> list[dict[str, Any]]:
+    """Build stamps for fingerprint validation.
+
+    Uses content_hash (sha256 of file contents) as the primary
+    invalidation signal. Paths are stored relative to *root* when
+    provided, so the fingerprint survives mount-point changes
+    (e.g. local -> NFS).
+    """
     stamps = []
     for p in source_paths:
+        p = Path(p)
         try:
-            st = Path(p).stat()
-            stamps.append({'path': str(p), 'mtime_ns': st.st_mtime_ns, 'size': st.st_size})
+            if root is not None:
+                try:
+                    rel = str(p.relative_to(root))
+                except ValueError:
+                    rel = str(p.resolve())
+            else:
+                rel = str(p.resolve())
+            stamps.append({'path': rel, 'content_hash': _file_hash(p)})
         except FileNotFoundError:
-            stamps.append({'path': str(p), 'mtime_ns': None, 'size': None})
+            try:
+                if root is not None:
+                    rel = str(p.relative_to(root))
+                else:
+                    rel = str(p.resolve())
+            except ValueError:
+                rel = str(p.resolve())
+            stamps.append({'path': rel, 'content_hash': None})
     stamps.sort(key=lambda s: s['path'])
     return stamps
 
@@ -86,9 +128,10 @@ def _source_stamps(source_paths: Iterable[Path]) -> list[dict[str, Any]]:
 def compute_fingerprint(
     config_payload: dict[str, Any],
     source_paths: Iterable[Path],
+    root: Path | None = None,
 ) -> dict[str, Any]:
     """Build the fingerprint dict (config + source stamps + combined hash)."""
-    stamps = _source_stamps(source_paths)
+    stamps = _source_stamps(source_paths, root=root)
     digest_input = json.dumps({'config': config_payload, 'sources': stamps}, sort_keys=True).encode()
     return {
         'cache_version': CACHE_VERSION,
@@ -99,10 +142,12 @@ def compute_fingerprint(
 
 
 def write_fingerprint(cache_dir: Path, fingerprint: dict[str, Any]) -> None:
+    """Write the cache fingerprint to re-open cache."""
     (Path(cache_dir) / FINGERPRINT_JSON).write_text(json.dumps(fingerprint, indent=2))
 
 
 def read_fingerprint(cache_dir: Path) -> dict[str, Any] | None:
+    """Read the cache fingerprint."""
     p = Path(cache_dir) / FINGERPRINT_JSON
     if not p.exists():
         return None
@@ -116,12 +161,13 @@ def validate_fingerprint(
     cache_dir: Path,
     config_payload: dict[str, Any],
     source_paths: Iterable[Path],
+    root: Path | None = None,
 ) -> bool:
     """Return True if the on-disk fingerprint matches the current config+sources."""
     existing = read_fingerprint(cache_dir)
     if existing is None:
         return False
-    expected = compute_fingerprint(config_payload, source_paths)
+    expected = compute_fingerprint(config_payload, source_paths, root=root)
     return existing.get('hash') == expected['hash']
 
 

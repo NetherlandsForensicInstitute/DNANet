@@ -1,26 +1,29 @@
-"""1D convolutional autoencoder architectures for EPG reconstruction.
+"""Autoencoder models for learning compact EPG profile representations.
 
-This module provides autoencoders that compress and reconstruct
-electropherogram signals. Four architecture variants are available:
+These models reconstruct full electropherograms from a compressed latent
+representation. In practice, that latent representation matters more than
+the reconstruction itself: the encoder is used by PeakNet as a source of
+global context for peak classification.
 
-- :class:`Conv1dAutoencoder` — Shared multi-channel CNN autoencoder.
-- :class:`PerDyeConv1dAutoencoder` — Independent sub-encoder per dye channel.
-- :class:`SharedWeightPerDyeConv1dAutoencoder` — Per-dye processing with
-  weight tying (single shared sub-encoder reused across channels).
-- :class:`FourierAutoencoder` — Non-trainable baseline using truncated rFFT.
+Pretraining the autoencoder is useful when labelled peak data is limited.
+It lets the combined model start from a profile-level representation that
+already preserves large-scale signal structure.
 
-Design pattern: **Template Method**
-    :class:`AbstractAutoencoder` defines the ``forward = decode(encode(x))``
-    skeleton. Subclasses fill in the encoder/decoder implementations.
+Available variants:
 
-Design pattern: **Composite**
-    :class:`PerDyeConv1dAutoencoder` composes multiple
-    :class:`Conv1dAutoencoder` instances (one per dye channel).
+- :class:`Conv1dAutoencoder` — one shared multi-channel encoder/decoder.
+- :class:`PerDyeConv1dAutoencoder` — separate encoder/decoder per dye.
+- :class:`SharedWeightPerDyeConv1dAutoencoder` — per-dye processing with
+  shared weights across dyes.
+- :class:`UNet2DAutoEncoder` — U-Net-style autoencoder over the full
+  dye-by-signal image.
+- :class:`FourierAutoencoder` — fixed non-learned frequency baseline.
 """
 
 from __future__ import annotations
 
 import abc
+from typing import Tuple
 
 import torch
 from torch import Tensor, nn
@@ -52,8 +55,12 @@ class AbstractAutoencoder(nn.Module, abc.ABC):
 class Conv1dAutoencoder(AbstractAutoencoder):
     """Multi-channel 1D convolutional autoencoder.
 
-    Treats all input channels jointly — convolutions operate across all
-    ``in_channels`` together.
+    Treats all dye channels jointly, so the encoder can learn cross-channel
+    structure in a single latent code.
+
+    Use this variant when a shared representation across dyes is desirable.
+    If you want to keep dye channels independent and avoid early mixing,
+    use :class:`PerDyeConv1dAutoencoder` instead.
 
     Architecture:
         - **Encoder**: ``depth`` strided Conv1d blocks (stride=2) that
@@ -88,9 +95,9 @@ class Conv1dAutoencoder(AbstractAutoencoder):
         super().__init__()
 
         if depth < 1:
-            raise ValueError("depth must be at least 1.")
+            raise ValueError('depth must be at least 1.')
         if kernel_size % 2 == 0:
-            raise ValueError("kernel_size must be odd for symmetric padding.")
+            raise ValueError('kernel_size must be odd for symmetric padding.')
 
         self.in_channels = in_channels
         self.depth = depth
@@ -103,9 +110,7 @@ class Conv1dAutoencoder(AbstractAutoencoder):
         channels_latent = latent_size // latent_length
 
         if channels_latent < 1:
-            raise ValueError(
-                "input_length too small for requested depth and compression."
-            )
+            raise ValueError('input_length too small for requested depth and compression.')
 
         # Verify exact compression is achievable
         lz = input_length
@@ -113,8 +118,8 @@ class Conv1dAutoencoder(AbstractAutoencoder):
             lz = (lz + 1) // 2
         if latent_size % lz != 0:
             raise ValueError(
-                f"Cannot achieve exact {compression}x compression with "
-                f"depth={depth}: latent_size={latent_size} not divisible by Lz={lz}"
+                f'Cannot achieve exact {compression}x compression with '
+                f'depth={depth}: latent_size={latent_size} not divisible by Lz={lz}'
             )
 
         self._encoded_channels = channels_latent
@@ -127,9 +132,12 @@ class Conv1dAutoencoder(AbstractAutoencoder):
         for _ in range(depth):
             encoder_layers.append(
                 nn.Conv1d(
-                    ch_in, hidden_channels,
-                    kernel_size=kernel_size, stride=2,
-                    padding=padding, padding_mode="reflect",
+                    ch_in,
+                    hidden_channels,
+                    kernel_size=kernel_size,
+                    stride=2,
+                    padding=padding,
+                    padding_mode='reflect',
                 )
             )
             if use_batchnorm:
@@ -139,28 +147,24 @@ class Conv1dAutoencoder(AbstractAutoencoder):
             ch_in = hidden_channels
 
         # Bottleneck projection to latent channels
-        encoder_layers.append(
-            nn.Conv1d(ch_in, channels_latent, kernel_size=1)
-        )
+        encoder_layers.append(nn.Conv1d(ch_in, channels_latent, kernel_size=1))
         self.encoder_net = nn.Sequential(*encoder_layers)
 
         # Build decoder
         decoder_layers: list[nn.Module] = []
         rev = channels_per_level[::-1]
 
-        decoder_layers.append(
-            nn.Conv1d(channels_latent, rev[0], kernel_size=1)
-        )
+        decoder_layers.append(nn.Conv1d(channels_latent, rev[0], kernel_size=1))
 
         for i in range(len(rev) - 1):
-            decoder_layers.append(
-                nn.Upsample(scale_factor=2, mode="linear", align_corners=False)
-            )
+            decoder_layers.append(nn.Upsample(scale_factor=2, mode='linear', align_corners=False))
             decoder_layers.append(
                 nn.Conv1d(
-                    rev[i], rev[i + 1],
-                    kernel_size=kernel_size, padding=padding,
-                    padding_mode="reflect",
+                    rev[i],
+                    rev[i + 1],
+                    kernel_size=kernel_size,
+                    padding=padding,
+                    padding_mode='reflect',
                 )
             )
             if use_batchnorm:
@@ -168,14 +172,14 @@ class Conv1dAutoencoder(AbstractAutoencoder):
             decoder_layers.append(nn.ReLU())
 
         # Final upsample + project back to in_channels
-        decoder_layers.append(
-            nn.Upsample(scale_factor=2, mode="linear", align_corners=False)
-        )
+        decoder_layers.append(nn.Upsample(scale_factor=2, mode='linear', align_corners=False))
         decoder_layers.append(
             nn.Conv1d(
-                rev[-1], in_channels,
-                kernel_size=kernel_size, padding=padding,
-                padding_mode="reflect",
+                rev[-1],
+                in_channels,
+                kernel_size=kernel_size,
+                padding=padding,
+                padding_mode='reflect',
             )
         )
         if use_sigmoid:
@@ -201,7 +205,11 @@ class PerDyeConv1dAutoencoder(AbstractAutoencoder):
 
     Creates ``in_channels`` separate :class:`Conv1dAutoencoder` instances,
     each with ``in_channels=1``. No cross-channel mixing occurs — each dye
-    is encoded/decoded independently.
+    is encoded and decoded independently.
+
+    This is the default autoencoder used in PeakNet. It keeps dye-specific
+    structure separate while still producing a compact global summary of the
+    full profile.
 
     Args:
         in_channels: Number of dye channels.
@@ -228,19 +236,21 @@ class PerDyeConv1dAutoencoder(AbstractAutoencoder):
         super().__init__()
         self.in_channels = in_channels
 
-        self.per_channel_nets = nn.ModuleList([
-            Conv1dAutoencoder(
-                in_channels=1,
-                hidden_channels=hidden_channels,
-                depth=depth,
-                input_length=input_length,
-                kernel_size=kernel_size,
-                compression=compression,
-                use_sigmoid=use_sigmoid,
-                use_batchnorm=use_batchnorm,
-            )
-            for _ in range(in_channels)
-        ])
+        self.per_channel_nets = nn.ModuleList(
+            [
+                Conv1dAutoencoder(
+                    in_channels=1,
+                    hidden_channels=hidden_channels,
+                    depth=depth,
+                    input_length=input_length,
+                    kernel_size=kernel_size,
+                    compression=compression,
+                    use_sigmoid=use_sigmoid,
+                    use_batchnorm=use_batchnorm,
+                )
+                for _ in range(in_channels)
+            ]
+        )
 
         sub = self.per_channel_nets[0]
         enc_ch = sub._encoded_channels
@@ -252,17 +262,14 @@ class PerDyeConv1dAutoencoder(AbstractAutoencoder):
             x = x.squeeze(-1)
 
         encoded = [
-            self.per_channel_nets[ch].encode(x[:, ch : ch + 1, :])
-            for ch in range(self.in_channels)
+            self.per_channel_nets[ch].encode(x[:, ch : ch + 1, :]) for ch in range(self.in_channels)
         ]
         return torch.cat(encoded, dim=1)
 
     def decode(self, z: Tensor) -> Tensor:
         enc_ch = self.per_channel_nets[0]._encoded_channels
         decoded = [
-            self.per_channel_nets[ch].decode(
-                z[:, ch * enc_ch : (ch + 1) * enc_ch, :]
-            )
+            self.per_channel_nets[ch].decode(z[:, ch * enc_ch : (ch + 1) * enc_ch, :])
             for ch in range(self.in_channels)
         ]
         return torch.cat(decoded, dim=1)
@@ -277,6 +284,9 @@ class SharedWeightPerDyeConv1dAutoencoder(PerDyeConv1dAutoencoder):
     Same encode/decode flow as :class:`PerDyeConv1dAutoencoder`, but all
     channels share a single :class:`Conv1dAutoencoder` — reducing model
     size and enforcing the same transform per channel.
+
+    This is a useful compromise when dye channels should stay separate but
+    you want fewer parameters than the fully independent per-dye model.
     """
 
     def __init__(self, **kwargs) -> None:
@@ -285,17 +295,80 @@ class SharedWeightPerDyeConv1dAutoencoder(PerDyeConv1dAutoencoder):
         # Replace the independent per-channel nets with a single shared one
         shared_net = Conv1dAutoencoder(
             in_channels=1,
-            hidden_channels=kwargs.get("hidden_channels", 16),
-            depth=kwargs.get("depth", 2),
-            input_length=kwargs.get("input_length", 4096),
-            kernel_size=kwargs.get("kernel_size", 9),
-            compression=kwargs.get("compression", 8),
-            use_sigmoid=kwargs.get("use_sigmoid", True),
-            use_batchnorm=kwargs.get("use_batchnorm", False),
+            hidden_channels=kwargs.get('hidden_channels', 16),
+            depth=kwargs.get('depth', 2),
+            input_length=kwargs.get('input_length', 4096),
+            kernel_size=kwargs.get('kernel_size', 9),
+            compression=kwargs.get('compression', 8),
+            use_sigmoid=kwargs.get('use_sigmoid', True),
+            use_batchnorm=kwargs.get('use_batchnorm', False),
         )
-        self.per_channel_nets = nn.ModuleList(
-            [shared_net] * kwargs.get("in_channels", 5)
+        self.per_channel_nets = nn.ModuleList([shared_net] * kwargs.get('in_channels', 5))
+
+
+class UNet2DAutoEncoder(AbstractAutoencoder):
+    """U-Net-style autoencoder for full electropherogram images.
+
+    This variant treats the profile as a 2D dye-by-signal image instead of
+    a set of independent 1D traces. That makes it useful when cross-dye
+    structure is part of the signal you want the latent representation to
+    preserve.
+
+    It wraps :class:`dnanet.models.UNet` as an autoencoder. The encoder
+    returns the bottleneck representation, and the decoder reconstructs the
+    input using the skip connections captured during the most recent
+    encoder pass.
+    """
+
+    def __init__(
+        self,
+        depth: int,
+        kernel_size: Tuple[int, int],
+        num_filters: int,
+        in_channels: int = 1,
+    ):
+        super().__init__(in_channels=in_channels)
+        if in_channels != 1:
+            raise ValueError('`UNet` wrapper currently supports `in_channels=1` only.')
+
+        # Import here to prevent circular imports
+        from dnanet.models import UNet
+
+        self.net = UNet(
+            depth=depth,
+            kernel_size=kernel_size,
+            num_filters=num_filters,
         )
+        # `UNet` stores (C, H, W) after encoder blocks (before bottleneck conv)
+        self._encoded_shape = self.net.shape_after_encoder
+
+        self._latest_skips = None
+
+    def encoder(self, x: torch.Tensor) -> torch.Tensor:
+        # Accept (N, 1, H, W) or (N, 1, H, W, 1) or (N, H, W)
+        if x.dim() == 4 and x.shape[-1] == 1:
+            x = x.squeeze(-1)
+        if x.dim() == 3:
+            x = x.unsqueeze(1)
+        if x.dim() == 5 and x.shape[-1] == 1:
+            x = x.squeeze(-1)
+        if x.dim() != 4:
+            raise ValueError(f'Expected 4D input (N, C, H, W), got shape {tuple(x.shape)}.')
+
+        # raise ValueError(f"Shape {tuple(x.shape)} not supported by UNet1DAutoEnc.")
+
+        b, skips = self.net.encode(x)
+        self._latest_skips = skips
+        return b
+
+    def decoder(self, z: torch.Tensor) -> torch.Tensor:
+        if self._latest_skips is None:
+            raise RuntimeError('encoder must run before decoder to populate skip connections.')
+        skips = list(self._latest_skips)
+        return self.net.decode(z, skips).squeeze(1)
+
+    def encoded_shape(self) -> Tuple[int, ...]:
+        return tuple(self._encoded_shape)
 
 
 class FourierAutoencoder(AbstractAutoencoder):
@@ -305,7 +378,9 @@ class FourierAutoencoder(AbstractAutoencoder):
     components of the rFFT. Decodes by zero-padding the spectrum and
     applying the inverse rFFT.
 
-    This is a **baseline model** — it has no learnable parameters.
+    This is a lightweight baseline with no learnable parameters. It is
+    useful for sanity checks and for comparing learned encoders against a
+    simple frequency-domain compression scheme.
 
     Args:
         in_channels: Number of input channels.
@@ -319,7 +394,7 @@ class FourierAutoencoder(AbstractAutoencoder):
         in_channels: int = 5,
         signal_length: int = 4096,
         latent_coeffs: int = 256,
-        norm: str = "backward",
+        norm: str = 'backward',
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -330,8 +405,7 @@ class FourierAutoencoder(AbstractAutoencoder):
 
         if latent_coeffs > self.full_freq_len:
             raise ValueError(
-                f"latent_coeffs={latent_coeffs} exceeds max rFFT length "
-                f"({self.full_freq_len})"
+                f'latent_coeffs={latent_coeffs} exceeds max rFFT length ({self.full_freq_len})'
             )
 
     def encode(self, x: Tensor) -> Tensor:
@@ -350,7 +424,8 @@ class FourierAutoencoder(AbstractAutoencoder):
 
         full = torch.zeros(
             (b, c, self.full_freq_len),
-            dtype=truncated.dtype, device=truncated.device,
+            dtype=truncated.dtype,
+            device=truncated.device,
         )
         full[..., :k] = truncated
 

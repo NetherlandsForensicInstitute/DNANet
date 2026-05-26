@@ -37,18 +37,18 @@ from dnanet.data.strategies.datasets import (
 
 
 __all__ = [
-    "DatasetStrategy",
-    "FileCategory",
-    "NFIRnDStrategy",
-    "ProvedItStrategy",
-    "STRKit",
-    "SizeStandard",
-    "WEN_ILS",
-    "GENESCAN_600_LIZ",
-    "SYNTHETIC_GENESCAN_600_LIZ",
-    "GlobalFilerStrategy",
-    "PowerPlexFusion6CStrategy",
-    "PowerplexY23",
-    "ScalingStrategy",
-    "SizeStandardParseResult"
+    'DatasetStrategy',
+    'FileCategory',
+    'NFIRnDStrategy',
+    'ProvedItStrategy',
+    'STRKit',
+    'SizeStandard',
+    'WEN_ILS',
+    'GENESCAN_600_LIZ',
+    'SYNTHETIC_GENESCAN_600_LIZ',
+    'GlobalFilerStrategy',
+    'PowerPlexFusion6CStrategy',
+    'PowerplexY23',
+    'ScalingStrategy',
+    'SizeStandardParseResult',
 ]

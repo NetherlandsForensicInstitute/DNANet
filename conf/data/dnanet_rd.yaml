@@ -1,6 +1,7 @@
 # NFI R&D 2p/5p mixture dataset (PPF6C kit)
 name: dnanet_rd
 
+num_classes: 2
 # Dataset loading options
 dataset:
   _target_: dnanet.data.hid_dataset.HIDDataset

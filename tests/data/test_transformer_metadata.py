@@ -22,7 +22,7 @@ from dnanet.data.transformer import (
 
 def test_metadata_wrapper_collate_delegates_to_wrapped_transformer():
     image = HIDImage(
-        path="segmentation.hid",
+        path='segmentation.hid',
         scaling_strategy=PowerPlexFusion6CStrategy(),
         load_in_memory=True,
     )
@@ -35,20 +35,20 @@ def test_metadata_wrapper_collate_delegates_to_wrapped_transformer():
     inputs, targets, metadata = transformer.collate_fn([sample])
 
     assert_close(inputs, torch.ones((1, 1, 4, 1), dtype=torch.float32))
-    assert_close(targets, torch.zeros((1, 1, 4, 1), dtype=torch.float32))
-    assert metadata[0]["path"] == image.path
-    assert_close(torch.as_tensor(metadata[0]["scaler"]), torch.arange(4))
+    assert_close(targets, torch.zeros((1, 1, 4, 1), dtype=torch.int64))
+    assert metadata[0]['path'] == image.path
+    assert_close(torch.as_tensor(metadata[0]['scaler']), torch.arange(4))
 
 
 def test_combined_transformer_metadata_collate_preserves_sample_metadata(monkeypatch):
     marker = Marker(
-        name="D5S818",
+        name='D5S818',
         dye_row=0,
-        alleles=frozenset([Allele(name="13", base_pair=100.0)]),
+        alleles=frozenset([Allele(name='13', base_pair=100.0)]),
     )
     annotation = AlleleAnnotation([marker])
     image = HIDImage(
-        path="sample.hid",
+        path='sample.hid',
         scaling_strategy=PowerPlexFusion6CStrategy(),
         adjusted_panel=Panel(markers=[marker]),
         allele_annotation=annotation,
@@ -60,7 +60,7 @@ def test_combined_transformer_metadata_collate_preserves_sample_metadata(monkeyp
 
     monkeypatch.setattr(
         transformer_module,
-        "extract_peaks_torch",
+        'extract_peaks_torch',
         lambda *args, **kwargs: (
             torch.ones((1, 1, 4), dtype=torch.float32),
             torch.zeros((1,), dtype=torch.long),
@@ -79,8 +79,8 @@ def test_combined_transformer_metadata_collate_preserves_sample_metadata(monkeyp
     assert marker_idxs.shape == (1,)
     assert peak_centers.shape == (1, 2)
     assert_close(peak_counts, torch.tensor([1], dtype=torch.long))
-    assert metadata[0]["allele_annotation"] is annotation
-    assert metadata[0]["panel"] is image.adjusted_panel
-    assert metadata[0]["path"] == image.path
-    assert_close(torch.as_tensor(metadata[0]["scaler"]), torch.arange(8))
-    assert metadata[0]["signal_image"] is image.data
+    assert metadata[0]['allele_annotation'] is annotation
+    assert metadata[0]['panel'] is image.adjusted_panel
+    assert metadata[0]['path'] == image.path
+    assert_close(torch.as_tensor(metadata[0]['scaler']), torch.arange(8))
+    assert metadata[0]['signal_image'] is image.data

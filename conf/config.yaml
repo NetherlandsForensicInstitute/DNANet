@@ -12,8 +12,8 @@
 
 defaults:
   - splitting: train_val
-  - task: train
   - data: dnanet_rd
+  - task: train
   - model: unet
   - logging: csvlogger
   - _self_

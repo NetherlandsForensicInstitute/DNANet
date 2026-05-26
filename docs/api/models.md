@@ -29,6 +29,8 @@ All architectures are stateless `nn.Module` classes. Training logic lives in
    :members:
 .. autoclass:: dnanet.models.autoencoder.SharedWeightPerDyeConv1dAutoencoder
    :members:
+.. autoclass:: dnanet.models.autoencoder.UNet2DAutoEncoder
+   :members:
 .. autoclass:: dnanet.models.autoencoder.FourierAutoencoder
    :members:
 ```

@@ -9,10 +9,10 @@ persists annotations to CSV files.
 
 ```bash
 # Annotate NFI R&D profiles
-dnanet-label -u Alice -f annotations.csv -d dnanet_rd
+dnanet-label tools.user=Alice tools.filepath=annotations.csv
 
 # Compare annotations from multiple annotators
-dnanet-label -f annotations_folder/ -d dnanet_rd --compare
+dnanet-label tools.user=Alice tools.filepath=annotations/ tools.compare=true
 ```
 
 ## Controls

@@ -5,69 +5,10 @@
 [![pdm-managed](https://img.shields.io/endpoint?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fpdm-project%2F.github%2Fbadge.json)](https://pdm-project.org)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-This a Python repository that can be used to analyze DNA profiles using deep learning. It contains functionality to parse .hid files and train and 
-evaluate models. The pre-trained U-Net provided can be used to call alleles in a DNA profile.
 
-## Contents
-* [Capabilities](#capabilities)
-* [Architecture](#architecture)
-* [Tech stack](#tech-stack)
-* [Install](#install)
-* [Pre-commit hooks](#pre-commit-hooks)
-* [Usage](#usage)
-* [Configuration](#configuration)
-* [Datasets](#datasets)
-* [Evaluation](#evaluation)
-* [Tests & quality](#tests--quality)
-* [License](#license)
+Deep learning framework for forensic DNA electropherogram (EPG) analysis.
 
---- 
-If you find this repository useful, please cite
-```bibtex
-@ARTICLE{Benschop2019,
-      title     = "An assessment of the performance of the probabilistic genotyping
-                   software {EuroForMix}: Trends in likelihood ratios and analysis
-                   of Type {I} \& {II} errors",
-      author    = "Benschop, Corina C G and Nijveld, Alwart and Duijs, Francisca E
-                   and Sijen, Titia",
-      journal   = "Forensic Sci. Int. Genet.",
-      volume    =  42,
-      pages     = "31--38",
-      year      =  2019,
-    }
-```
-for the data, and 
-```bibtex
-@ARTICLE{de-Wit2025,
-    title = {Making AI accessible for forensic DNA profile analysis},
-    journal = {Forensic Science International: Genetics},
-    volume = {81},
-    pages = {103345},
-    year = {2026},
-    issn = {1872-4973},
-    doi = {https://doi.org/10.1016/j.fsigen.2025.103345},
-    url = {https://www.sciencedirect.com/science/article/pii/S1872497325001255},
-    author = {
-        Abel K.J.G. de Wit and Claire D. Wagenaar and Nathalie A.C. Janssen and Brechtje Hoegen 
-        and Judith van de Wetering and Huub Hoofs and Simone Ariëns and Corina C.G. Benschop 
-        and Rolf J.F. Ypma
-        }
-}
-```
-for the code and model.
-
-For work related to the Data synthetization please cite the following:
-```
-@ARTICLE{Taylor2025,
-    title = {Simulating realistic short tandem repeat capillary electrophoretic signal using a generative adversarial network},
-    journal = {Expert Systems with Applications},
-    volume = {280},
-    pages = {127536},
-    year = {2025},
-    doi = {https://doi.org/10.1016/j.eswa.2025.127536},
-    author = {D. A. Taylor and M. Humphries}
-}
-```
+Developed at the Netherlands Forensic Institute (NFI).
 
 ## Capabilities
 

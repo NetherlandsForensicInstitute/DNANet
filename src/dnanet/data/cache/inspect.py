@@ -133,6 +133,7 @@ def _row_bytes(spec: dict) -> int:
 
 
 def main(argv: list[str]) -> int:
+    """Runner to inspect cache size and savings."""
     if len(argv) != 2:
         print(f'Usage: python -m dnanet.data.cache.inspect <cache_dir>', file=sys.stderr)
         return 2

@@ -81,13 +81,16 @@ class SegmentationModule(BaseTaskModule):
             lr_scheduler=lr_scheduler,
             batch_size=batch_size,
         )
-        self.save_hyperparameters({
-            "learning_rate": learning_rate,
-            "weight_decay": weight_decay,
-        })
+        self.save_hyperparameters(
+            {
+                'learning_rate': learning_rate,
+                'weight_decay': weight_decay,
+            }
+        )
 
     def compute_step_outputs(
-        self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Compute loss and metric inputs for a single batch.
 
@@ -107,8 +110,16 @@ class SegmentationModule(BaseTaskModule):
         loss, preds, y = self._compute_loss_and_probabilities(batch)
         return loss, preds.reshape(-1), y.reshape(-1).int(), preds
 
+    def compute_validation_step_outputs(
+        self,
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        return self.compute_test_step_outputs(batch)
+
     @staticmethod
-    def _split_batch(batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]) -> tuple[Tensor, Tensor]:
+    def _split_batch(
+        batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any],
+    ) -> tuple[Tensor, Tensor]:
         if len(batch) == 3:
             x, y, _metadata = batch
             return x, y
@@ -134,24 +145,35 @@ class SegmentationModule(BaseTaskModule):
 
 class MultiClassSegmentationModule(SegmentationModule):
     """Simple extension of the SegmentationModule to allow for multi-class training/predictions.
-    
+
     TODO: explore whether approaching binary-classification as multi-class(n=2), allowing for just one class here instead of two separate.
     e.g. "is output_channels=2 + argmax the same as output_channels=1 + sigmoid?"
     """
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
 
-    def _compute_loss_and_probabilities(self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]) -> tuple[Tensor, Tensor, Tensor]:
+    def __init__(self, ignore_index: int | None = None, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._ignore_index = ignore_index if ignore_index else -100
+
+    def _compute_loss_and_probabilities(
+        self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]
+    ) -> tuple[Tensor, Tensor, Tensor]:
         x, y = self._split_batch(batch)
         logits = self(x)
-        
+
         # Multi-class prediction calculation
         preds = torch.sigmoid(logits)
         best_class = torch.argmax(preds, dim=1)
-        
-        loss = self.loss_fn(preds, y)
+
+        loss = self.loss_fn(logits, y)
+
+        # Filter out ignored class from predictions for metric computation
+        # (torchmetrics Multiclass* don't support ignore_index)
+        if self._ignore_index is not None:
+            mask = y != self._ignore_index
+            best_class = best_class[mask]
+
         return loss, best_class.detach(), y
-    
+
     def predict_step(self, batch: Any, batch_idx: int) -> Tensor:
         del batch_idx
         """Returns argmax probabilities for prediction."""
@@ -159,5 +181,5 @@ class MultiClassSegmentationModule(SegmentationModule):
         logits = self(x)
         preds = torch.sigmoid(logits)
         best_class = torch.argmax(preds, dim=1)
-        
+
         return best_class

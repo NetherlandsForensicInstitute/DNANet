@@ -8,77 +8,70 @@ Usage::
 
 from __future__ import annotations
 
-import argparse
-from functools import partial
+import sys
+from typing import TYPE_CHECKING
 from pathlib import Path
+from functools import partial
 
 import matplotlib
+from hydra import compose, initialize_config_dir
 from loguru import logger
+from hydra.utils import instantiate
 
-from dnanet.tools.labeltool.annotations import AnnotationStore
 from dnanet.tools.labeltool.tool import LabelTool
+from dnanet.tools.labeltool.annotations import AnnotationStore
 from dnanet.tools.labeltool.visualization import plot_profile_interactive
 
 
+if TYPE_CHECKING:
+    from omegaconf import DictConfig
+
+    from dnanet.data import HIDDataset
+
+
 def main() -> None:
+    """Main runner for the labeltool cli."""
+    with initialize_config_dir(version_base=None, config_dir=str(WORKSPACE_FOLDER / 'conf')):
+        cfg = compose(
+            config_name='config',
+            overrides=['+tools=labeltool', *sys.argv[1:]],
+        )
     """Entry point for ``dnanet-label`` console script."""
-    parser = argparse.ArgumentParser(
-        description="Interactive EPG annotation tool.",
-    )
-    parser.add_argument(
-        "-u", "--user",
-        type=str,
-        default="Computer",
-        help="Annotator identifier (used for saving/filtering annotations).",
-    )
-    parser.add_argument(
-        "-f", "--filepath",
-        type=str,
-        default="annotations.csv",
-        help="CSV file (or folder of CSVs when comparing) for annotations.",
-    )
-    parser.add_argument(
-        "-d", "--data-config",
-        type=str,
-        required=True,
-        help="Hydra data config name (e.g. 'dnanet_rd', 'provedit').",
-    )
-    parser.add_argument(
-        "-c", "--compare",
-        action="store_true",
-        default=False,
-        help="Compare mode: show all annotators' spans stacked (non-interactive).",
-    )
-    parser.add_argument(
-        "-k", "--kit",
-        type=str,
-        default=None,
-        help="Kit name override (e.g. 'PPF6C', 'GLOBALFILER'). "
-             "Auto-detected from data config if not provided.",
-    )
-    args = parser.parse_args()
+    # instantiate dataset
+    data_cfg = cfg.get('data')
+    dataset: HIDDataset = instantiate(data_cfg.dataset)
+    dataset._transform = None
+
+    labeltool_cfs = cfg.get('tools')
 
     # Use TkAgg backend for interactive mode
-    if not args.compare:
-        matplotlib.use("TkAgg")
+    if not labeltool_cfs.compare:
+        matplotlib.use('TkAgg')
 
     # Suppress default matplotlib key bindings that interfere
-    matplotlib.rcParams["keymap.quit"] = []
-    matplotlib.rcParams["keymap.zoom"] = []
-    matplotlib.rcParams["keymap.fullscreen"] = []
+    matplotlib.rcParams['keymap.quit'] = []
+    matplotlib.rcParams['keymap.zoom'] = []
+    matplotlib.rcParams['keymap.fullscreen'] = []
+
+    params = labeltool_cfs.params if 'params' in labeltool_cfs else {}
 
     load_label_tool(
-        user=args.user,
-        label_file_path=args.filepath,
-        data_config=args.data_config,
-        compare_mode=args.compare,
+        user=labeltool_cfs.user,
+        label_file_path=labeltool_cfs.filepath,
+        profile_data=dataset,
+        compare_mode=labeltool_cfs.compare,
+        params=params,
     )
+
+
+WORKSPACE_FOLDER = Path(__file__).parents[4]
 
 
 def load_label_tool(
     user: str,
     label_file_path: str,
-    data_config: str,
+    profile_data: HIDDataset,
+    params: DictConfig,
     compare_mode: bool = False,
 ) -> None:
     """Load data and launch the label tool or compare view.
@@ -86,11 +79,12 @@ def load_label_tool(
     Args:
         user: Annotator identifier.
         label_file_path: Path to CSV file or folder.
-        data_config: Hydra data config name.
+        profile_data: List of images in HID format
         compare_mode: If True, show all annotators non-interactively.
+        params: Additional label tool parameters
     """
     if compare_mode:
-        logger.info("Running in compare mode (non-interactive)")
+        logger.info('Running in compare mode (non-interactive)')
 
     store = AnnotationStore(label_file_path)
 
@@ -101,17 +95,13 @@ def load_label_tool(
     # Load existing annotations
     label_path = Path(label_file_path)
     if label_path.is_dir() and not compare_mode:
-        raise ValueError("Folder input requires --compare mode")
+        raise ValueError('Folder input requires --compare mode')
 
     entries_by_profile = None
     if label_path.exists():
         entries_by_profile = store.load_spans_by_profile(
             user=None if compare_mode else user,
         )
-
-    # Load dataset via Hydra compose API
-    profile_data = _load_dataset_from_config_name(data_config)
-    profile_data = sorted(profile_data, key=lambda x: x.path.stem.split("/")[-1])
 
     # Build interactive callback or None for compare mode
     interactive = None
@@ -125,38 +115,10 @@ def load_label_tool(
     plot_profile_interactive(
         profile_data,
         interactive=interactive,
-        plot_allele_bins=True,
         spans_by_profile=entries_by_profile,
+        **params,
     )
 
 
-def _load_dataset_from_config_name(data_config: str):
-    """Build a Hydra DictConfig from a data config name and load the dataset.
-
-    Uses Hydra's Compose API to resolve the config file (e.g. ``"dnanet_rd"``
-    becomes ``conf/data/dnanet_rd.yaml``), then delegates to
-    :func:`~dnanet.data.loading.load_dataset`.
-
-    Args:
-        data_config: Name of the data config group (e.g. ``"dnanet_rd"``,
-            ``"provedit"``), or a path to a YAML file.
-    """
-    from hydra import compose, initialize_config_dir
-
-    from dnanet.data.loading import load_dataset # FIXME
-
-    # Locate the conf/ directory relative to the workspace root.
-    # dnanet.cli uses Path(__file__).parents[2] from src/dnanet/cli.py;
-    # we replicate that by going up from the dnanet package location.
-    import dnanet
-    workspace = Path(dnanet.__file__).parents[2]
-    conf_dir = str(workspace / "conf")
-
-    with initialize_config_dir(config_dir=conf_dir, version_base=None):
-        cfg = compose(config_name="config", overrides=[f"data={data_config}"])
-
-    return load_dataset(cfg.data)
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

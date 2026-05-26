@@ -1,4 +1,11 @@
 # @package _global_
+defaults:
+  - /evaluate: segmentation
+  - _self_
+  # Set data and splitting config empty so it is loaded from the checkpoint config. You can of course still
+  # override from the command line (`dnanet task=evaluate data=... splitting=...`)
+  - override /data: ~
+  - override /splitting: ~
 task: evaluate
 
 model:

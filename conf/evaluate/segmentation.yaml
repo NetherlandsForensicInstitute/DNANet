@@ -4,7 +4,7 @@ num_workers: 4
 threshold: 0.5
 
 # Output options
-save_predictions: True
+save_predictions: false
 predictions_dir: predictions/
 visualize: false
 
@@ -27,3 +27,14 @@ callbacks:
     _target_: dnanet.evaluation.callbacks.PerRFUOutcomeCallback
     threshold: 0.5
     filename: per_rfu_outcomes.npz
+  profile_plots:
+    _target_: dnanet.evaluation.callbacks.ProfilePlotCallback
+    include_annotations: true
+    include_predictions: true
+    num_profiles: 5
+  confusion_matrix:
+    _target_: dnanet.evaluation.callbacks.ConfusionMatrixCallback
+    num_classes: ${oc.select:data.num_classes,2}
+    stages: [test]
+    output_dir: confusion_matrix
+    ignore_index: ${oc.select:model.loss.ignore_index,${oc.select:model.loss_fn.ignore_index,}}

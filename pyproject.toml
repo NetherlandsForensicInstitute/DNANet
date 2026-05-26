@@ -101,7 +101,8 @@ exclude = ["tests/*"]
 ignore = [
     "D100",
     "D107",
-    "D105"
+    "D105",
+    "D102"
 ]
 fixable = ["ALL"]
 

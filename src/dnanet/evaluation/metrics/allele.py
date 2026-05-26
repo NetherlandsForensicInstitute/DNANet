@@ -23,11 +23,12 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "AlleleMetric",
-    "AllelePrecision",
-    "AlleleRecall",
-    "AlleleF1Score",
+    'AlleleMetric',
+    'AllelePrecision',
+    'AlleleRecall',
+    'AlleleF1Score',
 ]
+
 
 class AlleleMetric(Metric, abc.ABC):
     """Base class for micro-averaged allele call metrics.
@@ -50,9 +51,9 @@ class AlleleMetric(Metric, abc.ABC):
         """Initialize the metric with optional locus filtering."""
         super().__init__(**kwargs)
         self.locus = locus
-        self.add_state("tp", default=torch.tensor(0, dtype=torch.long), dist_reduce_fx="sum")
-        self.add_state("fp", default=torch.tensor(0, dtype=torch.long), dist_reduce_fx="sum")
-        self.add_state("fn", default=torch.tensor(0, dtype=torch.long), dist_reduce_fx="sum")
+        self.add_state('tp', default=torch.tensor(0, dtype=torch.long), dist_reduce_fx='sum')
+        self.add_state('fp', default=torch.tensor(0, dtype=torch.long), dist_reduce_fx='sum')
+        self.add_state('fn', default=torch.tensor(0, dtype=torch.long), dist_reduce_fx='sum')
 
     def update(
         self,
@@ -109,15 +110,17 @@ def _count_allele_matches(
     """Count true positives, false positives, and false negatives."""
     if len(ground_truth_markers) != len(predicted_markers):
         raise ValueError(
-            "ground_truth_markers and predicted_markers must contain the same "
-            f"number of samples, got {len(ground_truth_markers)} and "
-            f"{len(predicted_markers)}."
+            'ground_truth_markers and predicted_markers must contain the same '
+            f'number of samples, got {len(ground_truth_markers)} and '
+            f'{len(predicted_markers)}.'
         )
 
     tp, fp = 0, 0
     fn = 0
     for gt_markers, pred_markers in zip(
-        ground_truth_markers, predicted_markers, strict=True,
+        ground_truth_markers,
+        predicted_markers,
+        strict=True,
     ):
         predicted = flatten_markers_to_allele_names(pred_markers, locus=locus)
         annotated = flatten_markers_to_allele_names(gt_markers, locus=locus)

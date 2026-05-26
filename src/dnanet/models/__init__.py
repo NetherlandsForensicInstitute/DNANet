@@ -13,6 +13,7 @@ Reconstruction:
     - :class:`~dnanet.models.autoencoder.Conv1dAutoencoder`
     - :class:`~dnanet.models.autoencoder.PerDyeConv1dAutoencoder`
     - :class:`~dnanet.models.autoencoder.SharedWeightPerDyeConv1dAutoencoder`
+    - :class:`~dnanet.models.autoencoder.UNet2DAutoEncoder`
     - :class:`~dnanet.models.autoencoder.FourierAutoencoder`
 
 Classification:
@@ -27,6 +28,7 @@ Loss functions:
     - :class:`~dnanet.models.loss.FocalLoss` — Focal loss for classification
 """
 
+from dnanet.models.unet import UNet  # noqa
 from dnanet.models.autoencoder import (
     Conv1dAutoencoder,
     FourierAutoencoder,
@@ -36,22 +38,22 @@ from dnanet.models.autoencoder import (
 from dnanet.models.loss import DiceLoss, FocalLoss
 from dnanet.models.peak_classifier import PeakClassificationModel
 from dnanet.models.peaknet import CombinedClassifier, PeakOnlyClassifier
-from dnanet.models.unet import UNet
+
 
 __all__ = [
     # Segmentation
-    "UNet",
+    'UNet',
     # Reconstruction
-    "Conv1dAutoencoder",
-    "PerDyeConv1dAutoencoder",
-    "SharedWeightPerDyeConv1dAutoencoder",
-    "FourierAutoencoder",
+    'Conv1dAutoencoder',
+    'PerDyeConv1dAutoencoder',
+    'SharedWeightPerDyeConv1dAutoencoder',
+    'FourierAutoencoder',
     # Classification
-    "PeakClassificationModel",
+    'PeakClassificationModel',
     # Combined
-    "CombinedClassifier",
-    "PeakOnlyClassifier",
+    'CombinedClassifier',
+    'PeakOnlyClassifier',
     # Loss
-    "DiceLoss",
-    "FocalLoss",
+    'DiceLoss',
+    'FocalLoss',
 ]
