@@ -8,7 +8,7 @@ Design pattern: **Facade**
 Usage::
 
     dnanet task=evaluate checkpoint=/path/to/best.ckpt
-    dnanet task=evaluate checkpoint=/path/to/best.ckpt evaluation=segmentation
+    dnanet task=evaluate checkpoint=/path/to/best.ckpt evaluate=segmentation
 """
 
 from __future__ import annotations
@@ -71,10 +71,13 @@ def run(
     cfg: DictConfig,
     dataset: Dataset | None = None,
 ) -> dict[str, float]:
-    """Run evaluation with a pre-loaded dataset.
+    """Run evaluation with an optional pre-loaded dataset.
 
     This is the primary programmatic entry point. It loads a checkpoint,
     runs predictions on the dataset, computes metrics, and saves results.
+
+    The dataset and splitting configs are by default removed so they can be
+    extracted from the checkpoint config.
 
     Args:
         cfg: Composed Hydra config. Must include ``checkpoint`` path.
@@ -84,8 +87,6 @@ def run(
     Returns:
         Dictionary of metric name -> value.
     """
-    from dnanet.data.datamodule import DNANetDataModule
-
     L.seed_everything(cfg.seed, workers=True)
 
     # -- Validate config ---------------------------------------------------
@@ -129,8 +130,23 @@ def run(
 
     # -- Data --------------------------------------------------------------
     if not dataset:
-        data_cfg = cfg.get('data')
+        if cfg.get('data') and 'name' in cfg.get('data', ''):
+            data_cfg = cfg.get('data')
+            logger.info('Loading data from provided data config...')
+        elif data_cfg := checkpoint_cfg.get('data'):
+            logger.info('Loading data from checkpoint data config...')
+        else:
+            raise ValueError('No data config provided. Set it via `dnanet data=<path/to/data.yaml>`')
         dataset = instantiate(data_cfg.dataset)
+
+    # Splitting arguments
+    if splitting_args := cfg.get('splitting'):
+        logger.info('Loading splitting arguments from provided config: {}.', splitting_args)
+    elif splitting_args := checkpoint_cfg.get('splitting'):
+        logger.info('Loading splitting arguments from checkpoint config: {}.', splitting_args)
+    else:
+        logger.info('No splitting arguments found, using entire dataset for evaluation.')
+        splitting_args = {}
 
     # load datamodule with the same seed and split from the checkpoint config
     datamodule = instantiate(
@@ -138,6 +154,7 @@ def run(
         dataset=dataset,
         batch_size=cfg.evaluate.get('batch_size', 1),
         num_workers=cfg.evaluate.get('num_workers', 0),
+        **splitting_args,
     )
     datamodule.setup('test')
 
@@ -154,10 +171,7 @@ def run(
         trainer.logger.log_hyperparams(cfg)
 
     logger.info('Running predictions...')
-    logger.warning('Evaluating on entire dataset (no split applied).')
-    results = trainer.test(
-        model, dataloaders=datamodule.train_dataloader()
-    )  # FIXME: use datamodule test dataloader
+    results = trainer.test(model, dataloaders=datamodule.test_dataloader())
 
     # -- Save results ------------------------------------------------------
     if results:

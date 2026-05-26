@@ -14,7 +14,7 @@ architecture:
 
 loss:
   _target_: torch.nn.CrossEntropyLoss
-  ignore_index: null
+  ignore_index: -100  # -100 is the default of CrossEntropyLoss, so no indices are ignored.
 
 data_transform:
   _target_: dnanet.data.transformer.SegmentationTransformer
