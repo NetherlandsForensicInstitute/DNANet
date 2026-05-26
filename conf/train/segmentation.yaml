@@ -1,0 +1,50 @@
+# Training hyperparameters for segmentation models
+type: segmentation
+
+defaults:
+  - /metrics@_global_.metrics: binary
+
+max_epochs: 15
+batch_size: 16
+learning_rate: 0.0001
+weight_decay: 0.0005
+num_workers: 5
+threshold: 0.5
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: ${train.learning_rate}
+  weight_decay: ${train.weight_decay}
+
+# Learning rate scheduler
+scheduler:
+  _target_: torch.optim.lr_scheduler.ExponentialLR
+  gamma: 0.8
+
+# Early stopping
+early_stopping:
+  monitor: val/loss
+  patience: 5
+  min_delta: 0.01
+  mode: min
+
+# Checkpointing
+checkpoint:
+  monitor: val/loss
+  save_top_k: 1
+  mode: min
+
+lightning_module:
+  _target_: dnanet.modules.segmentation.SegmentationModule
+  learning_rate: ${train.learning_rate}
+  weight_decay: ${train.weight_decay}
+  loss_fn: ${model.loss}
+  metrics:
+    _target_: torchmetrics.MetricCollection
+    metrics: ${metrics}
+  batch_size: ${train.batch_size}
+
+data_module:
+  _target_: dnanet.data.datamodule.DNANetDataModule
+  batch_size: ${train.batch_size}
+  num_workers: ${train.num_workers}
