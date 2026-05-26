@@ -1,0 +1,29 @@
+# Evaluation settings for segmentation models
+batch_size: 16
+num_workers: 4
+threshold: 0.5
+
+# Output options
+save_predictions: True
+predictions_dir: predictions/
+visualize: false
+
+metrics:
+  _target_: torchmetrics.MetricCollection
+  metrics: ${metrics}
+
+lightning_module: dnanet.modules.segmentation.SegmentationModule
+
+allele_caller:
+  _target_: dnanet.evaluation.allele_caller.NearestBasePairCaller
+  threshold: 0.5
+  exclude_non_autosomal: true
+
+callbacks:
+  allele_metrics:
+    _target_: dnanet.evaluation.callbacks.AlleleMetricsCallback
+    allele_caller: ${evaluate.allele_caller}
+  per_rfu_outcomes:
+    _target_: dnanet.evaluation.callbacks.PerRFUOutcomeCallback
+    threshold: 0.5
+    filename: per_rfu_outcomes.npz

@@ -1,0 +1,46 @@
+# Evaluation settings for PeakNet models
+batch_size: 16
+num_workers: 4
+
+# Output options
+save_predictions: false
+predictions_dir: predictions/
+visualize: false
+
+
+metrics:
+  _target_: torchmetrics.MetricCollection
+  metrics:
+    scanpoint_precision:
+      _target_: torchmetrics.classification.MulticlassPrecision
+      num_classes: ${model.num_classes}
+      average: macro
+    scanpoint_recall:
+      _target_: torchmetrics.classification.MulticlassRecall
+      num_classes: ${model.num_classes}
+      average: macro
+    scanpoint_f1:
+      _target_: torchmetrics.classification.MulticlassF1Score
+      num_classes: ${model.num_classes}
+      average: macro
+
+lightning_module: dnanet.modules.peaknet.PeakNetModule
+
+allele_caller:
+  _target_: dnanet.evaluation.allele_caller.NearestBasePairCaller
+  threshold: 0.5
+  exclude_non_autosomal: true
+
+callbacks:
+  allele_metrics:
+    _target_: dnanet.evaluation.callbacks.AlleleMetricsCallback
+    allele_caller: ${evaluate.allele_caller}
+  per_rfu_outcomes:
+    _target_: dnanet.evaluation.callbacks.PerRFUOutcomeCallback
+    threshold: 0.5
+    filename: per_rfu_outcomes.npz
+
+
+data_transform:
+  _target_: dnanet.data.transformer.AlleleMetadataTransformer
+  transformer: ${model.data_transform}
