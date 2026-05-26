@@ -1,1 +1,1 @@
-tests/resources/**/*.hid !text !filter !merge !diff
+tests/resources/**/*.hid -filter -diff -merge -text
