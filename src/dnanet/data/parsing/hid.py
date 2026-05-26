@@ -232,7 +232,9 @@ def parse_hid(path: PathLike) -> dict[str, ElementValue | None] | None:
 
         if raw[:4] != b'ABIF':
             if raw[:7] == b'version':
-                logger.error('Git LFS stub detected for {}: run `git lfs pull` to fetch the real file', path)
+                logger.error(
+                    'Git LFS stub detected for {}: run `git lfs pull` to fetch the real file', path
+                )
             else:
                 logger.error('Not a valid HID file (missing ABIF magic bytes): {}', path)
             return None
