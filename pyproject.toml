@@ -1,68 +1,37 @@
 [project]
-name = "dnanet"
+name = "DNANet"
 version = "0.1.0"
-description = "A clean, extensible deep learning framework for forensic DNA profile analysis."
-requires-python = ">=3.12,<3.15"
-readme = "README.md"
-license = { text = "Apache-2.0" }
+description = " An open source repository offering tools for parsing DNA profiles and integrating machine learning models."
 
 dependencies = [
-    # Deep learning
-    "torch>=2.5.1",
-    "torchmetrics>=1.7.1",
-    "lightning>=2.4.0",
-
-    # Configuration
-    "hydra-core>=1.3.2",
-    "omegaconf>=2.3.0",
-
-    # Data & science
     "numpy>=2.2.4",
     "scipy>=1.15.1",
-    "construct>=2.10.70",
-    "pyarrow>=15.0.0",
-    "pydantic>=2.12.5",
-
-    # Visualization
-    "matplotlib>=3.10.1",
-    "seaborn>=0.13.2",
-
-    # Experiment tracking
-    "mlflow>=2.21.3",
-
-    # Logging
-    "loguru>=0.7.3",
-
-    # Utilities
     "tqdm>=4.67.1",
+    "confidence>=0.15",
+    "torch>=2.5.1",
+    "torchmetrics>=1.7.1",
+    "construct>=2.10.70",
+    "datasets>=4.0.0",
+    "matplotlib>=3.10.1",
+    "mlflow>=2.21.3",
+    "tensorboard>=2.18.0",
+    "huggingface-hub[hf_xet]>=0.35.0",
     "coolname>=2.2.0",
     "openpyxl>=3.1.5",
-    "flatten-dict>=0.5.0",
+    "pydantic>=2.12.5",
+    "pydantic-numpy>=8.0.1",
+    "loguru>=0.7.3",
 ]
+requires-python = ">=3.10,<=3.12"
+readme = "README.md"
+license = {text = "Apache-2.0"}
 
-[project.optional-dependencies]
-tools = [
-    "plotly>=6.0.0",
-]
-
-[project.scripts]
-dnanet = "dnanet.cli:main"
-dnanet-label = "dnanet.tools.labeltool:main"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/dnanet"]
 
 [dependency-groups]
 testing = [
     "pytest>=8.3.5",
     "pytest-cov>=7.0.0",
     "pytest-xdist>=3.8.0",
-    "pytest-timeout>=2.4.0",
-    "pytest-loguru>=0.4.0",
 ]
 quality = [
     "ruff>=0.15.5",
@@ -70,40 +39,60 @@ quality = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "--cov=dnanet --cov-report=term"
+pythonpath = "."
+addopts = "--cov --cov-report=term"
+source = ["."]
 
 [tool.coverage.run]
 branch = true
-source = ["dnanet"]
-omit = ["tests/*", "*__init__.py"]
+omit = [
+    "tests/*",
+    "*__init__.py"
+]
 
 [tool.coverage.report]
 skip_empty = true
 show_missing = true
+
 exclude_also = [
     "def __repr__",
+    "if self\\.debug",
+
+    "raise AssertionError",
     "raise NotImplementedError",
+
+    "if 0:",
     "if __name__ == .__main__.:",
+
     "@(abc\\.)?abstractmethod",
 ]
+ignore_errors = true
 
+
+##### LINT & FORMAT #####
 [tool.ruff]
-extend-exclude = [".venv"]
+extend-exclude = [
+    ".venv"
+]
 line-length = 101
 
 [tool.ruff.format]
 quote-style = "single"
+skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
-select = ["I", "B", "D", "NPY", "TC"]
-exclude = ["tests/*"]
-ignore = [
-    "D100",
-    "D107",
-    "D105"
+# Rules: 'https://docs.astral.sh/ruff/rules'
+select = [
+    "I",  # Imports
+    "B",  # Bugbear,
+    "D",  # Docstyles
+    "NPY",  # Numpy
+    "TC",  # Type Checking
 ]
+exclude = ["tests/*"]
+ignore = ["D100"]
 fixable = ["ALL"]
+unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "D104"]
@@ -117,5 +106,14 @@ lines-after-imports = 2
 convention = "google"
 
 [tool.mypy]
-plugins = "numpy.typing.mypy_plugin"
 disable_error_code = ["import-untyped"]
+[tool.pdm]
+distribution = false
+
+[tool.pdm.scripts]
+test = "pdm run pytest"
+lint = "pdm run ruff check ."
+format = "pdm run ruff format --check ."
+typing = "pdm run mypy"
+
+

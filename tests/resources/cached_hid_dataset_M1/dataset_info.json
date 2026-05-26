@@ -1,0 +1,45 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "images": {
+      "shape": [
+        5,
+        4096,
+        1
+      ],
+      "dtype": "int16",
+      "_type": "Array3D"
+    },
+    "annotations": {
+      "shape": [
+        5,
+        4096,
+        1
+      ],
+      "dtype": "int8",
+      "_type": "Array3D"
+    },
+    "hid_paths": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "scalers": {
+      "feature": {
+        "dtype": "float64",
+        "_type": "Value"
+      },
+      "_type": "Sequence"
+    },
+    "panel_contents": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "called_alleles": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}
