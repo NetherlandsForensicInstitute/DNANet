@@ -1,8 +1,8 @@
 """Tests for peak extraction functions."""
 
 import numpy as np
-import pytest
 import torch
+import pytest
 
 from tests.conftest import PANEL_PATH
 from dnanet.core.panel import Panel

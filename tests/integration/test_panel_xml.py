@@ -2,9 +2,8 @@
 
 import pytest
 
-from dnanet.core.panel import Panel
-
 from tests.conftest import PANEL_PATH, RESOURCES_DIR
+from dnanet.core.panel import Panel
 
 
 class TestPanelFromXML:

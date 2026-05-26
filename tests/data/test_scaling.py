@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import torch
+import pytest
 
 from dnanet.data.preprocessing.scaling import (
     RFU_MAX_VALUE,
-    inverse_scale_rfu_torch,
     scale_rfu_numpy,
     scale_rfu_torch,
+    inverse_scale_rfu_torch,
 )
 
 
