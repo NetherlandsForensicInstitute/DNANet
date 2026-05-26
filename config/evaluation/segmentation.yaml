@@ -1,0 +1,26 @@
+evaluation:
+  metrics:
+    - name: average_binary_iou
+      threshold: 0.5
+    - name: pixel_recall
+    - name: pixel_precision
+    - name: pixel_f1_score
+
+    - name: allele_precision
+    - name: allele_recall
+    - name: allele_f1_score
+
+    - name: allele_precision
+      low_or_high_threshold: between
+    - name: allele_recall
+      low_or_high_threshold: between
+
+    - name: allele_precision
+      low_or_high_threshold: low
+    - name: allele_recall
+      low_or_high_threshold: low
+
+    - name: allele_precision
+      low_or_high_threshold: high
+    - name: allele_recall
+      low_or_high_threshold: high
