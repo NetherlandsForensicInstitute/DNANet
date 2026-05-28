@@ -48,8 +48,11 @@ class DNANetDataModule(L.LightningDataModule):
         self._test_dataset: Dataset | None = None
         self._collate_fn = default_collate
 
-    def setup(self, stage: str | None = None) -> None:  # noqa: ARG002
+    def setup(self, stage: str) -> None:  # noqa: ARG002
         """Split the dataset into train/val/test subsets."""
+        if stage not in ('fit', 'test'):
+            raise ValueError(f'Invalid stage: {stage}, expected "fit" or "test"')
+
         if self._train_dataset is not None:
             return
 
