@@ -69,8 +69,6 @@ class STRKit:
         # noinspection PyTypeChecker
         return LadderAlleleCatalog.from_panel(self.panel)
 
-
-
     def dye_row_from_hid_index(self, hid_index: int) -> int:
         """Convert a 1-based HID dye index to a 0-based channel row.
 

@@ -23,7 +23,6 @@ Write path:
 
 from __future__ import annotations
 
-import io
 import json
 from typing import TYPE_CHECKING, Any, Iterable
 from pathlib import Path
@@ -49,6 +48,8 @@ from dnanet.data.cache.fingerprint import write_fingerprint, compute_fingerprint
 
 
 if TYPE_CHECKING:
+    import io
+
     from dnanet.data.image import HIDImage
 
 
@@ -258,6 +259,7 @@ class MemmapCacheWriter:
         self,
         config_payload: dict[str, Any],
         source_paths: Iterable[Path],
+        root: Path | None = None,
     ) -> None:
         """Convert the manifest into index.parquet + sidecars, write shapes+fingerprint, mark complete.
 
@@ -275,7 +277,7 @@ class MemmapCacheWriter:
 
         self._build_index_and_sidecars()
         self._write_shapes_json()
-        write_fingerprint(self._dir, compute_fingerprint(config_payload, source_paths))
+        write_fingerprint(self._dir, compute_fingerprint(config_payload, source_paths, root=root))
 
         # Manifest is write-log only; index.parquet is the durable source of truth.
         (self._dir / MANIFEST_JSONL).unlink(missing_ok=True)

@@ -1,12 +1,18 @@
 """Confusion matrix Lightning callback.
 
-The confusion matrix is available during validation and test runs."""
+The confusion matrix is available during validation and test runs.
+"""
 
 from __future__ import annotations
 
 import csv
 from typing import TYPE_CHECKING
 from pathlib import Path
+
+import matplotlib
+
+
+matplotlib.use('Agg')
 
 import numpy as np
 import seaborn as sns

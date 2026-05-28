@@ -8,9 +8,9 @@ import pytest
 
 from dnanet.data.preprocessing.peaks import (
     find_peak_boundary,
-    find_peak_idx_near_or_in_range,
     find_peak_near_idx,
     find_peaks_above_threshold,
+    find_peak_idx_near_or_in_range,
 )
 
 
@@ -32,14 +32,14 @@ class TestFindPeaksAboveThreshold:
         assert isinstance(peaks, np.ndarray)
 
     @pytest.mark.parametrize(
-        "array, expected",
+        'array, expected',
         [
             (np.array([1000, 1001, 1010, 1003, 1002]), np.array([2])),
             (np.array([100, 101, 110, 103, 102]), np.array([])),
             (np.array([1000, 1003, 1003, 999]), np.array([1, 2])),
             (np.array([1000, 1001, 800, 800, 799]), np.array([1, 3])),
         ],
-        ids=["single_peak", "below_threshold", "flat_top_pair", "two_peaks"],
+        ids=['single_peak', 'below_threshold', 'flat_top_pair', 'two_peaks'],
     )
     def test_parametrized(self, array, expected):
         """Ported from original DNANet test_utils.py."""
@@ -55,13 +55,13 @@ class TestFindPeakBoundary:
         assert signal[start] >= 20 or start == 0
 
     @pytest.mark.parametrize(
-        "array, idx, expected",
+        'array, idx, expected',
         [
             (np.array([110, 90, 101, 103, 110, 103, 90, 101]), 4, (2, 5)),
             (np.array([90, 90, 90, 90, 110, 90, 90, 90]), 4, (4, 4)),
             (np.array([110, 100, 101, 103, 110, 103, 100, 101]), 4, (0, 7)),
         ],
-        ids=["mid_peak", "isolated_peak", "wide_peak"],
+        ids=['mid_peak', 'isolated_peak', 'wide_peak'],
     )
     def test_parametrized(self, array, idx, expected):
         """Ported from original DNANet test_utils.py."""
@@ -70,13 +70,13 @@ class TestFindPeakBoundary:
 
 class TestFindPeakNearIdx:
     @pytest.mark.parametrize(
-        "array, idx, expected",
+        'array, idx, expected',
         [
             (np.array([100, 101, 110, 103, 102, 101, 120, 101]), 1, np.array([2])),
             (np.array([100, 101, 110, 103, 102, 101, 120, 101]), 7, np.array([6])),
             (np.array([100, 101, 110, 103, 102, 101, 120, 101]), 4, np.array([2])),
         ],
-        ids=["near_left_peak", "near_right_peak", "between_peaks"],
+        ids=['near_left_peak', 'near_right_peak', 'between_peaks'],
     )
     def test_parametrized(self, array, idx, expected):
         """Ported from original DNANet test_utils.py."""
@@ -86,7 +86,7 @@ class TestFindPeakNearIdx:
 
 class TestFindPeakIdxNearOrInRange:
     @pytest.mark.parametrize(
-        "array, range_, expected",
+        'array, range_, expected',
         [
             (
                 np.array([100, 101, 110, 103, 102, 101, 120, 101]),
@@ -109,7 +109,7 @@ class TestFindPeakIdxNearOrInRange:
                 np.array([]),
             ),
         ],
-        ids=["peak_in_range", "peak_just_after", "highest_peak", "below_threshold"],
+        ids=['peak_in_range', 'peak_just_after', 'highest_peak', 'below_threshold'],
     )
     def test_parametrized(self, array, range_, expected):
         """Ported from original DNANet test_utils.py."""

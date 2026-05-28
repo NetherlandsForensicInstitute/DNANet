@@ -2,9 +2,9 @@
 
 import pytest
 
-from dnanet.data.hid_dataset import HIDDataset
-from dnanet.data.strategies import PowerPlexFusion6CStrategy, NFIRnDStrategy
 from tests.conftest import RD_DIR
+from dnanet.data.strategies import NFIRnDStrategy, PowerPlexFusion6CStrategy
+from dnanet.data.hid_dataset import HIDDataset
 
 
 def _make_hid_dataset(**kwargs) -> HIDDataset:
@@ -13,7 +13,7 @@ def _make_hid_dataset(**kwargs) -> HIDDataset:
         root=RD_DIR,
         cache_dir='/tmp/var/hiddataset-tests/',
         scaling_strategy=PowerPlexFusion6CStrategy(),
-        dataset_strategy=NFIRnDStrategy("DTH"),
+        dataset_strategy=NFIRnDStrategy('DTH'),
         **kwargs,
     )
 
@@ -38,19 +38,20 @@ def _make_hid_dataset(**kwargs) -> HIDDataset:
 # Validation
 # ---------------------------------------------------------------------------
 
+
 class TestHIDDatasetValidation:
     def test_invalid_adjustment_raises(self, nfi_rnd_kit):
-        with pytest.raises(ValueError, match="adjustment_of_annotations"):
+        with pytest.raises(ValueError, match='adjustment_of_annotations'):
             _make_hid_dataset(adjustment_of_annotations='bad')
 
     def test_empty_root_raises(self, nfi_rnd_kit, tmp_path):
         empty_dir = tmp_path / 'empty'
         empty_dir.mkdir()
-        with pytest.raises(ValueError, match="Path does not contain the necessary ladder mapping"):
+        with pytest.raises(ValueError, match='Path does not contain the necessary ladder mapping'):
             HIDDataset(
                 root=empty_dir,
                 scaling_strategy=PowerPlexFusion6CStrategy(),
-                dataset_strategy=NFIRnDStrategy("DTH"),
+                dataset_strategy=NFIRnDStrategy('DTH'),
                 cache_dir='/tmp/var/hiddataset-tests/',
             )
 
@@ -58,6 +59,7 @@ class TestHIDDatasetValidation:
 # ---------------------------------------------------------------------------
 # Integration: loading from test resources
 # ---------------------------------------------------------------------------
+
 
 class TestHIDDatasetIntegration:
     def test_load_from_rd_dir(self, nfi_rnd_kit):
@@ -78,8 +80,8 @@ class TestHIDDatasetIntegration:
     def test_repr(self, nfi_rnd_kit):
         ds = _make_hid_dataset()
         r = repr(ds)
-        assert "HIDDataset" in r
-        assert "RD" in r
+        assert 'HIDDataset' in r
+        assert 'RD' in r
 
     def test_indexing_returns_loaded_image(self, nfi_rnd_kit):
         ds = _make_hid_dataset()
@@ -92,7 +94,7 @@ class TestHIDDatasetIntegration:
         """Images with annotation mapping should have non-None annotations."""
         ds = _make_hid_dataset()
         annotated = [img for img in ds if img.annotation is not None]
-        assert len(annotated) > 0, "Expected at least one image with annotation"
+        assert len(annotated) > 0, 'Expected at least one image with annotation'
 
     def test_adjustment_top(self, nfi_rnd_kit):
         """Loading with annotation adjustment should not crash."""

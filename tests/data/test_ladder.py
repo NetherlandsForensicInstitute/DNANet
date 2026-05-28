@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import numpy as np
 
+from dnanet.core.panel import Panel
 from dnanet.core.allele import Allele
 from dnanet.core.marker import Marker
-from dnanet.core.panel import Panel
 from dnanet.data.ladders.ladder import Ladder
 from dnanet.data.ladders.ladder_allele_catalog import LadderAlleleCatalog
 

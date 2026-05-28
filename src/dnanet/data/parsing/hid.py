@@ -21,18 +21,19 @@ Design pattern: **Layered Parsing Pipeline**
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Union, Mapping, Sequence
 from collections import Counter
 from dataclasses import dataclass
-from typing import Union, Mapping, Sequence, TYPE_CHECKING
 
-import construct
 import numpy as np
+import construct
 from loguru import logger
 
-from dnanet.core.types import PathLike
 from dnanet.data.preprocessing.baseline import baseline_superior
 
+
 if TYPE_CHECKING:
+    from dnanet.core.types import PathLike
     from dnanet.data.strategies.scaling import ScalingStrategy
 
 
@@ -62,21 +63,23 @@ class HIDElement:
 # Low-level byte readers
 # ---------------------------------------------------------------------------
 
+
 def _read_string(raw: bytes) -> str:
-    return raw.decode(encoding="utf-8")
+    return raw.decode(encoding='utf-8')
 
 
 def _read_signed(raw: bytes) -> int:
-    return int.from_bytes(raw, byteorder="big", signed=True)
+    return int.from_bytes(raw, byteorder='big', signed=True)
 
 
 def _read_unsigned(raw: bytes) -> int:
-    return int.from_bytes(raw, byteorder="big", signed=False)
+    return int.from_bytes(raw, byteorder='big', signed=False)
 
 
 # ---------------------------------------------------------------------------
 # Parsing layers
 # ---------------------------------------------------------------------------
+
 
 def parse_hid_header(raw: bytes) -> HIDElement:
     """Parse the ABIF file header."""
@@ -160,7 +163,7 @@ def parse_hid_data(
             offset = i * header.element_size + header.data_offset + 20
 
         data_slice = raw[offset : offset + elem.num_elements * elem.element_size]
-        key = f"{elem.name}_{elem.tag_number}"
+        key = f'{elem.name}_{elem.tag_number}'
 
         try:
             result[key] = _parse_element(data_slice, elem.element_type, elem.num_elements)
@@ -176,43 +179,42 @@ def _parse_element(data: bytes, elem_type: int, n_elements: int) -> ElementValue
     """Decode a single element's bytes based on its type code."""
     if elem_type == 1:
         if n_elements == 1:
-            return int.from_bytes(data, byteorder="big", signed=True)
+            return int.from_bytes(data, byteorder='big', signed=True)
         elif n_elements > 0:
             return np.frombuffer(data, dtype=construct.Int32sb.fmtstr)
     elif elem_type == 2:
-        return data.decode("utf-8")
+        return data.decode('utf-8')
     elif elem_type in (3, 4):
         dtype = construct.Int16ub.fmtstr if elem_type == 3 else construct.Int16sb.fmtstr
         return np.frombuffer(data, dtype=dtype)
     elif elem_type == 5:
         if n_elements == 1:
-            return int.from_bytes(data, byteorder="big", signed=True)
+            return int.from_bytes(data, byteorder='big', signed=True)
         elif n_elements > 0:
-            return np.frombuffer(data, dtype=">i", count=n_elements)
+            return np.frombuffer(data, dtype='>i', count=n_elements)
     elif elem_type == 13:
-        value = int.from_bytes(data, byteorder="big", signed=False)
-        return "true" if value == 1 else "false"
+        value = int.from_bytes(data, byteorder='big', signed=False)
+        return 'true' if value == 1 else 'false'
     elif elem_type == 19:
-        return data.decode("utf-8")
+        return data.decode('utf-8')
     elif elem_type == 1024:
         return data
 
-    raise KeyError(f"Parsing not implemented, element type {elem_type}")
+    raise KeyError(f'Parsing not implemented, element type {elem_type}')
 
 
 def _is_valid_sup_19(position: int, raw: bytes, name: str) -> bool:
     """Check whether a byte position is a valid sup-19 directory entry."""
     p = position
     return (
-        (_read_signed(raw[p + 8 : p + 10]) <= 19
-         or _read_signed(raw[p + 8 : p + 10]) == 1024)
-        and _read_string(raw[p : p + 4]) == name
-    )
+        _read_signed(raw[p + 8 : p + 10]) <= 19 or _read_signed(raw[p + 8 : p + 10]) == 1024
+    ) and _read_string(raw[p : p + 4]) == name
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def parse_hid(path: PathLike) -> dict[str, ElementValue | None] | None:
     """Parse a complete HID file and return all decoded elements.
@@ -225,17 +227,29 @@ def parse_hid(path: PathLike) -> dict[str, ElementValue | None] | None:
         values, or ``None`` if the file cannot be read.
     """
     try:
-        with open(path, "rb") as f:
+        with open(path, 'rb') as f:
             raw = f.read()
+
+        if raw[:4] != b'ABIF':
+            if raw[:7] == b'version':
+                logger.error(
+                    'Git LFS stub detected for {}: run `git lfs pull` to fetch the real file', path
+                )
+            else:
+                logger.error('Not a valid HID file (missing ABIF magic bytes): {}', path)
+            return None
+
         header = parse_hid_header(raw)
         directory = parse_hid_directory(raw, header)
         return parse_hid_data(raw, header, directory)
     except PermissionError:
-        logger.debug("Permission denied for file {}", path)
+        logger.debug('Permission denied for file {}', path)
         return None
 
 
-def get_peak_data(path: PathLike, scaling_strategy: ScalingStrategy, data_loading_strategy: str = "superior") -> np.ndarray | None:
+def get_peak_data(
+    path: PathLike, scaling_strategy: ScalingStrategy, data_loading_strategy: str = 'superior'
+) -> np.ndarray | None:
     """Extract dye channel data from an HID file.
 
     Args:
@@ -250,7 +264,7 @@ def get_peak_data(path: PathLike, scaling_strategy: ScalingStrategy, data_loadin
         Array of shape ``(6, N)`` containing RFU values for each dye channel
         (5 fluorescence dyes + 1 size standard), or ``None`` on failure.
     """
-    if data_loading_strategy not in ("raw", "analyzed", "superior"):
+    if data_loading_strategy not in ('raw', 'analyzed', 'superior'):
         raise ValueError(
             f"strategy must be 'raw', 'analyzed', or 'superior', got '{data_loading_strategy}'"
         )
@@ -260,21 +274,25 @@ def get_peak_data(path: PathLike, scaling_strategy: ScalingStrategy, data_loadin
         return None
 
     try:
-        if data_loading_strategy in ("raw", "superior"):
+        if data_loading_strategy in ('raw', 'superior'):
             columns = scaling_strategy.kit.hid_file_data_columns_raw
         else:  # analyzed
             columns = scaling_strategy.kit.hid_file_data_columns_analyzed
 
         if columns is None:
-            raise ValueError(f"Kit {scaling_strategy.kit.name} does not support data loading strategy {data_loading_strategy}. "
-                             f"Please specify the hid_file_data_columns in the STRKit configuration.")
+            raise ValueError(
+                f'Kit {scaling_strategy.kit.name} does not support data loading strategy {data_loading_strategy}. '
+                f'Please specify the hid_file_data_columns in the STRKit configuration.'
+            )
         dyes = np.array([data[col] for col in columns], dtype=np.int32)
     except KeyError:
-        data_keys = [k for k in data if k.startswith("DATA")]
-        logger.warning("Missing {} DATA columns in {}, found: {}", data_loading_strategy, path, data_keys)
+        data_keys = [k for k in data if k.startswith('DATA')]
+        logger.warning(
+            'Missing {} DATA columns in {}, found: {}', data_loading_strategy, path, data_keys
+        )
         return None
 
-    if data_loading_strategy == "superior":
+    if data_loading_strategy == 'superior':
         baseline = baseline_superior(dyes)
         dyes = dyes - baseline
 

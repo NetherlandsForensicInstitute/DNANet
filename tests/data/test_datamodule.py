@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, ConcatDataset
 from dnanet.data.image import HIDImage
 from dnanet.core.annotation import ScanpointAnnotation
 from dnanet.data.datamodule import DNANetDataModule
-from dnanet.data.transformer import SegmentationTransformer, CombinedTransformer
+from dnanet.data.transformer import CombinedTransformer, SegmentationTransformer
 
 
 class SplitStrategy:
@@ -45,7 +45,7 @@ class SplitPreservingDataset(Dataset):
         self,
         fraction: float,
         seed: int | None = None,
-    ) -> tuple["SplitPreservingDataset", "SplitPreservingDataset"]:
+    ) -> tuple['SplitPreservingDataset', 'SplitPreservingDataset']:
         shuffled = random.Random(seed).sample(self._data, len(self._data))
         split_idx = int(len(shuffled) * fraction)
         return (
@@ -65,7 +65,7 @@ class SplitPreservingDataset(Dataset):
 def _make_fake_image(
     scaling_strategy,
     dataset_strategy,
-    name: str = "fake.hid",
+    name: str = 'fake.hid',
     num_dyes: int = 5,
     signal_length: int = 100,
     with_annotation: bool = True,
@@ -75,7 +75,7 @@ def _make_fake_image(
         scaling_strategy=scaling_strategy,
         load_in_memory=True,
     )
-    img._data = np.random.rand(num_dyes, signal_length, 1).astype(np.float32)
+    img._data = np.random.default_rng().random((num_dyes, signal_length, 1)).astype(np.float32)
     if with_annotation:
         mask = np.zeros((num_dyes, signal_length, 1), dtype=np.int8)
         mask[0, 10:20, 0] = 1
@@ -83,31 +83,30 @@ def _make_fake_image(
     return img
 
 
-
-
-
 @pytest.fixture
 def segmentation_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservingDataset:
-    images = [_make_fake_image(ppf6c_kit, nfi_rnd_dataset, f"fake_{i}.hid") for i in range(10)]
+    images = [_make_fake_image(ppf6c_kit, nfi_rnd_dataset, f'fake_{i}.hid') for i in range(10)]
     return SplitPreservingDataset(
         images,
         transform=SegmentationTransformer(),
         dataset_strategy=SplitStrategy(),
     )
 
+
 @pytest.fixture
 def combined_transformer_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservingDataset:
-    images = [_make_fake_image(ppf6c_kit, nfi_rnd_dataset, f"fake_{i}.hid") for i in range(10)]
+    images = [_make_fake_image(ppf6c_kit, nfi_rnd_dataset, f'fake_{i}.hid') for i in range(10)]
     return SplitPreservingDataset(
         images,
         transform=CombinedTransformer(),
         dataset_strategy=SplitStrategy(),
     )
 
+
 @pytest.fixture
 def unlabeled_segmentation_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservingDataset:
     images = [
-        _make_fake_image(ppf6c_kit, nfi_rnd_dataset, f"fake_{i}.hid", with_annotation=False)
+        _make_fake_image(ppf6c_kit, nfi_rnd_dataset, f'fake_{i}.hid', with_annotation=False)
         for i in range(10)
     ]
     return SplitPreservingDataset(
@@ -118,13 +117,12 @@ def unlabeled_segmentation_dataset(ppf6c_kit, nfi_rnd_dataset) -> SplitPreservin
 
 
 class TestDNANetDataModule:
-
     def test_segmentation_transform_batches_tensor_pairs(
         self,
         segmentation_dataset: SplitPreservingDataset,
     ) -> None:
         dm = DNANetDataModule(segmentation_dataset, batch_size=4, val_fraction=0.2, seed=42)
-        dm.setup("fit")
+        dm.setup('fit')
         x, y = next(iter(dm.train_dataloader()))
         assert x.shape[0] <= 4
         assert x.shape[1:] == (5, 100, 1)
@@ -140,7 +138,7 @@ class TestDNANetDataModule:
             val_fraction=0.2,
             seed=42,
         )
-        dm.setup("fit")
+        dm.setup('fit')
         _, y = next(iter(dm.train_dataloader()))
         assert torch.all(y == 0)
 
@@ -154,11 +152,13 @@ class TestDNANetDataModule:
             val_fraction=0.2,
             seed=42,
         )
-        dm.setup("fit")
+        dm.setup('fit')
         assert len(dm._train_dataset) == 20 * 0.8
         assert 'TransformDataCallable.collate_fn' in str(dm._collate_fn)
 
-    def test_concat_dataset_transform_raises(self, segmentation_dataset, combined_transformer_dataset) -> None:
+    def test_concat_dataset_transform_raises(
+        self, segmentation_dataset, combined_transformer_dataset
+    ) -> None:
         concat_dataset = ConcatDataset(datasets=[segmentation_dataset, combined_transformer_dataset])
         assert len(concat_dataset) == 20
 
@@ -168,5 +168,5 @@ class TestDNANetDataModule:
             val_fraction=0.2,
             seed=42,
         )
-        with pytest.raises(ValueError, match="Found multiple collate functions for ConcatDataset"):
-            dm.setup("fit")
+        with pytest.raises(ValueError, match='Found multiple collate functions for ConcatDataset'):
+            dm.setup('fit')

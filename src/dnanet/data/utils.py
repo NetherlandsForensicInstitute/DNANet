@@ -17,9 +17,9 @@ import coolname
 
 def generate_random_name() -> str:
     """Generate a random human-readable experiment name (e.g. 'BrilliantFalcon')."""
-    return "".join(word.capitalize() for word in coolname.generate())
+    return ''.join(word.capitalize() for word in coolname.generate())
 
 
 def find_files_by_suffix(root: str | Path, suffix: str) -> list[Path]:
     """Recursively find all files with a given suffix."""
-    return list(Path(root).rglob(f"*{suffix}"))
+    return list(Path(root).rglob(f'*{suffix}'))

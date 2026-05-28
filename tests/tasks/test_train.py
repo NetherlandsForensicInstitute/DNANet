@@ -8,15 +8,15 @@ import pytest
 from torch import nn
 from omegaconf import OmegaConf, DictConfig
 
-from dnanet.data.transformer import AlleleMetadataTransformer, SegmentationTransformer
 from dnanet.tasks.train import (
     run,
     _save_config,
     _build_logger,
     _build_callbacks,
-    _validate_dataset_for_callbacks,
     _configure_module_for_callbacks,
+    _validate_dataset_for_callbacks,
 )
+from dnanet.data.transformer import SegmentationTransformer, AlleleMetadataTransformer
 
 
 def _make_cfg(**overrides) -> DictConfig:

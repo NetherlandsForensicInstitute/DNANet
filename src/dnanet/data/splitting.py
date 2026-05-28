@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from torch.utils.data import ConcatDataset, Dataset, Subset
+from torch.utils.data import Subset, Dataset, ConcatDataset
 
 from dnanet.data.dataset import TransformableDataset
-from dnanet.data.strategies.datasets.dataset import DatasetStrategy
+
+
+if TYPE_CHECKING:
+    from dnanet.data.strategies.datasets.dataset import DatasetStrategy
 
 
 AnyDataset = Dataset | TransformableDataset
@@ -24,41 +27,42 @@ def dataset_splitter(dataset: AnyDataset, **split_kwargs: Any) -> FractionalSpli
     No kwargs:
         Returns (dataset, None, None).
     """
-    val_fraction = split_kwargs.get("val_fraction")
-    k_folds = split_kwargs.get("k_folds")
+    val_fraction = split_kwargs.get('val_fraction')
+    k_folds = split_kwargs.get('k_folds')
 
     # Normalize missing test_fraction to 0.0 for fractional splits
-    if "test_fraction" not in split_kwargs and val_fraction is not None:
-        split_kwargs = {**split_kwargs, "test_fraction": 0.0}
-    test_fraction = split_kwargs.get("test_fraction")
+    if 'test_fraction' not in split_kwargs and val_fraction is not None:
+        split_kwargs = {**split_kwargs, 'test_fraction': 0.0}
+    test_fraction = split_kwargs.get('test_fraction')
 
     if val_fraction is None and test_fraction is None and k_folds is None:
-        return cast(Dataset, dataset), None, None  # type: ignore[return-value]
+        return cast('Dataset', dataset), None, None  # type: ignore[return-value]
 
     match (val_fraction, test_fraction, k_folds):
+        # Catch unexpected splitting arguments
         case (float(), float(), None) if val_fraction + test_fraction >= 1.0:
             raise ValueError(
                 f'val_fraction ({val_fraction}) + test_fraction ({test_fraction}) must be < 1.0'
             )
-        case (float(), _, _) if val_fraction < .0:
+        case (float(), _, _) if val_fraction < 0.0:
             raise ValueError(f'val_fraction must be > 0, got {val_fraction}')
-        case (_, float(), _) if test_fraction < .0:
+        case (_, float(), _) if test_fraction < 0.0:
             raise ValueError(f'test_fraction must be >= 0, got {test_fraction}')
-
+        # Fractional splitting
         case (float(), float(), None) if isinstance(dataset, ConcatDataset):
             return _apply_concatenated_dataset_splitting(dataset, **split_kwargs)
         case (float(), float(), None):
             return _apply_single_dataset_splitting(dataset, **split_kwargs)
-
+        # K-fold splitting
         case (None, float(), int()) if isinstance(dataset, ConcatDataset):
             return _apply_concatenated_dataset_kfold_splitting(dataset, **split_kwargs)  # type: ignore[return-value]
         case (None, float(), int()):
             return _apply_single_dataset_kfold_splitting(dataset, **split_kwargs)  # type: ignore[return-value]
-
-    raise ValueError(
-        f'Unrecognised split_kwargs combination: {split_kwargs}. '
-        'Provide val_fraction for fractional splits or k_folds (without val_fraction) for k-fold.'
-    )
+        case _:
+            raise ValueError(
+                f'Unrecognised split_kwargs combination: {split_kwargs}. '
+                'Provide val_fraction for fractional splits or k_folds (without val_fraction) for k-fold.'
+            )
 
 
 def _apply_single_dataset_splitting(
@@ -76,16 +80,16 @@ def _apply_single_dataset_splitting(
 
     if test_fraction > 0.0:
         train_data, val_data, test_data = cast(
-            tuple[Subset, Subset, Subset],
+            'tuple[Subset, Subset, Subset]',
             strategy.split(dataset, fraction=train_fraction, **split_kwargs),
         )
     elif val_fraction > 0.0:
         train_data, val_data = cast(
-            tuple[Subset, Subset],
+            'tuple[Subset, Subset]',
             strategy.split(dataset, fraction=train_fraction, **split_kwargs),
         )
     else:
-        train_data = cast(Subset, dataset)
+        train_data = cast('Subset', dataset)
 
     return train_data, val_data, test_data
 
@@ -124,17 +128,17 @@ def _apply_single_dataset_kfold_splitting(
     if test_fraction:
         # Split off test set first, then k-fold the remainder
         k_fold_set, test_set = cast(
-            tuple[Subset, Subset],
+            'tuple[Subset, Subset]',
             strategy.split(dataset=dataset, fraction=1.0 - test_fraction, **split_parameters),
         )
         folds = cast(
-            list[tuple[Dataset, Dataset]],
+            'list[tuple[Dataset, Dataset]]',
             strategy.split(dataset=k_fold_set, k_folds=k_folds, **split_parameters),
         )
         return folds, test_set
 
     folds = cast(
-        list[tuple[Dataset, Dataset]],
+        'list[tuple[Dataset, Dataset]]',
         strategy.split(dataset=dataset, k_folds=k_folds, **split_parameters),
     )
     return folds, None

@@ -65,16 +65,19 @@ class ReconstructionModule(BaseTaskModule):
             lr_scheduler=lr_scheduler,
             batch_size=batch_size,
         )
-        self.save_hyperparameters({
-            "learning_rate": learning_rate,
-            "weight_decay": weight_decay,
-        })
+        self.save_hyperparameters(
+            {
+                'learning_rate': learning_rate,
+                'weight_decay': weight_decay,
+            }
+        )
 
         self.autoencoder_log_scale = autoencoder_log_scale
         self.autoencoder_max_rfu = autoencoder_max_rfu
 
     def compute_step_outputs(
-        self, batch: Tensor | tuple[Tensor, ...],
+        self,
+        batch: Tensor | tuple[Tensor, ...],
     ) -> tuple[Tensor, Tensor, Tensor]:
         """Compute reconstruction loss and metric inputs.
 
@@ -97,9 +100,7 @@ class ReconstructionModule(BaseTaskModule):
 
         # denormalize
         reconstruction = inverse_scale_rfu_torch(
-            reconstruction,
-            self.autoencoder_log_scale,
-            self.autoencoder_max_rfu
+            reconstruction, self.autoencoder_log_scale, self.autoencoder_max_rfu
         )
 
         loss = self.loss_fn(reconstruction, target)

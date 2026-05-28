@@ -18,10 +18,14 @@ Design pattern: **Value Object**
 
 from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
 
 from dnanet.core import Annotation, ClassAnnotation
 from dnanet.data.image import TrainableElement
+
+
+if TYPE_CHECKING:
+    import numpy as np
 
 
 class ExtractedPeak(TrainableElement):
@@ -41,17 +45,17 @@ class ExtractedPeak(TrainableElement):
     """
 
     __slots__ = (
-        "_data",
-        "dye_index",
-        "peak_center",
-        "window_size",
-        "peak_height",
-        "label",
-        "annotation_idx",
-        "marker_name",
-        "marker_index",
-        "peak_basepair",
-        "window_start",
+        '_data',
+        'dye_index',
+        'peak_center',
+        'window_size',
+        'peak_height',
+        'label',
+        'annotation_idx',
+        'marker_name',
+        'marker_index',
+        'peak_basepair',
+        'window_start',
     )
 
     def __init__(
@@ -92,8 +96,7 @@ class ExtractedPeak(TrainableElement):
     @property
     def is_allele(self) -> bool:
         """Whether this peak is labeled as an allele."""
-        return self.label == "allele"
-
+        return self.label == 'allele'
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ExtractedPeak):

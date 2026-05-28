@@ -4,7 +4,7 @@ Handles the NFI Zaaksdata
 
 Warning:
     This strategy is developed specifically for our in-house casework.
-    Altough file-collection and caching logic might be of use for your own implementation,
+    Although file-collection and caching logic might be of use for your own implementation,
     using this strategy for other/your own data does not make sense.
 
     Please see the documentation about developing your own strategy, or use the two other strategies for the open-source data.
@@ -35,8 +35,7 @@ from dnanet.data.strategies.datasets.dataset import FileCategory, DatasetStrateg
 from dnanet.data.strategies.datasets.nfi_rnd import NFIRnDStrategy
 
 
-class NFICaseStrategy(DatasetStrategy):
-    _ROBOT_NAMES = ('3500XL_A', '3500XL_B', '3500XL_C', '3500XL_D')
+class NFICaseStrategy(DatasetStrategy):  # noqa: D101
     _CACHE_DIR = Path('/tmp/.nfi_zaaksdata_cache/')
 
     def __init__(
@@ -61,7 +60,7 @@ class NFICaseStrategy(DatasetStrategy):
         Available annotation types:
         - AT: only include profiles with a "high" analytical threshold (allele annotation)
         - LT: only include profiles with a low threshold (allele annotation)
-        - ATLT: include profiles with either a high or low threshold (allele annotation)
+        - ATLT: include profiles with either a high or low threshold, meaning all annotations are included (allele annotation)
         - span: include profiles with a span annotation (scanpoint annotation)
         """
         super().__init__()
@@ -102,7 +101,7 @@ class NFICaseStrategy(DatasetStrategy):
         cache_file = self._CACHE_DIR / f'collect-{cache_key}'
 
         if cache_file.exists():
-            logger.debug(f'Reading collect_dataset_files from cache: {cache_file}')
+            logger.info(f'Reading collect_dataset_files from cache: {cache_file}')
             with cache_file.open('rb') as f:
                 yield from pickle.load(f)
             return
@@ -133,8 +132,8 @@ class NFICaseStrategy(DatasetStrategy):
     ) -> Generator[Tuple[Path, Annotation | None, Path | None], None, None]:
         path = Path(root_path)
 
-        # Collect all .HID files from the robot folders
-        file_list = self.find_robot_files(
+        # Collect all .HID files
+        file_list = self.find_subfolder_files(
             path,
             self._subfolder_selection,
             cache=folder_cache,
@@ -176,7 +175,7 @@ class NFICaseStrategy(DatasetStrategy):
     ) -> Callable[[Path], Annotation | None]:
         """Build a per-HID annotation resolver for the configured annotation type.
 
-        The dataset collector iterates robot files once and delegates
+        The dataset collector iterates files once and delegates
         annotation lookup to the callable returned here. Each annotation type
         can therefore prepare its own lookup state up front while the core HID
         filtering and ladder collection logic remains centralized in
@@ -185,6 +184,8 @@ class NFICaseStrategy(DatasetStrategy):
         Args:
             path: Dataset root containing the annotation directories.
             scaling_strategy: Scaling strategy required to parse annotations.
+            annotation_type: What type of annotation to resolve for ('span', 'AT', 'LT', 'ATLT')
+            span_annotations_path: Path to the span annotation csv's (if using span)
 
         Returns:
             A callable that takes a HID path and returns the corresponding
@@ -194,7 +195,7 @@ class NFICaseStrategy(DatasetStrategy):
             ValueError: If ``self.annotation_type`` is not supported.
         """
         if annotation_type is None:
-            return lambda hid_file: None
+            return lambda _: None
         if annotation_type == 'span':
             # parse span annotations
             if span_annotations_path is None:
@@ -211,13 +212,17 @@ class NFICaseStrategy(DatasetStrategy):
             annotations_folder = path / 'annotations'
             annotation_mapping = cls.find_annotation_files(annotations_folder)
 
-            # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
-            run_id_path = path / 'runid_type.csv'
-            if not run_id_path.exists():
-                raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
-            run_id_type_mapping = {
-                row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
-            }
+            if annotation_type == 'ATLT':
+                # for ATLT, we include all annotations, there do not need a runid type mapping.
+                run_id_type_mapping = dict()
+            else:
+                # find what run_id corresponds to what annotation type (AT/LT/init) from runid_type.csv
+                run_id_path = path / 'runid_type.csv'
+                if not run_id_path.exists():
+                    raise FileNotFoundError(f'Could not find runid_type.csv in {path}')
+                run_id_type_mapping = {
+                    row[0]: row[1] for row in np.genfromtxt(run_id_path, delimiter=',', dtype=str)
+                }
 
             def resolve_annotation(hid_file: Path) -> AlleleAnnotation | None:
                 run_id = hid_file.stem.split('_')[0]
@@ -302,39 +307,39 @@ class NFICaseStrategy(DatasetStrategy):
         return 'sample'
 
     @classmethod
-    def find_robot_files(
+    def find_subfolder_files(
         cls,
         data_folder: Path,
         selected_subfolders: Sequence[str] | None = None,
-        robot_limit: int | None = None,
+        subfolder_limit: int | None = None,
         cache: bool = True,
     ) -> Generator[Path, None, None]:
-        """Collect all files in the robot's casework folders.
+        """Collect all files in the subfolders .
 
         Args:
-            data_folder: The root in which the robot folders reside
+            data_folder: The root in which subfolders reside
             selected_subfolders: Allows for a subselection of folder names (e.g. `('3500XL_A',)`). Defaults to None.
-            robot_limit: Limits the amount of files returned from a robot. Defaults to None.
+            subfolder_limit: Limits the amount of files returned from a subfolder. Defaults to None.
             cache: Whether to use cache saved in /tmp/ to prevent walking the whole folder again between runs.
 
         Yields:
-            File paths of .hid's found in the robot folders.
+            File paths of .hid's found in the folders.
         """
         if (data_folder / 'hids').exists():
             data_folder = data_folder / 'hids'
         if selected_subfolders is None:
             logger.info(f'Retrieving files in {data_folder}')
             yield from itertools.islice(
-                cls._scan_directory_structure(data_folder, cache=cache), robot_limit
+                cls._scan_directory_structure(data_folder, cache=cache), subfolder_limit
             )
         else:
-            for subfolder in selected_subfolders:
-                robot_folder = data_folder / subfolder
-                if not robot_folder.exists():
+            for subfolder_name in selected_subfolders:
+                subfolder = data_folder / subfolder_name
+                if not subfolder.exists():
                     continue
                 logger.info(f'Retrieving files from {subfolder}')
                 yield from itertools.islice(
-                    cls._scan_directory_structure(robot_folder, cache=cache), robot_limit
+                    cls._scan_directory_structure(subfolder, cache=cache), subfolder_limit
                 )
 
     @classmethod
@@ -349,7 +354,9 @@ class NFICaseStrategy(DatasetStrategy):
 
     @classmethod
     def _scan_directory_structure(cls, path: PathLike, cache: bool = True):
-        _cache_file = cls._CACHE_DIR / f'{Path(path).stem}-cache'
+        _path = Path(path)
+        _path_hash = hashlib.md5(str(_path).encode()).hexdigest()
+        _cache_file = cls._CACHE_DIR / f'scan-{_path_hash}'
         if cache and _cache_file.exists():
             logger.debug(f'Reading folder contents from cache: {_cache_file}')
             with _cache_file.open('rb') as f:

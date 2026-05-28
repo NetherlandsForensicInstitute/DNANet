@@ -10,9 +10,9 @@ from dnanet.data.strategies.scaling.size_standard import WEN_ILS
 class TestSTRKit:
     def _make_kit(self, **kwargs):
         defaults = dict(
-            name="TestKit",
+            name='TestKit',
             size_standard=WEN_ILS,
-            panel_path="",
+            panel_path='',
             num_dyes=5,
         )
         defaults.update(kwargs)
@@ -32,10 +32,10 @@ class TestSTRKit:
 
     def test_invalid_hid_index_raises(self):
         kit = self._make_kit()
-        with pytest.raises(ValueError, match="Unknown HID dye index"):
+        with pytest.raises(ValueError, match='Unknown HID dye index'):
             kit.dye_row_from_hid_index(5)  # skipped in default PPF6C mapping
 
     def test_frozen(self):
         kit = self._make_kit()
         with pytest.raises(AttributeError):
-            kit.name = "changed"
+            kit.name = 'changed'

@@ -25,8 +25,8 @@ from torch.utils.data import DataLoader, default_collate
 from dnanet.tasks.train import (
     _build_logger,
     _build_callbacks,
-    _validate_dataset_for_callbacks,
     _configure_module_for_callbacks,
+    _validate_dataset_for_callbacks,
 )
 from dnanet.data.splitting import KFoldSplitResult, dataset_splitter
 
@@ -41,24 +41,26 @@ def _null_context():
 
 
 def _is_mlflow_logger(cfg: DictConfig) -> bool:
-    log_cfg = cfg.get("logging")
-    return bool(log_cfg and log_cfg.get("logger_type") == "mlflow")
+    log_cfg = cfg.get('logging')
+    return bool(log_cfg and log_cfg.get('logger_type') == 'mlflow')
 
 
 @contextmanager
 def _mlflow_parent_run(cfg: DictConfig, k_folds: int):
     """Context manager: start parent MLflow run, yield mlflow_cfg, end on exit."""
     mlflow_cfg = cfg.logging.mlflow
-    mlflow.set_tracking_uri(mlflow_cfg.get("tracking_uri", "mlruns"))
-    mlflow.set_experiment(mlflow_cfg.get("experiment_name", "dnanet"))
-    with mlflow.start_run(run_name=f"cross_validate_{k_folds}fold") as parent_run:
+    mlflow.set_tracking_uri(mlflow_cfg.get('tracking_uri', 'mlruns'))
+    mlflow.set_experiment(mlflow_cfg.get('experiment_name', 'dnanet'))
+    with mlflow.start_run(run_name=f'cross_validate_{k_folds}fold') as parent_run:
         mlflow.log_params(flatten(cfg, reducer=lambda x, y: f'{x}/{y}' if x else f'{y}'))
-        mlflow.set_tags({
-            "model": cfg.get("model", {}).get("name", "unknown"),
-            "data": cfg.data.get("name", "unknown"),
-            "task": "cross_validate",
-            "k_folds": str(k_folds),
-        })
+        mlflow.set_tags(
+            {
+                'model': cfg.get('model', {}).get('name', 'unknown'),
+                'data': cfg.data.get('name', 'unknown'),
+                'task': 'cross_validate',
+                'k_folds': str(k_folds),
+            }
+        )
         yield mlflow_cfg, parent_run
 
 
@@ -67,14 +69,12 @@ def _build_fold_logger(
 ) -> L.pytorch.loggers.Logger | None:
     if mlflow_cfg is None:
         return _build_logger(cfg)
-    nested_run = mlflow.start_run(
-        nested=True, run_name=f"fold_{fold_idx + 1}"
-    )
-    mlflow.set_tag("fold", fold_idx + 1)
+    nested_run = mlflow.start_run(nested=True, run_name=f'fold_{fold_idx + 1}')
+    mlflow.set_tag('fold', fold_idx + 1)
     return L.pytorch.loggers.MLFlowLogger(
-        experiment_name=mlflow_cfg.get("experiment_name", "dnanet"),
-        tracking_uri=mlflow_cfg.get("tracking_uri", "mlruns"),
-        log_model=mlflow_cfg.get("log_model", False),
+        experiment_name=mlflow_cfg.get('experiment_name', 'dnanet'),
+        tracking_uri=mlflow_cfg.get('tracking_uri', 'mlruns'),
+        log_model=mlflow_cfg.get('log_model', False),
         run_id=nested_run.info.run_id,
     )
 
@@ -87,37 +87,38 @@ def run(
 
     Args:
         cfg: Composed Hydra config. Must include ``splitting.k_folds``.
+        dataset: The dataset to use for cross validation.
 
     Returns:
         Dictionary with ``"per_fold"`` and ``"aggregate"`` keys.
     """
     L.seed_everything(cfg.seed, workers=True)
-    
+
     # Validate config
     if not dataset:
-        data_cfg = cfg.get("data")
+        data_cfg = cfg.get('data')
         if data_cfg is None:
             raise ValueError(
-                "Cross-validation requires a dataset. "
-                "Set it via: dnanet task=cross_validate data=your_dataset"
+                'Cross-validation requires a dataset. '
+                'Set it via: dnanet task=cross_validate data=your_dataset'
             )
         dataset = instantiate(data_cfg.dataset)
     _validate_dataset_for_callbacks(cfg, dataset)
 
-    if not cfg.splitting.get("k_folds"):
+    if not cfg.splitting.get('k_folds'):
         raise ValueError(
-            "task=cross_validate requires k-fold splitting. "
-            "Run with: dnanet task=cross_validate splitting=cross_validate ..."
+            'task=cross_validate requires k-fold splitting. '
+            'Run with: dnanet task=cross_validate splitting=cross_validate ...'
         )
 
     split_kwargs: dict = OmegaConf.to_container(cfg.splitting, resolve=True)  # type: ignore[assignment]
-    folds, _test_set = cast(KFoldSplitResult, dataset_splitter(dataset, **split_kwargs))
+    folds, _test_set = cast('KFoldSplitResult', dataset_splitter(dataset, **split_kwargs))
 
-    _transform = getattr(dataset, "transform", None)
+    _transform = getattr(dataset, 'transform', None)
     collate_fn = _transform.collate_fn if _transform is not None else default_collate
 
     k_folds = len(folds)
-    logger.info("Starting {}-fold cross-validation", k_folds)
+    logger.info('Starting {}-fold cross-validation', k_folds)
 
     all_fold_metrics: list[dict[str, float]] = []
     agg_metrics: dict[str, list[float]] = defaultdict(list)
@@ -125,22 +126,22 @@ def run(
     use_mlflow = _is_mlflow_logger(cfg)
     ctx = _mlflow_parent_run(cfg, k_folds) if use_mlflow else None
 
-    with (ctx if ctx is not None else _null_context()) as mlflow_info:
+    with ctx if ctx is not None else _null_context() as mlflow_info:
         mlflow_cfg = mlflow_info[0] if use_mlflow else None
 
         for fold_idx, (train_set, val_set) in enumerate(folds):
-            logger.info("=" * 60)
-            logger.info("Fold {}/{}", fold_idx + 1, k_folds)
-            logger.info("Train: {} samples, Val: {} samples", len(train_set), len(val_set))
+            logger.info('=' * 60)
+            logger.info('Fold {}/{}', fold_idx + 1, k_folds)
+            logger.info('Train: {} samples, Val: {} samples', len(train_set), len(val_set))
 
-            fold_dir = Path(cfg.output_dir) / f"fold_{fold_idx + 1}"
+            fold_dir = Path(cfg.output_dir) / f'fold_{fold_idx + 1}'
             fold_dir.mkdir(parents=True, exist_ok=True)
 
             network = instantiate(cfg.model.architecture)
             optimizer = instantiate(cfg.train.optimizer, params=network.parameters())
             scheduler = (
                 instantiate(cfg.train.scheduler, optimizer=optimizer)
-                if cfg.train.get("scheduler")
+                if cfg.train.get('scheduler')
                 else None
             )
             module = instantiate(
@@ -148,7 +149,7 @@ def run(
                 model=network,
                 optimizer=optimizer,
                 lr_scheduler=scheduler,
-                _convert_="partial",
+                _convert_='partial',
             )
             _configure_module_for_callbacks(cfg, module)
 
@@ -187,22 +188,22 @@ def run(
             try:
                 trainer.fit(module, train_dataloaders=train_loader, val_dataloaders=val_loader)
             except KeyboardInterrupt:
-                logger.warning("Training interrupted at fold {}", fold_idx + 1)
+                logger.warning('Training interrupted at fold {}', fold_idx + 1)
                 interrupted = True
             finally:
                 if use_mlflow:
                     mlflow.end_run()  # ends nested fold run
 
             fold_metrics = {
-                k: float(v.item() if hasattr(v, "item") else v)
+                k: float(v.item() if hasattr(v, 'item') else v)
                 for k, v in trainer.callback_metrics.items()
             }
             all_fold_metrics.append(fold_metrics)
             for name, value in fold_metrics.items():
                 agg_metrics[name].append(value)
 
-            fold_dir.joinpath("metrics.json").write_text(json.dumps(fold_metrics, indent=2))
-            logger.info("Fold {} complete: {}", fold_idx + 1, fold_metrics)
+            fold_dir.joinpath('metrics.json').write_text(json.dumps(fold_metrics, indent=2))
+            logger.info('Fold {} complete: {}', fold_idx + 1, fold_metrics)
 
             if interrupted:
                 break
@@ -211,17 +212,17 @@ def run(
         for name, values in agg_metrics.items():
             mean = float(np.mean(values))
             std = float(np.std(values))
-            aggregate[f"{name}_mean"] = mean
-            aggregate[f"{name}_std"] = std
-            logger.info("  {}: {:.4f} ± {:.4f}", name, mean, std)
+            aggregate[f'{name}_mean'] = mean
+            aggregate[f'{name}_std'] = std
+            logger.info('  {}: {:.4f} ± {:.4f}', name, mean, std)
 
         if use_mlflow:
             mlflow.log_metrics(aggregate)
 
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_dir.joinpath("aggregate_metrics.json").write_text(json.dumps(aggregate, indent=2))
-    output_dir.joinpath("config.yaml").write_text(OmegaConf.to_yaml(cfg))
-    logger.info("Cross-validation complete. Results saved to {}", output_dir)
+    output_dir.joinpath('aggregate_metrics.json').write_text(json.dumps(aggregate, indent=2))
+    output_dir.joinpath('config.yaml').write_text(OmegaConf.to_yaml(cfg))
+    logger.info('Cross-validation complete. Results saved to {}', output_dir)
 
-    return {"per_fold": all_fold_metrics, "aggregate": aggregate}
+    return {'per_fold': all_fold_metrics, 'aggregate': aggregate}

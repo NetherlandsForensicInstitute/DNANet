@@ -85,7 +85,6 @@ class SegmentationModule(BaseTaskModule):
             {
                 'learning_rate': learning_rate,
                 'weight_decay': weight_decay,
-                'threshold': threshold,
             }
         )
 
@@ -151,8 +150,9 @@ class MultiClassSegmentationModule(SegmentationModule):
     e.g. "is output_channels=2 + argmax the same as output_channels=1 + sigmoid?"
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, ignore_index: int | None = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self._ignore_index = ignore_index if ignore_index else -100
 
     def _compute_loss_and_probabilities(
         self, batch: tuple[Tensor, Tensor] | tuple[Tensor, Tensor, Any]
@@ -164,7 +164,14 @@ class MultiClassSegmentationModule(SegmentationModule):
         preds = torch.sigmoid(logits)
         best_class = torch.argmax(preds, dim=1)
 
-        loss = self.loss_fn(preds, y)
+        loss = self.loss_fn(logits, y)
+
+        # Filter out ignored class from predictions for metric computation
+        # (torchmetrics Multiclass* don't support ignore_index)
+        if self._ignore_index is not None:
+            mask = y != self._ignore_index
+            best_class = best_class[mask]
+
         return loss, best_class.detach(), y
 
     def predict_step(self, batch: Any, batch_idx: int) -> Tensor:

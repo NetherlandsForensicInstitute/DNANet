@@ -18,23 +18,20 @@ Implemented are:
 from __future__ import annotations
 
 import abc
-from collections import defaultdict
 from typing import Literal
+from collections import defaultdict
 
 import numpy as np
 from loguru import logger
 
-from dnanet.core import Allele, Marker, Panel, LabelCategory
+from dnanet.core import Panel, Allele, Marker, LabelCategory
 
 
 class AlleleCaller(abc.ABC):
     """Abstract base class for allele calling strategies."""
 
     @abc.abstractmethod
-    def call_alleles(
-        self,
-        **kwargs
-    ) -> tuple[Marker, ...]:
+    def call_alleles(self, **kwargs) -> tuple[Marker, ...]:
         """Translate any input to a sequence of :class:`~dnanet.core.marker.Marker` objects with called alleles."""
 
 
@@ -55,16 +52,17 @@ class FromSegmentationImageCaller(AlleleCaller):
         allele_class_index: Class index to treat as allele signal when
             ``prediction_mode`` resolves to ``"multiclass_labels"``.
     """
+
     def __init__(
         self,
         threshold: float = 0.5,
         exclude_non_autosomal: bool = False,
-        prediction_mode: Literal["auto", "binary", "multiclass_labels"] = "auto",
+        prediction_mode: Literal['auto', 'binary', 'multiclass_labels'] = 'auto',
     ) -> None:
-        if prediction_mode not in {"auto", "binary", "multiclass_labels"}:
+        if prediction_mode not in {'auto', 'binary', 'multiclass_labels'}:
             raise ValueError(
                 "prediction_mode must be 'auto', 'binary', or 'multiclass_labels', "
-                f"got {prediction_mode!r}."
+                f'got {prediction_mode!r}.'
             )
         self.threshold = threshold
         self.exclude_non_autosomal = exclude_non_autosomal
@@ -95,7 +93,10 @@ class FromSegmentationImageCaller(AlleleCaller):
         """
         allele_mask = self._prediction_to_allele_mask(prediction_image)
         markers = self._translate_pixels_to_alleles(
-            scaler, allele_mask, signal_image, panel,
+            scaler,
+            allele_mask,
+            signal_image,
+            panel,
         )
 
         if self.exclude_non_autosomal:
@@ -109,12 +110,12 @@ class FromSegmentationImageCaller(AlleleCaller):
         prediction = np.asarray(prediction_image)
         if prediction.ndim != 2:
             raise ValueError(
-                "prediction_image must be a 2-D array of shape (num_dyes, scanpoints), "
-                f"got shape {prediction.shape}."
+                'prediction_image must be a 2-D array of shape (num_dyes, scanpoints), '
+                f'got shape {prediction.shape}.'
             )
 
         prediction_mode = self._resolve_prediction_mode(prediction)
-        if prediction_mode == "binary":
+        if prediction_mode == 'binary':
             return prediction >= self.threshold
 
         return prediction == self.allele_class_index
@@ -122,27 +123,26 @@ class FromSegmentationImageCaller(AlleleCaller):
     def _resolve_prediction_mode(
         self,
         prediction: np.ndarray,
-    ) -> Literal["binary", "multiclass_labels"]:
+    ) -> Literal['binary', 'multiclass_labels']:
         """Resolve the effective prediction mode for a normalized array."""
-        if self.prediction_mode != "auto":
+        if self.prediction_mode != 'auto':
             return self.prediction_mode
 
         if prediction.dtype == np.bool_ or np.issubdtype(prediction.dtype, np.floating):
-            return "binary"
+            return 'binary'
 
         if np.issubdtype(prediction.dtype, np.integer):
             unique_values = np.unique(prediction)
             if np.all(np.isin(unique_values, (0, 1))):
                 raise ValueError(
-                    "prediction_image is ambiguous in auto mode: integer arrays containing "
-                    "only values {0, 1} could be either binary masks or multiclass labels. "
-                    "Set allele caller prediction_mode explicitly."
+                    'prediction_image is ambiguous in auto mode: integer arrays containing '
+                    'only values {0, 1} could be either binary masks or multiclass labels. '
+                    'Set allele caller prediction_mode explicitly.'
                 )
-            return "multiclass_labels"
+            return 'multiclass_labels'
 
         raise ValueError(
-            "prediction_image has unsupported dtype for auto mode: "
-            f"{prediction.dtype}."
+            f'prediction_image has unsupported dtype for auto mode: {prediction.dtype}.'
         )
 
     def _translate_pixels_to_alleles(
@@ -167,7 +167,7 @@ class FromSegmentationImageCaller(AlleleCaller):
             # Find indices of positive predictions.
             positives = np.where(dye_pred)[0]
             if positives.size == 0:
-                logger.debug("No predictions in dye row {}", dye_index)
+                logger.debug('No predictions in dye row {}', dye_index)
                 continue
 
             # Split into connected components (consecutive indices)
@@ -177,12 +177,20 @@ class FromSegmentationImageCaller(AlleleCaller):
             )
 
             for prediction_bin in predicted_bins:
-                bin_basepairs = scaler[prediction_bin]  # Use the scaler to translate pixels to base pairs.
-                bin_rfus = signal_image[dye_index, prediction_bin]  # Find the rfu values inside the predicted bin.
-                bp_max_rfu = float(bin_basepairs[np.argmax(bin_rfus)])  # Find the base pair of the highest rfu.
+                bin_basepairs = scaler[
+                    prediction_bin
+                ]  # Use the scaler to translate pixels to base pairs.
+                bin_rfus = signal_image[
+                    dye_index, prediction_bin
+                ]  # Find the rfu values inside the predicted bin.
+                bp_max_rfu = float(
+                    bin_basepairs[np.argmax(bin_rfus)]
+                )  # Find the base pair of the highest rfu.
 
                 marker_name, allele_name = self.call_allele_from_basepair(
-                    dye_index, bp_max_rfu, panel,
+                    dye_index,
+                    bp_max_rfu,
+                    panel,
                 )
 
                 # Store the allele_name and also the mean_bp the allele was found on
@@ -191,7 +199,8 @@ class FromSegmentationImageCaller(AlleleCaller):
                 # Track highest RFU for this allele
                 max_rfu = int(np.max(bin_rfus))
                 rfus[(marker_name, allele_name, bp_max_rfu)] = max(
-                    rfus[(marker_name, allele_name, bp_max_rfu)], max_rfu,
+                    rfus[(marker_name, allele_name, bp_max_rfu)],
+                    max_rfu,
                 )
 
         return tuple(
@@ -199,7 +208,9 @@ class FromSegmentationImageCaller(AlleleCaller):
                 name=marker_name,
                 dye_row=dye_index,
                 alleles=frozenset(
-                    Allele(name=allele_name, height=rfus[(marker_name, allele_name, bp)], base_pair=bp)
+                    Allele(
+                        name=allele_name, height=rfus[(marker_name, allele_name, bp)], base_pair=bp
+                    )
                     for allele_name, bp in sorted(alleles)
                 ),
             )
@@ -216,10 +227,10 @@ class NearestBasePairCaller(FromSegmentationImageCaller):
     """Call alleles by nearest base-pair matching."""
 
     def __init__(
-            self,
-            threshold: float = 0.5,
-            exclude_non_autosomal: bool = False,
-            prediction_mode: Literal["auto", "binary", "multiclass_labels"] = "auto",
+        self,
+        threshold: float = 0.5,
+        exclude_non_autosomal: bool = False,
+        prediction_mode: Literal['auto', 'binary', 'multiclass_labels'] = 'auto',
     ) -> None:
         super().__init__(
             threshold=threshold,
@@ -233,7 +244,9 @@ class NearestBasePairCaller(FromSegmentationImageCaller):
         base_pair: float,
         panel: Panel,
     ) -> tuple[str, str]:
-        """Find the nearest allele in the panel for a given dye and base-pair and returns its allele name and
+        """Return allele name for a given dye and base-pair.
+
+        Find the nearest allele in the panel for a given dye and base-pair and returns its allele name and
         marker name. If no alleles can be found, return 'Unknown' for both names.
 
         Args:
@@ -246,8 +259,8 @@ class NearestBasePairCaller(FromSegmentationImageCaller):
         """
         dye_mapping = panel.dye_bp_to_allele_mapping.get(dye_index, {})
         if not dye_mapping:
-            logger.error("No dye mapping available for dye row {}", dye_index)
-            return "Unknown", "Unknown"
+            logger.error('No dye mapping available for dye row {}', dye_index)
+            return 'Unknown', 'Unknown'
 
         nearest_bp = min(dye_mapping.keys(), key=lambda k: abs(k - base_pair))
         return dye_mapping[nearest_bp]
@@ -261,10 +274,10 @@ class ExactBasePairCaller(FromSegmentationImageCaller):
     """
 
     def __init__(
-            self,
-            threshold: float = 0.5,
-            exclude_non_autosomal: bool = False,
-            prediction_mode: Literal["auto", "binary", "multiclass_labels"] = "auto",
+        self,
+        threshold: float = 0.5,
+        exclude_non_autosomal: bool = False,
+        prediction_mode: Literal['auto', 'binary', 'multiclass_labels'] = 'auto',
     ) -> None:
         super().__init__(
             threshold=threshold,
@@ -274,11 +287,13 @@ class ExactBasePairCaller(FromSegmentationImageCaller):
 
     @staticmethod
     def call_allele_from_basepair(
-            dye_index: int,
-            base_pair: float,
-            panel: Panel,
+        dye_index: int,
+        base_pair: float,
+        panel: Panel,
     ) -> tuple[str, str]:
-        """Find the allele and marker for a given dye and base-pair by comparing the base pair to the bin base pairs
+        """Find the allele and marker for a given dye and base-pair.
+
+        ...by comparing the base pair to the bin base pairs
         stored in the panel. Demand that the base pair must be within 0.3 difference of the bin base pair, otherwise
         regard the peak as 'Out of Bin'.
 
@@ -292,8 +307,8 @@ class ExactBasePairCaller(FromSegmentationImageCaller):
         """
         dye_mapping = panel.dye_bp_to_allele_mapping.get(dye_index, {})
         if not dye_mapping:
-            logger.error("No dye mapping available for dye row {}", dye_index)
-            return "Unknown", "Unknown"
+            logger.error('No dye mapping available for dye row {}', dye_index)
+            return 'Unknown', 'Unknown'
 
         candidate_names = set()
         for bin_bp, (marker, allele) in dye_mapping.items():
@@ -306,4 +321,4 @@ class ExactBasePairCaller(FromSegmentationImageCaller):
 
         # Try to see if we can get the marker name, as the peak might not fall in an exact allele bin, but might
         # fall in a marker.
-        return panel.get_marker_name_by_dye_and_bp(dye_index, base_pair), "Out of Bin"
+        return panel.get_marker_name_by_dye_and_bp(dye_index, base_pair), 'Out of Bin'

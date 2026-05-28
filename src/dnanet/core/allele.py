@@ -53,10 +53,10 @@ class Allele:
     def from_dict(cls, data: dict[str, Any]) -> Allele:
         """Deserialize from a plain dictionary."""
         return cls(
-            name=data["name"],
-            base_pair=data.get("base_pair"),
-            left_bin=data.get("left_bin"),
-            right_bin=data.get("right_bin"),
-            height=data.get("height"),
-            in_ladder=data.get("in_ladder"),
+            name=data['name'],
+            base_pair=data.get('base_pair'),
+            left_bin=data.get('left_bin'),
+            right_bin=data.get('right_bin'),
+            height=data.get('height'),
+            in_ladder=data.get('in_ladder'),
         )

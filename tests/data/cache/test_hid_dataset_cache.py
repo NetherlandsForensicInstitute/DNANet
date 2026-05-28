@@ -7,7 +7,7 @@ behaviour rather than parsing correctness (covered by
 
 - first-run build creates a key dir
 - second-run hits the warm cache (no rebuild)
-- touching a source HID invalidates the fingerprint
+- modifying a source HID invalidates the fingerprint (content-hash based)
 - a config flip routes to a fresh key
 - ``allow_missing_annotations=True`` survives ``None`` annotations
 - ``load_in_memory=True`` materializes; the RAM guard refuses oversized caches
@@ -15,7 +15,6 @@ behaviour rather than parsing correctness (covered by
 
 from __future__ import annotations
 
-import os
 import time
 
 import pytest
@@ -75,18 +74,39 @@ class TestCacheBuildAndReload:
 
 
 class TestCacheInvalidation:
-    def test_touching_source_invalidates_fingerprint(self, tmp_path):
-        ds1 = _make(tmp_path)
+    def test_modified_source_invalidates_fingerprint(self, tmp_path):
+        import shutil
+
+        # Copy source tree into tmp_path so we never touch tracked LFS files.
+        data_dir = tmp_path / 'data'
+        shutil.copytree(RD_DIR, data_dir)
+        cache_dir_root = tmp_path / 'cache'
+        cache_dir_root.mkdir()
+
+        def _make_local(**kwargs) -> HIDDataset:
+            return HIDDataset(
+                root=data_dir,
+                cache_dir=str(cache_dir_root),
+                scaling_strategy=PowerPlexFusion6CStrategy(),
+                dataset_strategy=NFIRnDStrategy('DTH'),
+                **kwargs,
+            )
+
+        ds1 = _make_local()
         cache_dir = ds1._cache_dir  # type: ignore[attr-defined]
         original_complete = (cache_dir / '_COMPLETE').stat().st_mtime
 
-        # Bump every source HID's mtime to simulate an edit.
+        # Modify a sample file (not a ladder — ladders are excluded from the
+        # fingerprint, so modifying one would leave the cache untouched).
+        strategy = NFIRnDStrategy('DTH')
+        sample_hids = [
+            p for p in data_dir.rglob('*.hid') if strategy.categorize_file(p.name) == 'sample'
+        ]
+        assert sample_hids, 'No sample .hid files found'
+        sample_hids[0].write_bytes(sample_hids[0].read_bytes() + b'\x00')
         time.sleep(0.01)
-        for hid in RD_DIR.rglob('*.hid'):
-            now_ns = time.time_ns()
-            os.utime(hid, ns=(now_ns, now_ns))
 
-        ds2 = _make(tmp_path)
+        ds2 = _make_local()
         # Same key directory (config unchanged) but the cache must have been
         # rebuilt — _COMPLETE was rewritten.
         assert ds2._cache_dir == cache_dir  # type: ignore[attr-defined]

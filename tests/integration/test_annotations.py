@@ -123,7 +123,6 @@ class TestParseCalledAlleles:
             allele_annotation=sample_annotation,
             adjusted_panel=nfi_rnd_kit.panel,
             scaler=image.scaler,
-            include_size_standard=False,
             scaling_strategy=nfi_rnd_kit,
         ).data
 
@@ -140,13 +139,15 @@ class TestParseCalledAlleles:
             allele_annotation=sample_annotation,
             adjusted_panel=adjusted_panel,
             scaler=image.scaler,
-            include_size_standard=False,
             scaling_strategy=nfi_rnd_kit,
         ).data
 
         reference = np.load(RD_DIR / '1A2_A01_01_annotation.npy')
         if reference.ndim == 3:
             reference = reference[:, :, 0]
+
+        default_scanpoint = default_scanpoint[:-1]
+        adjusted_scanpoint = adjusted_scanpoint[:-1]
 
         default_diff = int(np.abs(default_scanpoint.astype(int) - reference.astype(int)).sum())
         adjusted_diff = int(np.abs(adjusted_scanpoint.astype(int) - reference.astype(int)).sum())
