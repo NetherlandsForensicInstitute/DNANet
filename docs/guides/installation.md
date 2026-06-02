@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.12–3.14
 - PyTorch 2.0+ (with MPS/CUDA support recommended)
 
 ## Install from Source
@@ -72,4 +72,4 @@ data/
 | `mlflow` | Experiment tracking (default logger) |
 | `tensorboard` | Alternative experiment tracking |
 | `openpyxl` | Reading ProvedIt XLSX genotype files |
-| `sphinx`, `myst-parser`, `sphinx-rtd-theme` | Building documentation |
+| `mkdocs` | Building documentation with Zensical |

@@ -5,20 +5,19 @@ PyTorch-ready tensors.
 
 ## HIDImage
 
-```{eval-rst}
-.. autoclass:: dnanet.data.image.HIDImage
-   :members:
-```
-
 The central data container. Wraps a path to a HID file with lazy loading.
 `HIDImage` receives the kit scaling strategy directly.
 
+```python
+from dnanet.data.image import HIDImage
+```
+
 **Properties:**
-- `data` → `np.ndarray | None` — Shape `(num_dyes, signal_length)`. Triggers load on first access.
-- `annotation` → `Annotation | None` — Ground-truth segmentation mask
-- `scaler` → `np.ndarray` — Shape `(signal_length,)`. Maps pixel → base pair.
-- `panel` → `Panel | None` — Reference panel
-- `dimensions` → `(height, width)` — Data array shape
+- `data` → `np.ndarray | None` — Shape `(num_dyes, signal_length, 1)`. Triggers load on first access.
+- `annotation` → `ScanpointAnnotation | None` — Ground-truth segmentation mask
+- `scaler` → `np.ndarray` — Shape `(1, signal_length)`. Maps pixel → base pair.
+- `adjusted_panel` → `Panel | None` — Reference panel
+- `dimensions` → `tuple[int, int]` — Data array shape `(num_dyes, signal_length)`
 - `meta` → `dict` — Metadata (NOC, ladder path, etc.)
 
 **Methods:**
@@ -28,117 +27,107 @@ The central data container. Wraps a path to a HID file with lazy loading.
 
 ## Datasets
 
-```{eval-rst}
-.. autoclass:: dnanet.data.dataset.InMemoryDataset
-   :members:
-.. autoclass:: dnanet.data.dataset.SimpleDataset
-   :members:
-.. autoclass:: dnanet.data.hid_dataset.HIDDataset
-   :members:
+### TransformableDataset
+
+Abstract base class for datasets of `HIDImage` objects. Provides properties
+for `images`, `transform`, and `dataset_strategy`.
+
+```python
+from dnanet.data.dataset import TransformableDataset
 ```
-
-### InMemoryDataset
-
-Abstract base for in-memory datasets. Implements `Sequence[HIDImage]`.
-
-**Key methods:**
-- `split(val_fraction, seed)` → `(train, val)` — Random split
-- `split_k_fold(n_folds, seed)` → `list[SimpleDataset]` — K-fold split
-- `__len__()`, `__getitem__()`, `__iter__()`
 
 ### HIDDataset
 
-Loads HID files from a directory. Extends `InMemoryDataset`.
+Loads HID files from a directory. Implements `TransformableDataset` and
+`torch.utils.data.Dataset`.
+
+```python
+from dnanet.data.hid_dataset import HIDDataset
+```
 
 **Constructor args:** See {doc}`/guides/datasets` for details.
 
-### SimpleDataset
-
-Lightweight wrapper around a list of `HIDImage` objects. Returned by
-`split()` and `split_k_fold()`.
-
 ## DataModule
-
-```{eval-rst}
-.. autoclass:: dnanet.data.datamodule.DNANetDataModule
-   :members:
-```
 
 ### DNANetDataModule
 
-Lightning DataModule bridging `InMemoryDataset` → PyTorch DataLoaders.
+Lightning DataModule bridging `TransformableDataset` → PyTorch DataLoaders.
+
+```python
+from dnanet.data.datamodule import DNANetDataModule
+```
 
 **Args:**
-- `dataset` — An `InMemoryDataset`
+- `dataset` — A `TransformableDataset` (e.g. `HIDDataset`)
 - `batch_size` — Batch size
-- `val_fraction` — Train/val split ratio
 - `num_workers` — DataLoader workers
-- `seed` — Random seed for reproducible splits
+- `shuffle_train` — Whether to shuffle the training DataLoader
+- `**split_kwargs` — Passed to `dataset_splitter()`: `val_fraction`, `test_fraction`, `seed`, etc.
 
 ## Parsing
 
-```{eval-rst}
-.. automodule:: dnanet.data.parsing.hid
-   :members:
-.. automodule:: dnanet.data.parsing.annotations
-   :members:
+```python
+from dnanet.data.parsing.hid import get_peak_data
 ```
 
 ### HID Parsing
 
-`get_peak_data(path, strategy)` — Parse a HID file and return raw/analyzed
-data as a numpy array.
-
-### Annotation Parsing
-
-`parse_called_alleles(annotation_file, panel, sample_name)` — Parse an
-AlleleReport TXT file and return called alleles for a specific sample.
+`get_peak_data(path, strategy, data_loading_strategy)` — Parse a HID file
+and return raw/analyzed data as a numpy array.
 
 ## Preprocessing
 
-```{eval-rst}
-.. automodule:: dnanet.data.preprocessing.peaks
-   :members:
-.. automodule:: dnanet.data.preprocessing.baseline
-   :members:
-```
-
 ### Peak Detection
+
+```python
+from dnanet.data.preprocessing.peaks import (
+    find_peaks_above_threshold,
+    find_peak_boundary,
+    find_peak_near_idx,
+    find_peak_idx_near_or_in_range,
+    find_valley_idx_in_range,
+    find_absolute_peak_idx_in_range,
+)
+```
 
 - `find_peaks_above_threshold(signal, threshold)` — Detect peaks including
   flat-top peaks
 - `find_peak_boundary(signal, peak_idx, threshold)` — Walk left/right to
   find peak start and end
 - `find_peak_near_idx(signal, idx)` — Find nearest peak at least as high
-- `find_peak_idx_near_or_in_range(signal, range, threshold)` — Find dominant
-  peak within or near an index range
+- `find_peak_idx_near_or_in_range(signal, index_range, threshold)` — Find
+  dominant peak within or near an index range
+- `find_valley_idx_in_range(signal, index_range, threshold)` — Find signal
+  minimum within an index range
+- `find_absolute_peak_idx_in_range(signal, index_range, threshold)` — Find
+  peak by absolute value within an index range
 
 ### Baseline Estimation
 
-- `superior_baseline(signal)` — DNANet's recommended baseline method
-- `classic_baseline(signal)` — Traditional rolling-minimum approach
-- `enhanced_baseline(signal)` — Improved classic with smoothing
+```python
+from dnanet.data.preprocessing.baseline import (
+    baseline_superior,
+    baseline_classic,
+    baseline_enhanced,
+)
+```
+
+- `baseline_superior(signal)` — DNANet's recommended baseline method
+  (100-pt window, 20th percentile)
+- `baseline_classic(signal)` — Traditional rolling-minimum approach
+  (551-pt window, 20th percentile)
+- `baseline_enhanced(signal)` — Improved classic with piecewise weighted
+  linear fits and Savitzky-Golay smoothing
 
 ## Strategies
-
-```{eval-rst}
-.. autoclass:: dnanet.data.strategies.scaling.ScalingStrategy
-   :members:
-.. autoclass:: dnanet.data.strategies.scaling.PowerPlexFusion6CStrategy
-   :members:
-.. autoclass:: dnanet.data.strategies.scaling.GlobalFilerStrategy
-   :members:
-.. autoclass:: dnanet.data.strategies.datasets.DatasetStrategy
-   :members:
-.. autoclass:: dnanet.data.strategies.datasets.NFIRnDStrategy
-   :members:
-.. autoclass:: dnanet.data.strategies.datasets.ProvedItStrategy
-   :members:
-```
 
 ### ScalingStrategy
 
 Abstract base for kit-specific base-pair calibration.
+
+```python
+from dnanet.data.strategies.scaling import ScalingStrategy, PowerPlexFusion6CStrategy, GlobalFilerStrategy
+```
 
 **Concrete implementations:**
 - `PowerPlexFusion6CStrategy` — PPF6C kit with WEN ILS (bp range 65–475)
@@ -148,18 +137,13 @@ Abstract base for kit-specific base-pair calibration.
 
 Abstract base for dataset-specific file handling.
 
+```python
+from dnanet.data.strategies.datasets import DatasetStrategy, NFIRnDStrategy, ProvedItStrategy
+```
+
 **Concrete implementations:**
 - `NFIRnDStrategy` — NFI R&D 2p/5p dataset
 - `ProvedItStrategy` — PROVEDIt court validation dataset
 
 Dataset strategies are instantiated from config and passed directly to
 `HIDDataset`, `HIDImage`, parsing helpers, and transformers.
-
-## Convenience
-
-```{eval-rst}
-.. autofunction:: dnanet.data.loading.load_dataset
-```
-
-`load_dataset(data_cfg)` — One-line dataset loading from Hydra config.
-Handles strategy configuration and `HIDDataset` construction.

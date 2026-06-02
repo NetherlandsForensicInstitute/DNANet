@@ -19,6 +19,8 @@ build/
 outputs/
 multirun/
 
+output-retention/
+
 # Data files
 /data/*
 
@@ -45,3 +47,6 @@ conf/data/*zaaksdata*.yaml
 conf/data/*casework*.yaml
 conf/**/*private*.yaml
 AGENTS.md
+
+# Docs build output
+docs/_build/

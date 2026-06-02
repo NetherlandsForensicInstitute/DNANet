@@ -44,6 +44,9 @@ dependencies = [
 tools = [
     "plotly>=6.0.0",
 ]
+docs = [
+    "zensical>=0.0.43",
+]
 
 [project.scripts]
 dnanet = "dnanet.cli:main"

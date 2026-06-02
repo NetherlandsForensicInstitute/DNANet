@@ -1,18 +1,13 @@
 # Task Runners
 
-```{eval-rst}
-.. automodule:: dnanet.tasks
-```
-
 Task runners are Facade functions dispatched by the CLI. Each provides
 both a config-driven entry point (`run(cfg)`) and a programmatic entry
 point (`run_with_data(cfg, dataset)`).
 
 ## Train
 
-```{eval-rst}
-.. autofunction:: dnanet.tasks.train.run
-.. autofunction:: dnanet.tasks.train.run_with_data
+```python
+from dnanet.tasks.train import run, run_with_data
 ```
 
 **`run(cfg)`** — Full training pipeline from Hydra config. Loads data,
@@ -25,9 +20,8 @@ Useful for notebooks and testing.
 
 ## Evaluate
 
-```{eval-rst}
-.. autofunction:: dnanet.tasks.evaluate.run
-.. autofunction:: dnanet.tasks.evaluate.run_with_data
+```python
+from dnanet.tasks.evaluate import run, run_with_data
 ```
 
 **`run(cfg)`** — Load checkpoint, run predictions, compute metrics, save
@@ -39,9 +33,8 @@ results.
 
 ## Cross-Validate
 
-```{eval-rst}
-.. autofunction:: dnanet.tasks.cross_validate.run
-.. autofunction:: dnanet.tasks.cross_validate.run_with_data
+```python
+from dnanet.tasks.cross_validate import run, run_with_data
 ```
 
 **`run(cfg)`** — K-fold cross-validation from config.
@@ -54,8 +47,8 @@ for each metric.
 
 ## CLI
 
-```{eval-rst}
-.. autofunction:: dnanet.cli.main
+```python
+from dnanet.cli import main
 ```
 
 Hydra-decorated main function. Dispatches to the appropriate task runner

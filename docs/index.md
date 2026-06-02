@@ -40,38 +40,3 @@ dnanet task=evaluate data=dnanet_rd model=unet checkpoint=outputs/.../checkpoint
 # 5-fold cross-validation
 dnanet task=cross_validate data=dnanet_rd model=unet training=segmentation
 ```
-
-```{toctree}
-:maxdepth: 2
-:caption: User Guide
-
-guides/installation
-guides/quickstart
-guides/configuration
-guides/datasets
-```
-
-```{toctree}
-:maxdepth: 2
-:caption: Architecture
-
-architecture/overview
-architecture/design-patterns
-architecture/data-pipeline
-architecture/caching
-architecture/models
-architecture/training
-architecture/evaluation
-```
-
-```{toctree}
-:maxdepth: 2
-:caption: API Reference
-
-api/core
-api/data
-api/models
-api/modules
-api/evaluation
-api/tasks
-```

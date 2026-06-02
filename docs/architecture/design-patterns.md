@@ -33,7 +33,7 @@ class GlobalFilerStrategy(ScalingStrategy):
 - `ScalingStrategy` → `PowerPlexFusion6CStrategy`, `GlobalFilerStrategy`
 - `DatasetStrategy` → `NFIRnDStrategy`, `ProvedItStrategy`
 - `AlleleCaller` → `NearestBasePairCaller`
-- Baseline estimation → `superior_baseline`, `classic_baseline`, `enhanced_baseline`
+- Baseline estimation → `baseline_superior`, `baseline_classic`, `baseline_enhanced`
 - PeakNet combiner → `MLPCombiner`, `FiLMCombiner`, `CrossAttentionCombiner`
 
 ## Dependency Injection
@@ -74,7 +74,7 @@ shape2 = image.data.shape             # Cached: no re-load
 ## Template Method
 
 **Where:** Lightning modules (`training_step`, `validation_step`, etc.),
-`InMemoryDataset.split()`, `ScalingStrategy.interpolate()`
+`DatasetStrategy.split()`, `ScalingStrategy.interpolate()`
 
 **Why:** The *skeleton* of the algorithm is fixed (e.g., Lightning's training
 loop calls `training_step` → compute loss → backprop). Subclasses override
@@ -110,7 +110,7 @@ trainer, module = run(cfg)
 
 **Where:** `DNANetDataModule`
 
-**Why:** DNANet's domain model (`HIDImage`, `InMemoryDataset`) and
+**Why:** DNANet's domain model (`HIDImage`, `TransformableDataset`) and
 PyTorch/Lightning (`Dataset`, `DataModule`, `DataLoader`) are independent
 hierarchies. The data module bridges them by applying the dataset split,
 transformer, collate function, and `DataLoader` construction:
@@ -148,8 +148,7 @@ don't have annotations (e.g., ProvedIt without XLSX parsing).
 
 ## Factory Method
 
-**Where:** `Panel.from_xml()`, `Ladder.from_hid_data()`,
-`Prediction.for_segmentation()`
+**Where:** `Panel.from_xml()`, `Ladder.from_hid_data()`
 
 **Why:** Construction logic is complex (XML parsing, allele bin filling,
 ladder peak matching). Factory methods encapsulate this complexity and

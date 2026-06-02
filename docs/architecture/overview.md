@@ -75,7 +75,7 @@ the I/O cost is paid only when data is actually needed.
 | `core/panel.py` | ~200 | `Panel` | Factory Method (`from_xml`) |
 | `core/annotation.py` | ~60 | `Annotation` | Null Object |
 | `data/image.py` | ~250 | `HIDImage` | Lazy Loading (Virtual Proxy) |
-| `data/dataset.py` | ~150 | `InMemoryDataset`, `SimpleDataset` | Template Method |
+| `data/dataset.py` | ~25 | `TransformableDataset` | Abstract Base Class |
 | `data/hid_dataset.py` | ~440 | `HIDDataset` | Facade |
 | `data/datamodule.py` | ~150 | `DNANetDataModule` | Adapter, Bridge |
 | `data/strategies/scaling.py` | ~460 | `ScalingStrategy`, `PPF6CStrategy`, `GlobalFilerStrategy` | Strategy, Template Method |
