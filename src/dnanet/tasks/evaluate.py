@@ -140,13 +140,14 @@ def run(
         dataset = instantiate(data_cfg.dataset)
 
     # Splitting arguments
-    if splitting_args := cfg.get('splitting'):
+    if splitting_args := cfg.get('splitting') == {}:
+        logger.info('Found empty splitting arguments, using entire dataset for evaluation.')
+    elif splitting_args := cfg.get('splitting'):
         logger.info('Loading splitting arguments from provided config: {}.', splitting_args)
     elif splitting_args := checkpoint_cfg.get('splitting'):
         logger.info('Loading splitting arguments from checkpoint config: {}.', splitting_args)
     else:
-        logger.info('No splitting arguments found, using entire dataset for evaluation.')
-        splitting_args = {}
+        raise ValueError(f'Found unexpected splitting arguments.')
 
     # load datamodule with the same seed and split from the checkpoint config
     datamodule = instantiate(
