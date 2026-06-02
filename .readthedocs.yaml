@@ -9,10 +9,4 @@ build:
   commands:
     - pip install --upgrade pip
     - pip install zensical
-    - pip install -e .
     - cd docs && zensical build --clean && cp -r site $READTHEDOCS_OUTPUT/html
-
-python:
-  install:
-    - method: pip
-      path: .
