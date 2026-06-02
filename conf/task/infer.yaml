@@ -1,0 +1,16 @@
+# @package _global_
+task: infer
+
+# -- Inference-specific defaults --
+hid_profiles: []       # List of [hid_path, ladder_path] tuples (JSON or config list)
+kit: PPF6C             # Kit name (PPF6C, GF, PY23) — overrides scaling_strategy
+scaling_strategy: null # Alternative: direct strategy name (powerplex_fusion_6c, globalfiler, powerplex_y23)
+caller: nearest        # Allele calling strategy: 'nearest' or 'exact'
+prediction_threshold: 0.5
+confidence_threshold: null
+batch_size: 1
+num_workers: 0
+save_predictions: false
+save_plots: false
+save_json: true
+device: null
