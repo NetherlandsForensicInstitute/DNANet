@@ -1,0 +1,1 @@
+# Use this yaml to do no splitting, meaning the entire dataset is used for the desired task (training or testing).
