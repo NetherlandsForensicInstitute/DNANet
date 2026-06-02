@@ -22,6 +22,7 @@ import lightning as L
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig, ListConfig
 from hydra.utils import get_class, instantiate
+from torch.utils.data import ConcatDataset
 
 from dnanet.tasks.train import _build_logger
 
@@ -138,6 +139,15 @@ def run(
         else:
             raise ValueError('No data config provided. Set it via `dnanet data=<path/to/data.yaml>`')
         dataset = instantiate(data_cfg.dataset)
+
+    # TODO: make combining the CLI config and checkpoint more intuitive in general
+    if 'data_transform_active' in cfg.get('model', ''):
+        logger.info('Setting dataset transformer to: {}', cfg.model.data_transform_active._target_)
+        if isinstance(dataset, ConcatDataset):
+            for ds in dataset.datasets:
+                ds._transform = instantiate(cfg.model.data_transform_active)
+        else:
+            dataset._transform = instantiate(cfg.model.data_transform_active)
 
     # Splitting arguments
     if splitting_args := cfg.get('splitting') == {}:
