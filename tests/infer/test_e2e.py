@@ -194,10 +194,6 @@ class TestResultAssembly:
         )
         assert adjusted_panel is not None
 
-        # Create mock predictions (same shape as data)
-        rng = np.random.default_rng(seed=42)
-        mock_prediction = rng.random(*data.shape).astype(np.float32) * 0.3
-
         # Build a ProfileResult directly
         sample_name = hid_path.stem
         result = ProfileResult(
