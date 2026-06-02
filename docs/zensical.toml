@@ -1,4 +1,5 @@
 [project]
+docs_dir = "."
 site_name = "DNANet"
 site_description = "A deep learning framework for forensic DNA profile analysis"
 site_author = "Netherlands Forensic Institute (NFI)"
