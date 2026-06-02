@@ -51,7 +51,8 @@ class DNANetDataModule(L.LightningDataModule):
     def setup(self, stage: str) -> None:  # noqa: ARG002
         """Split the dataset into train/val/test subsets."""
         if stage not in ('fit', 'test'):
-            raise ValueError(f'Invalid stage: {stage}, expected "fit" or "test"')
+            logger.warning(f'No setup code for stage: {stage}')
+            return
 
         if self._train_dataset is not None:
             return
