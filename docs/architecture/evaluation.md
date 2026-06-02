@@ -94,10 +94,11 @@ predictions_dir: predictions
 The `evaluation.visualization` module provides EPG plotting utilities:
 
 ```python
-from dnanet.evaluation.visualization import plot_epg
+from dnanet.evaluation.visualization import plot_profile
 
-fig = plot_epg(
-    image,                    # HIDImage
+fig = plot_profile(
+    signal,                   # (num_dyes, signal_length) EPG signal
+    annotation=ann_mask,      # Optional: ground-truth annotation
     prediction=pred_mask,     # Optional: model prediction overlay
     title="Sample 1A2",
 )

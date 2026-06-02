@@ -86,7 +86,7 @@ dataset = HIDDataset(
     root="data/2p_5p_Dataset_NFI/Raw data .HID files",
     scaling_strategy=scaling_strategy,
     dataset_strategy=dataset_strategy,
-    analysis_threshold_type="DTH",
+    cache_dir="data/cache/dnanet_rd",
     adjustment_of_annotations="complete",
 )
 ```
@@ -101,26 +101,18 @@ dataset = HIDDataset(
    - Trigger lazy load and validate (skip if data is None)
 5. **Adjust annotations** — Optionally snap masks to actual peaks
 
-### Convenience Loading
-
-For Hydra-based loading:
-
-```python
-from dnanet.data.loading import load_dataset
-dataset = load_dataset(cfg.data)  # Handles strategy config + HIDDataset construction
-```
-
 ## DNANetDataModule
 
 The Lightning DataModule bridges the domain dataset to PyTorch:
 
 ```python
 datamodule = DNANetDataModule(
-    dataset=dataset,           # InMemoryDataset
+    dataset=dataset,           # TransformableDataset (e.g. HIDDataset)
     batch_size=16,
-    val_fraction=0.2,          # 80/20 train/val split
     num_workers=0,
-    seed=42,
+    shuffle_train=True,
+    val_fraction=0.2,          # 80/20 train/val split
+    seed=42,                   # via **split_kwargs → dataset_splitter()
 )
 ```
 

@@ -88,7 +88,7 @@ HIDDataset.__init__()
     adjust_annotations(method)  ← optional: snap to peaks
               │
               ▼
-    InMemoryDataset (list of HIDImages)
+    TransformableDataset (list of HIDImages)
               │
               ▼
     DNANetDataModule

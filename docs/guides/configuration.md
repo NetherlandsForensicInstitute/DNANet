@@ -40,7 +40,7 @@ Controls dataset loading. Each YAML file maps to a supported dataset.
 | `hid_to_annotations_path` | str/null | CSV mapping HID filenames to annotations |
 | `best_ladder_paths_csv` | str/null | CSV mapping samples to ladder files |
 | `ladder_alleles_csv` | str/null | CSV with expected ladder alleles |
-| `analysis_threshold_type` | str | `DTH` (high) or `DTL` (low) threshold |
+
 | `data_loading_strategy` | str | `raw`, `analyzed`, or `superior` |
 | `adjustment_of_annotations` | str/null | `top`, `complete`, or null |
 | `limit` | int/null | Max images to load |

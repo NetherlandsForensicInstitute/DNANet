@@ -6,13 +6,11 @@ analysis.
 
 ## Allele
 
-```{eval-rst}
-.. automodule:: dnanet.core.allele
-   :members:
-   :undoc-members:
-```
-
 A single measured allele within a DNA marker (locus).
+
+```python
+from dnanet.core.allele import Allele
+```
 
 **Fields:**
 - `name` (str) — Allele designation (e.g., "12", "14.3", "OL")
@@ -23,18 +21,16 @@ A single measured allele within a DNA marker (locus).
 
 ## Marker
 
-```{eval-rst}
-.. automodule:: dnanet.core.marker
-   :members:
-   :undoc-members:
-```
-
 A DNA marker (locus) containing one or more alleles.
+
+```python
+from dnanet.core.marker import Marker
+```
 
 **Fields:**
 - `name` (str) — Marker name (e.g., "D3S1358", "AMEL", "vWA")
 - `dye_row` (int) — 0-based dye channel index
-- `alleles` (list[Allele]) — Called alleles at this locus
+- `alleles` (list of Allele) — Called alleles at this locus
 
 **Properties:**
 - `is_autosomal` — True if not a sex or Y-chromosome marker
@@ -42,13 +38,11 @@ A DNA marker (locus) containing one or more alleles.
 
 ## Panel
 
-```{eval-rst}
-.. automodule:: dnanet.core.panel
-   :members:
-   :undoc-members:
-```
-
 Reference panel of markers and alleles for a forensic DNA kit.
+
+```python
+from dnanet.core.panel import Panel
+```
 
 **Factory:** `Panel.from_xml(path, hid_dye_mapping)` — Parses GeneMarker
 SGPanel XML format.
@@ -60,33 +54,13 @@ SGPanel XML format.
 
 ## Annotation
 
-```{eval-rst}
-.. automodule:: dnanet.core.annotation
-   :members:
-   :undoc-members:
-```
-
 Ground-truth annotation for a DNA profile.
 
-**Fields:**
-- `labels` (frozenset[LabelCategory]) — Categorical labels
-- `image` (np.ndarray | None) — Pixel-level mask `(dyes, signal_length, 1)`
-- `meta` (dict) — Arbitrary metadata
-
-## Prediction
-
-```{eval-rst}
-.. automodule:: dnanet.core.prediction
-   :members:
-   :undoc-members:
+```python
+from dnanet.core.annotation import Annotation
 ```
 
-Model prediction container.
-
 **Fields:**
-- `classification` (dict[LabelCategory, float]) — Label → confidence
-- `image` (np.ndarray | None) — Predicted pixel mask
-- `called_alleles` (list[Marker]) — Called alleles (after allele calling)
-
-**Factory:** `Prediction.for_segmentation(mask, panel, scaler, caller)` —
-Build from a segmentation mask, running allele calling automatically.
+- `labels` (frozenset of LabelCategory) — Categorical labels
+- `image` (np.ndarray | None) — Pixel-level mask `(dyes, signal_length, 1)`
+- `meta` (dict) — Arbitrary metadata

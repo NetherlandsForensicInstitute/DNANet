@@ -1,34 +1,12 @@
 # Evaluation
 
-```{eval-rst}
-.. automodule:: dnanet.evaluation
-```
-
-## Pixel Metrics
-
-```{eval-rst}
-.. automodule:: dnanet.evaluation.metrics.pixel
-   :members:
-```
-
-Functions that compare predicted and ground-truth binary masks at the
-scan-point level.
-
-- `pixel_precision(gt_list, pred_list)` → float
-- `pixel_recall(gt_list, pred_list)` → float
-- `pixel_f1_score(gt_list, pred_list)` → float
-- `average_binary_iou(gt_list, pred_list)` → float
-
-All functions accept lists of numpy arrays (one per sample).
-
 ## Allele Metrics
 
-```{eval-rst}
-.. automodule:: dnanet.evaluation.metrics.allele
-   :members:
-```
-
 Metrics that evaluate allele-level accuracy after allele calling.
+
+```python
+from dnanet.evaluation.metrics.allele import AllelePrecision, AlleleRecall, AlleleF1Score
+```
 
 - `AllelePrecision().update(gt_markers, pred_markers)` / `compute()` → tensor
 - `AlleleRecall().update(gt_markers, pred_markers)` / `compute()` → tensor
@@ -36,21 +14,19 @@ Metrics that evaluate allele-level accuracy after allele calling.
 
 ## Allele Caller
 
-```{eval-rst}
-.. autoclass:: dnanet.evaluation.allele_caller.AlleleCaller
-   :members:
-.. autoclass:: dnanet.evaluation.allele_caller.NearestBasePairCaller
-   :members:
-```
-
 Translates pixel-level predictions into discrete allele calls.
+
+```python
+from dnanet.evaluation.allele_caller import AlleleCaller, NearestBasePairCaller
+```
 
 ## Visualization
 
-```{eval-rst}
-.. automodule:: dnanet.evaluation.visualization
-   :members:
+```python
+from dnanet.evaluation.visualization import plot_profile, plot_profile_marker
 ```
 
-`plot_epg(image, prediction, title)` — Multi-panel EPG plot with optional
-prediction overlay.
+`plot_profile(signal, annotation, prediction, title)` — Plot a full DNA
+profile with optional multiclass annotations.
+
+`plot_profile_marker(signal, scaler, marker_bp_range, dye_row, annotation, prediction, title)` — Plot a single marker region of an EPG profile.
