@@ -22,6 +22,7 @@ import lightning as L
 from loguru import logger
 from omegaconf import OmegaConf, DictConfig, ListConfig
 from hydra.utils import get_class, instantiate
+from torch.utils.data import ConcatDataset
 
 from dnanet.tasks.train import _build_logger
 
@@ -139,14 +140,24 @@ def run(
             raise ValueError('No data config provided. Set it via `dnanet data=<path/to/data.yaml>`')
         dataset = instantiate(data_cfg.dataset)
 
+    # TODO: make combining the CLI config and checkpoint more intuitive in general
+    if 'data_transform_active' in cfg.get('model', ''):
+        logger.info('Setting dataset transformer to: {}', cfg.model.data_transform_active._target_)
+        if isinstance(dataset, ConcatDataset):
+            for ds in dataset.datasets:
+                ds._transform = instantiate(cfg.model.data_transform_active)
+        else:
+            dataset._transform = instantiate(cfg.model.data_transform_active)
+
     # Splitting arguments
-    if splitting_args := cfg.get('splitting'):
+    if splitting_args := cfg.get('splitting') == {}:
+        logger.info('Found empty splitting arguments, using entire dataset for evaluation.')
+    elif splitting_args := cfg.get('splitting'):
         logger.info('Loading splitting arguments from provided config: {}.', splitting_args)
     elif splitting_args := checkpoint_cfg.get('splitting'):
         logger.info('Loading splitting arguments from checkpoint config: {}.', splitting_args)
     else:
-        logger.info('No splitting arguments found, using entire dataset for evaluation.')
-        splitting_args = {}
+        raise ValueError(f'Found unexpected splitting arguments.')
 
     # load datamodule with the same seed and split from the checkpoint config
     datamodule = instantiate(

@@ -168,7 +168,7 @@ class MultiClassSegmentationModule(SegmentationModule):
 
         # Filter out ignored class from predictions for metric computation
         # (torchmetrics Multiclass* don't support ignore_index)
-        if self._ignore_index is not None:
+        if self._ignore_index != -100:
             mask = y != self._ignore_index
             best_class = best_class[mask]
 
