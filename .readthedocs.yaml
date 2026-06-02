@@ -9,4 +9,4 @@ build:
   commands:
     - pip install --upgrade pip
     - pip install zensical
-    - cd docs && zensical build --clean && cp -r site $READTHEDOCS_OUTPUT/html
+    - zensical build --clean -f docs/zensical.toml && cp -r docs/site $READTHEDOCS_OUTPUT/html
