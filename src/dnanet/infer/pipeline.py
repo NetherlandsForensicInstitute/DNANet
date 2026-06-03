@@ -114,119 +114,209 @@ class InferencePipeline:
     def _load_model(self) -> tuple[Any, str]:
         """Load a trained module from checkpoint.
 
+        Infers the UNet architecture from checkpoint state dict shapes
+        so no Hydra config is needed.
+
         Returns:
             Tuple of (LightningModule, model_type_string).
         """
+        from collections import OrderedDict
+
         import lightning as L
-        from omegaconf import OmegaConf
-        from hydra.utils import get_class
 
         from dnanet.modules import peaknet as pn_mod
         from dnanet.modules import segmentation as seg_mod
-
-        checkpoint_dir = self.checkpoint.parent.parent  # go up from /checkpoints/
-        config_path = checkpoint_dir / 'config.yaml'
-
-        if not config_path.exists():
-            raise FileNotFoundError(
-                f'Config not found at {config_path}. '
-                'The checkpoint must have been saved by DNANet training.'
-            )
-
-        cfg = OmegaConf.load(config_path)
-
-        # Determine model type from checkpoint config
-        model_cfg = cfg.get('model', {})
-        model_name = model_cfg.get('name', '') if isinstance(model_cfg, dict) else str(model_cfg)
-
-        # Load checkpoint config
-        checkpoint_cfg = OmegaConf.load(config_path)
-        arch_cfg = checkpoint_cfg.get('model', {}).get('architecture', {})
-        lightning_module_path = cfg.get('evaluate', {}).get('lightning_module', '')
-
-        # Try to determine module class
-        module_class = None
-        if lightning_module_path:
-            module_class = get_class(lightning_module_path)
-        else:
-            # Fallback: infer from model name
-            if 'multiclass' in model_name:
-                module_class = seg_mod.MultiClassSegmentationModule
-            elif 'peaknet' in model_name or 'combined' in model_name:
-                module_class = pn_mod.PeakNetModule
-            else:
-                module_class = seg_mod.SegmentationModule
-
-        if module_class is None:
-            raise ValueError('Could not determine Lightning module class from checkpoint.')
-
-        # Load state dict directly
-        state_dict = torch.load(self.checkpoint, map_location=self.device, weights_only=True)
-
-        # Extract state dict from checkpoint
-        if 'state_dict' in state_dict:
-            state_dict = state_dict['state_dict']
-
-        # Create module and load weights
-        module = module_class.__new__(module_class)
-        module.__init__(
-            model=None,
-            loss_fn=None,
-            optimizer=None,
-            metrics=None,
-        )
-
-        # The model weights are stored under 'model.' prefix in Lightning checkpoints
-        # We need to strip that prefix and load directly onto our model
-        from collections import OrderedDict
-
-        new_state_dict = OrderedDict()
-        for k, v in state_dict.items():
-            if k.startswith('model.'):
-                new_state_dict[k[6:]] = v
-            else:
-                new_state_dict[k] = v
-
-        # Create a real model instance to load state dict onto
         from dnanet.models.unet import UNet
 
-        # Try to get architecture from config, fall back to defaults
-        # arch_cfg may be a string like 'unet' or a dict with params
-        if isinstance(arch_cfg, dict):
-            depth = arch_cfg.get('depth', 4)
-            num_filters = arch_cfg.get('num_filters', 32)
-            kernel_size = tuple(arch_cfg.get('kernel_size', [3, 5]))
-        else:
-            depth = 4
-            num_filters = 32
-            kernel_size = (3, 5)
+        # Load checkpoint state dict
+        checkpoint_data = torch.load(self.checkpoint, map_location=self.device, weights_only=True)
 
-        # Determine output channels based on model type
-        if 'multiclass' in model_name:
-            out_channels = 2 if not isinstance(arch_cfg, dict) else arch_cfg.get('out_channels', 2)
+        # Extract state dict from Lightning checkpoint wrapper
+        if 'state_dict' in checkpoint_data:
+            state_dict = checkpoint_data['state_dict']
         else:
-            out_channels = 1
+            state_dict = checkpoint_data
 
-        dummy_model = UNet(
+        # Strip 'model.' prefix if present (Lightning convention)
+        if any(k.startswith('model.') for k in state_dict):
+            state_dict = OrderedDict(
+                (k[6:], v) if k.startswith('model.') else (k, v) for k, v in state_dict.items()
+            )
+
+        # Infer UNet architecture from state dict keys/shapes
+        depth, num_filters, kernel_size, out_channels = self._infer_unet_arch(state_dict)
+
+        # Determine module class and model type
+        if 'PeakNet' in state_dict or 'combiner' in str(state_dict.keys()):
+            raise NotImplementedError(
+                'PeakNet checkpoints require peak extraction infrastructure. '
+                'Use UNet-based segmentation models for direct HID inference.'
+            )
+
+        # Detect multiclass: any model with >1 output channel is multiclass
+        model_type = 'multiclass' if out_channels > 1 else 'segmentation'
+
+        # Create UNet with inferred architecture
+        unet = UNet(
             depth=depth,
             kernel_size=kernel_size,
             num_filters=num_filters,
             out_channels=out_channels,
         )
 
-        dummy_model.load_state_dict(new_state_dict, strict=False)
-        dummy_model.to(self.device)
-        module.model = dummy_model
+        # Load weights with strict=True — architecture must match
+        missing, unexpected = unet.load_state_dict(state_dict, strict=False)
+        if unexpected:
+            logger.warning('Unexpected keys in checkpoint (ignored): {}', unexpected[:5])
+        if missing:
+            logger.warning('Missing keys in checkpoint: {}', missing[:5])
 
-        # Determine model type
-        if 'PeakNet' in type(module).__name__ or 'peaknet' in model_name:
-            model_type = 'peaknet'
-        elif 'MultiClass' in type(module).__name__ or 'multiclass' in model_name:
-            model_type = 'multiclass'
-        else:
-            model_type = 'segmentation'
+        unet.to(self.device)
+        unet.eval()
+
+        # Wrap in SegmentationModule (no training machinery needed)
+        module = seg_mod.SegmentationModule.__new__(seg_mod.SegmentationModule)
+        module.__init__(model=unet, loss_fn=None, optimizer=None)
+
+        logger.info(
+            'Loaded {} (depth={}, filters={}, kernel={}, out_ch={}, device={})',
+            type(unet).__name__,
+            depth,
+            num_filters,
+            kernel_size,
+            out_channels,
+            self.device,
+        )
 
         return module, model_type
+
+    @staticmethod
+    def _infer_unet_arch(
+        state_dict: dict[str, torch.Tensor],
+    ) -> tuple[int, int, tuple[int, int], int]:
+        """Infer UNet architecture from checkpoint state dict shapes.
+
+        Reads the first encoder, bottleneck, and head layers to determine
+        depth, num_filters, kernel_size, and output channels.
+
+        Handles both key patterns:
+        - Lightning-wrapped: ``encoders.0.conv.double_conv.0.weight``
+        - Raw UNet: ``encoder.0.conv.0.weight``
+
+        Args:
+            state_dict: Model state dict (without 'model.' prefix).
+
+        Returns:
+            (depth, num_filters, kernel_size, out_channels).
+        """
+        # Find encoder keys — supports both key patterns
+        # Pattern 1: encoders.0.conv.double_conv.0.weight (UNet with DoubleConv)
+        # Pattern 2: encoder.0.conv.0.weight (simpler pattern)
+        encoder_keys = [k for k in state_dict if k.startswith('encoders.')]
+        if not encoder_keys:
+            # Try alternate pattern
+            encoder_keys = [k for k in state_dict if k.startswith('encoder.')]
+        if not encoder_keys:
+            raise ValueError(
+                'Checkpoint does not contain UNet encoder keys. '
+                f'Found keys: {list(state_dict.keys())[:10]}'
+            )
+
+        # Extract the first encoder index: 'encoders.0.conv.double_conv.0.weight' -> 0
+        first_enc_idx = encoder_keys[0].split('.')[1]
+
+        # Find a conv weight from the first encoder to get kernel size and channels
+        # Pattern 1: encoders.0.conv.double_conv.0.weight (shape: out_ch, in_ch, kh, kw)
+        enc0_conv_key = f'encoders.{first_enc_idx}.conv.double_conv.0.weight'
+        if enc0_conv_key not in state_dict:
+            # Pattern 2: encoder.0.conv.0.weight
+            enc0_conv_key = f'encoder.{first_enc_idx}.conv.0.weight'
+        if enc0_conv_key not in state_dict:
+            # Fallback: find any conv weight from this encoder
+            enc0_conv_key = next(
+                (
+                    k
+                    for k in state_dict
+                    if f'encoders.{first_enc_idx}' in k or f'encoder.{first_enc_idx}' in k
+                )
+            )
+
+        conv_shape = state_dict[enc0_conv_key].shape
+        if len(conv_shape) == 4:
+            kernel_size = (conv_shape[2], conv_shape[3])
+            num_filters = conv_shape[0]  # output channels
+        else:
+            kernel_size = (3, 5)
+            num_filters = 32
+
+        # Depth = count of unique encoder indices
+        if encoder_keys[0].startswith('encoders.'):
+            depth = len(set(k.split('.')[1] for k in encoder_keys))
+        else:
+            depth = len(set(k.split('.')[1] for k in encoder_keys))
+
+        # Output channels from head layer
+        head_key = 'head.weight'
+        if head_key in state_dict:
+            out_channels = state_dict[head_key].shape[0]
+        else:
+            out_channels = 1
+
+        return depth, num_filters, kernel_size, out_channels
+
+    @staticmethod
+    def _infer_architecture(
+        state_dict: dict[str, torch.Tensor],
+    ) -> tuple[int, tuple[int, int], int, int]:
+        """Infer UNet architecture from checkpoint state dict shapes.
+
+        Reads architecture params directly from tensor shapes — no config
+        file or Hydra required.
+
+        Args:
+            state_dict: State dict from a trained UNet checkpoint.
+
+        Returns:
+            Tuple of (depth, kernel_size, num_filters, out_channels).
+        """
+        # Find encoder 0 conv weight: model.encoders.0.conv.double_conv.0.weight
+        enc0_key = None
+        for k in state_dict:
+            if 'encoders.0.conv.double_conv.0.weight' in k:
+                enc0_key = k
+                break
+
+        if enc0_key is None:
+            raise ValueError(
+                'Cannot find encoder weights in checkpoint. '
+                'Expected key pattern: model.encoders.0.conv.double_conv.0.weight'
+            )
+
+        enc0_shape = state_dict[enc0_key].shape
+        num_filters = enc0_shape[0]  # output channels of first conv
+        kernel_size = (enc0_shape[2], enc0_shape[3])  # (height, width)
+
+        # Determine depth from encoder layer indices
+        encoder_indices = set()
+        for k in state_dict:
+            if '.encoders.' in k:
+                parts = k.split('.')
+                try:
+                    idx = int(parts[2])
+                    encoder_indices.add(idx)
+                except (IndexError, ValueError):
+                    continue
+
+        depth = max(encoder_indices) + 1 if encoder_indices else 4
+
+        # Output channels from head weight
+        out_channels = 1
+        for k in state_dict:
+            if k.endswith('.head.weight'):
+                out_channels = state_dict[k].shape[0]
+                break
+
+        return depth, kernel_size, num_filters, out_channels
 
     def run(
         self,

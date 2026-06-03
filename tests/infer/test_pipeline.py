@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import numpy as np
+import torch
 import pytest
 
 from dnanet.infer import DNANetInfer, InferencePipeline
@@ -50,15 +51,71 @@ def mock_pipeline(scaling_strategy, tmp_path):
 class TestInferencePipeline:
     """Tests for InferencePipeline class."""
 
-    def test_init_missing_config(self, tmp_path, scaling_strategy):
-        """Pipeline raises if config.yaml is missing from checkpoint directory."""
+    def _make_checkpoint(
+        self, tmp_path, out_channels=1, depth=4, num_filters=32, kernel_size=(3, 5)
+    ):
+        """Create a minimal UNet checkpoint for testing."""
+        ckpt_dir = tmp_path / 'outputs' / 'test_exp' / 'checkpoints'
+        ckpt_dir.mkdir(parents=True)
+        ckpt_path = ckpt_dir / 'test.ckpt'
+
+        from dnanet.models.unet import UNet
+
+        # Use device=cpu to avoid CUDA initialization issues in tests
+        device = torch.device('cpu')
+        model = UNet(
+            depth=depth, kernel_size=kernel_size, num_filters=num_filters, out_channels=out_channels
+        )
+        torch.save(
+            {
+                'state_dict': model.state_dict(),
+                'epoch': 0,
+                'global_step': 0,
+            },
+            ckpt_path,
+        )
+        return ckpt_path
+
+    def test_load_binary_unet(self, tmp_path, scaling_strategy):
+        """Pipeline loads binary UNet checkpoint (out_channels=1)."""
+        ckpt_path = self._make_checkpoint(tmp_path, out_channels=1)
+        pipeline = InferencePipeline(checkpoint=ckpt_path, scaling_strategy=scaling_strategy)
+        assert pipeline.model_type == 'segmentation'
+        assert pipeline.model is not None
+
+    def test_load_multiclass_unet(self, tmp_path, scaling_strategy):
+        """Pipeline loads multiclass UNet checkpoint (out_channels=3)."""
+        ckpt_path = self._make_checkpoint(tmp_path, out_channels=3)
+        pipeline = InferencePipeline(checkpoint=ckpt_path, scaling_strategy=scaling_strategy)
+        assert pipeline.model_type == 'multiclass'
+        assert pipeline.model is not None
+
+    def test_load_unet_custom_depth(self, tmp_path, scaling_strategy):
+        """Pipeline infers correct depth from checkpoint."""
+        ckpt_path = self._make_checkpoint(tmp_path, depth=3, num_filters=64)
+        pipeline = InferencePipeline(checkpoint=ckpt_path, scaling_strategy=scaling_strategy)
+        assert pipeline.model_type == 'segmentation'
+
+    def test_load_unet_custom_kernel(self, tmp_path, scaling_strategy):
+        """Pipeline infers correct kernel size from checkpoint."""
+        ckpt_path = self._make_checkpoint(tmp_path, kernel_size=(5, 7))
+        pipeline = InferencePipeline(checkpoint=ckpt_path, scaling_strategy=scaling_strategy)
+        assert pipeline.model_type == 'segmentation'
+
+    def test_load_no_config_required(self, tmp_path, scaling_strategy):
+        """Pipeline works without config.yaml — architecture inferred from checkpoint."""
         ckpt_dir = tmp_path / 'outputs' / 'no_config' / 'checkpoints'
         ckpt_dir.mkdir(parents=True)
-        ckpt_path = ckpt_dir / 'missing.ckpt'
-        ckpt_path.touch()
+        ckpt_path = ckpt_dir / 'no_config.ckpt'
 
-        with pytest.raises(FileNotFoundError, match='Config not found'):
-            InferencePipeline(checkpoint=ckpt_path, scaling_strategy=scaling_strategy)
+        from dnanet.models.unet import UNet
+
+        model = UNet(depth=4, kernel_size=(3, 5), num_filters=32, out_channels=2)
+        torch.save({'state_dict': model.state_dict(), 'epoch': 0, 'global_step': 0}, ckpt_path)
+
+        # Should NOT raise even though config.yaml doesn't exist
+        pipeline = InferencePipeline(checkpoint=ckpt_path, scaling_strategy=scaling_strategy)
+        assert pipeline.model is not None
 
     def test_model_type_property(self, mock_pipeline):
         """Model type property returns correct value."""

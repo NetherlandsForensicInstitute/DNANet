@@ -27,6 +27,16 @@ if TYPE_CHECKING:
     from dnanet.data.strategies.scaling import ScalingStrategy
 
 
+def _to_python(obj):
+    """Convert OmegaConf objects to native Python types."""
+    _type = type(obj).__name__
+    if _type in ('ListConfig', 'DictConfig'):
+        from omegaconf import OmegaConf
+
+        return OmegaConf.to_container(obj, resolve=True)
+    return obj
+
+
 _KIT_TO_STRATEGY = {
     'PPF6C': 'powerplex_fusion_6c',
     'GF': 'globalfiler',
@@ -72,10 +82,14 @@ def _parse_hid_profiles(cfg: DictConfig) -> Sequence[tuple[str, str | None]]:
     - JSON string: '[["sample1.HID", "ladder1.HID"]]'
     - Single string: "sample1.HID" (no ladder)
     - List in config: hid_profiles: [sample1.HID, sample2.HID]
+    - OmegaConf ListConfig (from Hydra overrides)
     """
     profiles = cfg.get('hid_profiles')
     if not profiles:
         return []
+
+    # Convert OmegaConf ListConfig to native Python list
+    profiles = _to_python(profiles)
 
     if isinstance(profiles, str):
         try:
