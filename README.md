@@ -9,7 +9,7 @@
 Deep learning framework for forensic DNA electropherogram (EPG) analysis.
 Developed at the Netherlands Forensic Institute (NFI).
 
-This a Python repository that can be used to analyze DNA profiles using deep learning. It contains functionality to parse .hid files and train and 
+This a Python repository that can be used to analyze DNA profiles using deep learning. It contains functionality to parse .hid files and train and
 evaluate models. The pre-trained U-Net provided can be used to call alleles in a DNA profile.
 
 If you find this repository useful, please cite
@@ -26,7 +26,7 @@ If you find this repository useful, please cite
       year      =  2019,
     }
 ```
-for the data, and 
+for the data, and
 ```bibtex
 @ARTICLE{de-Wit2025,
     title = {Making AI accessible for forensic DNA profile analysis},
@@ -38,8 +38,8 @@ for the data, and
     doi = {https://doi.org/10.1016/j.fsigen.2025.103345},
     url = {https://www.sciencedirect.com/science/article/pii/S1872497325001255},
     author = {
-        Abel K.J.G. de Wit and Claire D. Wagenaar and Nathalie A.C. Janssen and Brechtje Hoegen 
-        and Judith van de Wetering and Huub Hoofs and Simone Ariëns and Corina C.G. Benschop 
+        Abel K.J.G. de Wit and Claire D. Wagenaar and Nathalie A.C. Janssen and Brechtje Hoegen
+        and Judith van de Wetering and Huub Hoofs and Simone Ariëns and Corina C.G. Benschop
         and Rolf J.F. Ypma
         }
 }

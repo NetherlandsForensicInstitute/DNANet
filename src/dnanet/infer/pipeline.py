@@ -325,8 +325,7 @@ class InferencePipeline:
         caller: str = 'nearest',
         prediction_threshold: float = 0.5,
         confidence_threshold: float | None = None,
-        batch_size: int = 1,
-        num_workers: int = 0,
+        connection_threshold: float | None = None,
         save_predictions: bool = False,
         save_plots: bool = False,
         output_dir: str | Path | None = None,
@@ -339,6 +338,8 @@ class InferencePipeline:
             prediction_threshold: Probability threshold for positive predictions.
             confidence_threshold: Minimum confidence to include an allele call.
                 If None, all called alleles are included.
+            connection_threshold: Minimum confidence to consider predictions 'connected'.
+                If None, will default to '0.5'.
             batch_size: Batch size for inference (typically 1).
             num_workers: DataLoader workers.
             save_predictions: Save raw prediction arrays to disk.
@@ -360,6 +361,7 @@ class InferencePipeline:
                 ladder_path=ladder_path,
                 caller=caller_instance,
                 confidence_threshold=confidence_threshold,
+                connection_threshold=connection_threshold,
                 save_predictions=save_predictions,
                 save_plots=save_plots,
                 output_dir=output_dir,
@@ -387,6 +389,7 @@ class InferencePipeline:
         ladder_path: str | None,
         caller: AlleleCaller,
         confidence_threshold: float | None,
+        connection_threshold: float | None,
         save_predictions: bool,
         save_plots: bool,
         output_dir: str | Path | None,
@@ -398,6 +401,7 @@ class InferencePipeline:
             ladder_path: Path to the ladder HID file, or None.
             caller: Allele caller instance.
             confidence_threshold: Minimum confidence threshold.
+            connection_threshold: Minimum confidence to consider predictions 'connected'.
             save_predictions: Whether to save raw predictions.
             save_plots: Whether to save EPG plots.
             output_dir: Output base directory.
@@ -421,7 +425,7 @@ class InferencePipeline:
             return ProfileResult(sample=sample, hid_path=str(hid_path), warnings=warnings)
 
         # Determine panel (adjusted from ladder if provided)
-        panel = self._get_adjusted_panel(image, ladder_path, warnings)
+        panel = self._get_adjusted_panel(ladder_path, warnings)
 
         # Prepare input tensor
         data = image.data
@@ -467,6 +471,7 @@ class InferencePipeline:
                 scaler=scaler,
                 panel=panel,
                 caller=caller,
+                connection_threshold=connection_threshold,
                 confidence_threshold=confidence_threshold,
             )
 
@@ -495,7 +500,6 @@ class InferencePipeline:
 
     def _get_adjusted_panel(
         self,
-        image: HIDImage,
         ladder_path: str | None,
         warnings: list[str],
     ) -> Panel | None:
@@ -550,9 +554,14 @@ class InferencePipeline:
         scaler: np.ndarray,
         panel: Panel,
         caller: AlleleCaller,
+        connection_threshold: float | None,
         confidence_threshold: float | None,
     ) -> list[MarkerResult]:
         """Call alleles from model prediction and extract confidence scores.
+
+        When a called allele has no basepair it's skipped, so even though the model might've predicted it,
+        it won't show up in the MarkerResult object.
+        For missing height indicators for called alleles, a height of 0.0 is assumed when it's missing.
 
         Args:
             prediction_image: (num_dyes, scanpoints) prediction probabilities.
@@ -560,6 +569,7 @@ class InferencePipeline:
             scaler: (scanpoints,) base-pair calibration.
             panel: Reference panel for allele lookup.
             caller: Allele caller instance.
+            connection_threshold: Minimum confidence to consider a group of predictions 'connected'.
             confidence_threshold: Minimum confidence to include.
 
         Returns:
@@ -574,17 +584,22 @@ class InferencePipeline:
         )
 
         # Build connected components for confidence extraction
-        components = self._find_connected_components(prediction_image)
+        components = self._find_connected_components(prediction_image, connection_threshold or 0.5)
 
         result_markers: list[MarkerResult] = []
         for marker in markers:
             allele_calls: list[AlleleCall] = []
             for allele in marker.alleles:
+                if allele.base_pair is None:
+                    logger.warning(f'Allele has basepair None: {allele}')
+                    continue
+                if allele.height is None:
+                    logger.warning(f'Allele has height None (setting it to 0.0): {allele}')
                 # Find confidence for this allele
                 confidence = self._extract_confidence(
                     components=components,
                     dye_row=marker.dye_row,
-                    base_pair=allele.base_pair or 0.0,
+                    base_pair=allele.base_pair,
                     scaler=scaler,
                     prediction_image=prediction_image,
                 )
@@ -595,7 +610,7 @@ class InferencePipeline:
                 allele_calls.append(
                     AlleleCall(
                         name=allele.name,
-                        base_pair=allele.base_pair or 0.0,
+                        base_pair=allele.base_pair,
                         height=allele.height or 0.0,
                         confidence=round(confidence, 4),
                     )
@@ -613,12 +628,15 @@ class InferencePipeline:
         return result_markers
 
     def _find_connected_components(
-        self, prediction_image: np.ndarray
+        self,
+        prediction_image: np.ndarray,
+        connection_threshold: float,
     ) -> dict[int, list[tuple[int, int]]]:
         """Find connected components (contiguous regions) per dye channel.
 
         Args:
             prediction_image: (num_dyes, scanpoints) prediction probabilities.
+            connection_threshold: Minimum prediction confidence to consider predictions 'connected'.
 
         Returns:
             Dict mapping dye_row -> list of (start, end) scanpoint ranges.
@@ -626,9 +644,10 @@ class InferencePipeline:
         components: dict[int, list[tuple[int, int]]] = {}
         for dye_idx in range(prediction_image.shape[0]):
             dye_pred = prediction_image[dye_idx]
-            positives = np.where(dye_pred > 0.5)[0]
+            positives = np.where(dye_pred > connection_threshold)[0]
 
             if positives.size == 0:
+                logger.warning(f'Found no connected components for dye index {dye_idx}')
                 continue
 
             # Split into connected components
