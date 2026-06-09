@@ -166,7 +166,7 @@ class TestAlleleCalling:
         # Create a clear peak at positions 20-25
         pred[0, 20:26] = np.array([0.7, 0.8, 0.9, 0.95, 0.85, 0.6], dtype=np.float32)
 
-        components = mock_pipeline._find_connected_components(pred)
+        components = mock_pipeline._find_connected_components(pred, 0.5)
         assert 0 in components
         assert (0, 20, 25) == (0, components[0][0][0], components[0][0][1])
 
@@ -176,7 +176,7 @@ class TestAlleleCalling:
         pred = np.zeros((4, 100), dtype=np.float32)
         pred[0, 20:26] = np.array([0.1, 0.2, 0.15, 0.1, 0.2, 0.1], dtype=np.float32)
 
-        components = mock_pipeline._find_connected_components(pred)
+        components = mock_pipeline._find_connected_components(pred, 0.5)
         # No components should be found since all values < 0.5
         assert 0 not in components
 
@@ -188,7 +188,7 @@ class TestAlleleCalling:
         scaler = np.linspace(0, 100, 100)  # Simple linear scaler
 
         # Find confidence at base_pair=23 (should map to scanpoint ~23)
-        components = mock_pipeline._find_connected_components(pred)
+        components = mock_pipeline._find_connected_components(pred, 0.5)
         confidence = mock_pipeline._extract_confidence(
             components=components,
             dye_row=0,
@@ -201,7 +201,7 @@ class TestAlleleCalling:
     def test_extract_confidence_no_component(self, mock_pipeline):
         """Returns 0.0 when no component found."""
         pred = np.zeros((4, 100), dtype=np.float32)
-        components = mock_pipeline._find_connected_components(pred)
+        components = mock_pipeline._find_connected_components(pred, 0.5)
 
         confidence = mock_pipeline._extract_confidence(
             components=components,
