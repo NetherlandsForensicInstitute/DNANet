@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dnanet.tasks.infer import run, _resolve_strategy, _parse_hid_profiles
+from dnanet.tasks.infer import run, _resolve_strategy, _parse_hid_profiles_from_string
 
 
 class TestParseHidProfiles:
@@ -16,33 +16,33 @@ class TestParseHidProfiles:
         """Empty list returns empty."""
         cfg = MagicMock()
         cfg.get.return_value = []
-        assert _parse_hid_profiles(cfg) == []
+        assert _parse_hid_profiles_from_string(cfg) == []
 
     def test_none_returns_empty(self):
         """None returns empty."""
         cfg = MagicMock()
         cfg.get.return_value = None
-        assert _parse_hid_profiles(cfg) == []
+        assert _parse_hid_profiles_from_string(cfg) == []
 
     def test_single_string_no_ladder(self):
         """Single string returns list with no ladder."""
         cfg = MagicMock()
         cfg.get.return_value = 'sample1.HID'
-        result = _parse_hid_profiles(cfg)
+        result = _parse_hid_profiles_from_string(cfg)
         assert result == [('sample1.HID', None)]
 
     def test_json_string_list(self):
         """JSON string list is parsed correctly."""
         cfg = MagicMock()
         cfg.get.return_value = '[["sample1.HID", "ladder1.HID"], ["sample2.HID"]]'
-        result = _parse_hid_profiles(cfg)
+        result = _parse_hid_profiles_from_string(cfg)
         assert result == [('sample1.HID', 'ladder1.HID'), ('sample2.HID', None)]
 
     def test_config_list(self):
         """Config list is parsed correctly."""
         cfg = MagicMock()
         cfg.get.return_value = ['sample1.HID', ('sample2.HID', 'ladder2.HID')]
-        result = _parse_hid_profiles(cfg)
+        result = _parse_hid_profiles_from_string(cfg)
         assert result == [('sample1.HID', None), ('sample2.HID', 'ladder2.HID')]
 
 

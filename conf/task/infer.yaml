@@ -3,6 +3,7 @@ task: infer
 
 # -- Inference-specific defaults --
 hid_profiles: []       # List of [hid_path, ladder_path] tuples (JSON or config list)
+hid_profiles_file: ""       # Path to file with of hid_path in the first column and ladder_path in second column
 kit: PPF6C             # Kit name (PPF6C, GF, PY23) — overrides scaling_strategy
 scaling_strategy: null # Alternative: direct strategy name (powerplex_fusion_6c, globalfiler, powerplex_y23)
 caller: nearest        # Allele calling strategy: 'nearest' or 'exact'

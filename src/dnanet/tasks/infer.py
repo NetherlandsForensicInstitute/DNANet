@@ -75,7 +75,7 @@ def _resolve_strategy(cfg: DictConfig) -> 'ScalingStrategy':
     return cls()
 
 
-def _parse_hid_profiles(cfg: DictConfig) -> Sequence[tuple[str, str | None]]:
+def _parse_hid_profiles_from_string(cfg: DictConfig) -> Sequence[tuple[str, str | None]]:
     """Parse hid_profiles from Hydra config.
 
     Supports:
@@ -112,6 +112,24 @@ def _parse_hid_profiles(cfg: DictConfig) -> Sequence[tuple[str, str | None]]:
     return [(str(profiles), None)]
 
 
+def _parse_hid_profiles_from_file(cfg: DictConfig) -> Sequence[tuple[str, str | None]]:
+    """Parse hid_profiles from a text file
+
+    Supports:
+    - Two column separated by a tab: sample1.HID    ladder1.HID #todo add same support as _parse_hid_profiles_from_string
+    """
+    profile_path = cfg.get('hid_profiles_file')
+    hid_profiles = []
+    if profile_path:
+        with open(profile_path, 'r') as file:
+            lines = file.read().split("\n")
+            for line in lines:
+                if line:
+                    hid_file_path, ladder_file_path = line.split("\t")
+                    hid_profiles.append((hid_file_path, ladder_file_path))
+    return hid_profiles
+
+
 def run(cfg: DictConfig) -> None:
     """Run inference from Hydra config.
 
@@ -128,8 +146,13 @@ def run(cfg: DictConfig) -> None:
     logger.info('Loading checkpoint: {}', checkpoint_path)
     logger.info('Running inference on HID profiles...')
 
+
     scaling_strategy = _resolve_strategy(cfg)
-    hid_profiles = _parse_hid_profiles(cfg)
+
+    hid_profiles = _parse_hid_profiles_from_string(cfg)
+
+    if not hid_profiles:
+        hid_profiles = _parse_hid_profiles_from_file(cfg) # todo add documentation for hid_profiles_from_file
 
     if not hid_profiles:
         logger.warning('No HID profiles specified. Nothing to do.')
@@ -145,13 +168,11 @@ def run(cfg: DictConfig) -> None:
 
     result = DNANetInfer.run(
         checkpoint=checkpoint_path,
-        hid_profiles=hid_profiles,
+        hid_profiles=hid_profiles[:20],
         scaling_strategy=scaling_strategy,
         caller=cfg.get('caller', 'nearest'),
         prediction_threshold=cfg.get('prediction_threshold', 0.5),
         confidence_threshold=cfg.get('confidence_threshold', None),
-        batch_size=cfg.get('batch_size', 1),
-        num_workers=cfg.get('num_workers', 0),
         save_predictions=cfg.get('save_predictions', False),
         save_plots=cfg.get('save_plots', False),
         output_dir=output_dir,

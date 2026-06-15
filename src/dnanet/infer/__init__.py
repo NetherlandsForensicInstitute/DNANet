@@ -105,8 +105,6 @@ class DNANetInfer:
             caller: Allele calling strategy — 'nearest' or 'exact'.
             prediction_threshold: Probability threshold for allele calling.
             confidence_threshold: Minimum confidence to include an allele.
-            batch_size: Batch size for inference (typically 1).
-            num_workers: DataLoader workers.
             save_predictions: Save raw prediction arrays to disk.
             save_plots: Save EPG visualizations to disk.
             output_dir: Base directory for saved outputs.

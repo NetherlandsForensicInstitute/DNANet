@@ -340,8 +340,6 @@ class InferencePipeline:
                 If None, all called alleles are included.
             connection_threshold: Minimum confidence to consider predictions 'connected'.
                 If None, will default to '0.5'.
-            batch_size: Batch size for inference (typically 1).
-            num_workers: DataLoader workers.
             save_predictions: Save raw prediction arrays to disk.
             save_plots: Save EPG visualizations to disk.
             output_dir: Base directory for saved outputs.
