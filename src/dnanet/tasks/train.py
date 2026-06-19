@@ -30,16 +30,43 @@ from loguru import logger
 from omegaconf import OmegaConf, DictConfig, ListConfig
 from hydra.utils import instantiate
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
+from lightning.pytorch.callbacks.early_stopping import EarlyStoppingReason
 
 from dnanet.data.transformer import AlleleMetadataTransformer
 
 
 if TYPE_CHECKING:
+    from torch import Tensor
     from torch.utils.data import Dataset
 
 
 _ALLELE_METRICS_CALLBACK_TARGET = 'dnanet.evaluation.callbacks.AlleleMetricsCallback'
 _ALLELE_METRICS_TRAIN_TYPES = frozenset({'segmentation', 'segmentation_mc', 'peaknet'})
+
+
+class ResetEarlyStoppingOnResume(L.Callback):
+    """Reset EarlyStopping callback state when resuming from a checkpoint.
+
+    When training is resumed from a checkpoint, PyTorch Lightning restores the
+    internal state of all callbacks including EarlyStopping. If EarlyStopping was
+    already triggered (patience exhausted) in the source run, the restored state
+    will immediately signal the trainer to stop. This callback resets the
+    EarlyStopping state so it starts fresh for the resumed training run.
+    """
+
+    def on_fit_start(self, trainer: L.Trainer, pl_module: L.LightningModule) -> None:
+        """Reset all EarlyStopping callbacks to their initial state."""
+        for callback in trainer.callbacks:
+            if isinstance(callback, EarlyStopping):
+                callback.wait_count = 0
+                callback.stopped_epoch = 0
+                callback.best_score = (
+                    torch.tensor(-float('inf'))
+                    if callback.mode == 'max'
+                    else torch.tensor(float('inf'))
+                )
+                callback.stopping_reason = EarlyStoppingReason.NOT_STOPPED
+                callback.stopping_reason_message = ''
 
 
 def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
@@ -62,6 +89,7 @@ def _build_callbacks(cfg: DictConfig) -> list[L.Callback]:
                 check_finite=True,
             )
         )
+        callbacks.append(ResetEarlyStoppingOnResume())
 
     # Model checkpointing
     ckpt_cfg = train_cfg.get('checkpoint')
