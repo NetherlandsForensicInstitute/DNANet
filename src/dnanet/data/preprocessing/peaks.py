@@ -6,6 +6,8 @@ their boundaries — essential for both allele calling and annotation adjustment
 
 from __future__ import annotations
 
+from typing import Optional
+
 import numpy as np
 import scipy.ndimage
 
@@ -61,17 +63,20 @@ def find_peak_boundary(signal: np.ndarray, peak_idx: int, threshold: float) -> t
     return start, end
 
 
-def find_peak_near_idx(signal: np.ndarray, idx: int) -> np.ndarray:
-    """Find the nearest peak that is at least as high as ``signal[idx]``.
+def find_peak_near_idx(signal: np.ndarray, idx: int, threshold: Optional[float] = None) -> np.ndarray:
+    """Find the nearest peak that is at least as high as ``signal[idx]`` or the provided `threshold`.
 
     Args:
         signal: 1D signal array.
         idx: Reference index to search around.
+        threshold: The threshold in rfu above which a peak should be.
 
     Returns:
         Array containing the single closest peak index.
     """
-    peak_idxs = find_peaks_above_threshold(signal, signal[idx])
+    if threshold is None:
+        threshold = signal[idx]
+    peak_idxs = find_peaks_above_threshold(signal, threshold)
     return peak_idxs[np.abs(peak_idxs - idx).argmin(), np.newaxis]
 
 
