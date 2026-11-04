@@ -1,6 +1,6 @@
 """HID (ABIF) binary file parser.
 
-This module parses HID files — the binary format used by Applied Biosystems
+This module parses HID/FSA files — the binary format used by Applied Biosystems
 for storing forensic DNA electropherogram data. It's a domain-specific parser
 that decodes the ABIF container format to extract raw fluorescence signals.
 
@@ -21,12 +21,11 @@ Design pattern: **Layered Parsing Pipeline**
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union, Mapping, Sequence
+import struct
+from typing import TYPE_CHECKING, Union, Sequence
 from collections import Counter
-from dataclasses import dataclass
 
 import numpy as np
-import construct
 from loguru import logger
 
 from dnanet.data.preprocessing.baseline import baseline_superior
@@ -34,181 +33,134 @@ from dnanet.data.preprocessing.baseline import baseline_superior
 
 if TYPE_CHECKING:
     from dnanet.core.types import PathLike
-    from dnanet.data.strategies.scaling import ScalingStrategy
+    from dnanet.data.strategies.scaling.scaling import ScalingStrategy
 
 
-# ---------------------------------------------------------------------------
-# Types
-# ---------------------------------------------------------------------------
+ElementValue = Union[int, Sequence[int], str, bytes, np.ndarray]
 
-ElementValue = Union[int, Sequence[int], str]
+# ABIF Header (34 bytes total):
+# 4s (ABIF), H (version), 4s (dir_name), I (dir_tag_num), H (dir_type),
+# H (dir_elem_size), I (dir_num_elem), I (dir_data_size), I (dir_data_offset), I (dir_data_handle)
+_HEADER_STRUCT = struct.Struct('>4sH4sIHHIIII')
 
-
-@dataclass(frozen=True)
-class HIDElement:
-    """A single directory element from an HID/ABIF file."""
-
-    name: str
-    element_type: int
-    element_size: int
-    num_elements: int
-    data_offset: int
-    data_handle: int | None = None
-    data_size: int | None = None
-    tag_number: int | None = None
-    abif: str | None = None
+# ABIF Directory Entry (28 bytes total):
+# 4s (name), I (tag_num), H (elem_type), H (elem_size), I (num_elem),
+# I (data_size), I (data_offset), I (data_handle)
+_ENTRY_STRUCT = struct.Struct('>4sIHHIII')
 
 
-# ---------------------------------------------------------------------------
-# Low-level byte readers
-# ---------------------------------------------------------------------------
+def _is_valid_type(elem_type: int) -> bool:
+    return elem_type <= 19 or elem_type == 1024
 
 
-def _read_string(raw: bytes) -> str:
-    return raw.decode(encoding='utf-8')
+def _decode_entry(mem: memoryview, entry_offset: int, fields: tuple) -> tuple[str, object]:
+    """Decode one directory entry located at entry_offset into (key, value)."""
+    name_bytes, tag_num, elem_type, _, n_elem, data_size, elem_data_offset = fields
+
+    # Data <= 4 bytes is stored directly inside the data_offset field itself
+    data_start = entry_offset + 20 if data_size <= 4 else elem_data_offset
+
+    key = f'{name_bytes.decode("ascii", errors="replace")}_{tag_num}'
+    return key, _decode_element(mem[data_start : data_start + data_size], elem_type, n_elem)
 
 
-def _read_signed(raw: bytes) -> int:
-    return int.from_bytes(raw, byteorder='big', signed=True)
-
-
-def _read_unsigned(raw: bytes) -> int:
-    return int.from_bytes(raw, byteorder='big', signed=False)
-
-
-# ---------------------------------------------------------------------------
-# Parsing layers
-# ---------------------------------------------------------------------------
-
-
-def parse_hid_header(raw: bytes) -> HIDElement:
-    """Parse the ABIF file header."""
-    return HIDElement(
-        abif=_read_string(raw[0:4]),
-        name=_read_string(raw[6:10]),
-        element_type=_read_signed(raw[14:16]),
-        element_size=_read_signed(raw[16:18]),
-        num_elements=_read_signed(raw[18:22]),
-        data_offset=_read_signed(raw[26:30]),
-        data_handle=_read_signed(raw[30:34]),
-    )
-
-
-def parse_hid_directory(raw: bytes, header: HIDElement) -> list[HIDElement]:
-    """Parse all directory entries from the HID file."""
-    directory: list[HIDElement] = []
-    sup_19: list[HIDElement] = []
-    sup_19_raw: Mapping[str, int] = Counter()
-
-    for i in range(header.num_elements):
-        start = i * header.element_size + header.data_offset
-        entry = raw[start : start + header.element_size + 1]
-
-        elem_type = _read_signed(entry[8:10])
-        if elem_type <= 19 or elem_type == 1024:
-            directory.append(
-                HIDElement(
-                    name=_read_string(entry[0:4]),
-                    tag_number=_read_signed(entry[4:8]),
-                    element_type=elem_type,
-                    element_size=_read_signed(entry[10:12]),
-                    num_elements=_read_signed(entry[12:16]),
-                    data_size=_read_signed(entry[16:20]),
-                    data_offset=_read_signed(entry[20:24]),
-                )
-            )
+def parse_abif_bytes(raw: bytes) -> dict[str, object] | None:
+    """Parse an ABIF binary payload (HID or FSA)."""
+    if len(raw) < 128 or raw[:4] != b'ABIF':
+        if raw[:7] == b'version':
+            logger.error('Git LFS stub detected. Run `git lfs pull` to fetch real files.')
         else:
-            sup_19_raw[_read_string(entry[0:4])] += 1
+            logger.error('Not a valid ABIF file (missing ABIF magic bytes).')
+        return None
 
-    # Second pass: decode the more complex element types by scanning for
-    # their name bytes in the raw data.
-    for sup_name, count in sup_19_raw.items():
-        positions: list[int] = []
-        pos = 0
-        while True:
-            pos = raw.find(sup_name.encode(), pos + 1)
-            if pos == -1:
-                break
-            positions.append(pos)
+    _, _, _, _, _, elem_size, num_elements, _, data_offset, _ = _HEADER_STRUCT.unpack_from(raw, 0)
 
+    mem = memoryview(raw)
+    raw_len = len(raw)
+    result: dict[str, object] = {}
+    sup_19_counts: Counter[bytes] = Counter()
+
+    # Pass 1: regular directory entries. Entries with an unknown type are
+    # placeholders; their real entry lives elsewhere in the file.
+    for i in range(num_elements):
+        entry_offset = data_offset + i * elem_size
+        if entry_offset + 28 > raw_len:
+            break
+
+        fields = _ENTRY_STRUCT.unpack_from(raw, entry_offset)
+        if _is_valid_type(fields[2]):
+            key, value = _decode_entry(mem, entry_offset, fields)
+            result[key] = value
+        else:
+            sup_19_counts[fields[0]] += 1
+
+    # Pass 2: find the real entries for the placeholders (same heuristic as
+    # the original: first `count` occurrences of the name with a valid type).
+    for name_bytes, count in sup_19_counts.items():
         found = 0
-        for idx in positions:
-            if _is_valid_sup_19(idx, raw, sup_name) and found < count:
-                sup_19.append(
-                    HIDElement(
-                        name=sup_name,
-                        tag_number=_read_signed(raw[idx + 4 : idx + 8]),
-                        element_type=_read_signed(raw[idx + 8 : idx + 10]),
-                        element_size=_read_signed(raw[idx + 10 : idx + 12]),
-                        num_elements=_read_signed(raw[idx + 12 : idx + 16]),
-                        data_size=_read_signed(raw[idx + 16 : idx + 20]),
-                        data_offset=_read_signed(raw[idx + 20 : idx + 24]),
-                    )
-                )
-                found += 1
-
-    return directory + sup_19
-
-
-def parse_hid_data(
-    raw: bytes, header: HIDElement, directory: list[HIDElement]
-) -> dict[str, ElementValue | None]:
-    """Decode all data elements from the HID file."""
-    result: dict[str, ElementValue | None] = {}
-
-    for i, elem in enumerate(directory):
-        if elem.data_size and elem.data_size > 4:
-            offset = elem.data_offset
-        else:
-            offset = i * header.element_size + header.data_offset + 20
-
-        data_slice = raw[offset : offset + elem.num_elements * elem.element_size]
-        key = f'{elem.name}_{elem.tag_number}'
-
-        try:
-            result[key] = _parse_element(data_slice, elem.element_type, elem.num_elements)
-        except KeyError:
-            result[key] = None
-        except UnicodeError:
-            result[key] = None
+        pos = raw.find(name_bytes, 1)
+        while pos != -1 and found < count:
+            if pos + _ENTRY_STRUCT.size <= raw_len:
+                fields = _ENTRY_STRUCT.unpack_from(raw, pos)
+                if _is_valid_type(fields[2]):
+                    key, value = _decode_entry(mem, pos, fields)
+                    result[key] = value
+                    found += 1
+            pos = raw.find(name_bytes, pos + 1)
 
     return result
 
 
-def _parse_element(data: bytes, elem_type: int, n_elements: int) -> ElementValue:
-    """Decode a single element's bytes based on its type code."""
-    if elem_type == 1:
-        if n_elements == 1:
-            return int.from_bytes(data, byteorder='big', signed=True)
-        elif n_elements > 0:
-            return np.frombuffer(data, dtype=construct.Int32sb.fmtstr)
-    elif elem_type == 2:
-        return data.decode('utf-8')
-    elif elem_type in (3, 4):
-        dtype = construct.Int16ub.fmtstr if elem_type == 3 else construct.Int16sb.fmtstr
-        return np.frombuffer(data, dtype=dtype)
-    elif elem_type == 5:
-        if n_elements == 1:
-            return int.from_bytes(data, byteorder='big', signed=True)
-        elif n_elements > 0:
-            return np.frombuffer(data, dtype='>i', count=n_elements)
-    elif elem_type == 13:
-        value = int.from_bytes(data, byteorder='big', signed=False)
-        return 'true' if value == 1 else 'false'
-    elif elem_type == 19:
-        return data.decode('utf-8')
-    elif elem_type == 1024:
-        return data
+def _decode_element(data: memoryview, elem_type: int, n_elem: int) -> ElementValue | None:
+    """Decode an ABIF element payload directly into NumPy arrays or primitive types."""
+    if not data:
+        return None
+    match (elem_type, n_elem):
+        # Byte / int8
+        case (1, _):
+            return (
+                int.from_bytes(data, 'big', signed=True)
+                if n_elem == 1
+                else np.frombuffer(data, dtype='i')
+            )
+        # ASCII String
+        case (2, _):
+            return bytes(data).decode('utf-8', errors='replace')
+        # Word / uint16
+        case (3, _):
+            return np.frombuffer(data, dtype='H')
+        # Short / int16
+        case (4, _) | (1024, _):
+            return np.frombuffer(data, dtype='>i2')
+        # Long / int32
+        case (5, 1):
+            return int.from_bytes(data, 'big', signed=True)
+        # Long / int32
+        case (5, _):
+            return np.frombuffer(data, dtype='>i4')
+        # Float / float32
+        case (7, _):
+            return np.frombuffer(data, dtype='>f4')
+        # Double / float64
+        case (8, _):
+            return np.frombuffer(data, dtype='>f8')
+        # Boolean
+        case (13, _):
+            return 'true' if data[0] == 1 else 'false'
+        # pString / CString
+        case (18, _) | (19, _):
+            return bytes(data).decode('utf-8', errors='replace').rstrip('\x00')
 
-    raise KeyError(f'Parsing not implemented, element type {elem_type}')
+    return bytes(data)
 
 
-def _is_valid_sup_19(position: int, raw: bytes, name: str) -> bool:
-    """Check whether a byte position is a valid sup-19 directory entry."""
-    p = position
-    return (
-        _read_signed(raw[p + 8 : p + 10]) <= 19 or _read_signed(raw[p + 8 : p + 10]) == 1024
-    ) and _read_string(raw[p : p + 4]) == name
+def _ensure_array(val: ElementValue | None) -> np.ndarray:
+    """Safely convert raw bytes, memoryviews, or existing sequences into 1D int32 NumPy arrays."""
+    if val is None:
+        return np.array([], dtype=np.int32)
+    if isinstance(val, (bytes, memoryview)):
+        return np.frombuffer(val, dtype='h').astype(np.int32)
+    return np.asarray(val, dtype=np.int32)
 
 
 # ---------------------------------------------------------------------------
@@ -216,53 +168,31 @@ def _is_valid_sup_19(position: int, raw: bytes, name: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def parse_hid(path: PathLike) -> dict[str, ElementValue | None] | None:
-    """Parse a complete HID file and return all decoded elements.
-
-    Args:
-        path: Path to the HID file.
-
-    Returns:
-        Dictionary mapping element keys (e.g. ``"DATA_1"``) to their decoded
-        values, or ``None`` if the file cannot be read.
-    """
+def parse_hid(path: PathLike) -> dict[str, object] | None:
+    """Parse a complete HID or FSA file and return all decoded elements."""
     try:
         with open(path, 'rb') as f:
-            raw = f.read()
-
-        if raw[:4] != b'ABIF':
-            if raw[:7] == b'version':
-                logger.error(
-                    'Git LFS stub detected for {}: run `git lfs pull` to fetch the real file', path
-                )
-            else:
-                logger.error('Not a valid HID file (missing ABIF magic bytes): {}', path)
-            return None
-
-        header = parse_hid_header(raw)
-        directory = parse_hid_directory(raw, header)
-        return parse_hid_data(raw, header, directory)
+            return parse_abif_bytes(f.read())
     except PermissionError:
         logger.debug('Permission denied for file {}', path)
         return None
 
 
 def get_peak_data(
-    path: PathLike, scaling_strategy: ScalingStrategy, data_loading_strategy: str = 'superior'
+    path: PathLike,
+    scaling_strategy: ScalingStrategy,
+    data_loading_strategy: str = 'superior',
 ) -> np.ndarray | None:
-    """Extract dye channel data from an HID file.
+    """Extract dye channel data from an HID or FSA file.
 
     Args:
-        path: Path to the HID file.
-        scaling_strategy: Scaling strategy to use for scaling.
-        data_loading_strategy: Data loading strategy — one of:
-            - ``"raw"``: Raw unprocessed signal.
-            - ``"analyzed"``: Pre-analyzed signal from the instrument.
-            - ``"superior"``: Raw signal with superior baseline subtraction.
+        path: Path to the HID/FSA file.
+        scaling_strategy: Strategy containing STRKit channel configuration.
+        data_loading_strategy: Data loading strategy: 'raw', 'analyzed', or 'superior'.
 
     Returns:
-        Array of shape ``(6, N)`` containing RFU values for each dye channel
-        (5 fluorescence dyes + 1 size standard), or ``None`` on failure.
+        Array of shape (num_channels, N) containing RFU values for each dye channel,
+        or None on failure.
     """
     if data_loading_strategy not in ('raw', 'analyzed', 'superior'):
         raise ValueError(
@@ -284,7 +214,10 @@ def get_peak_data(
                 f'Kit {scaling_strategy.kit.name} does not support data loading strategy {data_loading_strategy}. '
                 f'Please specify the hid_file_data_columns in the STRKit configuration.'
             )
-        dyes = np.array([data[col] for col in columns], dtype=np.int32)
+
+        # Build 2D dye matrix safely regardless of input trace encoding
+        dyes = np.array([_ensure_array(data[col]) for col in columns], dtype=np.int32)
+
     except KeyError:
         data_keys = [k for k in data if k.startswith('DATA')]
         logger.warning(
