@@ -57,8 +57,9 @@ allele calls:
 ```python
 class AlleleCaller(ABC):
     @abstractmethod
-    def call_alleles(self, prediction: np.ndarray, panel: Panel, scaler: np.ndarray) -> list[Marker]:
-        ...
+    def call_alleles(
+        self, prediction: np.ndarray, panel: Panel, scaler: np.ndarray
+    ) -> list[Marker]: ...
 ```
 
 **`NearestBasePairCaller`** — The default implementation:
@@ -97,12 +98,12 @@ The `evaluation.visualization` module provides EPG plotting utilities:
 from dnanet.evaluation.visualization import plot_profile
 
 fig = plot_profile(
-    signal,                   # (num_dyes, signal_length) EPG signal
-    annotation=ann_mask,      # Optional: ground-truth annotation
-    prediction=pred_mask,     # Optional: model prediction overlay
-    title="Sample 1A2",
+    signal,  # (num_dyes, signal_length) EPG signal
+    annotation=ann_mask,  # Optional: ground-truth annotation
+    prediction=pred_mask,  # Optional: model prediction overlay
+    title='Sample 1A2',
 )
-fig.savefig("epg.png")
+fig.savefig('epg.png')
 ```
 
 This produces a multi-panel plot with one subplot per dye channel, showing

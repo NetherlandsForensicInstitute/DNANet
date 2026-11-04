@@ -148,7 +148,7 @@ Focuses training on hard examples by down-weighting well-classified samples.
 Used for classification tasks.
 
 ```python
-loss = -α * (1 - p_t)^γ * log(p_t)
+loss = -α * (1 - p_t) ^ γ * log(p_t)
 ```
 
 | Parameter | Default | Description |

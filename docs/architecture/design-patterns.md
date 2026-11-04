@@ -18,10 +18,12 @@ class ScalingStrategy(ABC):
     @abstractmethod
     def parse_size_standard(self, lane: np.ndarray) -> SizeStandardParseResult: ...
 
+
 class PowerPlexFusion6CStrategy(ScalingStrategy):
     def parse_size_standard(self, lane):
         # WEN ILS: find 19 peaks, validate pixel/bp ratio
         ...
+
 
 class GlobalFilerStrategy(ScalingStrategy):
     def parse_size_standard(self, lane):
@@ -63,12 +65,12 @@ loading any data.
 
 ```python
 image = HIDImage(
-    path="sample.hid",
+    path='sample.hid',
     scaling_strategy=scaling,
     dataset_strategy=dataset_strategy,
 )  # Instant: no I/O
-shape = image.data.shape              # First access: triggers full load
-shape2 = image.data.shape             # Cached: no re-load
+shape = image.data.shape  # First access: triggers full load
+shape2 = image.data.shape  # Cached: no re-load
 ```
 
 ## Template Method
@@ -87,7 +89,7 @@ class SegmentationModule(L.LightningModule):
         x, y = batch
         y_hat = self(x)
         loss = self.loss_fn(y_hat, y)
-        self.log("train/loss", loss)
+        self.log('train/loss', loss)
         return loss
 ```
 
@@ -103,6 +105,7 @@ need to know the internal wiring.
 ```python
 # One function call does everything
 from dnanet.tasks.train import run
+
 trainer, module = run(cfg)
 ```
 
@@ -117,7 +120,7 @@ transformer, collate function, and `DataLoader` construction:
 
 ```python
 datamodule = DNANetDataModule(dataset, batch_size=16)
-datamodule.setup("fit")
+datamodule.setup('fit')
 train_loader = datamodule.train_dataloader()
 ```
 

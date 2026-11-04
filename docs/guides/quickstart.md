@@ -71,18 +71,21 @@ from dnanet.tasks.train import run
 from dnanet.data import HIDDataset
 
 # Compose config
-with initialize(config_path="../conf"):
-    cfg = compose(config_name="config", overrides=[
-        "data=dnanet_rd",
-        "model=unet",
-        "training=segmentation",
-        "data.limit=50",
-    ])
+with initialize(config_path='../conf'):
+    cfg = compose(
+        config_name='config',
+        overrides=[
+            'data=dnanet_rd',
+            'model=unet',
+            'training=segmentation',
+            'data.limit=50',
+        ],
+    )
 
 # Load dataset
 dataset = HIDDataset(...)
-print(f"Loaded {len(dataset)} images")
-print(f"Shape: {dataset[0].data.shape}")  # (5, 4096)
+print(f'Loaded {len(dataset)} images')
+print(f'Shape: {dataset[0].data.shape}')  # (5, 4096)
 
 # Train
 trainer, module = run(cfg, dataset)
