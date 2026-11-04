@@ -27,7 +27,7 @@ jobs:
         run: pip install pdm
 
       - name: Install dependencies
-        run: pdm install -v
+        run: pdm sync --group :all
 
       - name: Run tests with coverage
         run: pdm run pytest --cov=dnanet --cov-report=term --cov-report=xml:coverage.xml
