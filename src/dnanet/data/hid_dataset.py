@@ -139,6 +139,9 @@ class HIDDataset(Dataset, TransformableDataset):
         allow_missing_annotations: bool = False,
         # When False, skip fingerprint validation and accept cache as-is.
         cache_validate: bool = True,
+        # Optional dict mapping source label indices to destination indices.
+        # Applied at read time before the transform. Absent/empty = no remap.
+        label_remap: dict[int, int] | None = None,
     ) -> None:
         super().__init__()
 
@@ -153,6 +156,7 @@ class HIDDataset(Dataset, TransformableDataset):
         self._scaling = scaling_strategy
         self._dataset_strategy = dataset_strategy
         self._default_panel = self._scaling.panel
+        self._label_remap = label_remap
 
         if adjustment_of_annotations and adjustment_of_annotations not in ('top', 'complete'):
             raise ValueError(
@@ -638,8 +642,46 @@ class HIDDataset(Dataset, TransformableDataset):
     def __getitem__(self, index: int) -> Any:
         image = self.get_image(index)
 
+        if self._label_remap is not None and image.annotation is not None:
+            image = self._remap_labels(image)
+
         if self._transform:
             return self._transform(image)
+        return image
+
+    # -- Label remapping --------------------------------------------------- #
+
+    def _remap_labels(self, image: HIDImage) -> HIDImage:
+        """Return a shallow-copy HIDImage with annotation labels remapped.
+
+        Unmapped source indices pass through unchanged.  The original image's
+        annotation array is never modified.
+
+        Args:
+            image: The HIDImage whose annotation should be remapped.
+
+        Returns:
+            A new HIDImage with a remapped :class:`ScanpointAnnotation`.
+        """
+        if image.annotation is None:
+            return image
+
+        assert self._label_remap is not None
+        original = image.annotation.data
+        remap = self._label_remap
+        remapped = np.vectorize(lambda v: remap.get(v, v), otypes=[original.dtype])(original)
+        image = HIDImage(
+            path=image.path,
+            scaling_strategy=self._scaling,
+            adjusted_panel=image.adjusted_panel,
+            include_size_standard=self.include_size_standard,
+            data_loading_strategy=self.data_loading_strategy,
+            allele_annotation=image.allele_annotation,
+            load_in_memory=False,
+        )
+        image._data = image._data
+        image._scaler = image._scaler
+        image.annotation = ScanpointAnnotation(data=remapped)
         return image
 
     # -- Internal helpers -------------------------------------------------- #

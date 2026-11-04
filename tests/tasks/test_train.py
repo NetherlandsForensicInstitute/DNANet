@@ -80,8 +80,9 @@ class TestBuildCallbacks:
             },
         )
         callbacks = _build_callbacks(cfg)
-        assert len(callbacks) == 1
+        assert len(callbacks) == 2
         assert type(callbacks[0]).__name__ == 'EarlyStopping'
+        assert type(callbacks[1]).__name__ == 'ResetEarlyStoppingOnResume'
 
     def test_checkpoint(self):
         cfg = _make_cfg(
@@ -110,7 +111,10 @@ class TestBuildCallbacks:
             },
         )
         callbacks = _build_callbacks(cfg)
-        assert len(callbacks) == 2
+        assert len(callbacks) == 3
+        assert type(callbacks[0]).__name__ == 'EarlyStopping'
+        assert type(callbacks[1]).__name__ == 'ResetEarlyStoppingOnResume'
+        assert type(callbacks[2]).__name__ == 'ModelCheckpoint'
 
     def test_configured_callbacks(self):
         cfg = _make_cfg(

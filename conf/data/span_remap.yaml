@@ -1,0 +1,40 @@
+# Span annotation dataset with label remap for 3-class fine-tuning.
+# Maps classes 3-11 (stutter, pull-up, bleed-through, spike, dye-blob, artefact,
+# unclear, shoulder, foreign-DNA, overloading) → 2 (merged artefact class).
+# Classes 0 (unlabeled) and 1 (allele) pass through unchanged.
+name: span_remap
+
+num_classes: 3
+# Dataset loading options
+dataset:
+  _target_: dnanet.data.hid_dataset.HIDDataset
+  root: data/2p_5p_Dataset_NFI
+  scaling_strategy:
+      _target_: dnanet.data.strategies.scaling.powerplex_fusion_6c.PowerPlexFusion6CStrategy
+      scanpoint_resolution: 4096
+  dataset_strategy:
+      _target_: dnanet.data.strategies.datasets.NFIRnDStrategy
+      annotation_type: span
+  limit: null
+  skip_if_invalid_ladder: true
+  allow_missing_annotations: false
+  include_size_standard: true
+  data_loading_strategy: superior
+  adjustment_of_annotations: top
+  transform: ${oc.select:model.data_transform_active,${oc.select:model.data_transform,null}}
+  load_in_memory: false
+  cache_dir: data/cache/span_remap
+  label_remap:
+    3: 2
+    4: 2
+    5: 2
+    6: 2
+    7: 2
+    8: 2
+    9: 2
+    10: 2
+    11: 2
+
+# splitting options
+stratify_noc: false
+group_by_replica: false
