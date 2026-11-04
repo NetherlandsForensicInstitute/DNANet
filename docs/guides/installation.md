@@ -36,7 +36,29 @@ project root. Two datasets are supported out of the box:
 
 ### NFI R&D Dataset (2p/5p)
 
-Place the dataset so the directory structure looks like:
+The dataset is hosted on Hugging Face:
+[`NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024`](https://huggingface.co/datasets/NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024).
+
+**Automatic download.** With the optional `hub` extra installed, `data=dnanet_rd`
+downloads the dataset into `data/2p_5p_Dataset_NFI` the first time it is
+missing or empty:
+
+```bash
+pip install 'dnanet[hub]'   # or: pdm install -G hub
+dnanet task=train data=dnanet_rd model=unet training=segmentation
+```
+
+Disable it with `data.dataset.hf_repo_id=null`, or pin a version with
+`data.dataset.hf_revision=<tag-or-commit>`.
+
+**Manual download.**
+
+```bash
+huggingface-cli download NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024 \
+    --repo-type dataset --local-dir data
+```
+
+Either way, the directory structure should look as follows:
 
 ```
 data/
@@ -72,4 +94,5 @@ data/
 | `mlflow` | Experiment tracking (default logger) |
 | `tensorboard` | Alternative experiment tracking |
 | `openpyxl` | Reading ProvedIt XLSX genotype files |
+| `huggingface-hub` | Auto-downloading the NFI R&D dataset (`hub` extra) |
 | `mkdocs` | Building documentation with Zensical |

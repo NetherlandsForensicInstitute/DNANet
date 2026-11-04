@@ -192,7 +192,7 @@ Master config: `conf/config.yaml` — Hydra merges selected groups at runtime.
 
 | Config key | Description |
 |------------|-------------|
-| `dnanet_rd` | NFI R&D internal dataset |
+| `dnanet_rd` | NFI R&D 2p-5p mixture dataset, auto-downloaded from [Hugging Face](https://huggingface.co/datasets/NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024) with the `hub` extra |
 | `provedit` | ProvedIT benchmark dataset |
 | `peaks_rd` | Pre-extracted peaks |
 
