@@ -46,6 +46,7 @@ nav = [
   ]},
   {"Tools" = [
     {"Labeltool" = "tools/labeltool"},
+    {"Synthetic Data" = "tools/synthetic-data"},
   ]},
 ]
 

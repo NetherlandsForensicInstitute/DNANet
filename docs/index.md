@@ -6,6 +6,14 @@ end-to-end pipelines for segmentation, classification, and reconstruction of
 Short Tandem Repeat (STR) profiles from `.hid` files produced by capillary
 electrophoresis instruments.
 
+## Components
+
+| Component | Entry point | Purpose |
+|-----------|-------------|---------|
+| **Machine learning** | `dnanet task=train\|evaluate\|cross_validate\|infer` | Train and evaluate models on `.hid` data, and call alleles with a trained checkpoint |
+| **Synthetic data** | `src/synthetic-profile-generation/` | Simulate DNA mixtures in R and generate realistic synthetic EPGs with a GAN, see [Synthetic Data](tools/synthetic-data.md) |
+| **Label tool** | `dnanet-label` | Interactive peak annotation and annotator comparison, see [Label Tool](tools/labeltool.md) |
+
 ## Key Features
 
 - **Modular architecture** — Clean separation between domain models, data
@@ -39,4 +47,10 @@ dnanet task=evaluate data=dnanet_rd model=unet checkpoint=outputs/.../checkpoint
 
 # 5-fold cross-validation
 dnanet task=cross_validate data=dnanet_rd model=unet training=segmentation
+
+# Call alleles with a trained model
+dnanet task=infer checkpoint=best.ckpt kit=PPF6C hid_profiles='["sample.HID"]'
+
+# Annotate profiles
+dnanet-label tools.user=Alice tools.filepath=annotations.csv
 ```
