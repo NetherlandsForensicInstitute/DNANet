@@ -5,12 +5,12 @@ This folder hosts the R-based pipeline for generating synthetic DNA profiles wit
 
 ## Dependencies
 - R (renv will install the required packages)
-- Panel file already in the repo at `resources/data/SGPanel_Globalfiler_Panel.xml`
+- Panel file already in the repo at `resources/kits/SGPanel_Globalfiler_Panel.xml`
 
 ## Setup (renv)
 From the repository root:
 ```bash
-cd synthetic-profile-generation/simulateDNA
+cd src/synthetic-profile-generation/simulateDNA
 Rscript -e "renv::restore()" --vanilla
 ```
 This restores the isolated `renv` environment using the committed `renv.lock` and installs the required packages (`simDNAmixtures`, `dplyr`, `xml2`).
@@ -18,17 +18,17 @@ This restores the isolated `renv` environment using the committed `renv.lock` an
 ## Run
 From the repository root (after setup/restore):
 ```bash
-cd synthetic-profile-generation/simulateDNA
+cd src/synthetic-profile-generation/simulateDNA
 
 # Optional: pass a custom suffix
-Rscript simulateMassProduceRandomParamsFixedTemplate.R example
+Rscript simulateDNA.R example
 ```
 
-Outputs land under `generated/generated_alleles_<suffix>` with EPG CSVs, reference genotypes, and a mapping file. If no suffix is provided, the script uses a timestamp (e.g., `generated_alleles_20240606_153012`). Paths are not resolved relative to the repo root, so the command only works from the above working directory.
+Outputs land under `src/synthetic-profile-generation/generated/generated_alleles_<suffix>` with EPG CSVs, reference genotypes, and a mapping file. If no suffix is provided, the script uses a timestamp (e.g., `generated_alleles_20240606_153012`). Paths are resolved relative to the `simulateDNA/` working directory, so the command only works from there.
 Each run also writes `run_parameters.json` into the output folder with the key parameters and RFU threshold.
 
 ## Tuning the generator (relevant section if you want to experiment with different settings)
-Common knobs live in `synthetic-profile-generation/simulateDNA/sim_helpers.R` (template ratio functions, degradation settings, default template amounts, output naming, panel lookup helpers). Adjust them there; the main script stays focused on orchestration.
+Common knobs live in `src/synthetic-profile-generation/simulateDNA/sim_helpers.R` (template ratio functions, degradation settings, default template amounts, output naming, panel lookup helpers). Adjust them there; the main script stays focused on orchestration.
 
 - **Detection threshold (RFU)**: `configure_global_filer()` sets `threshold_rfu`. We default to `15` as a middle ground: higher (e.g., ~80) misses many low-template peaks (allelic and artefactual), while very low (near 0) floods you with undetectable peaks and extra compute. Raise to be stricter, lower to keep more weak signals.
 - **Template ratios**: The four rule-based ratio generators in `get_template_ratio_functions()` were hand-picked to mimic ProvedIt-like patterns. Feel free to add/replace functions to explore other mixture ratios.
@@ -44,7 +44,7 @@ Common knobs live in `synthetic-profile-generation/simulateDNA/sim_helpers.R` (t
 
 # Part 2: Generating synthetic Electropherograms
 ## Generating synthetic EPGs
-You can turn simulated DNA profiles into realistic-looking electropherograms (EPGs) with `synthetic-profile-generation/generateEPG/generate.py`. The script takes peak heights and positions from the simulated CSVs, builds an idealized EPG with Gaussian-shaped peaks, and then passes it through the trained generator to add noise and realism.
+You can turn simulated DNA profiles into realistic-looking electropherograms (EPGs) with `src/synthetic-profile-generation/generateEPG/generate.py`. The script takes peak heights and positions from the simulated CSVs, builds an idealized EPG with Gaussian-shaped peaks, and then passes it through the trained generator to add noise and realism.
 
 ### Using tensorflow
 Environment note: `generate.py` has been verified with TensorFlow 2.14.0 (which is compatible with Python version <=3.11). Main project dependencies and Python version conflict with installing TF directly. Use a separate venv/conda env just for EPG generation, install `tensorflow==2.14.0` there, and run `python generate.py ...` from that env.
@@ -54,11 +54,11 @@ Model note: make sure to pull the h5 models with git lfs (https://git-lfs.com/) 
 
 Example of running `generate.py`:
 ```bash
-cd synthetic-profile-generation/generateEPG
+cd src/synthetic-profile-generation/generateEPG
 
 python generate.py --csv_dir='../generated/generated_alleles_example/epgs' --output_dir='../generated_epgs/1' --batch_size=64 --epg_shape 4000 5000 --std_dev 4
 ```
-The paths are evaluated in their relation from the location of the file, which is currently in [synthetic-profile-generation/generateEPG/](synthetic_profiles/generateEPG/). The script reads the CSV profiles in `--csv_dir`, writes `.npy` EPGs to `--output_dir`, processes in batches of 64, shapes each EPG to 6x5000, and uses a Gaussian std dev of 4 for the idealized peaks.
+The paths are evaluated in their relation from the location of the file, which is currently in [src/synthetic-profile-generation/generateEPG/](generateEPG/). The script reads the CSV profiles in `--csv_dir`, writes `.npy` EPGs to `--output_dir`, processes in batches of 64, shapes each EPG to 6x5000, and uses a Gaussian std dev of 4 for the idealized peaks.
 
 `--epg_shape` takes two ints: `scan_min` and `epg_length`. With `--epg_shape 4000 5000`, the code keeps scans from 4000 to 4000+5000 and maps them to a 5000-wide array. Let's relate this to a real EPG. Scan point 5000 of a real EPG would be mapped to position 1000 in the synthetic EPG, and points 3999 and 9001 in a normal EPG would fall out of bounds. The default values were chosen because no allelic peaks are expected to be found outside the range [4000, 9000] of a real EPG.
 
@@ -66,10 +66,10 @@ The paths are evaluated in their relation from the location of the file, which i
 
 ## Visualizing synthetic EPGs
 After you generate two sets of EPGs—one with the generator (default) and one without (`--no_generator`)—you can compare them side by side:
-1. Keep the outputs under [synthetic-profile-generation/generated_epgs/with_generator/epgs](synthetic_profiles/generated_epgs/with_generator/epgs) and [synthetic-profile-generation/generated_epgs/without_generator/epgs](synthetic_profiles/generated_epgs/without_generator/epgs) and don't change the path names!
+1. Keep the outputs under `src/synthetic-profile-generation/generated_epgs/with_generator/epgs` and `src/synthetic-profile-generation/generated_epgs/without_generator/epgs` and don't change the path names!
 2. Run:
    ```bash
-   cd synthetic_profiles
+   cd src/synthetic-profile-generation
 
    python generateEPG/generate.py --csv_dir='../generated/generated_alleles_example/epgs' \
     --output_dir='../generated_epgs/with_generator'

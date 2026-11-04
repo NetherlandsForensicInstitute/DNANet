@@ -25,11 +25,11 @@ cd src/synthetic-profile-generation/simulateDNA
 Rscript -e "renv::restore()" --vanilla
 
 # Optional argument: output suffix (default: timestamp)
-Rscript simulateMassProduceRandomParamsFixedTemplate.R example
+Rscript simulateDNA.R example
 ```
 
-Run it from this directory, paths are not resolved relative to the repo root.
-Output goes to `generated/generated_alleles_<suffix>/`: EPG CSVs, reference
+Run it from this directory, paths are resolved relative to it.
+Output goes to `src/synthetic-profile-generation/generated/generated_alleles_<suffix>/`: EPG CSVs, reference
 genotypes, a mapping file and `run_parameters.json`.
 
 Settings (detection threshold, template ratios, DNA amounts, degradation,

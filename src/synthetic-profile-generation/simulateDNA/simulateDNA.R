@@ -2,18 +2,21 @@ library(simDNAmixtures)
 library(dplyr)
 library(xml2)
 
-# File must be run from synthetic_profiles/ directory,
-# otherwise adjust the path to sim_helpers.R accordingly.
+# File must be run from the simulateDNA/ directory
+# (src/synthetic-profile-generation/simulateDNA), otherwise adjust the path
+# to sim_helpers.R accordingly.
 source("sim_helpers.R")
 
-# Repo root is the parent directory of synthetic_profiles
-repo_root <- normalizePath("../..")
+# Component root (src/synthetic-profile-generation), where outputs are written
+component_root <- normalizePath("..")
+# Repo root (contains resources/)
+repo_root <- normalizePath("../../..")
 
 # Allow caller to override the output directory suffix; default to timestamped folder
 args <- commandArgs(trailingOnly = TRUE)
 output_suffix <- if (length(args) >= 1 && nzchar(args[1])) args[1] else format(Sys.time(), "%Y%m%d_%H%M%S")
 output_dir_name <- sprintf("generated_alleles_%s", output_suffix)
-paths <- build_output_dirs(file.path(repo_root, "synthetic_profiles"), output_dir_name)
+paths <- build_output_dirs(component_root, output_dir_name)
 
 # Load allele frequencies
 allele_freqs_file <- system.file("extdata","FBI_extended_Cauc_022024.csv", package = "simDNAmixtures")
@@ -24,7 +27,7 @@ gf <- configure_global_filer(threshold_rfu)
 
 dye_map <- kits$GlobalFiler[, c("Marker", "Color")] %>% distinct(Marker, .keep_all = TRUE)
 size_standard_df <- gf_build_size_standard_df()
-panel_lookup <- build_panel_lookup(file.path(repo_root, "resources", "data", "SGPanel_Globalfiler_Panel.xml"))
+panel_lookup <- build_panel_lookup(file.path(repo_root, "resources", "kits", "SGPanel_Globalfiler_Panel.xml"))
 template_ratio_functions <- get_template_ratio_functions()
 
 sim_params <- get_simulation_params()
