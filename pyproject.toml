@@ -47,6 +47,9 @@ tools = [
 docs = [
     "zensical>=0.0.43",
 ]
+hub = [
+    "huggingface-hub>=0.30.0",
+]
 
 [project.scripts]
 dnanet = "dnanet.cli:main"
