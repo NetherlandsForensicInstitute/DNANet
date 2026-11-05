@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from dnanet.core.constants import LabelCategory
-from dnanet.tools.labeltool.tool import LabelTool, bp_to_scan, scan_to_bp
-from dnanet.tools.labeltool.visualization import get_peaks, add_initial_spans
+from dnanet.tools.dnannotator.tool import LabelTool, bp_to_scan, scan_to_bp
+from dnanet.tools.dnannotator.visualization import get_peaks, add_initial_spans
 
 
 # ---------------------------------------------------------------------------

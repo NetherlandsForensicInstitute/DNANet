@@ -8,12 +8,45 @@ persists annotations to CSV files.
 ## Quick Start
 
 ```bash
-# Annotate NFI R&D profiles
+pip install -e ".[tools]"
+
+# Annotate NFI R&D profiles (creates annotations.csv if it does not exist)
 dnanet-label tools.user=Alice tools.filepath=annotations.csv
 
-# Compare annotations from multiple annotators
-dnanet-label tools.user=Alice tools.filepath=annotations/ tools.compare=true
+# Annotate another dataset
+dnanet-label data=provedit tools.user=Alice tools.filepath=annotations.csv
+
+# Compare annotations from multiple annotators (folder of CSVs, read-only)
+dnanet-label tools.filepath=annotations/ tools.compare=true
 ```
+
+## Calling the tool
+
+`dnanet-label` is a [Hydra](https://hydra.cc) application. Arguments are
+`key=value` overrides on the master config plus `conf/tools/labeltool.yaml`,
+not `--flags`.
+
+| Override | Default | Description |
+|----------|---------|-------------|
+| `data=<name>` | `dnanet_rd` | Dataset config from `conf/data/` whose profiles are shown. The dataset is downloaded first if missing (see [Installation](../guides/installation.md)) |
+| `data.dataset.limit=<n>` | `null` | Only load the first `n` profiles |
+| `tools.user=<name>` | `Computer` | Annotator name stored in the CSV and used to filter existing annotations |
+| `tools.filepath=<path>` | `annotations.csv` | CSV file to read and write. In compare mode, a folder of CSVs |
+| `tools.compare=true` | `false` | Non-interactive view with all annotators stacked per dye channel |
+| `tools.params.min_rfu_peak_detection=<rfu>` | `200` | RFU threshold for automatic peak pre-marking; `null` disables it |
+| `tools.params.plot_allele_bins=<bool>` | `true` | Draw allele bin positions under each dye channel |
+
+Notes:
+
+- Profiles open one after another. Closing a window (or pressing **q**)
+  saves the annotations of that profile; **q** also stops the session.
+- Annotations are saved per `user` + profile. Re-annotating a profile
+  replaces your previous entries only, other annotators are untouched.
+- Profiles that already have annotations from `tools.user` are reloaded
+  instead of auto-detected, so a session can be resumed.
+- A folder as `tools.filepath` is only valid with `tools.compare=true`.
+- Interactive mode uses the `TkAgg` matplotlib backend, so Python needs
+  Tk (`tkinter`) support. Compare mode does not.
 
 ## Controls
 
@@ -21,10 +54,11 @@ dnanet-label tools.user=Alice tools.filepath=annotations/ tools.compare=true
 |--------|---------|
 | Draw new span | **Ctrl + Left-click drag** |
 | Delete span | Hover + **Delete** key |
-| Change category | Hover + **number key** (0-9, f, o) |
-| Select category | Click **radio button** panel |
+| Change category of span | Hover + **category key** (0-9, f, o) |
+| Select category for new spans | Click **radio button** panel or press category key |
 | Zoom | Standard matplotlib zoom (toolbar) |
-| Save | Automatic on **window close** |
+| Save and quit | **q** |
+| Save and next profile | Close the window |
 
 ## Category Keys
 
@@ -129,7 +163,7 @@ Compare mode shows multiple annotators' annotations stacked vertically
 within each dye channel, allowing visual comparison without interaction:
 
 ```bash
-dnanet-label -f annotations_folder/ -d dnanet_rd --compare
+dnanet-label data=dnanet_rd tools.filepath=annotations_folder/ tools.compare=true
 ```
 
 In compare mode, each annotator's spans are rendered as colored rectangles
