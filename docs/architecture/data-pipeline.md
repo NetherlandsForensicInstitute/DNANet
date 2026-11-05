@@ -83,11 +83,11 @@ invalidation, deduped sidecars, RAM guard, and the `cache-inspect` tool.
 
 ```python
 dataset = HIDDataset(
-    root="data/2p_5p_Dataset_NFI/Raw data .HID files",
+    root='data/2p_5p_Dataset_NFI/Raw data .HID files',
     scaling_strategy=scaling_strategy,
     dataset_strategy=dataset_strategy,
-    cache_dir="data/cache/dnanet_rd",
-    adjustment_of_annotations="complete",
+    cache_dir='data/cache/dnanet_rd',
+    adjustment_of_annotations='complete',
 )
 ```
 
@@ -107,12 +107,12 @@ The Lightning DataModule bridges the domain dataset to PyTorch:
 
 ```python
 datamodule = DNANetDataModule(
-    dataset=dataset,           # TransformableDataset (e.g. HIDDataset)
+    dataset=dataset,  # TransformableDataset (e.g. HIDDataset)
     batch_size=16,
     num_workers=0,
     shuffle_train=True,
-    val_fraction=0.2,          # 80/20 train/val split
-    seed=42,                   # via **split_kwargs → dataset_splitter()
+    val_fraction=0.2,  # 80/20 train/val split
+    seed=42,  # via **split_kwargs → dataset_splitter()
 )
 ```
 

@@ -100,3 +100,23 @@ class TestHIDDatasetIntegration:
         """Loading with annotation adjustment should not crash."""
         ds = _make_hid_dataset(adjustment_of_annotations='top')
         assert len(ds) >= 1
+
+
+class TestHuggingFaceDownload:
+    def test_downloads_when_repo_id_given(self, monkeypatch):
+        calls = []
+
+        def fake_ensure(root, repo_id, revision=None):
+            calls.append((str(root), repo_id, revision))
+            return root
+
+        monkeypatch.setattr('dnanet.data.hid_dataset.ensure_dataset', fake_ensure)
+        _make_hid_dataset(hf_repo_id='org/name', hf_revision='v1')
+        assert calls == [(str(RD_DIR), 'org/name', 'v1')]
+
+    def test_no_download_without_repo_id(self, monkeypatch):
+        def fail(*args, **kwargs):
+            raise AssertionError('should not download')
+
+        monkeypatch.setattr('dnanet.data.hid_dataset.ensure_dataset', fail)
+        _make_hid_dataset()

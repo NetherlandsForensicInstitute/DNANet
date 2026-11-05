@@ -63,13 +63,13 @@ annotation persistence:
 ```python
 from dnanet.tools.labeltool.annotations import AnnotationStore
 
-store = AnnotationStore("annotations.csv")
+store = AnnotationStore('annotations.csv')
 
 # Read all annotations grouped by profile
-spans = store.load_spans_by_profile(user="Alice")
+spans = store.load_spans_by_profile(user='Alice')
 
 # Save annotations (replaces previous entries for same user+profile)
-store.save_spans("sample1", spans_list, user="Alice", dye_names=dye_names)
+store.save_spans('sample1', spans_list, user='Alice', dye_names=dye_names)
 ```
 
 ### CSV Format
@@ -106,7 +106,7 @@ a linear mapping:
 ```python
 from dnanet.tools.labeltool.tool import scan_to_bp, bp_to_scan
 
-bp = scan_to_bp(2048)   # ≈ 270 bp (midpoint)
+bp = scan_to_bp(2048)  # ≈ 270 bp (midpoint)
 scan = bp_to_scan(200)  # ≈ 1349 scan points
 ```
 

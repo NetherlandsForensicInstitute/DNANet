@@ -11,6 +11,9 @@ The Netherlands Forensic Institute Research & Development dataset contains
 mixture profiles from 2 to 5 contributors, amplified with the PowerPlex
 Fusion 6C (PPF6C) kit.
 
+Available on [Hugging Face](https://huggingface.co/datasets/NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024)
+and downloaded automatically when missing; see [Installation](installation.md#data-setup).
+
 **Statistics:**
 - 350 sample HID files (87×2p, 87×3p, 88×4p, 86×5p contributors)
 - 72 ladder files

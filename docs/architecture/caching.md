@@ -92,9 +92,9 @@ cross-process pickling.
 
 ```python
 reader = MemmapCacheReader(cache_dir)
-index  = reader.load_index()              # small: paths + int keys only
-data, ann, scaler = reader.get_row(42)    # opens memmaps lazily, slices one row
-panel_js  = reader.panel_json(entry.panel_key)
+index = reader.load_index()  # small: paths + int keys only
+data, ann, scaler = reader.get_row(42)  # opens memmaps lazily, slices one row
+panel_js = reader.panel_json(entry.panel_key)
 allele_js = reader.allele_json(entry.allele_key)
 ```
 
@@ -109,7 +109,7 @@ a descriptive `RuntimeError` instead of silently triggering OOM.
 ```python
 HIDDataset(
     ...,
-    load_in_memory=True,   # copy memmaps into RAM after cache load
+    load_in_memory=True,  # copy memmaps into RAM after cache load
 )
 # RuntimeError: load_in_memory=True refused: cache would use 42.3 GB,
 #   exceeds 50% of total RAM (64.0 GB). Set load_in_memory=False.
@@ -164,11 +164,11 @@ Typical output:
 
 ```python
 from dnanet.data.cache import (
-    IndexEntry,            # frozen dataclass: row, path, has_annotation, panel_key, allele_key, meta_json
+    IndexEntry,  # frozen dataclass: row, path, has_annotation, panel_key, allele_key, meta_json
     MemmapCacheReader,
     MemmapCacheWriter,
-    compute_key,           # 16-char config hash → cache dir name
-    compute_fingerprint,   # config + source stamps → SHA256 dict
+    compute_key,  # 16-char config hash → cache dir name
+    compute_fingerprint,  # config + source stamps → SHA256 dict
     validate_fingerprint,
     is_complete,
     cache_key_dir,

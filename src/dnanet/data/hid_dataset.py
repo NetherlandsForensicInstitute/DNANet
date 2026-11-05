@@ -46,6 +46,7 @@ from dnanet.data.cache import (
 )
 from dnanet.data.image import HIDImage
 from dnanet.data.dataset import TransformableDataset
+from dnanet.data.download import ensure_dataset
 from dnanet.core.constants import LabelCategory
 from dnanet.core.annotation import SpanAnnotation, AlleleAnnotation, ScanpointAnnotation
 from dnanet.data.ladders.ladder import Ladder
@@ -139,10 +140,15 @@ class HIDDataset(Dataset, TransformableDataset):
         allow_missing_annotations: bool = False,
         # When False, skip fingerprint validation and accept cache as-is.
         cache_validate: bool = True,
+        # When set and ``root`` is missing/empty, download it from this HF dataset repo.
+        hf_repo_id: str | None = None,
+        hf_revision: str | None = None,
     ) -> None:
         super().__init__()
 
         self.root = Path(root)
+        if hf_repo_id is not None:
+            ensure_dataset(self.root, hf_repo_id, revision=hf_revision)
         self.adjustment_of_annotations = adjustment_of_annotations
         self.skip_if_invalid_ladder = skip_if_invalid_ladder
         self.include_size_standard = include_size_standard

@@ -126,7 +126,11 @@ from dnanet.data.preprocessing.baseline import (
 Abstract base for kit-specific base-pair calibration.
 
 ```python
-from dnanet.data.strategies.scaling import ScalingStrategy, PowerPlexFusion6CStrategy, GlobalFilerStrategy
+from dnanet.data.strategies.scaling import (
+    ScalingStrategy,
+    PowerPlexFusion6CStrategy,
+    GlobalFilerStrategy,
+)
 ```
 
 **Concrete implementations:**
