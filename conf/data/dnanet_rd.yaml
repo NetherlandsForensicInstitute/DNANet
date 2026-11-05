@@ -21,7 +21,7 @@ dataset:
   transform: ${oc.select:model.data_transform_active,${oc.select:model.data_transform,null}}  # get transform from training/evaluation task, or null if not defined
   load_in_memory: false
   cache_dir: data/cache/dnanet_rd
-  # Downloaded from Hugging Face when `root` is missing (needs `pip install 'dnanet[hub]'`); set to null to disable
+  # Downloaded from Hugging Face when `root` does not yet exist (needs `pip install 'dnanet[hub]'`); set `hf_repo_id` to null to disable
   hf_repo_id: NetherlandsForensicInstitute/DNANet_2p5pMixture_PPF6C_2024
   hf_revision: null
 
