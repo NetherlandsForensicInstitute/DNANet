@@ -12,7 +12,7 @@ electrophoresis instruments.
 |-----------|-------------|---------|
 | **Machine learning** | `dnanet task=train\|evaluate\|cross_validate\|infer` | Train and evaluate models on `.hid` data, and call alleles with a trained checkpoint |
 | **Synthetic data** | `src/synthetic-profile-generation/` | Simulate DNA mixtures in R and generate realistic synthetic EPGs with a GAN, see [Synthetic Data](tools/synthetic-data.md) |
-| **Label tool** | `dnanet-label` | Interactive peak annotation and annotator comparison, see [Label Tool](tools/labeltool.md) |
+| **DNAnnotator** | `dnanet-label` | Interactive peak annotation and annotator comparison, see [DNAnnotator](tools/DNAnnotator.md) |
 
 ## Key Features
 

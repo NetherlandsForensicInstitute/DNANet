@@ -23,9 +23,9 @@ DNANet consists of three components:
 | **Label tool** | `dnanet-label` | Interactive matplotlib UI to annotate peaks (Allele, Stutter, PullUp, ...) and compare annotators, stored as CSV |
 
 Machine learning is the main Python package. The synthetic data pipeline is a
-standalone folder with its own R and TensorFlow environments. The label tool
+standalone folder with its own R and TensorFlow environments. The DNAnnotator
 ships with the package. See the [synthetic data](docs/tools/synthetic-data.md)
-and [label tool](docs/tools/labeltool.md) documentation.
+and [DNAnnotator](docs/tools/DNAnnotator.md) documentation.
 
 If you find this repository useful, please cite
 ```bibtex
@@ -119,7 +119,7 @@ src/dnanet/
 │   ├── callbacks.py        # Lightning callbacks for evaluation
 │   └── visualization.py    # EPG plotting
 ├── tools/                  # CLI tools
-│   └── labeltool/          # Interactive annotation tool (dnanet-label)
+│   └── dnannotator/          # Interactive annotation tool (dnanet-label)
 └── logging.py              # Loguru configuration
 ```
 
@@ -210,7 +210,7 @@ dnanet-label tools.filepath=annotations/ tools.compare=true
 Arguments are Hydra overrides (`data=`, `tools.*`), not `--flags`. Key controls:
 **Ctrl+drag** draws a span, **0-9/f/o** sets the category of the hovered span,
 **Delete** removes it, **q** saves and quits. Requires Tk (`tkinter`) for the
-interactive window. Full reference: [docs/tools/labeltool.md](docs/tools/labeltool.md).
+interactive window. Full reference: [docs/tools/DNAnnotator.md](docs/tools/DNAnnotator.md).
 
 ## Configuration
 

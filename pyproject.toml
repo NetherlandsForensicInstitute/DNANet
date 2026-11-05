@@ -52,7 +52,7 @@ hub = [
 
 [project.scripts]
 dnanet = "dnanet.cli:main"
-dnanet-label = "dnanet.tools.labeltool:main"
+dnanet-label = "dnanet.tools.dnannotator:main"
 
 [build-system]
 requires = ["hatchling"]

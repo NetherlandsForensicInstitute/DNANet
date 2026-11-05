@@ -16,7 +16,7 @@ from scipy.signal import find_peaks
 from matplotlib.ticker import FixedLocator, FuncFormatter
 from matplotlib.patches import Rectangle
 
-from dnanet.tools.labeltool.tool import bp_to_scan, scan_to_bp
+from dnanet.tools.dnannotator.tool import bp_to_scan, scan_to_bp
 
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
     from dnanet.data import HIDDataset
     from dnanet.data.image import HIDImage
-    from dnanet.tools.labeltool.interactivity import Interactivity
+    from dnanet.tools.dnannotator.interactivity import Interactivity
 
 # Canonical dye channel names used in CSV annotation files.
 # These are fixed identifiers (NOT the same as plot colors from the scaling

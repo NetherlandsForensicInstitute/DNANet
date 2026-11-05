@@ -117,7 +117,7 @@ HIDDataset(
 
 ## Nullable annotations (`allow_missing_annotations=True`)
 
-Evaluation and labeltool workflows need to read HIDs that have no annotation
+Evaluation and DNAnnotator workflows need to read HIDs that have no annotation
 attached. When `allow_missing_annotations=True`, the cache build keeps rows
 whose `annotation` is `None`: the writer stores a zero-filled placeholder in
 `annotation.bin` (to keep the memmap uniform) and records `has_annotation:
