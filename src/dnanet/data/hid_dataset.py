@@ -136,7 +136,7 @@ class HIDDataset(Dataset, TransformableDataset):
         transform: TransformDataCallable | None = None,
         # When True, the cache is fully realized into RAM after build/load.
         load_in_memory: bool = False,
-        # When True, HIDs without annotations are still cached (for eval/labeltool).
+        # When True, HIDs without annotations are still cached (for eval/DNAnnotator).
         allow_missing_annotations: bool = False,
         # When False, skip fingerprint validation and accept cache as-is.
         cache_validate: bool = True,

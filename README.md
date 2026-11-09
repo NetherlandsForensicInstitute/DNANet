@@ -12,6 +12,21 @@ Developed at the Netherlands Forensic Institute (NFI).
 This a Python repository that can be used to analyze DNA profiles using deep learning. It contains functionality to parse .hid files and train and
 evaluate models. The pre-trained U-Net provided can be used to call alleles in a DNA profile.
 
+## Components
+
+DNANet consists of three components:
+
+| Component | Location / entry point | What it does |
+|-----------|------------------------|--------------|
+| **Machine learning** | `dnanet task=train\|evaluate\|cross_validate\|infer` | Train, evaluate and cross-validate deep learning models (U-Net, PeakNet, autoencoders) on `.hid` data, and call alleles in new profiles with a trained checkpoint |
+| **Synthetic data** | [`src/synthetic-profile-generation/`](src/synthetic-profile-generation/README.md) | Two-step pipeline: simulate DNA mixtures in R (`simDNAmixtures`), then turn them into realistic synthetic EPGs with a GAN-based generator (TensorFlow) |
+| **Label tool** | `dnanet-label` | Interactive matplotlib UI to annotate peaks (Allele, Stutter, PullUp, ...) and compare annotators, stored as CSV |
+
+Machine learning is the main Python package. The synthetic data pipeline is a
+standalone folder with its own R and TensorFlow environments. The DNAnnotator
+ships with the package. See the [synthetic data](docs/tools/synthetic-data.md)
+and [DNAnnotator](docs/tools/DNAnnotator.md) documentation.
+
 If you find this repository useful, please cite
 ```bibtex
 @ARTICLE{Benschop2019,
@@ -26,7 +41,7 @@ If you find this repository useful, please cite
       year      =  2019,
     }
 ```
-for the data, and
+for the R&D data, and
 ```bibtex
 @ARTICLE{de-Wit2025,
     title = {Making AI accessible for forensic DNA profile analysis},
@@ -47,7 +62,7 @@ for the data, and
 for the code and model.
 
 For work related to the Data synthetization please cite the following:
-```
+```bibtex
 @ARTICLE{Taylor2025,
     title = {Simulating realistic short tandem repeat capillary electrophoretic signal using a generative adversarial network},
     journal = {Expert Systems with Applications},
@@ -58,6 +73,19 @@ For work related to the Data synthetization please cite the following:
     author = {D. A. Taylor and M. Humphries}
 }
 ```
+
+When using the DNAnnotator for annotating DNA profiles, please cite:
+```bibtex
+@MISC{Sexton,
+    title = {DNAnnotator: A Labelling Tool for the Generation of Annotated DNA Profile Datasets},
+    author = {K. Sexton and C. Cammareri and D. van Dijk and F. E. Duijs and L. Robles de Medina and B. Hoegen and C. C. G. Benschop and R. J. F. Ypma},
+    howpublished = {SSRN},
+    year = {2026},
+    doi = {https://dx.doi.org/10.2139/ssrn.7537007},
+    url = {https://ssrn.com/abstract=7537007}
+}
+```
+
 
 ## Capabilities
 
@@ -104,7 +132,7 @@ src/dnanet/
 │   ├── callbacks.py        # Lightning callbacks for evaluation
 │   └── visualization.py    # EPG plotting
 ├── tools/                  # CLI tools
-│   └── labeltool/          # Interactive annotation tool (dnanet-label)
+│   └── dnannotator/          # Interactive annotation tool (dnanet-label)
 └── logging.py              # Loguru configuration
 ```
 
@@ -168,9 +196,34 @@ dnanet task=cross_validate data=dnanet_rd model=unet
 # Override any config from CLI
 dnanet task=train data=dnanet_rd model=unet training.learning_rate=0.0001 training.batch_size=32
 
-# Interactive annotation tool
-dnanet-label
+# Call alleles in new profiles with a trained model
+dnanet task=infer checkpoint=outputs/.../best.ckpt kit=PPF6C hid_profiles='["sample.HID"]'
+
+# Interactive annotation tool (see "Label tool" below)
+dnanet-label tools.user=Alice tools.filepath=annotations.csv
 ```
+
+### Label tool
+
+`dnanet-label` opens one profile at a time in an interactive window, pre-marks
+detected peaks, and lets you assign a category to each span. Annotations are
+appended to a CSV file when you close the window.
+
+```bash
+# Annotate (creates annotations.csv if missing)
+dnanet-label tools.user=Alice tools.filepath=annotations.csv
+
+# Annotate another dataset
+dnanet-label data=provedit tools.user=Alice tools.filepath=annotations.csv
+
+# Compare annotators: folder of CSVs, read-only
+dnanet-label tools.filepath=annotations/ tools.compare=true
+```
+
+Arguments are Hydra overrides (`data=`, `tools.*`), not `--flags`. Key controls:
+**Ctrl+drag** draws a span, **0-9/f/o** sets the category of the hovered span,
+**Delete** removes it, **q** saves and quits. Requires Tk (`tkinter`) for the
+interactive window. Full reference: [docs/tools/DNAnnotator.md](docs/tools/DNAnnotator.md).
 
 ## Configuration
 

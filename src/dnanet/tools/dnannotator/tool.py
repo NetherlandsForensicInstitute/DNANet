@@ -25,7 +25,7 @@ from matplotlib.ticker import FixedLocator
 from matplotlib.widgets import MultiCursor, RadioButtons
 
 from dnanet.core.constants import LabelCategory
-from dnanet.tools.labeltool.interactivity import Interactivity
+from dnanet.tools.dnannotator.interactivity import Interactivity
 
 
 if TYPE_CHECKING:
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from matplotlib.figure import Figure
     from matplotlib.collections import PolyCollection
 
-    from dnanet.tools.labeltool.annotations import AnnotationStore
+    from dnanet.tools.dnannotator.annotations import AnnotationStore
 
 
 # Linear scan-to-bp conversion constants (default for 4096-point profiles)

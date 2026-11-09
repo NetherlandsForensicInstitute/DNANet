@@ -18,9 +18,9 @@ from hydra import compose, initialize_config_dir
 from loguru import logger
 from hydra.utils import instantiate
 
-from dnanet.tools.labeltool.tool import LabelTool
-from dnanet.tools.labeltool.annotations import AnnotationStore
-from dnanet.tools.labeltool.visualization import plot_profile_interactive
+from dnanet.tools.dnannotator.tool import LabelTool
+from dnanet.tools.dnannotator.annotations import AnnotationStore
+from dnanet.tools.dnannotator.visualization import plot_profile_interactive
 
 
 if TYPE_CHECKING:

@@ -65,7 +65,7 @@ jobs:
         run: pip install pdm
 
       - name: Install dependencies
-        run: pdm install -v
+        run: pdm sync --group :all
 
       - name: Check formatting
         run: pdm run ruff format --check

@@ -4,7 +4,7 @@ import csv
 
 import pytest
 
-from dnanet.tools.labeltool.annotations import (
+from dnanet.tools.dnannotator.annotations import (
     HEADER,
     LABELTOOL_VERSION,
     AnnotationStore,
