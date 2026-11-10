@@ -2,8 +2,10 @@
 
 Usage::
 
-    dnanet-label -u Alice -f annotations.csv -d dnanet_rd
-    dnanet-label -u Alice -f annotations/ -d dnanet_rd --compare
+    dnanet-label data=dnanet_rd tools.user=Alice tools.filepath=annotations.csv
+    dnanet-label data=dnanet_rd tools.user=Alice tools.filepath=annotations/ tools.compare=true
+
+For further information checkout the documentation at dnanet.readthedocs.io
 """
 
 from __future__ import annotations
